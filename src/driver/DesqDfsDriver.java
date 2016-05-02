@@ -3,6 +3,8 @@ package driver;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import com.google.common.base.Stopwatch;
 
@@ -23,20 +25,20 @@ public class DesqDfsDriver {
 
 	// Timers
 	public static Stopwatch totalTime = Stopwatch.createUnstarted();
+	public static Stopwatch fstTime = Stopwatch.createUnstarted();
 	
-	/** <input> <output> <pattern> <support> <logfile> <writeOutput:0/1> <useflist: 0/1> <method id: 0/1>
-	 * @throws Exception */
-	public static void main(String[] args) throws Exception {
-		System.out.println("DESQ-DFS : " + Arrays.toString(args));
-		String input = args[0];
-		String output = args[1];
-		String patternExpression = args[2];
+	private static Logger logger = Logger.getLogger(DesqDfsDriver.class.getSimpleName());
+	
+	public static void run(DesqConfig conf) throws Exception {
+		String input = conf.getEncodedSequencesPath();
+		String output = conf.getOutputSequencesPath();
+		String patternExpression = conf.getPatternExpression();
 		patternExpression = ".*[" + patternExpression.trim() + "]";
-		int support = Integer.parseInt(args[3]);
-		String logfile = args[4];
-		boolean writeOutput = (args[5].equals("0")) ? false : true;
-		boolean useFlist = (args[6].equals("0")) ? false : true;
-		int method = Integer.parseInt(args[7]);
+		int support = conf.getSigma();
+		
+		boolean writeOutput = conf.isWriteOutput();
+		boolean useFlist = conf.isUseFlist();
+	
 		
 		String sequenceFile = input.concat("/raw/part-r-00000");
 		String dictionaryFile = input.concat("/wc/part-r-00000");
@@ -53,50 +55,35 @@ public class DesqDfsDriver {
 			writer.setOutputPath(output);
 		}	
 			
-		System.out.println("Pattern expression: " + patternExpression);
-		System.out.println("Support threshold: " + support);
 		
+		logger.log(Level.INFO, "Parsing pattern expression and generating FST");
+		fstTime.start();
 		
 		PatEx ex = new PatEx(patternExpression);
 		
 		// Generate cFST
 		Fst cFst = ex.translateToFst();
-		//cFst.minimize();
+		cFst.minimize();
 		
 				
 		// Generate optimized cFst
 		XFst xFst = cFst.optimizeForExecution();
 		
-		xFst.print("/home/kbeedkar/temp/toy");
+		logger.log(Level.INFO, "Took "+ fstTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
 		
-		DesqDfs dd = null;
+		logger.log(Level.INFO, "Mining P-frequent sequences...");
 		
-		if(method == 1) {
-			
-		}
-		else if(method == 0) {
-			dd = new DfsOnePass(support, xFst, writeOutput);
-		}
-
+		DesqDfs dd = new DfsOnePass(support, xFst, writeOutput);
+		
+		
 		totalTime.start();
 		
 		dd.scan(sequenceFile);
 		dd.mine();
 
 		totalTime.stop();
-		
-		// Write stats to log file
-		LogWriter lwriter = LogWriter.getInstance();
-		lwriter.setOutputPath(logfile);
-		String s = null;
-		s = dd.getClass().getSimpleName()
-				+ "\t" + patternExpression
-				+ "\t" + support
-				+ "\t" + totalTime.elapsed(TimeUnit.SECONDS)
-				+ "\t" + dd.noPatterns();
-		lwriter.write(s);
-			
-		
+
+		logger.log(Level.INFO, "Took " + totalTime.elapsed(TimeUnit.SECONDS) +"s");
 	}
 
 }

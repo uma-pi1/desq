@@ -1,6 +1,6 @@
 package mining;
 
-import driver.DesqCountDriver;
+
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import fst.OutputLabel;
@@ -21,12 +21,8 @@ public class OnePassRecursive extends DesqCount {
 
 	@Override
 	protected void computeMatch() {
-		DesqCountDriver.forwardPassTime.start();
-		
 		buffer.clear();
 		step(0, xfst.getInitialState());
-		
-		DesqCountDriver.forwardPassTime.stop();
 	}
 
 	private void step(int pos, int state) {
