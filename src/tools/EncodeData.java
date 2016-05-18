@@ -263,10 +263,10 @@ public class EncodeData {
 				boolean first = true;
 				for (int pid : parentIds) {
 					if (first) {
-						bw.write(String.valueOf(pid));
+						bw.write(String.valueOf(fids.get(pid)));
 						first = false;
 					} else {
-						bw.write(", " + String.valueOf(pid));
+						bw.write(", " + String.valueOf(fids.get(pid)));
 					}
 				}
 			}
