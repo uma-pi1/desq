@@ -33,6 +33,9 @@ public class DfsOnePass extends DesqDfs {
 	// depth of the search tree
 	private int dfsLevel = 0;
 
+	// Hash sets used for eps labels
+	IntOpenHashSet currentStateSet = new IntOpenHashSet();
+	IntOpenHashSet nextStateSet = new IntOpenHashSet();
 	
 	public DfsOnePass(int sigma, XFst xfst, boolean writeOutput) {
 		super(sigma, xfst, writeOutput);
@@ -130,7 +133,7 @@ public class DfsOnePass extends DesqDfs {
 	// Simulates cFST until node is expanded by one item(s)
 	private void incStep(int sId, int pos, int state, Node node) {
 
-		reachedFinalState |= xfst.isFinalState(state);
+/*		reachedFinalState |= xfst.isFinalState(state);
 		
 		if (pos == sequenceBuffer.length) {
 			return;
@@ -175,7 +178,64 @@ public class DfsOnePass extends DesqDfs {
 					}
 				}
 			}
+		}*/
+		reachedFinalState |= xfst.isFinalState(state);
+		boolean eps = true;
+		currentStateSet.clear();
+		currentStateSet.add(state);
+		while (pos < sequenceBuffer.length) {
+			int itemId = sequenceBuffer[pos];
+
+			for (int s : currentStateSet) {
+				if (xfst.hasOutgoingTransition(s, itemId)) {
+					for (int tId = 0; tId < xfst.numTransitions(s); ++tId) {
+						if (xfst.canStep(itemId, s, tId)) {
+							int toState = xfst.getToState(s, tId);
+							OutputLabel olabel = xfst.getOutputLabel(s, tId);
+
+							switch (olabel.type) {
+							case EPSILON:
+								// incStep(sId, pos + 1, toState, node);
+								eps = true;
+								nextStateSet.add(toState);
+								reachedFinalState |= xfst.isFinalState(toState);
+								break;
+
+							case CONSTANT:
+								int outputItemId = olabel.item;
+								if (flist[outputItemId] >= sigma) {
+									node.append(outputItemId, sId, pos + 1, toState);
+								}
+								break;
+
+							case SELF:
+								if (flist[itemId] >= sigma) {
+									node.append(itemId, sId, pos + 1, toState);
+								}
+								break;
+
+							case SELFGENERALIZE:
+								for (int id : getParents(itemId, olabel.item)) {
+									if (flist[id] >= sigma) {
+										node.append(id, sId, pos + 1, toState);
+									}
+								}
+								break;
+
+							default:
+								break;
+							}
+						}
+					}
+				}
+			}
+			if (eps) {
+				currentStateSet = nextStateSet.clone();
+				nextStateSet.clear();
+				pos = pos + 1;
+			}
 		}
+
 	}
 
 	/**
