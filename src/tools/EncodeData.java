@@ -27,7 +27,7 @@ import driver.DesqConfig;
 public class EncodeData {
 
 	private static final Logger logger = Logger.getLogger(EncodeData.class.getName());
-
+	
 	DirectedGraph hierarchy = new DirectedGraph();
 	Object2IntOpenHashMap<String> ids = new Object2IntOpenHashMap<String>();
 	Int2ObjectOpenHashMap<String> names = new Int2ObjectOpenHashMap<String>();
@@ -225,7 +225,16 @@ public class EncodeData {
 
 			@Override
 			public int compare(Integer t, Integer u) {
-				return dfs.get(u) - dfs.get(t);
+				int ret = 0;
+				try{
+					ret = dfs.get(u) - dfs.get(t); 
+				} catch(Exception e){
+					logger.log(Level.SEVERE, "Item in the hierarchy does not exists in input sequences");
+					logger.log(Level.INFO, "caused by " + names.get(u) + " or " + names.get(t));
+					logger.log(Level.SEVERE, "Aborting");
+					System.exit(-1);
+				}
+				return ret; 
 			}
 		});
 
@@ -288,6 +297,7 @@ public class EncodeData {
 	}
 
 	public static void main(String[] args) throws IOException {
+		System.setProperty("java.util.logging.SimpleFormatter.format", "%4$s: %5$s [%1$tc]%n");
 		if(args.length < 3) {
 			logger.log(Level.WARNING, "incorrect argmuments");
 			logger.log(Level.INFO, "usage: <path/to/sequences/> <path/to/hierarchy-file> </path/to/encoded-input/>");

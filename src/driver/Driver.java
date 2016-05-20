@@ -153,6 +153,7 @@ public class Driver {
 	}
 	
 	public static void main(String[] args) throws Exception {
+		System.setProperty("java.util.logging.SimpleFormatter.format", "%4$s: %5$s [%1$tc]%n");
 		Driver driver = new Driver(args);
 		driver.parseArgs();
 		driver.run();
