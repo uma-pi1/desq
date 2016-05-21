@@ -11,6 +11,7 @@ import com.google.common.base.Stopwatch;
 
 import patex.PatEx;
 import mining.DesqCount;
+import mining.OnePassIterative;
 //import mining.OnePassIterative;
 import mining.OnePassRecursive;
 //import mining.TwoPass;
@@ -74,7 +75,8 @@ public class DesqCountDriver {
 		
 		logger.log(Level.INFO, "Mining P-frequent sequences...");
 		
-		DesqCount dc = new OnePassRecursive(support, xFst, writeOutput, useFlist);
+		//DesqCount dc = new OnePassRecursive(support, xFst, writeOutput, useFlist);
+		DesqCount dc = new OnePassIterative(support, xFst, writeOutput, useFlist);
 		
 		totalTime.start();
 		
