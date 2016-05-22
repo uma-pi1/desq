@@ -2,112 +2,125 @@ package mining;
 
 //import java.util.Arrays;
 
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import java.util.Arrays;
+
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import fst.OutputLabel;
 import fst.XFst;
 
 public class OnePassIterative extends DesqCount {
-	
+
 	// Buffer to store output sequences
 	IntArrayList buffer = new IntArrayList();
 
 	// Hashset to store ancestors
 	IntOpenHashSet tempAnc = new IntOpenHashSet();
-	
+
 	int pos = 0;
-	
+
 	int numStates = 0;
-	
-	class Suffix {
-		IntOpenHashSet items = new IntOpenHashSet();
-		Suffix prefix = null;
-	
-		Suffix(boolean init) {
-			if(init){
-				items.add(-1);
-			}
+
+	int initialState = 0;
+
+	class Node {
+		int item;
+
+		ObjectArrayList<Node> prefixes;
+
+		Node(int item, ObjectArrayList<Node> suffixes) {
+			this.item = item;
+			this.prefixes = suffixes;
 		}
 	}
-	
-	Int2ObjectOpenHashMap<Suffix> stateSuffixMap;
-			
+
+	ObjectArrayList<Node>[] statePrefix;
+	int[] stateList;
+	int stateListSize = 0;
+
+	@SuppressWarnings("unchecked")
 	public OnePassIterative(int sigma, XFst xfst, boolean writeOutput, boolean useFlist) {
 		super(sigma, xfst, writeOutput, useFlist);
 		numStates = xfst.numStates();
-		stateSuffixMap = new Int2ObjectOpenHashMap<OnePassIterative.Suffix>(numStates);
-		reset();
-	}
-	
-	private void reset() {
-		pos = 0;
-		stateSuffixMap.clear();
+		statePrefix = (ObjectArrayList<Node>[]) new ObjectArrayList[numStates];
+		stateList = new int[numStates];
+		initialState = xfst.getInitialState();
 	}
 
-	
+	private void reset() {
+		pos = 0;
+		for (int i = 0; i < numStates; ++i) {
+			statePrefix[i] = null;
+		}
+		stateListSize = 0;
+	}
+
 	@Override
 	protected void computeMatch() {
-		buffer.clear();
-		
-		stateSuffixMap.put(xfst.getInitialState(), new Suffix(true));
-		
-		while(pos < sequence.length) {
+
+		statePrefix[initialState] = new ObjectArrayList<Node>();
+		stateList[stateListSize++] = initialState;
+		statePrefix[initialState].add(null);
+
+		while (pos < sequence.length) {
 			step();
 			pos++;
 		}
-		for(int state : stateSuffixMap.keySet()) {
-			if(xfst.isFinalState(state)){
-				computeSequence(stateSuffixMap.get(state));
-			}
-		}
 		reset();
-		
+
 	}
-	
+
 	private void step() {
-		Int2ObjectOpenHashMap<Suffix> nextStateSuffixMap = new Int2ObjectOpenHashMap<Suffix>(numStates);
+		@SuppressWarnings("unchecked")
+		ObjectArrayList<Node>[] nextStatePrefix = (ObjectArrayList<Node>[]) new ObjectArrayList[numStates];
+		int[] nextStateList = new int[numStates];
+		int nextStateListSize = 0;
 
 		int itemId = sequence[pos];
 
-		for (int s : stateSuffixMap.keySet()) {
-			Suffix prefix = stateSuffixMap.get(s);
-			
-			if(xfst.isFinalState(s)){
-				computeSequence(prefix);
-			}
+		for (int i = 0; i < stateListSize; i++) {
+			int fromState = stateList[i];
 
-			if (xfst.hasOutgoingTransition(s, itemId)) {
-				for (int tId = 0; tId < xfst.numTransitions(s); ++tId) {
-					if (xfst.canStep(itemId, s, tId)) {
-						int toState = xfst.getToState(s, tId);
-						OutputLabel olabel = xfst.getOutputLabel(s, tId);
+			if (xfst.hasOutgoingTransition(fromState, itemId)) {
+				for (int tId = 0; tId < xfst.numTransitions(fromState); ++tId) {
+					if (xfst.canStep(itemId, fromState, tId)) {
+						int toState = xfst.getToState(fromState, tId);
+						OutputLabel olabel = xfst.getOutputLabel(fromState, tId);
 
-						Suffix suffix = nextStateSuffixMap.get(toState);
-						if (null == suffix) {
-							suffix = new Suffix(false);
-							nextStateSuffixMap.put(toState, suffix);
-						}
-						if(prefix.items.isEmpty()) {
-							suffix.prefix = prefix.prefix;
-						} else {
-							suffix.prefix = prefix;
+						boolean isFinal = xfst.isFinalState(toState);
+						Node node;
+
+						if (null == nextStatePrefix[toState]) {
+							nextStatePrefix[toState] = new ObjectArrayList<Node>();
+							nextStateList[nextStateListSize++] = toState;
 						}
 
 						switch (olabel.type) {
 						case EPSILON:
+							if (isFinal)
+								computeOutput(statePrefix[fromState]);
+							for (Node n : statePrefix[fromState])
+								nextStatePrefix[toState].add(n);
 							break;
 
 						case CONSTANT:
 							int outputItemId = olabel.item;
 							if (!useFlist || flist[outputItemId] >= sigma) {
-								suffix.items.add(outputItemId);
+								node = new Node(outputItemId, statePrefix[fromState]);
+								if (isFinal)
+									computeOutput(node);
+								nextStatePrefix[toState].add(node);
 							}
 							break;
 
 						case SELF:
 							if (!useFlist || flist[itemId] >= sigma) {
-								suffix.items.add(itemId);
+								node = new Node(itemId, statePrefix[fromState]);
+								if (isFinal)
+									computeOutput(node);
+
+								nextStatePrefix[toState].add(node);
 							}
 							break;
 
@@ -130,7 +143,10 @@ public class OnePassIterative extends DesqCount {
 							tempAnc.clear();
 							for (int id : stack) {
 								if (!useFlist || flist[id] >= sigma) {
-									suffix.items.add(id);
+									node = new Node(id, statePrefix[fromState]);
+									if (isFinal)
+										computeOutput(node);
+									nextStatePrefix[toState].add(node);
 								}
 							}
 
@@ -138,44 +154,53 @@ public class OnePassIterative extends DesqCount {
 						default:
 							break;
 						}
-						//if(suffix.items.isEmpty())
-						//	suffix = suffix.prefix;
 					}
 
-					
 				}
 			}
 		}
-		stateSuffixMap = nextStateSuffixMap;
-		nextStateSuffixMap = null;
-	}	
+		this.stateList = nextStateList;
+		this.stateListSize = nextStateListSize;
+		this.statePrefix = nextStatePrefix;
+	}
 
-	private void computeSequence(Suffix suffix) {
-		if(null == suffix.prefix) {
-			if(!buffer.isEmpty()) {
-				countSequence(reverse(buffer.toIntArray()));
-			}
+	private void computeOutput(ObjectArrayList<Node> suffixes) {
+		for (Node node : suffixes)
+			computeOutput(node);
+	}
+
+	private void outputBuffer() {
+
+		if (!buffer.isEmpty()) {
+			countSequence(reverse(buffer.toIntArray()));
+			// System.out.println(buffer);
+		}
+	}
+
+	private void computeOutput(Node node) {
+		if (node == null) {
+			outputBuffer();
 			return;
 		}
-		if(suffix.items.isEmpty())
-			computeSequence(suffix.prefix);
-		else {
-		for (int itemId : suffix.items) {
-			buffer.add(itemId);
-			computeSequence(suffix.prefix);
-			buffer.remove(buffer.size() - 1);
-		}
-		}
 
+		buffer.add(node.item);
+		for (Node n : node.prefixes) {
+			computeOutput(n);
+		}
+		buffer.remove(buffer.size() - 1);
 	}
 
 	private int[] reverse(int[] a) {
-		int i = 0; int j = a.length - 1;
+		int i = 0;
+		int j = a.length - 1;
 		while (j > i) {
-			a[i] ^= a[j]; a[j] ^= a[i]; a[i] ^= a[j];
-			i++; j--;
+			a[i] ^= a[j];
+			a[j] ^= a[i];
+			a[i] ^= a[j];
+			i++;
+			j--;
 		}
-		//System.out.println(Arrays.toString(a));
+		// System.out.println(Arrays.toString(a));
 		return a;
 	}
 }
