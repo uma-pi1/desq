@@ -1,7 +1,6 @@
 package driver;
 
 import java.io.IOException;
-
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -12,6 +11,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
 import tools.EncodeData;
+import driver.DesqConfig.Match;
 import driver.DesqConfig.Method;
 
 public class Driver {
@@ -41,6 +41,7 @@ public class Driver {
 		options.addOption("o", true, "Path/to/output/sequences/");
 		options.addOption("s", true, "Minimum support threshold");
 		options.addOption("p", true, "Pattern expression");
+		options.addOption("match", true, "Type of match (p)artial, (s)trict, (ls)trict, (rs)trict");
 		
 		options.addOption("method", true, null);
 		
@@ -110,6 +111,7 @@ public class Driver {
 					logger.log(Level.INFO, "Missing minimum support, using defaul" + conf.getSigma());
 				}
 				
+				
 				if(cmd.hasOption("method")) {
 					if(cmd.getOptionValue("method").equals("desq-count")) {
 						conf.setMethod(Method.DESQCOUNT);
@@ -118,6 +120,24 @@ public class Driver {
 					} else {
 						logger.log(Level.SEVERE, "Incorrect method");
 						help();
+					}
+				}
+				
+				if(cmd.hasOption("match")) {
+					if(conf.getMethod() == Method.DESQDFS) {
+						logger.log(Level.WARNING, "ignoring match option; match can be only used with desq-count");
+					}
+					if(cmd.getOptionValue("match").equals("p")){
+						conf.setMatch(Match.PARTIAL);
+					} else if(cmd.getOptionValue("match").equals("s")){
+						conf.setMatch(Match.STRICT);
+					} else if(cmd.getOptionValue("match").equals("ls")){
+						conf.setMatch(Match.LSTRICT);
+					} else if(cmd.getOptionValue("match").equals("rs")){
+						conf.setMatch(Match.RSTRICT);
+					} else{
+						logger.log(Level.WARNING, "Incorrect match option; use (p)artial or (s)trict or (ls)trict or (rs)trict");
+						logger.log(Level.INFO, "Using default (p)artial match option");
 					}
 				}
 			} else {

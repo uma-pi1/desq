@@ -6,6 +6,7 @@ import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.util.Map;
 
+import driver.DesqConfig.Match;
 import fst.XFst;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenCustomHashMap;
@@ -56,15 +57,16 @@ public abstract class DesqCount {
 	
 	protected  long totalMatches = 0L;
 
-	
+	protected Match match;
 	
 	// Methods
 	
-	public DesqCount(int sigma, XFst dfa, boolean writeOutput, boolean useFlist) {
+	public DesqCount(int sigma, XFst dfa, boolean writeOutput, boolean useFlist, Match match) {
 		this.sigma = sigma;
 		this.xfst = dfa;
 		this.writeOutput = writeOutput;
 		this.useFlist = useFlist;
+		this.match = match;
 	}
 	
 	

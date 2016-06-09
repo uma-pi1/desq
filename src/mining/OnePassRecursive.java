@@ -1,6 +1,7 @@
 package mining;
 
 
+import driver.DesqConfig.Match;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import fst.OutputLabel;
@@ -15,8 +16,8 @@ public class OnePassRecursive extends DesqCount {
 	IntOpenHashSet tempAnc = new IntOpenHashSet();
 	
 	
-	public OnePassRecursive(int sigma, XFst xfst, boolean writeOutput, boolean useFlist) {
-		super(sigma, xfst, writeOutput, useFlist);
+	public OnePassRecursive(int sigma, XFst xfst, boolean writeOutput, boolean useFlist, Match match) {
+		super(sigma, xfst, writeOutput, useFlist, match);
 	}
 
 	@Override
