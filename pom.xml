@@ -19,13 +19,13 @@
 	</repositories>
 
 	<dependencies>
-		<dependency>
+<!-- 		<dependency>
 			<groupId>jdk.tools</groupId>
 			<artifactId>jdk.tools</artifactId>
 			<version>${java.version}</version>
 			<systemPath>${java.home}/../lib/tools.jar</systemPath>
 			<scope>system</scope>
-		</dependency>
+		</dependency> -->
 		<dependency>
 			<groupId>org.antlr</groupId>
 			<artifactId>antlr4</artifactId>

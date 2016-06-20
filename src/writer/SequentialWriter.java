@@ -57,5 +57,21 @@ public class SequentialWriter implements Writer {
 		br.write("\n");
 		br.close();
 	}
+	
+	public void writeAll(int[][] sequences, long[] count, double[] score) throws IOException, InterruptedException {
+
+		BufferedWriter br = new BufferedWriter(new FileWriter(outputPath + "/translatedFS", true));
+
+		for (int i = 0; i < score.length; i++) {
+			br.write(score[i] + "\t");
+			br.write(count[i] + "\t");
+			for (int itemId : sequences[i]) {
+				br.write(this.itemIdToItemMap.get(itemId) + " ");
+			}
+			br.write("\n");
+		}
+		
+		br.close();
+	}
 
 }
