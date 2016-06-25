@@ -1,45 +1,39 @@
 package mining.statistics;
 
-import java.util.Set;
-import java.util.function.BiConsumer;
-import java.util.function.BinaryOperator;
-import java.util.function.Function;
-import java.util.function.Supplier;
-import java.util.stream.Collector;
 
-public class DummyStatisticCollector implements SPMLocalStatisticCollector, Collector {
+public class DummyStatisticCollector implements SPMStatisticsAggregator {
+//	@Override
+//	public void onObservedItem(int transactionId, int[] transaction, int position, int pFSTState) {
+//		// simply do nothing
+//	}
+
 	@Override
-	public void onObservedItem(int transactionId, int[] transaction, int position, int pFSTState) {
-		// simply do nothing
+	public Object initialize(int transactionId, int[] transaction, int position, int pFSTState) {
+		// TODO Auto-generated method stub
+		
+		PrefixSupportCollector sum = new PrefixSupportCollector();
+		
+		sum.accumulator(1,2);
+		return null;
 	}
 
 	@Override
-	public BiConsumer accumulator() {
+	public Object merge(Object p1, Object p2) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
-	public Set characteristics() {
+	public Object terminate(Object p) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
-	public BinaryOperator combiner() {
+	public void accumulate(int transactionId, int[] transaction, int position,
+			int pFSTState) {
 		// TODO Auto-generated method stub
-		return null;
+		
 	}
 
-	@Override
-	public Function finisher() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public Supplier supplier() {
-		// TODO Auto-generated method stub
-		return null;
-	}
 }

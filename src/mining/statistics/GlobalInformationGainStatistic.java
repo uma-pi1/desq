@@ -4,6 +4,8 @@ import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
+import java.util.function.Supplier;
+import java.util.stream.Collector;
 
 import utils.Dictionary;
 
@@ -17,7 +19,7 @@ public class GlobalInformationGainStatistic {
 		calculateInformationGainIndex(flist, retrieveNumberOfEvents(dbFile));
 	}
 	
-	public double getInformationGain(int item) {
+	public double getInformationGain(int item) {		
 		return gainList[item];
 	}
 	

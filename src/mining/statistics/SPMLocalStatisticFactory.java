@@ -1,21 +1,28 @@
 package mining.statistics;
 
+import java.util.stream.Collector;
+
 public class SPMLocalStatisticFactory {
 	
 	public static enum StatisticType {
-		DUMMY, DOC_FREQUENCY, TRANSACTION_STATE_ITEM 	
+		DUMMY, PREFIX_SUPPORT, LOCAL_ITEM_FREQUENCY , MAX_TRANSACTION_LENGTH,FST_STATE_STATISTIC
 	}
 	
 	private static StatisticType type;
 	
-	public static SPMLocalStatisticCollector createInstance() {
+	public static Collector<?, ?, ?> createInstance() {
 		switch (type) {
-		case DOC_FREQUENCY:
-			return new PrefixDocFrequencyStatistic();
-		case TRANSACTION_STATE_ITEM:
-			return new TransactionStateItemStatistic();
+		case PREFIX_SUPPORT:
+			return new PrefixSupportCollector();
+//		case LOCAL_ITEM_FREQUENCY:
+//			return new LocalItemFrequencyStatistic();
+//		case MAX_TRANSACTION_LENGTH:
+//			return new MaxTransactionLengthStatistic();
+//		case FST_STATE_STATISTIC:
+//			return new FSTStateStatistic();
 		default:
-			return new DummyStatisticCollector();
+//			return new DummyStatisticCollector();
+			return null;
 		}
 	}
 	

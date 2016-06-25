@@ -5,6 +5,7 @@ import fst.XFst;
 import mining.statistics.SPMLocalStatisticCollector;
 import mining.statistics.TransactionStateItemStatistic;
 import tools.FstGraph;
+import utils.Hierarchy;
 
 public class ConditionalInformationGainScore extends DesqBaseScore implements SPMScore {	
 	double minInformationGain;

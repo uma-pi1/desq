@@ -6,17 +6,21 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+
 import fst.OutputLabel;
 import fst.XFst;
 import it.unimi.dsi.fastutil.ints.Int2IntMap.Entry;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import mining.statistics.GlobalInformationGainStatistic;
+import mining.statistics.PrefixSupportStatistic;
 import mining.statistics.SPMLocalStatisticCollector;
+import mining.statistics.PrefixSupportCollector;
 import mining.statistics.TransactionStateItemStatistic;
 import tools.FstEdge;
 import tools.FstGraph;
 import utils.Dictionary;
+import utils.Hierarchy;
 
 public class InformationGainScore extends DesqBaseScore implements SPMScore {
 	GlobalInformationGainStatistic globalInformationGainStatistic;
@@ -356,6 +360,8 @@ public class InformationGainScore extends DesqBaseScore implements SPMScore {
 			for (; pFSTToStates[offset] != 0; offset++) {
 				int toState = pFSTToStates[offset];
 				OutputLabel outLabel = outputLabelArray[offset];
+				PrefixSupportCollector x = new PrefixSupportCollector();
+				Supplier<PrefixSupportStatistic> a = x.supplier();
 				
 				if(!edge.equals(new FstEdge(edge.getFromState(), toState, outLabel))) {
 					// not the correct edge... search for next edge

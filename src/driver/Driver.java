@@ -115,6 +115,8 @@ public class Driver {
 						conf.setMethod(Method.DESQCOUNT);
 					} else if(cmd.getOptionValue("method").equals("desq-dfs")) {
 						conf.setMethod(Method.DESQDFS);
+					} else if(cmd.getOptionValue("method").equals("desq-dfs-scored")) {
+						conf.setMethod(Method.DESQDFSSCORED);
 					} else {
 						logger.log(Level.SEVERE, "Incorrect method");
 						help();
@@ -148,6 +150,8 @@ public class Driver {
 				DesqCountDriver.run(conf);
 			} else if (conf.getMethod() == Method.DESQDFS) {
 				DesqDfsDriver.run(conf);
+			} else if (conf.getMethod() == Method.DESQDFSSCORED) {
+				DesqDfsScoredDriver.run(conf);
 			}
 		}
 	}

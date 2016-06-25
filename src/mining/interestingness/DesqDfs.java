@@ -29,7 +29,7 @@ public abstract class DesqDfs {
 	
 	protected XFst xfst;
 	
-	protected int sigma;
+	protected double sigma;
 	
 	protected SequentialWriter writer = SequentialWriter.getInstance();
 	
@@ -43,7 +43,7 @@ public abstract class DesqDfs {
 	
 	public DesqDfs() {}
 	
-	public DesqDfs(int sigma, XFst xfst, boolean writeOutput) {
+	public DesqDfs(double sigma, XFst xfst, boolean writeOutput) {
 		this.sigma = sigma;
 		this.xfst = xfst;
 		this.writeOutput = writeOutput;
@@ -61,7 +61,8 @@ public abstract class DesqDfs {
 		
 		while((line = br.readLine()) != null) {
 			if(!line.isEmpty()) {
-				String[] rawSequence = line.split("\\s* \\s*");
+//				String[] rawSequence = line.split("\\s* \\s*");
+				String[] rawSequence = line.split(" ");
 				int[] inputSequence = new int[rawSequence.length];
 				int i = 0;
 				for (String s : rawSequence) {

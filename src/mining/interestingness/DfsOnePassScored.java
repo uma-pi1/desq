@@ -1,23 +1,32 @@
 package mining.interestingness;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.BitSet;
-
+import fst.OutputLabel;
+import fst.XFst;
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import fst.OutputLabel;
-import fst.XFst;
+
+import java.io.IOException;
+import java.util.BitSet;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map.Entry;
+import java.util.stream.Collector;
+
+import mining.scores.RankedScoreList;
+import mining.scores.SPMScore;
+import mining.statistics.SPMLocalStatisticFactory;
+import mining.statistics.SPMStatisticsAggregator;
+import mining.statistics.SPMStatisticsData;
 
 /**
  * DfsOnePass.java
  * 
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
-public class DfsOnePass extends DesqDfs {
+public class DfsOnePassScored extends DesqDfs {
 
 	// intial cFST state
 	int initialState;
@@ -37,9 +46,25 @@ public class DfsOnePass extends DesqDfs {
 	IntOpenHashSet currentStateSet = new IntOpenHashSet();
 	IntOpenHashSet nextStateSet = new IntOpenHashSet();
 	
-	public DfsOnePass(int sigma, XFst xfst, boolean writeOutput) {
+	// score used to measure sequence performance
+	SPMScore score;
+	
+	// ranking class
+	RankedScoreList rankedScoreList;
+	
+	@SuppressWarnings("rawtypes")
+	HashMap<String, Collector> collectors;
+	
+	SPMStatisticsData statisticsBaseData = new SPMStatisticsData();
+	
+	public DfsOnePassScored(double sigma, XFst xfst, SPMScore score, RankedScoreList rankedScoreList, 
+							@SuppressWarnings("rawtypes") HashMap<String, Collector> collectors, boolean writeOutput) {
 		super(sigma, xfst, writeOutput);
 		initialState = xfst.getInitialState();
+		
+		this.score = score;
+		this.rankedScoreList = rankedScoreList;
+		this.collectors = collectors;
 	}
 
 	@Override
@@ -58,7 +83,7 @@ public class DfsOnePass extends DesqDfs {
 		while (it.hasNext()) {
 			int itemId = it.nextInt();
 			Node child = root.children.get(itemId);
-			if (child.prefixSupport >= sigma) {
+			if (score.getMaximumScore(getCurrentSequence(child), getStatisticData(child)) >= sigma) {
 				expand(child);
 			}
 			child.clear();
@@ -97,7 +122,7 @@ public class DfsOnePass extends DesqDfs {
 		} while (projectedDatabase.nextPosting());
 
 		// Output if P-frequent
-		if (support >= sigma) {
+		if (score.getScore(getCurrentSequence(node), getStatisticData(node)) >= sigma) {
 			numPatterns++;
 			if (writeOutput) {
 				// compute output sequence
@@ -110,7 +135,8 @@ public class DfsOnePass extends DesqDfs {
 					outputSequence[--size] = parent.suffixItemId;
 					parent = parent.parent;
 				}
-				writer.write(outputSequence, support);
+				rankedScoreList.addNewOutputSequence(outputSequence, score.getScore(getCurrentSequence(node), getStatisticData(node)), support);
+//				writer.write(outputSequence, score.getScore(getCurrentSequence(node), getStatisticData(node)));
 				//System.out.println(Arrays.toString(outputSequence) + " : " + support);
 			}
 		}
@@ -120,7 +146,8 @@ public class DfsOnePass extends DesqDfs {
 		while (it.hasNext()) {
 			int itemId = it.nextInt();
 			Node child = node.children.get(itemId);
-			if (child.prefixSupport >= sigma) {
+			
+			if (score.getMaximumScore(getCurrentSequence(child), getStatisticData(child)) >= sigma) {
 				expand(child);
 			}
 			child.clear();
@@ -128,6 +155,16 @@ public class DfsOnePass extends DesqDfs {
 		node.clear();
 
 		dfsLevel--;
+	}
+	
+	@SuppressWarnings("unchecked")
+	private HashMap<String, Object> getStatisticData(Node node) {
+		HashMap<String, Object> statData = new HashMap<String, Object>();
+		
+		for (Entry<String, Object> entry : node.localAccumulators.entrySet()) {
+			statData.put(entry.getKey(), collectors.get(entry.getKey()).finisher().apply(entry.getValue()));
+		}
+		return statData;
 	}
 
 	// Simulates cFST until node is expanded by one item(s)
@@ -185,7 +222,7 @@ public class DfsOnePass extends DesqDfs {
 		currentStateSet.add(state);
 		while (pos < sequenceBuffer.length) {
 			int itemId = sequenceBuffer[pos];
-
+			
 			for (int s : currentStateSet) {
 				if (xfst.hasOutgoingTransition(s, itemId)) {
 					for (int tId = 0; tId < xfst.numTransitions(s); ++tId) {
@@ -203,21 +240,24 @@ public class DfsOnePass extends DesqDfs {
 
 							case CONSTANT:
 								int outputItemId = olabel.item;
-								if (flist[outputItemId] >= sigma) {
+								if (score.getItemScore(outputItemId) >= sigma) {
 									node.append(outputItemId, sId, pos + 1, toState);
+									node.updateStatistics(outputItemId, sId, sequenceBuffer, pos, toState);
 								}
 								break;
 
 							case SELF:
-								if (flist[itemId] >= sigma) {
+								if (score.getItemScore(itemId) >= sigma) {
 									node.append(itemId, sId, pos + 1, toState);
+									node.updateStatistics(itemId, sId, sequenceBuffer, pos, toState);
 								}
 								break;
 
 							case SELFGENERALIZE:
 								for (int id : getParents(itemId, olabel.item)) {
-									if (flist[id] >= sigma) {
+									if (score.getItemScore(id) >= sigma) {
 										node.append(id, sId, pos + 1, toState);
+										node.updateStatistics(id, sId, sequenceBuffer, pos, toState);
 									}
 								}
 								break;
@@ -261,16 +301,28 @@ public class DfsOnePass extends DesqDfs {
 		tempAnc.clear();
 		return stack;
 	}
-
+	
+	private int[] getCurrentSequence(Node currentNode) {
+		int[] outputSequence = new int[dfsLevel + 1];
+		int size = dfsLevel + 1;
+		outputSequence[--size] = currentNode.suffixItemId;
+		Node parent = currentNode.parent;
+		while(parent.parent != null) {
+			outputSequence[--size] = parent.suffixItemId;
+			parent = parent.parent;
+		}
+		return outputSequence;
+	}
+	
 	// Dfs tree
 	private final class Node {
-		int prefixSupport = 0;
 		int lastSequenceId = -1;
 		int suffixItemId;
 		Node parent;
 		ByteArrayList projectedDatabase = new ByteArrayList();;
 		BitSet[] statePosSet = new BitSet[xfst.numStates()];
 		Int2ObjectOpenHashMap<Node> children = new Int2ObjectOpenHashMap<Node>();
+		HashMap<String,Object> localAccumulators = new HashMap<String, Object>();
 
 		Node(Node parent, int suffixItemId) {
 			this.parent = parent;
@@ -278,6 +330,12 @@ public class DfsOnePass extends DesqDfs {
 
 			for (int i = 0; i < xfst.numStates(); ++i) {
 				statePosSet[i] = new BitSet();
+			}
+			
+			for (@SuppressWarnings("rawtypes") Entry<String, Collector> entry: collectors.entrySet()) {
+				@SuppressWarnings("rawtypes")
+				Collector coll = entry.getValue();
+				localAccumulators.put(entry.getKey(), coll.supplier().get());
 			}
 		}
 
@@ -306,7 +364,7 @@ public class DfsOnePass extends DesqDfs {
 				}
 
 				node.lastSequenceId = sequenceId;
-				node.prefixSupport++;
+//				node.prefixSupport++;
 
 				PostingList.addCompressed(sequenceId + 1, node.projectedDatabase);
 				PostingList.addCompressed(state + 1, node.projectedDatabase);
@@ -317,6 +375,19 @@ public class DfsOnePass extends DesqDfs {
 				node.statePosSet[state].set(position);
 				PostingList.addCompressed(state + 1, node.projectedDatabase);
 				PostingList.addCompressed(position + 1, node.projectedDatabase);
+			}
+		}
+		
+		@SuppressWarnings({ "unchecked", "rawtypes" })
+		void updateStatistics(int itemId, int sequenceId, int transaction[], int position, int state) {
+			Node node = children.get(itemId);
+			statisticsBaseData.setPosition(position);
+			statisticsBaseData.setStateFST(state);
+			statisticsBaseData.setTransaction(transaction);
+			statisticsBaseData.setTransactionId(sequenceId);
+			for (Entry<String, Object> entry : node.localAccumulators.entrySet()) {
+				Collector collector = collectors.get(entry.getKey());
+				collector.accumulator().accept(entry.getValue(), statisticsBaseData);
 			}
 		}
 

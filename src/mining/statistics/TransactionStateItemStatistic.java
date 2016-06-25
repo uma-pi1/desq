@@ -3,7 +3,6 @@ package mining.statistics;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 
 import java.util.HashSet;
-import java.util.stream.Collectors;
 
 public class TransactionStateItemStatistic implements SPMLocalStatisticCollector {
 	
@@ -18,8 +17,6 @@ public class TransactionStateItemStatistic implements SPMLocalStatisticCollector
 	public TransactionStateItemStatistic() {
 		support = 0;
 		previousTransactionId = -1;
-		Collectors test; 
-
 	}
 	
 	@Override

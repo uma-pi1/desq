@@ -1,20 +1,21 @@
 package driver;
 
-import java.io.IOException;
-import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.google.common.base.Stopwatch;
-
-import mining.DesqDfs;
-import mining.DfsOnePass;
-import mining.OnePassIterative;
+import mining.interestingness.DfsOnePassScored;
+import mining.scores.FrequencyScore;
+import mining.scores.RankedScoreList;
+import mining.scores.RankedScoreListAll;
+import mining.scores.SPMScore;
+import mining.statistics.GlobalItemDocFrequencyStatistic;
 import patex.PatEx;
 import utils.Dictionary;
-import writer.LogWriter;
 import writer.SequentialWriter;
+
+import com.google.common.base.Stopwatch;
+
 import fst.Fst;
 import fst.XFst;
 
@@ -22,13 +23,13 @@ import fst.XFst;
  * DesqDfsDriver.java
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
-public class DesqDfsDriver {
+public class DesqDfsScoredDriver {
 
 	// Timers
 	public static Stopwatch totalTime = Stopwatch.createUnstarted();
 	public static Stopwatch fstTime = Stopwatch.createUnstarted();
 	
-	private static Logger logger = Logger.getLogger(DesqDfsDriver.class.getSimpleName());
+	private static Logger logger = Logger.getLogger(DesqDfsScoredDriver.class.getSimpleName());
 	
 	public static void run(DesqConfig conf) throws Exception {
 		String input = conf.getEncodedSequencesPath();
@@ -74,12 +75,20 @@ public class DesqDfsDriver {
 		
 		logger.log(Level.INFO, "Mining P-frequent sequences...");
 		
-		DesqDfs dd = new DfsOnePass(support, xFst, writeOutput);
+		RankedScoreList rankedScoreList = new RankedScoreListAll(true);
+//		SPMLocalStatisticFactory.setStatisticType(StatisticType.DOC_FREQUENCY);
+		GlobalItemDocFrequencyStatistic globalItemFrequency = new GlobalItemDocFrequencyStatistic();
+		SPMScore score = new FrequencyScore(globalItemFrequency);
+//		ConditionalInformationGainScore score = new ConditionalInformationGainScore(pFst.convertToFstGraph(), 1.5, (Hierarchy) SimpleHierarchy.getInstance(),pFst,rankedScoreList);
+		
+		DfsOnePassScored dfs = new DfsOnePassScored(10, xFst, score, rankedScoreList, score.getLocalCollectors(), writeOutput);
 		
 		totalTime.start();
 		
-		dd.scan(sequenceFile);
-		dd.mine();
+		dfs.scan(sequenceFile);
+		dfs.mine();
+		
+		rankedScoreList.printList();
 
 		totalTime.stop();
 

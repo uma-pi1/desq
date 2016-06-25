@@ -2,7 +2,7 @@ package driver;
 
 public class DesqConfig {
 	public static enum Method {
-		DESQCOUNT, DESQDFS
+		DESQCOUNT, DESQDFS, DESQDFSSCORED
 	};
 	
 	// I/O paths

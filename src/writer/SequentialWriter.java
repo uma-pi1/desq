@@ -46,7 +46,7 @@ public class SequentialWriter implements Writer {
 	}
 
 	@Override
-	public void write(int[] sequence, long count) throws IOException, InterruptedException {
+	public void write(int[] sequence, double count) throws IOException, InterruptedException {
 
 		BufferedWriter br = new BufferedWriter(new FileWriter(outputPath + "/translatedFS", true));
 

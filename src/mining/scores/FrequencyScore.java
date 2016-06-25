@@ -1,19 +1,21 @@
 package mining.scores;
 
-import mining.statistics.GlobalItemDocFrequencyStatistic;
-import mining.statistics.PrefixDocFrequencyStatistic;
-import mining.statistics.SPMLocalStatisticCollector;
+import java.util.HashMap;
+import java.util.stream.Collector;
 
-public class FrequencyScore extends DesqBaseScore implements SPMScore {
+import mining.statistics.GlobalItemDocFrequencyStatistic;
+import mining.statistics.PrefixSupportCollector;
+
+public class FrequencyScore implements SPMScore {
 	GlobalItemDocFrequencyStatistic globalItemFrequencyStatistic;
 	
-	PrefixDocFrequencyStatistic prefixFrequencyStatistic;
+	PrefixSupportCollector prefixFrequencyStatistic;
 	
 	int minFrequency;
 	
-	public FrequencyScore(int minFrequency, GlobalItemDocFrequencyStatistic globalItemFrequencyStatistic) {
+	public FrequencyScore(GlobalItemDocFrequencyStatistic globalItemFrequencyStatistic) {
 //		super(fstGraph);
-		this.minFrequency = minFrequency;
+//		this.minFrequency = minFrequency;
 		this.globalItemFrequencyStatistic = globalItemFrequencyStatistic;
 	}
 
@@ -27,18 +29,36 @@ public class FrequencyScore extends DesqBaseScore implements SPMScore {
 //		return score >= minFrequency;
 //	}
 
-	@Override
-	public double getScore(int[] prefix, SPMLocalStatisticCollector[] statisticCollector) {
-		return ((PrefixDocFrequencyStatistic) statisticCollector[statisticCollector.length]).getFrequency() >= minFrequency;
-	}
-
-	@Override
-	public double getMaximumScore(int[] items, int support, SPMLocalStatisticCollector[] sequenceStatistics) {
-		return support;
-	}
+//	@Override
+//	public double getScore(int[] prefix, SPMLocalStatisticCollector[] statisticCollector) {
+//		return ((PrefixDocFrequencyStatistic) statisticCollector[statisticCollector.length]).getFrequency() >= minFrequency;
+//	}
+//
+//	@Override
+//	public double getMaximumScore(int[] items, int support, SPMLocalStatisticCollector[] sequenceStatistics) {
+//		return support;
+//	}
 
 	public double getItemScore(int item) {
 		return globalItemFrequencyStatistic.getFrequency(item);
+	}
+
+	@Override
+	public double getScore(int[] prefix, HashMap<String, ?> statData) {
+		return (Integer) statData.get("PREFIXSUPPORT");
+	}
+
+	@Override
+	public double getMaximumScore(int[] items, HashMap<String, ?> statData) {
+		return (Integer) statData.get("PREFIXSUPPORT");
+	}
+
+	@SuppressWarnings("rawtypes")
+	@Override
+	public HashMap<String, Collector> getLocalCollectors() {
+		HashMap<String, Collector> collectors = new HashMap<String, Collector>();
+		collectors.put("PREFIXSUPPORT", new PrefixSupportCollector());
+		return collectors;
 	}
 
 }

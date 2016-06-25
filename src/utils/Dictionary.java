@@ -18,7 +18,7 @@ import java.util.Arrays;
  * Dictionary.java
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
-public class Dictionary {
+public class Dictionary implements Hierarchy{
 
 	private static Dictionary instance = null;
 
@@ -132,8 +132,26 @@ public class Dictionary {
 		return parents;
 	}
 	
+	@Override
 	public int[] getParents(int itemId) {
 		return parents[itemId];
+	}
+	
+	@Override
+	public boolean hasParent(int itemId) {
+		return parents[itemId] != null && parents[itemId].length > 0;
+	}
+
+	@Override
+	public boolean isParent(int itemId, int parentId) {
+		if (parents[itemId] == null)
+			return false;
+		for (int parent : parents[itemId]) {
+			if (parent == parentId) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public int[] getFlist() {
@@ -201,4 +219,6 @@ public class Dictionary {
 		
 		System.out.println(Arrays.toString(d.getChildren(1)));
 	}
+
+
 }
