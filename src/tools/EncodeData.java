@@ -3,6 +3,8 @@ package tools;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntCollection;
+import it.unimi.dsi.fastutil.ints.IntCollections;
 import it.unimi.dsi.fastutil.ints.IntComparator;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
@@ -229,7 +231,7 @@ public class EncodeData {
 				try{
 					ret = dfs.get(u) - dfs.get(t); 
 				} catch(Exception e){
-					logger.log(Level.SEVERE, "Item in the hierarchy does not exists in input sequences");
+					logger.log(Level.SEVERE, "Item in the hierarchy or its descendants do not appear in input sequences");
 					logger.log(Level.INFO, "caused by " + names.get(u) + " or " + names.get(t));
 					logger.log(Level.SEVERE, "Aborting");
 					System.exit(-1);

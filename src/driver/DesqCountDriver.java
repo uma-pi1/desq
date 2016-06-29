@@ -9,6 +9,7 @@ import java.util.logging.Logger;
 
 import com.google.common.base.Stopwatch;
 
+import driver.DesqConfig.Match;
 import patex.PatEx;
 import mining.DesqCount;
 import mining.OnePassIterative;
@@ -37,7 +38,10 @@ public class DesqCountDriver {
 		String input = conf.getEncodedSequencesPath();
 		String output = conf.getOutputSequencesPath();
 		String patternExpression = conf.getPatternExpression();
-		patternExpression = ".* [" + patternExpression.trim() + "]";
+		Match match = conf.getMatch();
+		if(match == Match.PARTIAL || match == Match.RSTRICT) {
+			patternExpression = ".* [" + patternExpression.trim() + "]";
+		}
 		int support = conf.getSigma();
 		
 		boolean writeOutput = conf.isWriteOutput();
@@ -76,7 +80,7 @@ public class DesqCountDriver {
 		logger.log(Level.INFO, "Mining P-frequent sequences...");
 		
 		//DesqCount dc = new OnePassRecursive(support, xFst, writeOutput, useFlist);
-		DesqCount dc = new OnePassIterative(support, xFst, writeOutput, useFlist);
+		DesqCount dc = new OnePassIterative(support, xFst, writeOutput, useFlist, match);
 		
 		totalTime.start();
 		

@@ -4,6 +4,7 @@ package mining;
 
 import java.util.Arrays;
 
+import driver.DesqConfig.Match;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -23,7 +24,9 @@ public class OnePassIterative extends DesqCount {
 	int numStates = 0;
 
 	int initialState = 0;
-
+	
+	boolean rStrict = false;
+	
 	class Node {
 		int item;
 
@@ -40,12 +43,16 @@ public class OnePassIterative extends DesqCount {
 	int stateListSize = 0;
 
 	@SuppressWarnings("unchecked")
-	public OnePassIterative(int sigma, XFst xfst, boolean writeOutput, boolean useFlist) {
-		super(sigma, xfst, writeOutput, useFlist);
+	public OnePassIterative(int sigma, XFst xfst, boolean writeOutput, boolean useFlist, Match match) {
+		super(sigma, xfst, writeOutput, useFlist, match);
 		numStates = xfst.numStates();
 		statePrefix = (ObjectArrayList<Node>[]) new ObjectArrayList[numStates];
 		stateList = new int[numStates];
 		initialState = xfst.getInitialState();
+		if(match == Match.STRICT || match == Match.RSTRICT) {
+			 rStrict = true;
+		}
+		
 	}
 
 	private void reset() {
@@ -78,6 +85,7 @@ public class OnePassIterative extends DesqCount {
 		int nextStateListSize = 0;
 
 		int itemId = sequence[pos];
+		
 
 		for (int i = 0; i < stateListSize; i++) {
 			int fromState = stateList[i];
@@ -88,7 +96,17 @@ public class OnePassIterative extends DesqCount {
 						int toState = xfst.getToState(fromState, tId);
 						OutputLabel olabel = xfst.getOutputLabel(fromState, tId);
 
+						
 						boolean isFinal = xfst.isFinalState(toState);
+						if(rStrict) {
+							if (pos == sequence.length -1) {
+								isFinal &= true;
+							} else{
+								isFinal = false;
+							}
+						}
+						
+						
 						Node node;
 
 						if (null == nextStatePrefix[toState]) {

@@ -5,6 +5,10 @@ public class DesqConfig {
 		DESQCOUNT, DESQDFS, DESQDFSSCORED
 	};
 	
+	public static enum Match {
+		PARTIAL, STRICT, LSTRICT, RSTRICT
+	};
+	
 	// I/O paths
 	private String inputSequencesPath;
 	private String outputSequencesPath;
@@ -17,6 +21,10 @@ public class DesqConfig {
 	
 	// Method
 	private Method method;
+	
+	
+	// Match type
+	private Match match;
 	
 	// Developer specific options
 	private boolean isWriteOutput = true;
@@ -31,6 +39,7 @@ public class DesqConfig {
 		this.sigma = 100;
 		this.patternExpression = null;
 		this.method = Method.DESQDFS;
+		this.match = Match.PARTIAL;
 	}
 	
 	public DesqConfig(DesqConfig conf) {
@@ -41,6 +50,7 @@ public class DesqConfig {
 		this.sigma = conf.sigma;
 		this.patternExpression = conf.patternExpression;
 		this.method = conf.method;
+		this.match = conf.match;
 	}
 
 	/**
@@ -167,6 +177,20 @@ public class DesqConfig {
 	 */
 	public void setUseFlist(boolean isUseFlist) {
 		this.isUseFlist = isUseFlist;
+	}
+
+	/**
+	 * @return the match
+	 */
+	public Match getMatch() {
+		return match;
+	}
+
+	/**
+	 * @param match the match to set
+	 */
+	public void setMatch(Match match) {
+		this.match = match;
 	}
 	
 }
