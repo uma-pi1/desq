@@ -9,6 +9,7 @@ import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -43,8 +44,8 @@ public class DfsOnePassScored extends DesqDfs {
 	private int dfsLevel = 0;
 
 	// Hash sets used for eps labels
-	IntOpenHashSet currentStateSet = new IntOpenHashSet();
-	IntOpenHashSet nextStateSet = new IntOpenHashSet();
+	boolean[] currentStateSet;
+	boolean[] nextStateSet;
 	
 	// score used to measure sequence performance
 	SPMScore score;
@@ -61,6 +62,9 @@ public class DfsOnePassScored extends DesqDfs {
 							@SuppressWarnings("rawtypes") HashMap<String, Collector> collectors, boolean writeOutput) {
 		super(sigma, xfst, writeOutput);
 		initialState = xfst.getInitialState();
+		
+		currentStateSet = new boolean[xfst.numStates()];
+		nextStateSet = new boolean[xfst.numStates()];
 		
 		this.score = score;
 		this.rankedScoreList = rankedScoreList;
@@ -83,7 +87,12 @@ public class DfsOnePassScored extends DesqDfs {
 		while (it.hasNext()) {
 			int itemId = it.nextInt();
 			Node child = root.children.get(itemId);
-			if (score.getMaximumScore(getCurrentSequence(child), getStatisticData(child)) >= sigma) {
+			
+			if(score.getMaximumScore(getCurrentSequence(child, dfsLevel + 1), getStatisticData(child)) != child.prefixSupport) {
+				System.out.println(getCurrentSequence(child, dfsLevel + 1));
+			}
+			
+			if (score.getMaximumScore(getCurrentSequence(child, dfsLevel + 1), getStatisticData(child)) >= sigma) {
 				expand(child);
 			}
 			child.clear();
@@ -122,22 +131,25 @@ public class DfsOnePassScored extends DesqDfs {
 		} while (projectedDatabase.nextPosting());
 
 		// Output if P-frequent
-		if (score.getScore(getCurrentSequence(node), getStatisticData(node)) >= sigma) {
-			numPatterns++;
-			if (writeOutput) {
-				// compute output sequence
-				int[] outputSequence = new int[dfsLevel];
-				int size = dfsLevel;
-				
-				outputSequence[--size] = node.suffixItemId;
-				Node parent = node.parent;
-				while(parent.parent != null) {
-					outputSequence[--size] = parent.suffixItemId;
-					parent = parent.parent;
+		if (reachedFinalState) {
+			int[] outputSequence = getCurrentSequence(node, dfsLevel);
+			if(score.getScore(outputSequence, getStatisticData(node), support) >= sigma) {
+				numPatterns++;
+				if (writeOutput) {
+					// compute output sequence
+//					int[] outputSequence = new int[dfsLevel];
+//					int size = dfsLevel;
+//					
+//					outputSequence[--size] = node.suffixItemId;
+//					Node parent = node.parent;
+//					while(parent.parent != null) {
+//						outputSequence[--size] = parent.suffixItemId;
+//						parent = parent.parent;
+//					}
+					rankedScoreList.addNewOutputSequence(outputSequence, score.getScore(outputSequence, getStatisticData(node), support), support);
+	//				writer.write(outputSequence, score.getScore(getCurrentSequence(node), getStatisticData(node)));
+					//System.out.println(Arrays.toString(outputSequence) + " : " + support);
 				}
-				rankedScoreList.addNewOutputSequence(outputSequence, score.getScore(getCurrentSequence(node), getStatisticData(node)), support);
-//				writer.write(outputSequence, score.getScore(getCurrentSequence(node), getStatisticData(node)));
-				//System.out.println(Arrays.toString(outputSequence) + " : " + support);
 			}
 		}
 
@@ -147,7 +159,11 @@ public class DfsOnePassScored extends DesqDfs {
 			int itemId = it.nextInt();
 			Node child = node.children.get(itemId);
 			
-			if (score.getMaximumScore(getCurrentSequence(child), getStatisticData(child)) >= sigma) {
+			if(score.getMaximumScore(getCurrentSequence(child, dfsLevel + 1), getStatisticData(child)) != child.prefixSupport) {
+				System.out.println(getCurrentSequence(child, dfsLevel + 1));
+			}
+			
+			if (score.getMaximumScore(getCurrentSequence(child, dfsLevel + 1), getStatisticData(child)) >= sigma) {
 				expand(child);
 			}
 			child.clear();
@@ -218,12 +234,15 @@ public class DfsOnePassScored extends DesqDfs {
 		}*/
 		reachedFinalState |= xfst.isFinalState(state);
 		boolean eps = true;
-		currentStateSet.clear();
-		currentStateSet.add(state);
+		Arrays.fill(currentStateSet, false);
+		currentStateSet[state] = true; 
 		while (pos < sequenceBuffer.length) {
 			int itemId = sequenceBuffer[pos];
 			
-			for (int s : currentStateSet) {
+			for (int s = 0; s < currentStateSet.length; s++) {
+				if(currentStateSet[s] != true) {
+					continue;
+				}
 				if (xfst.hasOutgoingTransition(s, itemId)) {
 					for (int tId = 0; tId < xfst.numTransitions(s); ++tId) {
 						if (xfst.canStep(itemId, s, tId)) {
@@ -234,7 +253,7 @@ public class DfsOnePassScored extends DesqDfs {
 							case EPSILON:
 								// incStep(sId, pos + 1, toState, node);
 								eps = true;
-								nextStateSet.add(toState);
+								nextStateSet[toState] = true;
 								reachedFinalState |= xfst.isFinalState(toState);
 								break;
 
@@ -270,8 +289,8 @@ public class DfsOnePassScored extends DesqDfs {
 				}
 			}
 			if (eps) {
-				currentStateSet = nextStateSet.clone();
-				nextStateSet.clear();
+				System.arraycopy(nextStateSet, 0, currentStateSet, 0, nextStateSet.length);
+				Arrays.fill(nextStateSet, false);
 				pos = pos + 1;
 			}
 		}
@@ -302,9 +321,9 @@ public class DfsOnePassScored extends DesqDfs {
 		return stack;
 	}
 	
-	private int[] getCurrentSequence(Node currentNode) {
-		int[] outputSequence = new int[dfsLevel + 1];
-		int size = dfsLevel + 1;
+	private int[] getCurrentSequence(Node currentNode, int level) {
+		int[] outputSequence = new int[level];
+		int size = level;
 		outputSequence[--size] = currentNode.suffixItemId;
 		Node parent = currentNode.parent;
 		while(parent.parent != null) {
@@ -318,6 +337,7 @@ public class DfsOnePassScored extends DesqDfs {
 	private final class Node {
 		int lastSequenceId = -1;
 		int suffixItemId;
+		int prefixSupport;
 		Node parent;
 		ByteArrayList projectedDatabase = new ByteArrayList();;
 		BitSet[] statePosSet = new BitSet[xfst.numStates()];
@@ -364,7 +384,7 @@ public class DfsOnePassScored extends DesqDfs {
 				}
 
 				node.lastSequenceId = sequenceId;
-//				node.prefixSupport++;
+				node.prefixSupport++;
 
 				PostingList.addCompressed(sequenceId + 1, node.projectedDatabase);
 				PostingList.addCompressed(state + 1, node.projectedDatabase);

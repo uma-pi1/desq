@@ -44,8 +44,8 @@ public class FrequencyScore implements SPMScore {
 	}
 
 	@Override
-	public double getScore(int[] prefix, HashMap<String, ?> statData) {
-		return (Integer) statData.get("PREFIXSUPPORT");
+	public double getScore(int[] prefix, HashMap<String, ?> statData, int support) {
+		return support;
 	}
 
 	@Override
