@@ -65,7 +65,11 @@ public abstract class DesqDfs {
 				int[] inputSequence = new int[rawSequence.length];
 				int i = 0;
 				for (String s : rawSequence) {
-					inputSequence[i++] = Integer.parseInt(s);
+					try {
+						inputSequence[i++] = Integer.parseInt(s);
+					} catch (NumberFormatException e) {
+				        System.out.println(rawSequence + " " + inputSequence.length); 
+				    }
 				}
 				addInputSequence(inputSequence);
 			}

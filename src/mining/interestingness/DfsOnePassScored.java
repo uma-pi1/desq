@@ -19,15 +19,15 @@ import java.util.stream.Collector;
 import mining.scores.RankedScoreList;
 import mining.scores.SPMScore;
 import mining.statistics.SPMLocalStatisticFactory;
-import mining.statistics.SPMStatisticsAggregator;
 import mining.statistics.SPMStatisticsData;
+import mining.statistics.old.SPMStatisticsAggregator;
 
 /**
  * DfsOnePass.java
  * 
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
-public class DfsOnePassScored extends DesqDfs {
+public class DfsOnePassScored extends DesqDfsScored {
 
 	// intial cFST state
 	int initialState;
@@ -88,12 +88,9 @@ public class DfsOnePassScored extends DesqDfs {
 			int itemId = it.nextInt();
 			Node child = root.children.get(itemId);
 			
-			if(score.getMaximumScore(getCurrentSequence(child, dfsLevel + 1), getStatisticData(child)) != child.prefixSupport) {
-				System.out.println(getCurrentSequence(child, dfsLevel + 1));
-			}
-			
 			if (score.getMaximumScore(getCurrentSequence(child, dfsLevel + 1), getStatisticData(child)) >= sigma) {
 				expand(child);
+				
 			}
 			child.clear();
 		}
@@ -130,8 +127,8 @@ public class DfsOnePassScored extends DesqDfs {
 
 		} while (projectedDatabase.nextPosting());
 
-		// Output if P-frequent
-		if (reachedFinalState) {
+		// Output if at least one sequence is valid
+		if (support > 0) {
 			int[] outputSequence = getCurrentSequence(node, dfsLevel);
 			if(score.getScore(outputSequence, getStatisticData(node), support) >= sigma) {
 				numPatterns++;
@@ -158,10 +155,6 @@ public class DfsOnePassScored extends DesqDfs {
 		while (it.hasNext()) {
 			int itemId = it.nextInt();
 			Node child = node.children.get(itemId);
-			
-			if(score.getMaximumScore(getCurrentSequence(child, dfsLevel + 1), getStatisticData(child)) != child.prefixSupport) {
-				System.out.println(getCurrentSequence(child, dfsLevel + 1));
-			}
 			
 			if (score.getMaximumScore(getCurrentSequence(child, dfsLevel + 1), getStatisticData(child)) >= sigma) {
 				expand(child);

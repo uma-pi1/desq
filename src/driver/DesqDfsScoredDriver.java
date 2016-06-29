@@ -6,9 +6,12 @@ import java.util.logging.Logger;
 
 import mining.interestingness.DfsOnePassScored;
 import mining.scores.FrequencyScore;
+import mining.scores.InformationGainScore;
+import mining.scores.LocalInformationGainScore;
 import mining.scores.RankedScoreList;
 import mining.scores.RankedScoreListAll;
 import mining.scores.SPMScore;
+import mining.statistics.GlobalInformationGainStatistic;
 import mining.statistics.GlobalItemDocFrequencyStatistic;
 import patex.PatEx;
 import utils.Dictionary;
@@ -76,12 +79,16 @@ public class DesqDfsScoredDriver {
 		logger.log(Level.INFO, "Mining P-frequent sequences...");
 		
 		RankedScoreList rankedScoreList = new RankedScoreListAll(true);
-//		SPMLocalStatisticFactory.setStatisticType(StatisticType.DOC_FREQUENCY);
-		GlobalItemDocFrequencyStatistic globalItemFrequency = new GlobalItemDocFrequencyStatistic();
-		SPMScore score = new FrequencyScore(globalItemFrequency);
-//		ConditionalInformationGainScore score = new ConditionalInformationGainScore(pFst.convertToFstGraph(), 1.5, (Hierarchy) SimpleHierarchy.getInstance(),pFst,rankedScoreList);
+//		GlobalItemDocFrequencyStatistic globalItemFrequency = new GlobalItemDocFrequencyStatistic();
+//		SPMScore score = new FrequencyScore(globalItemFrequency);
 		
-		DfsOnePassScored dfs = new DfsOnePassScored(10, xFst, score, rankedScoreList, score.getLocalCollectors(), writeOutput);
+		
+//		GlobalInformationGainStatistic globalInformationGainStatistic = new GlobalInformationGainStatistic(sequenceFile);
+//		SPMScore score = new InformationGainScore(xFst.convertToFstGraph(), globalInformationGainStatistic, Dictionary.getInstance(), xFst, rankedScoreList);
+
+		SPMScore score = new LocalInformationGainScore();
+		
+		DfsOnePassScored dfs = new DfsOnePassScored(1.5, xFst, score, rankedScoreList, score.getLocalCollectors(), writeOutput);
 		
 		totalTime.start();
 		

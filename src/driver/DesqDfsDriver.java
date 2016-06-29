@@ -13,6 +13,7 @@ import mining.DfsOnePass;
 import mining.OnePassIterative;
 import patex.PatEx;
 import utils.Dictionary;
+import visual.GraphViz;
 import writer.LogWriter;
 import writer.SequentialWriter;
 import fst.Fst;
@@ -69,6 +70,9 @@ public class DesqDfsDriver {
 				
 		// Generate optimized cFst
 		XFst xFst = cFst.optimizeForExecution();
+		GraphViz.setTEMP_DIR("C:/Users/D053441/AppData/Local/Temp");
+		GraphViz.setDOT("c:/Program Files (x86)/Graphviz2.38/bin/dot.exe");
+		xFst.print("C:\\Users\\D053441\\Desktop\\output.pdf");
 		
 		logger.log(Level.INFO, "Took "+ fstTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
 		

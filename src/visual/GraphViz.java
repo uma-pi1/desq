@@ -284,5 +284,14 @@ public class GraphViz
 	   this.graph = sb;
    }
    
+	public static void setTEMP_DIR(String tEMP_DIR) {
+		TEMP_DIR = tEMP_DIR;
+	}
+	
+	public static void setDOT(String dOT) {
+		DOT = dOT;
+	}
+   
+   
 } // end of class GraphViz
 

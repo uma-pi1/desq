@@ -1,10 +1,16 @@
 package fst;
 
 
+import java.util.ArrayList;
+import java.util.Map;
+
 import org.apache.lucene.util.FixedBitSet;
 
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import tools.FstEdge;
+import tools.FstGraph;
 import utils.Dictionary;
 import visual.Vdfa;
 
@@ -141,6 +147,99 @@ public class XFst {
 	 */
 	public boolean isReachable(int a, int b) {
 		return (0 == a) ? true : dIndex.get(a).get(b);
+	}
+	
+	public FstGraph convertToFstGraph() {
+		Int2ObjectArrayMap<ArrayList<FstEdge>> graphEdges = new Int2ObjectArrayMap<ArrayList<FstEdge>>();
+				
+			for(int s = 0; s < numStates(); ++s) {
+				for(int tId = 0; tId < numTransitions(s); ++ tId) {
+					ArrayList<FstEdge> edges = graphEdges.get(s);
+					if(edges == null) {
+						edges = new ArrayList<FstEdge>();
+					}
+					if(0 == ilabels[s][tId]) {
+						edges.add(new FstEdge(s, toStates[s][tId], olabels[s][tId], true));
+					} else {
+						edges.add(new FstEdge(s, toStates[s][tId], olabels[s][tId], false));
+					}
+					graphEdges.put(s, edges);
+					
+				}
+			}
+			
+			/* Add the final states with no output edges */
+			for (int i = 0; i < finalStates.length; i++) {
+				if (finalStates[i]) {
+					ArrayList<FstEdge> edges = graphEdges.get(i);
+					if(edges == null) {
+						edges = new ArrayList<FstEdge>();
+					}
+					graphEdges.put(i, edges);
+				}
+			}
+			
+			return new FstGraph(graphEdges, finalStates);
+//					vdfa.add(String.valueOf(s), String.valueOf(ilabels[s][tId]), olabels[s][tId].toString(), String.valueOf(toStates[s][tId]));
+//				}
+//				if(isFinalState(s)) {
+//					vdfa.addAccepted(String.valueOf(s));
+//				}
+//			}
+//			for (Map.Entry<Integer, Integer> entry : stateTable[i].entrySet()) {
+//				int label = entry.getKey();
+//				int offset = entry.getValue();
+//				while (offset < toStates.size()) {
+//					if (toStates.get(offset) == 0)
+//						break;
+//					OutputLabel yield = outLabels.get(offset);
+//					int to = toStates.get(offset);
+//					yield.item = label;
+//					ArrayList<FstEdge> edges = graphEdges.get(from);
+//					if(edges == null) {
+//						edges = new ArrayList<FstEdge>();
+//					}
+//					edges.add(new FstEdge(from, to, yield, false));
+//					graphEdges.put(from, edges);
+//					offset++;
+//				}
+//			}
+//		}
+//		
+//		
+//		/* For all wildcard transitions */
+//		for (int i = 0; i < wcStateTable.length; ++i) {
+//			if (wcStateTable[i] != -1) {
+//				int from = i;
+//				int label = 0;
+//				int offset = wcStateTable[i];
+//				while (offset < toStates.size()) {
+//					if (toStates.get(offset) == 0)
+//						break;
+//					OutputLabel yield = outLabels.get(offset);
+//					int to = toStates.get(offset);
+//					yield.item = label;
+//					ArrayList<FstEdge> edges = graphEdges.get(from);
+//					if(edges == null) {
+//						edges = new ArrayList<FstEdge>();
+//					}
+//					edges.add(new FstEdge(from, to, yield, true));
+//					graphEdges.put(from, edges);
+//					offset++;
+//				}
+//			}
+//		}
+//		
+//		/* Add the final states with no output edges */
+//		for (int i = 0; i < acceptedStates.length; i++) {
+//			if (acceptedStates[i]) {
+//				ArrayList<FstEdge> edges = graphEdges.get(i);
+//				if(edges == null) {
+//					edges = new ArrayList<FstEdge>();
+//				}
+//				graphEdges.put(i, edges);
+//			}
+//		}
 	}
 	
 	public void print(String file) {

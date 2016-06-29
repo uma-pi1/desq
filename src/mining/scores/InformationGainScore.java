@@ -2,21 +2,23 @@ package mining.scores;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-
+import java.util.stream.Collector;
 
 import fst.OutputLabel;
 import fst.XFst;
 import it.unimi.dsi.fastutil.ints.Int2IntMap.Entry;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import mining.statistics.FstStateItemCollector;
 import mining.statistics.GlobalInformationGainStatistic;
-import mining.statistics.PrefixSupportStatistic;
-import mining.statistics.SPMLocalStatisticCollector;
+import mining.statistics.LocalItemFrequencyCollector;
+import mining.statistics.MaxRemainingTransactionLengthCollector;
 import mining.statistics.PrefixSupportCollector;
-import mining.statistics.TransactionStateItemStatistic;
 import tools.FstEdge;
 import tools.FstGraph;
 import utils.Dictionary;
@@ -25,60 +27,55 @@ import utils.Hierarchy;
 public class InformationGainScore extends DesqBaseScore implements SPMScore {
 	GlobalInformationGainStatistic globalInformationGainStatistic;
 	
-	double minInformationGain;
+//	double minInformationGain;
 	FstGraph fstGraph;
 	Hierarchy hierarchy;
 	XFst xFst;
-	int[] pFSTToStates;
-	OutputLabel[] outputLabelArray;
+
 	RankedScoreList rankedScoreList;
 	Int2ObjectOpenHashMap<ScoredHierarchyItem> itemMap = new Int2ObjectOpenHashMap<ScoredHierarchyItem>();
 	Int2ObjectOpenHashMap<ArrayList<Integer>> stateValidItems = new Int2ObjectOpenHashMap<ArrayList<Integer>>();
 	Int2IntOpenHashMap stateItemCycleIndicator = new Int2IntOpenHashMap();
 	
-//	Comparator<ScoredHierarchyItem> scoreComparator = new Comparator<ScoredHierarchyItem>() {
-//        @Override public int compare(ScoredHierarchyItem o1, ScoredHierarchyItem o2) {
-//            return o1.compareTo(o2);
-//        }           
-//    };
-	
-//    TreeSet<ScoredHierarchyItem> sortedItemSet = new TreeSet<ScoredHierarchyItem>(scoreComparator);
-	
-	public InformationGainScore(FstGraph fstGraph, double minInformationGain, GlobalInformationGainStatistic globalInformationGainStatistic, 
+	public InformationGainScore(FstGraph fstGraph, GlobalInformationGainStatistic globalInformationGainStatistic, 
 						Hierarchy hierarchy, XFst xFst, RankedScoreList rankedScoreList) {
-		this.minInformationGain = minInformationGain;
 		this.globalInformationGainStatistic = globalInformationGainStatistic;
 		this.fstGraph = fstGraph;
 		this.hierarchy = hierarchy;
 		this.xFst = xFst;
 		this.rankedScoreList = rankedScoreList;
-		
-		pFSTToStates = new int[pFST.toStates.size() + 1];
-		xFst.toStates.toArray(pFSTToStates);
-		
-		outputLabelArray = new OutputLabel[xFst.outLabels.size()];
-		xFst.outLabels.toArray(outputLabelArray);
+		buildValidItemIndex();
+	}
+
+	@SuppressWarnings("rawtypes")
+	@Override
+	public HashMap<String, Collector> getLocalCollectors() {
+		HashMap<String, Collector> collectors = new HashMap<String, Collector>();
+		collectors.put("PREFIXSUPPORT", new PrefixSupportCollector());
+//		collectors.put("PREFIXSUPPORT", new EventsCountCollector());
+		collectors.put("FST_STATES", new FstStateItemCollector());
+		collectors.put("LOCAL_ITEM_FREQUENCIES", new LocalItemFrequencyCollector());
+		collectors.put("MAX_REMAIN_TRANSACTION_LENGTH", new MaxRemainingTransactionLengthCollector());
+		return collectors;
 	}
 
 	@Override
-	public double getScore(double score) {
-		return (score >= minInformationGain && score >= rankedScoreList.getMinScore());
-	}
-
-	@Override
-	public double getMaximumScore(int[] prefix, SPMLocalStatisticCollector[] statisticCollector) {
+	public double getMaximumScore(int[] items, HashMap<String, ?> statData) {
 		double maxScore = 0;
 		
-		TransactionStateItemStatistic localStatistic = ((TransactionStateItemStatistic) statisticCollector[statisticCollector.length]);
-		buildItemMap(localStatistic);
-
+		int maxTransactionLength = (Integer) statData.get("MAX_REMAIN_TRANSACTION_LENGTH");
+		int prefixSupport = (Integer) statData.get("PREFIXSUPPORT");
+		@SuppressWarnings("unchecked")
+		HashSet<Integer> fstStates = (HashSet<Integer>) statData.get("FST_STATES");
+		buildItemMap((Int2IntOpenHashMap) statData.get("LOCAL_ITEM_FREQUENCIES"));
+		
 		// TODO: one could determine whether the reachable Edges of one state is a subset of the another state => only the superset needs to processed (worst case assumption)
 		// TODO: improvement by determining the reachable states for each accepted state ... disallow union of possible transitions (tighter bound)
 		// TODO: get the maximum number of cycle iterations => challenge: how to treat the "." -> many possible configurations possible
 		boolean firstIteration = true;
 		
-		for (int  pFSTState : localStatistic.getpFSTStates()) {
-			int stateMaxTransactionLength = localStatistic.getMaxTransactionLength();
+		for (int  fstState : fstStates) {
+			int stateMaxTransactionLength = maxTransactionLength;
 			ArrayList<Integer> stateMaxSequence = new ArrayList<Integer>();
 			
 			if(!firstIteration) {
@@ -89,7 +86,7 @@ public class InformationGainScore extends DesqBaseScore implements SPMScore {
 				firstIteration = false;
 			}
 			
-			ArrayList<Integer> stateItems = stateValidItems.get(pFSTState);
+			ArrayList<Integer> stateItems = stateValidItems.get(fstState);
 
 			// for each item in the priority queue until max transaction length or priorityQueue is empty
 			for(Integer maxScoreItemId : stateItems) {
@@ -143,14 +140,14 @@ public class InformationGainScore extends DesqBaseScore implements SPMScore {
 			
 //			System.out.println("Generated Array: " + Arrays.toString(stateMaxSequence.toArray(new String[stateMaxSequence.size()])));
 			
-			double sequenceScore = getScore(concatenateSequence(prefix, stateMaxSequence), localStatistic.getFrequency(), statisticCollector);
+			double sequenceScore = getScore(concatenateSequence(items, stateMaxSequence), statData, prefixSupport);
 			
 			if(sequenceScore > maxScore) {
 				maxScore = sequenceScore;
 			}
 		}
-
-		return isSequenceScoreSufficient(maxScore);
+//		System.out.println(Arrays.toString(items) + maxScore);
+		return maxScore;
 	}
 	
 //	@Override
@@ -261,19 +258,15 @@ public class InformationGainScore extends DesqBaseScore implements SPMScore {
 //	}
 
 	@Override
-	public double getScore(int[] items, int support, SPMLocalStatisticCollector[] sequenceStatistics) {
+	public double getScore(int[] prefix, HashMap<String, ?> statCollectors, int support){
 		double totalInformationGain = 0;
-		for (int i = 0; i < items.length; i++) {
-			totalInformationGain = totalInformationGain + globalInformationGainStatistic.getInformationGain(items[i]);
+		for (int i = 0; i < prefix.length; i++) {
+			totalInformationGain = totalInformationGain + globalInformationGainStatistic.getInformationGain(prefix[i]);
 		}
 		return totalInformationGain;
 //		return (totalInformationGain * (support - 1));
 	}
 
-	public double getItemScore(int item) {
-		return globalInformationGainStatistic.getInformationGain(item);
-	}
-	
 	public void buildValidItemIndex() {
 		int numItems = Dictionary.getInstance().getFlist().length;
 		
@@ -320,12 +313,12 @@ public class InformationGainScore extends DesqBaseScore implements SPMScore {
 		System.out.println("Item validity Index finished");
 	}
 	
-	private void buildItemMap(TransactionStateItemStatistic localStatistic) {
+	private void buildItemMap(Int2IntOpenHashMap localItemFrequencies) {
 		ScoredHierarchyItem scoredItem;
 		
 		// creating lookup structure
 		// item id : count / score
-		for (Iterator<Entry> iterator = localStatistic.getLocalItemFrequencies().int2IntEntrySet().fastIterator(); iterator.hasNext();) {
+		for (Iterator<Entry> iterator = localItemFrequencies.int2IntEntrySet().fastIterator(); iterator.hasNext();) {
 			Map.Entry<Integer, Integer> itemFrequency = iterator.next();
 			int currentItem = itemFrequency.getKey();
 			
@@ -339,52 +332,52 @@ public class InformationGainScore extends DesqBaseScore implements SPMScore {
 			}
 			
 			// add all parents and sum counts
-			while(hierarchy.hasParent(currentItem)) {
-				currentItem = hierarchy.getParent(currentItem);
-				
-				if(itemMap.containsKey(currentItem)) {
-					itemMap.get(currentItem).addCount(itemFrequency.getValue());
-				} else {
-					scoredItem = new ScoredHierarchyItem(currentItem, itemFrequency.getValue(), getItemScore(currentItem));
-					itemMap.put(currentItem, scoredItem);
-//					sortedItemSet.add(scoredItem);
+			int parents[];
+			if(hierarchy.hasParent(currentItem)) {
+				parents = hierarchy.getAncestors(currentItem);
+				for(int i = 0; i<parents.length; i++) {
+					if(itemMap.containsKey(parents[i])) {
+						itemMap.get(parents[i]).addCount(itemFrequency.getValue());
+					} else {
+						scoredItem = new ScoredHierarchyItem(parents[i], itemFrequency.getValue(), getItemScore(currentItem));
+						itemMap.put(parents[i], scoredItem);
+	//					sortedItemSet.add(scoredItem);
+					}
 				}
 			}
 		}	
 	}
 	
 	private boolean checkItemMatchesOutput(FstEdge edge, int itemId) {
-		int offset = pFST.getOffset(edge.getFromState(), itemId);
-		
-		if (offset >= 0) {
-			for (; pFSTToStates[offset] != 0; offset++) {
-				int toState = pFSTToStates[offset];
-				OutputLabel outLabel = outputLabelArray[offset];
-				PrefixSupportCollector x = new PrefixSupportCollector();
-				Supplier<PrefixSupportStatistic> a = x.supplier();
-				
-				if(!edge.equals(new FstEdge(edge.getFromState(), toState, outLabel))) {
-					// not the correct edge... search for next edge
-					continue;
-				}
-				
-				int outputItem = outLabel.item;
-				
-				switch (outLabel.type) {
-					case EPSILON:
-						// does not create output -> cannot be equal
-						return false;
-					case CONSTANT:
-						// needs to check whether the constant is equal to the input
-						return itemId == outputItem;
-					case SELF:
-						// always true since the input item generates itself
-						return true;
-					case SELFGENERALIZE:
-						// always true since the input item generates itself
-						return true;
-					default:
-						break;
+
+		int s = edge.getFromState();
+		if (xFst.hasOutgoingTransition(s, itemId)) {
+			for (int tId = 0; tId < xFst.numTransitions(s); ++tId) {
+				if (xFst.canStep(itemId, s, tId)) {
+					int toState = xFst.getToState(s, tId);
+					OutputLabel olabel = xFst.getOutputLabel(s, tId);
+					
+					if(!edge.equals(new FstEdge(edge.getFromState(), toState, olabel))) {
+						// not the correct edge... search for next edge
+						continue;
+					}
+			
+					switch (olabel.type) {
+						case EPSILON:
+							// does not create output -> cannot be equal
+							return false;
+						case CONSTANT:
+							// needs to check whether the constant is equal to the input
+							return itemId == olabel.item;
+						case SELF:
+							// always true since the input item generates itself
+							return true;
+						case SELFGENERALIZE:
+							// always true since the input item generates itself
+							return true;
+						default:
+							break;
+					}
 				}
 			}
 		}
@@ -396,10 +389,13 @@ public class InformationGainScore extends DesqBaseScore implements SPMScore {
 		int minCount = itemCount;
 		
 		int currentItem = itemId;
-		while(hierarchy.hasParent(currentItem)) {
-			currentItem = hierarchy.getParent(currentItem);
-			if(itemMap.get(currentItem).getStateCount() < minCount) {
-				minCount = itemMap.get(currentItem).getStateCount();
+		int parents[];
+		if(hierarchy.hasParent(currentItem)) {
+			parents = hierarchy.getAncestors(currentItem);
+			for(int i = 0; i<parents.length; i++) {
+				if(itemMap.get(parents[i]).getStateCount() < minCount) {
+					minCount = itemMap.get(parents[i]).getStateCount();
+				}
 			}
 		}
 		
@@ -429,9 +425,12 @@ public class InformationGainScore extends DesqBaseScore implements SPMScore {
 			item.decreaseStateCount(deductionCount);
 			
 			int currentItem = item.getItemId();
-			while(hierarchy.hasParent(currentItem)) {
-				currentItem = hierarchy.getParent(currentItem);
-				itemMap.get(currentItem).decreaseStateCount(deductionCount);
+			int parents[];
+			if(hierarchy.hasParent(currentItem)) {
+				parents = hierarchy.getAncestors(currentItem);
+				for(int i = 0; i<parents.length; i++) {
+					itemMap.get(parents[i]).decreaseStateCount(deductionCount);
+				}
 			}
 		}
 	}

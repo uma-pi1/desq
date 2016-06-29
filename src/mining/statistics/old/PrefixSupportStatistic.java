@@ -1,4 +1,4 @@
-package mining.statistics;
+package mining.statistics.old;
 
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;

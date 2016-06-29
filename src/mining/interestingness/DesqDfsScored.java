@@ -19,7 +19,7 @@ import writer.SequentialWriter;
  * DesqDfs.java
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
-public abstract class DesqDfs {
+public abstract class DesqDfsScored {
 
 	protected Dictionary dictionary = Dictionary.getInstance();
 	
@@ -41,9 +41,9 @@ public abstract class DesqDfs {
 	
 	// Methods
 	
-	public DesqDfs() {}
+	public DesqDfsScored() {}
 	
-	public DesqDfs(double sigma, XFst xfst, boolean writeOutput) {
+	public DesqDfsScored(double sigma, XFst xfst, boolean writeOutput) {
 		this.sigma = sigma;
 		this.xfst = xfst;
 		this.writeOutput = writeOutput;
@@ -66,8 +66,13 @@ public abstract class DesqDfs {
 				int[] inputSequence = new int[rawSequence.length];
 				int i = 0;
 				for (String s : rawSequence) {
-					inputSequence[i++] = Integer.parseInt(s);
+					try {
+						inputSequence[i++] = Integer.parseInt(s);
+					} catch (NumberFormatException e) {
+				        System.out.println(rawSequence + " " + inputSequence.length); 
+				    }
 				}
+				
 				addInputSequence(inputSequence);
 			}
 		}
