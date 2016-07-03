@@ -4,8 +4,12 @@ import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.stream.Collector;
 
+import mining.scores.SPMScore;
 import driver.DesqConfig.Match;
 import fst.XFst;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -33,8 +37,6 @@ public abstract class DesqCountScored {
 
 	protected boolean writeOutput = true;
 	
-	protected boolean useFlist = true;
-	
 	protected int[] sequence;
 
 	protected int sid = -1;
@@ -59,14 +61,20 @@ public abstract class DesqCountScored {
 
 	protected Match match;
 	
+	protected SPMScore score;
+	
+	@SuppressWarnings("rawtypes")
+	protected HashMap<String, Collector> collectors;
+	
 	// Methods
 	
-	public DesqCountScored(double sigma, XFst dfa, boolean writeOutput, boolean useFlist, Match match) {
+	public DesqCountScored(double sigma, XFst dfa, SPMScore score, @SuppressWarnings("rawtypes") HashMap<String, Collector> collectors,boolean writeOutput,  Match match) {
 		this.sigma = sigma;
 		this.xfst = dfa;
 		this.writeOutput = writeOutput;
-		this.useFlist = useFlist;
 		this.match = match;
+		this.score = score;
+		this.collectors = collectors;
 	}
 	
 	
@@ -80,7 +88,7 @@ public abstract class DesqCountScored {
 		String line;
 		while ((line = br.readLine()) != null) {
 			if (!line.isEmpty()) {
-				String[] str = line.split("\\s* \\s*");
+				String[] str = line.split(" ");
 				sequence = new int[str.length];
 				for (int i = 0; i < str.length; ++i) {
 					sequence[i] = Integer.parseInt(str[i]);
@@ -107,7 +115,7 @@ public abstract class DesqCountScored {
 		for (Map.Entry<int[], Long> entry : outputSequences.entrySet()) {
 			long value = entry.getValue();
 			int support = PrimitiveUtils.getLeft(value);
-			if (support >= sigma) {
+			if (score.getScore(entry.getKey(), collectors, support) >= sigma) {
 				numPatterns++;
 				if(writeOutput) {
 					writer.write(entry.getKey(), support);
@@ -120,16 +128,18 @@ public abstract class DesqCountScored {
 	
 	protected void countSequence(int[] sequence) {
 		gpt++;
-		Long supSid = outputSequences.get(sequence);
-		if (supSid == null) {
-			outputSequences.put(sequence, PrimitiveUtils.combine(1, sid));
-			gptUnique++;
-			return;
-		}
-		if (PrimitiveUtils.getRight(supSid) != sid) {
-			int newCount = PrimitiveUtils.getLeft(supSid) + 1;
-			outputSequences.put(sequence, PrimitiveUtils.combine(newCount, sid));
-			gptUnique++;
+		if(score.getScore(sequence, collectors, 1) >= sigma) {
+			Long supSid = outputSequences.get(sequence);
+			if (supSid == null) {
+				outputSequences.put(sequence, PrimitiveUtils.combine(1, sid));
+				gptUnique++;
+				return;
+			}
+			if (PrimitiveUtils.getRight(supSid) != sid) {
+				int newCount = PrimitiveUtils.getLeft(supSid) + 1;
+				outputSequences.put(sequence, PrimitiveUtils.combine(newCount, sid));
+				gptUnique++;
+			}
 		}
 		
 	}

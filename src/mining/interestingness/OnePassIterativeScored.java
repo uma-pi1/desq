@@ -2,14 +2,16 @@ package mining.interestingness;
 
 //import java.util.Arrays;
 
-import java.util.Arrays;
+import java.util.HashMap;
+import java.util.stream.Collector;
 
-import driver.DesqConfig.Match;
+import fst.OutputLabel;
+import fst.XFst;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import fst.OutputLabel;
-import fst.XFst;
+import mining.scores.SPMScore;
+import driver.DesqConfig.Match;
 
 public class OnePassIterativeScored extends DesqCountScored {
 
@@ -43,8 +45,9 @@ public class OnePassIterativeScored extends DesqCountScored {
 	int stateListSize = 0;
 
 	@SuppressWarnings("unchecked")
-	public OnePassIterativeScored(double sigma, XFst xfst, boolean writeOutput, boolean useFlist, Match match) {
-		super(sigma, xfst, writeOutput, useFlist, match);
+	public OnePassIterativeScored(double sigma, XFst xfst, SPMScore score, @SuppressWarnings("rawtypes") HashMap<String, Collector> collectors,boolean writeOutput, Match match) {
+		super(sigma, xfst, score, collectors, writeOutput, match);
+		
 		numStates = xfst.numStates();
 		statePrefix = (ObjectArrayList<Node>[]) new ObjectArrayList[numStates];
 		stateList = new int[numStates];
@@ -124,7 +127,7 @@ public class OnePassIterativeScored extends DesqCountScored {
 
 						case CONSTANT:
 							int outputItemId = olabel.item;
-							if (!useFlist || flist[outputItemId] >= sigma) {
+							if (score.getItemScore(outputItemId) >= sigma) {
 								node = new Node(outputItemId, statePrefix[fromState]);
 								if (isFinal)
 									computeOutput(node);
@@ -133,7 +136,7 @@ public class OnePassIterativeScored extends DesqCountScored {
 							break;
 
 						case SELF:
-							if (!useFlist || flist[itemId] >= sigma) {
+							if (score.getItemScore(itemId) >= sigma) {
 								node = new Node(itemId, statePrefix[fromState]);
 								if (isFinal)
 									computeOutput(node);
@@ -160,7 +163,7 @@ public class OnePassIterativeScored extends DesqCountScored {
 							}
 							tempAnc.clear();
 							for (int id : stack) {
-								if (!useFlist || flist[id] >= sigma) {
+								if(score.getItemScore(id) >= sigma) {
 									node = new Node(id, statePrefix[fromState]);
 									if (isFinal)
 										computeOutput(node);

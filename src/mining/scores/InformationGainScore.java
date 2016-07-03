@@ -38,12 +38,11 @@ public class InformationGainScore extends DesqBaseScore implements SPMScore {
 	Int2IntOpenHashMap stateItemCycleIndicator = new Int2IntOpenHashMap();
 	
 	public InformationGainScore(FstGraph fstGraph, GlobalInformationGainStatistic globalInformationGainStatistic, 
-						Hierarchy hierarchy, XFst xFst, RankedScoreList rankedScoreList) {
+						Hierarchy hierarchy, XFst xFst) {
 		this.globalInformationGainStatistic = globalInformationGainStatistic;
 		this.fstGraph = fstGraph;
 		this.hierarchy = hierarchy;
 		this.xFst = xFst;
-		this.rankedScoreList = rankedScoreList;
 		buildValidItemIndex();
 	}
 

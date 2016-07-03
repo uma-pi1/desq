@@ -1,26 +1,26 @@
 package driver;
 
-import fst.XFst;
-import fst.Fst;
-
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.google.common.base.Stopwatch;
-
-import driver.DesqConfig.Match;
-import patex.PatEx;
-import mining.DesqCount;
-import mining.OnePassIterative;
-//import mining.OnePassIterative;
-import mining.OnePassRecursive;
 import mining.interestingness.DesqCountScored;
 import mining.interestingness.OnePassIterativeScored;
+import mining.scores.InformationGainScore;
+import mining.scores.SPMScore;
+import mining.statistics.GlobalInformationGainStatistic;
+import patex.PatEx;
 //import mining.TwoPass;
 import utils.Dictionary;
 //import writer.LogWriter;
 import writer.SequentialWriter;
+
+import com.google.common.base.Stopwatch;
+
+import driver.DesqConfig.Match;
+import fst.Fst;
+import fst.XFst;
+//import mining.OnePassIterative;
 
 /**
  * DesqCountDriver.java
@@ -81,8 +81,11 @@ public class DesqCountScoredDriver {
 		
 		logger.log(Level.INFO, "Mining P-frequent sequences...");
 		
+		GlobalInformationGainStatistic globalInformationGainStatistic = new GlobalInformationGainStatistic(sequenceFile);
+		SPMScore score = new InformationGainScore(xFst.convertToFstGraph(), globalInformationGainStatistic, Dictionary.getInstance(), xFst);
+		
 		//DesqCount dc = new OnePassRecursive(support, xFst, writeOutput, useFlist);
-		DesqCountScored dc = new OnePassIterativeScored(support, xFst, writeOutput, useFlist, match);
+		DesqCountScored dc = new OnePassIterativeScored(support, xFst, score, score.getLocalCollectors(), writeOutput, match);
 		
 		totalTime.start();
 		

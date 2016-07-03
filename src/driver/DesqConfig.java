@@ -2,7 +2,7 @@ package driver;
 
 public class DesqConfig {
 	public static enum Method {
-		DESQCOUNT, DESQDFS, DESQDFSSCORED
+		DESQCOUNT, DESQDFS, DESQDFSSCORED, DESQCOUNTSCORED
 	};
 	
 	public static enum Match {
