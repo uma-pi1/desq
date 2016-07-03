@@ -36,7 +36,7 @@ public class DesqDfsDriver {
 		String output = conf.getOutputSequencesPath();
 		String patternExpression = conf.getPatternExpression();
 		patternExpression = ".*[" + patternExpression.trim() + "]";
-		int support = conf.getSigma();
+		int support = new Double(conf.getSigma()).intValue();
 		
 		boolean writeOutput = conf.isWriteOutput();
 		boolean useFlist = conf.isUseFlist();

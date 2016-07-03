@@ -39,7 +39,7 @@ public class DesqDfsScoredDriver {
 		String output = conf.getOutputSequencesPath();
 		String patternExpression = conf.getPatternExpression();
 		patternExpression = ".*[" + patternExpression.trim() + "]";
-		int support = conf.getSigma();
+		double sigma = conf.getSigma();
 		
 		boolean writeOutput = conf.isWriteOutput();
 		boolean useFlist = conf.isUseFlist();
@@ -79,16 +79,16 @@ public class DesqDfsScoredDriver {
 		logger.log(Level.INFO, "Mining P-frequent sequences...");
 		
 		RankedScoreList rankedScoreList = new RankedScoreListAll(true);
-//		GlobalItemDocFrequencyStatistic globalItemFrequency = new GlobalItemDocFrequencyStatistic();
-//		SPMScore score = new FrequencyScore(globalItemFrequency);
+		GlobalItemDocFrequencyStatistic globalItemFrequency = new GlobalItemDocFrequencyStatistic();
+		SPMScore score = new FrequencyScore(globalItemFrequency);
 		
 		
 //		GlobalInformationGainStatistic globalInformationGainStatistic = new GlobalInformationGainStatistic(sequenceFile);
 //		SPMScore score = new InformationGainScore(xFst.convertToFstGraph(), globalInformationGainStatistic, Dictionary.getInstance(), xFst, rankedScoreList);
 
-		SPMScore score = new LocalInformationGainScore();
+//		SPMScore score = new LocalInformationGainScore();
 		
-		DfsOnePassScored dfs = new DfsOnePassScored(1.5, xFst, score, rankedScoreList, score.getLocalCollectors(), writeOutput);
+		DfsOnePassScored dfs = new DfsOnePassScored(sigma, xFst, score, rankedScoreList, score.getLocalCollectors(), writeOutput);
 		
 		totalTime.start();
 		

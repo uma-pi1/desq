@@ -16,7 +16,7 @@ public class DesqConfig {
 	private String encodedSequencesPath;
 	
 	// Parameters
-	private int sigma;
+	private double sigma;
 	private String patternExpression;
 	
 	// Method
@@ -112,14 +112,14 @@ public class DesqConfig {
 	/**
 	 * @return the sigma
 	 */
-	public int getSigma() {
+	public double getSigma() {
 		return sigma;
 	}
 
 	/**
 	 * @param sigma the sigma to set
 	 */
-	public void setSigma(int sigma) {
+	public void setSigma(double sigma) {
 		this.sigma = sigma;
 	}
 

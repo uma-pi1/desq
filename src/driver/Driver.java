@@ -106,7 +106,7 @@ public class Driver {
 				}
 				
 				if(cmd.hasOption("s")) {
-					conf.setSigma(Integer.parseInt(cmd.getOptionValue("s")));
+					conf.setSigma(Double.parseDouble(cmd.getOptionValue("s")));
 				} else {
 					logger.log(Level.INFO, "Missing minimum support, using defaul" + conf.getSigma());
 				}

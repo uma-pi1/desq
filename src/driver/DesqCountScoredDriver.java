@@ -15,6 +15,8 @@ import mining.DesqCount;
 import mining.OnePassIterative;
 //import mining.OnePassIterative;
 import mining.OnePassRecursive;
+import mining.interestingness.DesqCountScored;
+import mining.interestingness.OnePassIterativeScored;
 //import mining.TwoPass;
 import utils.Dictionary;
 //import writer.LogWriter;
@@ -24,13 +26,13 @@ import writer.SequentialWriter;
  * DesqCountDriver.java
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
-public class DesqCountDriver {
+public class DesqCountScoredDriver {
 	
 	// Timers
 	public static Stopwatch fstTime = Stopwatch.createUnstarted();
 	public static Stopwatch totalTime = Stopwatch.createUnstarted();
 	
-	private static final Logger logger = Logger.getLogger(DesqCountDriver.class.getSimpleName());
+	private static final Logger logger = Logger.getLogger(DesqCountScoredDriver.class.getSimpleName());
 	
 	public static void run(DesqConfig conf) throws Exception {
 		
@@ -42,7 +44,7 @@ public class DesqCountDriver {
 		if(match == Match.PARTIAL || match == Match.RSTRICT) {
 			patternExpression = ".* [" + patternExpression.trim() + "]";
 		}
-		int support = new Double(conf.getSigma()).intValue();
+		double support = conf.getSigma();
 		
 		boolean writeOutput = conf.isWriteOutput();
 		boolean useFlist = conf.isUseFlist();
@@ -80,7 +82,7 @@ public class DesqCountDriver {
 		logger.log(Level.INFO, "Mining P-frequent sequences...");
 		
 		//DesqCount dc = new OnePassRecursive(support, xFst, writeOutput, useFlist);
-		DesqCount dc = new OnePassIterative(support, xFst, writeOutput, useFlist, match);
+		DesqCountScored dc = new OnePassIterativeScored(support, xFst, writeOutput, useFlist, match);
 		
 		totalTime.start();
 		
