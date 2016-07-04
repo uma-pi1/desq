@@ -1,16 +1,15 @@
 package mining.statistics;
 
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
+
 import java.util.Collections;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.Collector;
 
-import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
-
-public class LocalItemFrequencyCollector implements Collector<SPMStatisticsData, LocalItemFrequencyCollector, Int2IntOpenHashMap>, 
+public class LocalItemFrequencyCollector implements DesqCountCollector<LocalItemFrequencyCollector, Int2IntOpenHashMap>, 
 												Supplier<LocalItemFrequencyCollector>,
 												BiConsumer<LocalItemFrequencyCollector, SPMStatisticsData> {
 	// Data of the accumulator, BiConsumer 

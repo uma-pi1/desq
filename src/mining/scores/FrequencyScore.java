@@ -1,8 +1,10 @@
 package mining.scores;
 
 import java.util.HashMap;
+import java.util.function.Function;
 import java.util.stream.Collector;
 
+import mining.statistics.DesqCountCollector;
 import mining.statistics.GlobalItemDocFrequencyStatistic;
 import mining.statistics.PrefixSupportCollector;
 
@@ -44,20 +46,24 @@ public class FrequencyScore implements SPMScore {
 	}
 
 	@Override
-	public double getScore(int[] prefix, HashMap<String, ?> statData, int support) {
+	public double getScore(int[] prefix, HashMap<String, DesqCountCollector<?,?>> statData, int support) {
 		return support;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public double getMaximumScore(int[] items, HashMap<String, ?> statData) {
-		return (Integer) statData.get("PREFIXSUPPORT");
+	public double getMaximumScore(int[] items, HashMap<String, DesqCountCollector<?,?>> statData) {
+		PrefixSupportCollector sup = (PrefixSupportCollector) statData.get("PREFIXSUPPORT");
+		Function<PrefixSupportCollector, Integer> func = (Function<PrefixSupportCollector, Integer>) statData.get("PREFIXSUPPORT").finisher();
+		return func.apply(sup);
 	}
 
-	@SuppressWarnings("rawtypes")
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Override
-	public HashMap<String, Collector> getLocalCollectors() {
-		HashMap<String, Collector> collectors = new HashMap<String, Collector>();
-		collectors.put("PREFIXSUPPORT", new PrefixSupportCollector());
+	public HashMap<String, DesqCountCollector<DesqCountCollector<?, ?>, ?>> getLocalCollectors() {
+		HashMap<String, DesqCountCollector<DesqCountCollector<?, ?>, ?>> collectors = new HashMap<String, DesqCountCollector<DesqCountCollector<?, ?>,?>>();
+		collectors.put("PREFIXSUPPORT", (DesqCountCollector) new PrefixSupportCollector());
 		return collectors;
 	}
 

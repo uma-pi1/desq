@@ -14,6 +14,7 @@ import fst.XFst;
 import it.unimi.dsi.fastutil.ints.Int2IntMap.Entry;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import mining.statistics.DesqCountCollector;
 import mining.statistics.FstStateItemCollector;
 import mining.statistics.GlobalInformationGainStatistic;
 import mining.statistics.LocalItemFrequencyCollector;
@@ -46,15 +47,15 @@ public class InformationGainScore extends DesqBaseScore implements SPMScore {
 		buildValidItemIndex();
 	}
 
-	@SuppressWarnings("rawtypes")
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
-	public HashMap<String, Collector> getLocalCollectors() {
-		HashMap<String, Collector> collectors = new HashMap<String, Collector>();
-		collectors.put("PREFIXSUPPORT", new PrefixSupportCollector());
+	public HashMap<String, DesqCountCollector<DesqCountCollector<?, ?>, ?>> getLocalCollectors() {
+		HashMap<String, DesqCountCollector<DesqCountCollector<?, ?>, ?>> collectors = new HashMap<String, DesqCountCollector<DesqCountCollector<?, ?>,?>>();
+		collectors.put("PREFIXSUPPORT", (DesqCountCollector) new PrefixSupportCollector());
 //		collectors.put("PREFIXSUPPORT", new EventsCountCollector());
-		collectors.put("FST_STATES", new FstStateItemCollector());
-		collectors.put("LOCAL_ITEM_FREQUENCIES", new LocalItemFrequencyCollector());
-		collectors.put("MAX_REMAIN_TRANSACTION_LENGTH", new MaxRemainingTransactionLengthCollector());
+		collectors.put("FST_STATES", (DesqCountCollector) new FstStateItemCollector());
+		collectors.put("LOCAL_ITEM_FREQUENCIES", (DesqCountCollector) new LocalItemFrequencyCollector());
+		collectors.put("MAX_REMAIN_TRANSACTION_LENGTH", (DesqCountCollector) new MaxRemainingTransactionLengthCollector());
 		return collectors;
 	}
 

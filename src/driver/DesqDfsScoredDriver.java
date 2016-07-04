@@ -79,12 +79,12 @@ public class DesqDfsScoredDriver {
 		logger.log(Level.INFO, "Mining P-frequent sequences...");
 		
 		RankedScoreList rankedScoreList = new RankedScoreListAll(true);
-//		GlobalItemDocFrequencyStatistic globalItemFrequency = new GlobalItemDocFrequencyStatistic();
-//		SPMScore score = new FrequencyScore(globalItemFrequency);
+		GlobalItemDocFrequencyStatistic globalItemFrequency = new GlobalItemDocFrequencyStatistic();
+		SPMScore score = new FrequencyScore(globalItemFrequency);
 		
 		
-		GlobalInformationGainStatistic globalInformationGainStatistic = new GlobalInformationGainStatistic(sequenceFile);
-		SPMScore score = new InformationGainScore(xFst.convertToFstGraph(), globalInformationGainStatistic, Dictionary.getInstance(), xFst);
+//		GlobalInformationGainStatistic globalInformationGainStatistic = new GlobalInformationGainStatistic(sequenceFile);
+//		SPMScore score = new InformationGainScore(xFst.convertToFstGraph(), globalInformationGainStatistic, Dictionary.getInstance(), xFst);
 
 //		SPMScore score = new LocalInformationGainScore();
 		

@@ -8,7 +8,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collector;
 
-public class EventsCountCollector implements Collector<SPMStatisticsData, EventsCountCollector, Integer>, 
+public class EventsCountCollector implements DesqCountCollector<EventsCountCollector, Integer>, 
 												Supplier<EventsCountCollector>,
 												BiConsumer<EventsCountCollector, SPMStatisticsData> {
 	// Data of the accumulator, BiConsumer 

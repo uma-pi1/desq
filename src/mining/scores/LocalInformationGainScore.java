@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.stream.Collector;
 
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
+import mining.statistics.DesqCountCollector;
 import mining.statistics.EventsCountCollector;
 import mining.statistics.FstStateItemCollector;
 import mining.statistics.MaxRemainingTransactionLengthCollector;
@@ -12,10 +13,9 @@ import mining.statistics.ProjDatabaseFrequencyCollector;
 
 public class LocalInformationGainScore extends DesqBaseScore implements SPMScore {	
 		
-	@SuppressWarnings("rawtypes")
 	@Override
-	public HashMap<String, Collector> getLocalCollectors() {
-		HashMap<String, Collector> collectors = new HashMap<String, Collector>();
+	public HashMap<String, DesqCountCollector<DesqCountCollector<?, ?>, ?>> getLocalCollectors() {
+		HashMap<String, DesqCountCollector<?,?>> collectors = new HashMap<String, DesqCountCollector<?,?>>();
 		collectors.put("PREFIXSUPPORT", new PrefixSupportCollector());
 		collectors.put("TOTAL_EVENT_COUNT", new EventsCountCollector());
 		collectors.put("FST_STATES", new FstStateItemCollector());

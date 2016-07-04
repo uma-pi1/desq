@@ -9,7 +9,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collector;
 
-public class FstStateItemCollector implements Collector<SPMStatisticsData, FstStateItemCollector, HashSet<Integer>>, 
+public class FstStateItemCollector implements DesqCountCollector<FstStateItemCollector, HashSet<Integer>>, 
 												Supplier<FstStateItemCollector>,
 												BiConsumer<FstStateItemCollector, SPMStatisticsData> {
 	// Data of the accumulator, BiConsumer 

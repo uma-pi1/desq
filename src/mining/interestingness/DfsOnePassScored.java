@@ -14,10 +14,14 @@ import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map.Entry;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collector;
 
 import mining.scores.RankedScoreList;
 import mining.scores.SPMScore;
+import mining.statistics.DesqCountCollector;
 import mining.statistics.SPMLocalStatisticFactory;
 import mining.statistics.SPMStatisticsData;
 import mining.statistics.old.SPMStatisticsAggregator;
@@ -53,13 +57,13 @@ public class DfsOnePassScored extends DesqDfsScored {
 	// ranking class
 	RankedScoreList rankedScoreList;
 	
-	@SuppressWarnings("rawtypes")
-	HashMap<String, Collector> collectors;
+
+	HashMap<String, DesqCountCollector<DesqCountCollector<?,?>,?>> collectors;
 	
 	SPMStatisticsData statisticsBaseData = new SPMStatisticsData();
 	
 	public DfsOnePassScored(double sigma, XFst xfst, SPMScore score, RankedScoreList rankedScoreList, 
-							@SuppressWarnings("rawtypes") HashMap<String, Collector> collectors, boolean writeOutput) {
+							HashMap<String, DesqCountCollector<DesqCountCollector<?, ?>, ?>> collectors, boolean writeOutput) {
 		super(sigma, xfst, writeOutput);
 		initialState = xfst.getInitialState();
 		
@@ -166,13 +170,13 @@ public class DfsOnePassScored extends DesqDfsScored {
 		dfsLevel--;
 	}
 	
-	@SuppressWarnings("unchecked")
-	private HashMap<String, Object> getStatisticData(Node node) {
-		HashMap<String, Object> statData = new HashMap<String, Object>();
+	private HashMap<String, DesqCountCollector<?, ?>> getStatisticData(Node node) {
+		HashMap<String, DesqCountCollector<?, ?>> statData = new HashMap<String, DesqCountCollector<?, ?>>();
 		
-		for (Entry<String, Object> entry : node.localAccumulators.entrySet()) {
-			statData.put(entry.getKey(), collectors.get(entry.getKey()).finisher().apply(entry.getValue()));
+		for (Entry<String, DesqCountCollector<?, ?>> entry : node.localAccumulators.entrySet()) {
+			statData.put(entry.getKey(), node.localAccumulators.get(entry.getKey()));
 		}
+		
 		return statData;
 	}
 
@@ -330,12 +334,12 @@ public class DfsOnePassScored extends DesqDfsScored {
 	private final class Node {
 		int lastSequenceId = -1;
 		int suffixItemId;
-		int prefixSupport;
+
 		Node parent;
 		ByteArrayList projectedDatabase = new ByteArrayList();;
 		BitSet[] statePosSet = new BitSet[xfst.numStates()];
 		Int2ObjectOpenHashMap<Node> children = new Int2ObjectOpenHashMap<Node>();
-		HashMap<String,Object> localAccumulators = new HashMap<String, Object>();
+		HashMap<String, DesqCountCollector<?, ?>> localAccumulators = new HashMap<String, DesqCountCollector<?, ?>>();
 
 		Node(Node parent, int suffixItemId) {
 			this.parent = parent;
@@ -345,9 +349,8 @@ public class DfsOnePassScored extends DesqDfsScored {
 				statePosSet[i] = new BitSet();
 			}
 			
-			for (@SuppressWarnings("rawtypes") Entry<String, Collector> entry: collectors.entrySet()) {
-				@SuppressWarnings("rawtypes")
-				Collector coll = entry.getValue();
+			for (Entry<String, DesqCountCollector<DesqCountCollector<?,?>, ?>> entry: collectors.entrySet()) {
+				DesqCountCollector<DesqCountCollector<?,?>, ?> coll = entry.getValue();
 				localAccumulators.put(entry.getKey(), coll.supplier().get());
 			}
 		}
@@ -377,7 +380,6 @@ public class DfsOnePassScored extends DesqDfsScored {
 				}
 
 				node.lastSequenceId = sequenceId;
-				node.prefixSupport++;
 
 				PostingList.addCompressed(sequenceId + 1, node.projectedDatabase);
 				PostingList.addCompressed(state + 1, node.projectedDatabase);
@@ -391,15 +393,18 @@ public class DfsOnePassScored extends DesqDfsScored {
 			}
 		}
 		
-		@SuppressWarnings({ "unchecked", "rawtypes" })
+		
 		void updateStatistics(int itemId, int sequenceId, int transaction[], int position, int state) {
 			Node node = children.get(itemId);
 			statisticsBaseData.setPosition(position);
 			statisticsBaseData.setStateFST(state);
 			statisticsBaseData.setTransaction(transaction);
 			statisticsBaseData.setTransactionId(sequenceId);
-			for (Entry<String, Object> entry : node.localAccumulators.entrySet()) {
-				Collector collector = collectors.get(entry.getKey());
+			for (Entry<String, DesqCountCollector<?, ?>> entry : node.localAccumulators.entrySet()) {
+				
+				// at compile time it is not decided which type the accept function 
+
+				DesqCountCollector<DesqCountCollector<?,?>, ?> collector = collectors.get(entry.getKey());
 				collector.accumulator().accept(entry.getValue(), statisticsBaseData);
 			}
 		}

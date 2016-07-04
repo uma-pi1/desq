@@ -8,7 +8,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collector;
 
-public class MaxRemainingTransactionLengthCollector implements Collector<SPMStatisticsData, MaxRemainingTransactionLengthCollector, Integer>, 
+public class MaxRemainingTransactionLengthCollector implements DesqCountCollector<MaxRemainingTransactionLengthCollector, Integer>, 
 												Supplier<MaxRemainingTransactionLengthCollector>,
 												BiConsumer<MaxRemainingTransactionLengthCollector, SPMStatisticsData> {
 	// Data of the accumulator, BiConsumer 

@@ -8,7 +8,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collector;
 
-public class PrefixSupportCollector implements Collector<SPMStatisticsData, PrefixSupportCollector, Integer>, 
+public class PrefixSupportCollector implements DesqCountCollector<PrefixSupportCollector, Integer>, 
 												Supplier<PrefixSupportCollector>,
 												BiConsumer<PrefixSupportCollector, SPMStatisticsData> {
 	// Data of the accumulator, BiConsumer 

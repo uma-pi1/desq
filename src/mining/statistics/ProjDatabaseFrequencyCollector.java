@@ -10,7 +10,7 @@ import java.util.stream.Collector;
 
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 
-public class ProjDatabaseFrequencyCollector implements Collector<SPMStatisticsData, ProjDatabaseFrequencyCollector, Int2IntOpenHashMap>, 
+public class ProjDatabaseFrequencyCollector implements DesqCountCollector<ProjDatabaseFrequencyCollector, Int2IntOpenHashMap>, 
 												Supplier<ProjDatabaseFrequencyCollector>,
 												BiConsumer<ProjDatabaseFrequencyCollector, SPMStatisticsData> {
 	// Data of the accumulator, BiConsumer 
