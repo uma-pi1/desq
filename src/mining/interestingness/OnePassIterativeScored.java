@@ -5,13 +5,14 @@ package mining.interestingness;
 import java.util.HashMap;
 import java.util.stream.Collector;
 
+import driver.DesqConfig.Match;
 import fst.OutputLabel;
 import fst.XFst;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import mining.scores.RankedScoreList;
 import mining.scores.SPMScore;
-import driver.DesqConfig.Match;
 
 public class OnePassIterativeScored extends DesqCountScored {
 
@@ -45,8 +46,8 @@ public class OnePassIterativeScored extends DesqCountScored {
 	int stateListSize = 0;
 
 	@SuppressWarnings("unchecked")
-	public OnePassIterativeScored(double sigma, XFst xfst, SPMScore score, @SuppressWarnings("rawtypes") HashMap<String, Collector> collectors,boolean writeOutput, Match match) {
-		super(sigma, xfst, score, collectors, writeOutput, match);
+	public OnePassIterativeScored(double sigma, XFst xfst, SPMScore score, @SuppressWarnings("rawtypes") HashMap<String, Collector> collectors, RankedScoreList rankedScoreList, boolean writeOutput, Match match) {
+		super(sigma, xfst, score, collectors, rankedScoreList, writeOutput, match);
 		
 		numStates = xfst.numStates();
 		statePrefix = (ObjectArrayList<Node>[]) new ObjectArrayList[numStates];

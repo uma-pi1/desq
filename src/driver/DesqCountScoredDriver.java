@@ -7,6 +7,8 @@ import java.util.logging.Logger;
 import mining.interestingness.DesqCountScored;
 import mining.interestingness.OnePassIterativeScored;
 import mining.scores.InformationGainScore;
+import mining.scores.RankedScoreList;
+import mining.scores.RankedScoreListAll;
 import mining.scores.SPMScore;
 import mining.statistics.GlobalInformationGainStatistic;
 import patex.PatEx;
@@ -83,9 +85,10 @@ public class DesqCountScoredDriver {
 		
 		GlobalInformationGainStatistic globalInformationGainStatistic = new GlobalInformationGainStatistic(sequenceFile);
 		SPMScore score = new InformationGainScore(xFst.convertToFstGraph(), globalInformationGainStatistic, Dictionary.getInstance(), xFst);
+		RankedScoreList rankedScoreList = new RankedScoreListAll(true);
 		
 		//DesqCount dc = new OnePassRecursive(support, xFst, writeOutput, useFlist);
-		DesqCountScored dc = new OnePassIterativeScored(support, xFst, score, score.getLocalCollectors(), writeOutput, match);
+		DesqCountScored dc = new OnePassIterativeScored(support, xFst, score, score.getLocalCollectors(), rankedScoreList, writeOutput, match);
 		
 		totalTime.start();
 		
