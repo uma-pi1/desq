@@ -1,26 +1,82 @@
 package mining.scores;
 
 import java.util.HashMap;
-import java.util.stream.Collector;
 
-import mining.statistics.old.SPMLocalStatisticCollector;
-import tools.FstGraph;
+import mining.statistics.collectors.DesqGlobalDataCollector;
+import mining.statistics.collectors.DesqProjDbDataCollector;
+import mining.statistics.collectors.DesqResultDataCollector;
+import fst.XFst;
+
+public class DesqBaseScore implements DesqScore,
+										DesqCountScore,
+										DesqDfsScore {
+	
+	protected XFst xfst;
+	
+	public DesqBaseScore(XFst xfst) {
+		this.xfst = xfst;
+	}
 
 
-public abstract class DesqBaseScore implements SPMScore {
 
 	@Override
-	public double getScore(int[] prefix, HashMap<String, ?> statCollectors, int support) {
-		return Double.MAX_VALUE;
+	public double getScoreBySequence(
+			int[] sequence,
+			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors) {
+		throw new NotImplementedExcepetion();
 	}
 
 	@Override
-	public double getMaximumScore(int[] items, HashMap<String, ?> statCollectors) {
-		return Double.MAX_VALUE;
+	public double getScoreByProjDb(
+			int[] sequence,
+			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors,
+			HashMap<String, ? extends DesqProjDbDataCollector<?, ?>> projDbCollectors) {
+		throw new NotImplementedExcepetion();
 	}
 
 	@Override
-	public double getItemScore(int item) {
-		return Double.MAX_VALUE;
+	public double getScoreByResultSet(
+			int[] sequence,
+			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors,
+			HashMap<String, ? extends DesqResultDataCollector<?, ?>> resultDataCollectors,
+			HashMap<String, ? extends DesqProjDbDataCollector<?, ?>> projDbCollectors) {
+		throw new NotImplementedExcepetion();
+	}
+
+	@Override
+	public HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?, ?>, ?>> getGlobalDataCollectors() {
+		throw new NotImplementedExcepetion();
+	}
+
+	@Override
+	public HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> getProjDbCollectors() {
+		throw new NotImplementedExcepetion();
+	}
+
+	@Override
+	public HashMap<String, DesqResultDataCollector<? extends DesqResultDataCollector<?, ?>, ?>> getResultDataCollectors() {
+		throw new NotImplementedExcepetion();
+	}
+
+	@Override
+	public double getMaxScoreByPrefix(
+			int[] prefix,
+			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors,
+			HashMap<String, ? extends DesqProjDbDataCollector<?, ?>> projDbCollectors) {
+		throw new NotImplementedExcepetion();
+	}
+
+	@Override
+	public double getMaxScoreByPrefix(
+			int[] prefix,
+			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollector) {
+		throw new NotImplementedExcepetion();
+	}
+	
+	@Override
+	public double getMaxScoreByItem(
+			int item,
+			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors) {
+		throw new NotImplementedExcepetion();
 	}
 }

@@ -19,11 +19,12 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collector;
 
+import mining.scores.DesqDfsScore;
 import mining.scores.RankedScoreList;
-import mining.scores.SPMScore;
-import mining.statistics.DesqCountCollector;
-import mining.statistics.SPMLocalStatisticFactory;
-import mining.statistics.SPMStatisticsData;
+import mining.statistics.collectors.DesqGlobalDataCollector;
+import mining.statistics.collectors.DesqProjDbDataCollector;
+import mining.statistics.collectors.SPMLocalStatisticFactory;
+import mining.statistics.data.ProjDbStatData;
 import mining.statistics.old.SPMStatisticsAggregator;
 
 /**
@@ -52,18 +53,21 @@ public class DfsOnePassScored extends DesqDfsScored {
 	boolean[] nextStateSet;
 	
 	// score used to measure sequence performance
-	SPMScore score;
+	DesqDfsScore score;
 	
 	// ranking class
 	RankedScoreList rankedScoreList;
 	
+	// final Node
+	Node finalNode;
 
-	HashMap<String, DesqCountCollector<DesqCountCollector<?,?>,?>> collectors;
+	HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> projDbCollectors;
+	HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?,?>, ?>> globalDataCollectors;
+	HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> finalStateProjDbAccumulators;
 	
-	SPMStatisticsData statisticsBaseData = new SPMStatisticsData();
+	ProjDbStatData statisticsBaseData = new ProjDbStatData();
 	
-	public DfsOnePassScored(double sigma, XFst xfst, SPMScore score, RankedScoreList rankedScoreList, 
-							HashMap<String, DesqCountCollector<DesqCountCollector<?, ?>, ?>> collectors, boolean writeOutput) {
+	public DfsOnePassScored(double sigma, XFst xfst, DesqDfsScore score, RankedScoreList rankedScoreList, HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?,?>, ?>> globalDataCollectors, boolean writeOutput) {
 		super(sigma, xfst, writeOutput);
 		initialState = xfst.getInitialState();
 		
@@ -72,7 +76,9 @@ public class DfsOnePassScored extends DesqDfsScored {
 		
 		this.score = score;
 		this.rankedScoreList = rankedScoreList;
-		this.collectors = collectors;
+		this.projDbCollectors = score.getProjDbCollectors();
+		this.globalDataCollectors = globalDataCollectors;
+		this.finalStateProjDbAccumulators = new HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>();
 	}
 
 	@Override
@@ -92,7 +98,7 @@ public class DfsOnePassScored extends DesqDfsScored {
 			int itemId = it.nextInt();
 			Node child = root.children.get(itemId);
 			
-			if (score.getMaximumScore(getCurrentSequence(child, dfsLevel + 1), getStatisticData(child)) >= sigma) {
+			if (score.getMaxScoreByPrefix(getCurrentSequence(child, dfsLevel + 1), globalDataCollectors, getStatisticData(child)) >= sigma) {
 				expand(child);
 				
 			}
@@ -107,6 +113,7 @@ public class DfsOnePassScored extends DesqDfsScored {
 
 		int support = 0;
 		PostingList.Decompressor projectedDatabase = new PostingList.Decompressor(node.projectedDatabase);
+		finalStateProjDbAccumulators.clear();
 
 		// For all sequences in projected database
 		do {
@@ -126,6 +133,27 @@ public class DfsOnePassScored extends DesqDfsScored {
 
 			// increment support if atleast one snapshop corresponds to final state
 			if (reachedFinalState) {
+				if(finalStateProjDbAccumulators.size() == 0) {
+					for (Entry<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> entry: projDbCollectors.entrySet()) {
+						@SuppressWarnings("unchecked")
+						DesqProjDbDataCollector<DesqProjDbDataCollector<?,?>, ?> coll = (DesqProjDbDataCollector<DesqProjDbDataCollector<?, ?>, ?>) entry.getValue();
+						finalStateProjDbAccumulators.put(entry.getKey(), coll.supplier().get());
+					}
+				}
+				
+				statisticsBaseData.setPosition(-1);
+				statisticsBaseData.setStateFST(-1);
+				statisticsBaseData.setTransaction(sequenceBuffer);
+				statisticsBaseData.setTransactionId(sId);
+				
+				for (Entry<String, DesqProjDbDataCollector<?, ?>> entry : finalStateProjDbAccumulators.entrySet()) {
+					
+					// at compile time it is not decided which type the accept function 
+					@SuppressWarnings("unchecked")
+					DesqProjDbDataCollector<DesqProjDbDataCollector<?,?>, ?> finalProjDBCollector = (DesqProjDbDataCollector<DesqProjDbDataCollector<?, ?>, ?>) finalStateProjDbAccumulators.get(entry.getKey());
+					finalProjDBCollector.accumulator().accept(entry.getValue(), statisticsBaseData);
+				}
+				
 				support++;
 			}
 
@@ -134,7 +162,7 @@ public class DfsOnePassScored extends DesqDfsScored {
 		// Output if at least one sequence is valid
 		if (support > 0) {
 			int[] outputSequence = getCurrentSequence(node, dfsLevel);
-			if(score.getScore(outputSequence, getStatisticData(node), support) >= sigma) {
+			if (score.getScoreByProjDb(outputSequence, globalDataCollectors, finalStateProjDbAccumulators) >= sigma) {
 				numPatterns++;
 				if (writeOutput) {
 					// compute output sequence
@@ -147,7 +175,7 @@ public class DfsOnePassScored extends DesqDfsScored {
 //						outputSequence[--size] = parent.suffixItemId;
 //						parent = parent.parent;
 //					}
-					rankedScoreList.addNewOutputSequence(outputSequence, score.getScore(outputSequence, getStatisticData(node), support), support);
+					rankedScoreList.addNewOutputSequence(outputSequence, score.getScoreByProjDb(outputSequence, globalDataCollectors, finalStateProjDbAccumulators), support);
 	//				writer.write(outputSequence, score.getScore(getCurrentSequence(node), getStatisticData(node)));
 					//System.out.println(Arrays.toString(outputSequence) + " : " + support);
 				}
@@ -160,7 +188,7 @@ public class DfsOnePassScored extends DesqDfsScored {
 			int itemId = it.nextInt();
 			Node child = node.children.get(itemId);
 			
-			if (score.getMaximumScore(getCurrentSequence(child, dfsLevel + 1), getStatisticData(child)) >= sigma) {
+			if (score.getMaxScoreByPrefix(getCurrentSequence(child, dfsLevel + 1), globalDataCollectors, getStatisticData(child)) >= sigma) {
 				expand(child);
 			}
 			child.clear();
@@ -170,10 +198,10 @@ public class DfsOnePassScored extends DesqDfsScored {
 		dfsLevel--;
 	}
 	
-	private HashMap<String, DesqCountCollector<?, ?>> getStatisticData(Node node) {
-		HashMap<String, DesqCountCollector<?, ?>> statData = new HashMap<String, DesqCountCollector<?, ?>>();
+	private HashMap<String, DesqProjDbDataCollector<?, ?>> getStatisticData(Node node) {
+		HashMap<String, DesqProjDbDataCollector<?, ?>> statData = new HashMap<String, DesqProjDbDataCollector<?, ?>>();
 		
-		for (Entry<String, DesqCountCollector<?, ?>> entry : node.localAccumulators.entrySet()) {
+		for (Entry<String, DesqProjDbDataCollector<?, ?>> entry : node.localAccumulators.entrySet()) {
 			statData.put(entry.getKey(), node.localAccumulators.get(entry.getKey()));
 		}
 		
@@ -256,14 +284,14 @@ public class DfsOnePassScored extends DesqDfsScored {
 
 							case CONSTANT:
 								int outputItemId = olabel.item;
-								if (score.getItemScore(outputItemId) >= sigma) {
+								if (score.getMaxScoreByItem(outputItemId, globalDataCollectors) >= sigma) {
 									node.append(outputItemId, sId, pos + 1, toState);
 									node.updateStatistics(outputItemId, sId, sequenceBuffer, pos, toState);
 								}
 								break;
 
 							case SELF:
-								if (score.getItemScore(itemId) >= sigma) {
+								if (score.getMaxScoreByItem(itemId, globalDataCollectors) >= sigma) {
 									node.append(itemId, sId, pos + 1, toState);
 									node.updateStatistics(itemId, sId, sequenceBuffer, pos, toState);
 								}
@@ -271,7 +299,7 @@ public class DfsOnePassScored extends DesqDfsScored {
 
 							case SELFGENERALIZE:
 								for (int id : getParents(itemId, olabel.item)) {
-									if (score.getItemScore(id) >= sigma) {
+									if (score.getMaxScoreByItem(id, globalDataCollectors) >= sigma) {
 										node.append(id, sId, pos + 1, toState);
 										node.updateStatistics(id, sId, sequenceBuffer, pos, toState);
 									}
@@ -339,7 +367,7 @@ public class DfsOnePassScored extends DesqDfsScored {
 		ByteArrayList projectedDatabase = new ByteArrayList();;
 		BitSet[] statePosSet = new BitSet[xfst.numStates()];
 		Int2ObjectOpenHashMap<Node> children = new Int2ObjectOpenHashMap<Node>();
-		HashMap<String, DesqCountCollector<?, ?>> localAccumulators = new HashMap<String, DesqCountCollector<?, ?>>();
+		HashMap<String, DesqProjDbDataCollector<?, ?>> localAccumulators = new HashMap<String, DesqProjDbDataCollector<?, ?>>();
 
 		Node(Node parent, int suffixItemId) {
 			this.parent = parent;
@@ -349,8 +377,9 @@ public class DfsOnePassScored extends DesqDfsScored {
 				statePosSet[i] = new BitSet();
 			}
 			
-			for (Entry<String, DesqCountCollector<DesqCountCollector<?,?>, ?>> entry: collectors.entrySet()) {
-				DesqCountCollector<DesqCountCollector<?,?>, ?> coll = entry.getValue();
+			for (Entry<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> entry: projDbCollectors.entrySet()) {
+				@SuppressWarnings("unchecked")
+				DesqProjDbDataCollector<DesqProjDbDataCollector<?,?>, ?> coll = (DesqProjDbDataCollector<DesqProjDbDataCollector<?, ?>, ?>) entry.getValue();
 				localAccumulators.put(entry.getKey(), coll.supplier().get());
 			}
 		}
@@ -400,12 +429,12 @@ public class DfsOnePassScored extends DesqDfsScored {
 			statisticsBaseData.setStateFST(state);
 			statisticsBaseData.setTransaction(transaction);
 			statisticsBaseData.setTransactionId(sequenceId);
-			for (Entry<String, DesqCountCollector<?, ?>> entry : node.localAccumulators.entrySet()) {
+			for (Entry<String, DesqProjDbDataCollector<?, ?>> entry : node.localAccumulators.entrySet()) {
 				
 				// at compile time it is not decided which type the accept function 
-
-				DesqCountCollector<DesqCountCollector<?,?>, ?> collector = collectors.get(entry.getKey());
-				collector.accumulator().accept(entry.getValue(), statisticsBaseData);
+				@SuppressWarnings("unchecked")
+				DesqProjDbDataCollector<DesqProjDbDataCollector<?,?>, ?> nodeProjDbCollector = (DesqProjDbDataCollector<DesqProjDbDataCollector<?, ?>, ?>) node.localAccumulators.get(entry.getKey());
+				nodeProjDbCollector.accumulator().accept(entry.getValue(), statisticsBaseData);
 			}
 		}
 

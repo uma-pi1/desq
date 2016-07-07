@@ -1,4 +1,4 @@
-package mining.statistics;
+package mining.statistics.collectors;
 
 import java.util.Collections;
 import java.util.Set;
@@ -8,9 +8,11 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collector;
 
-public class MaxRemainingTransactionLengthCollector implements DesqCountCollector<MaxRemainingTransactionLengthCollector, Integer>, 
+import mining.statistics.data.ProjDbStatData;
+
+public class MaxRemainingTransactionLengthCollector implements DesqProjDbDataCollector<MaxRemainingTransactionLengthCollector, Integer>, 
 												Supplier<MaxRemainingTransactionLengthCollector>,
-												BiConsumer<MaxRemainingTransactionLengthCollector, SPMStatisticsData> {
+												BiConsumer<MaxRemainingTransactionLengthCollector, ProjDbStatData> {
 	// Data of the accumulator, BiConsumer 
 	int maxLength;
 	int previousTransactionId;
@@ -33,7 +35,7 @@ public class MaxRemainingTransactionLengthCollector implements DesqCountCollecto
 
 	// Collector Method
 	@Override
-	public BiConsumer<MaxRemainingTransactionLengthCollector, SPMStatisticsData> accumulator() {
+	public BiConsumer<MaxRemainingTransactionLengthCollector, ProjDbStatData> accumulator() {
 		return (acc, elem) -> acc.accept(acc, elem);
 	}
 	
@@ -65,10 +67,10 @@ public class MaxRemainingTransactionLengthCollector implements DesqCountCollecto
 	
 	// BiConsumer Method
 	@Override
-	public void accept(MaxRemainingTransactionLengthCollector t, SPMStatisticsData u) {
-		if(u.transactionId != this.previousTransactionId) {
-			t.maxLength = Integer.max(t.maxLength, u.transaction.length - u.position);
-			t.previousTransactionId = u.transactionId;
+	public void accept(MaxRemainingTransactionLengthCollector t, ProjDbStatData u) {
+		if(u.getTransactionId() != this.previousTransactionId) {
+			t.maxLength = Integer.max(t.maxLength, u.getTransaction().length - u.getPosition());
+			t.previousTransactionId = u.getTransactionId();
 		} else {
 			// do nothing
 		}

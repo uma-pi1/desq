@@ -1,4 +1,4 @@
-package mining.statistics;
+package mining.statistics.collectors;
 
 import java.util.Collections;
 import java.util.Set;
@@ -8,11 +8,12 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collector;
 
+import mining.statistics.data.ProjDbStatData;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 
-public class ProjDatabaseFrequencyCollector implements DesqCountCollector<ProjDatabaseFrequencyCollector, Int2IntOpenHashMap>, 
+public class ProjDatabaseFrequencyCollector implements DesqProjDbDataCollector<ProjDatabaseFrequencyCollector, Int2IntOpenHashMap>, 
 												Supplier<ProjDatabaseFrequencyCollector>,
-												BiConsumer<ProjDatabaseFrequencyCollector, SPMStatisticsData> {
+												BiConsumer<ProjDatabaseFrequencyCollector, ProjDbStatData> {
 	// Data of the accumulator, BiConsumer 
 	Int2IntOpenHashMap localItemFrequencies = new Int2IntOpenHashMap();
 	int previousTransactionId;
@@ -34,7 +35,7 @@ public class ProjDatabaseFrequencyCollector implements DesqCountCollector<ProjDa
 
 	// Collector Method
 	@Override
-	public BiConsumer<ProjDatabaseFrequencyCollector, SPMStatisticsData> accumulator() {
+	public BiConsumer<ProjDatabaseFrequencyCollector, ProjDbStatData> accumulator() {
 		return (acc, elem) -> acc.accept(acc, elem);
 	}
 	
@@ -70,14 +71,14 @@ public class ProjDatabaseFrequencyCollector implements DesqCountCollector<ProjDa
 	
 	// BiConsumer Method
 	@Override
-	public void accept(ProjDatabaseFrequencyCollector t, SPMStatisticsData u) {
-		if(u.transactionId != this.previousTransactionId) {
+	public void accept(ProjDatabaseFrequencyCollector t, ProjDbStatData u) {
+		if(u.getTransactionId() != this.previousTransactionId) {
 			int currentItem;
-			for (int i = 0; i < u.transaction.length; i++) {
-				currentItem = u.transaction[i];
+			for (int i = 0; i < u.getTransaction().length; i++) {
+				currentItem = u.getTransaction()[i];
 				localItemFrequencies.put(currentItem, localItemFrequencies.get(currentItem) + 1);
 			}
-			t.previousTransactionId = u.transactionId;
+			t.previousTransactionId = u.getTransactionId();
 		} else {
 			// do nothing
 		}

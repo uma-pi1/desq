@@ -1,4 +1,4 @@
-package mining.statistics;
+package mining.statistics.collectors;
 
 import java.util.Collections;
 import java.util.Set;
@@ -8,9 +8,11 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collector;
 
-public class EventsCountCollector implements DesqCountCollector<EventsCountCollector, Integer>, 
+import mining.statistics.data.ProjDbStatData;
+
+public class EventsCountCollector implements DesqProjDbDataCollector<EventsCountCollector, Integer>, 
 												Supplier<EventsCountCollector>,
-												BiConsumer<EventsCountCollector, SPMStatisticsData> {
+												BiConsumer<EventsCountCollector, ProjDbStatData> {
 	// Data of the accumulator, BiConsumer 
 	int totalEventsCount;
 	int previousTransactionId;
@@ -33,7 +35,7 @@ public class EventsCountCollector implements DesqCountCollector<EventsCountColle
 
 	// Collector Method
 	@Override
-	public BiConsumer<EventsCountCollector, SPMStatisticsData> accumulator() {
+	public BiConsumer<EventsCountCollector, ProjDbStatData> accumulator() {
 		return (acc, elem) -> acc.accept(acc, elem);
 	}
 	
@@ -65,10 +67,10 @@ public class EventsCountCollector implements DesqCountCollector<EventsCountColle
 	
 	// BiConsumer Method
 	@Override
-	public void accept(EventsCountCollector t, SPMStatisticsData u) {
-		if(u.transactionId != this.previousTransactionId) {
-			t.totalEventsCount = t.totalEventsCount + u.transaction.length;
-			t.previousTransactionId = u.transactionId;
+	public void accept(EventsCountCollector t, ProjDbStatData u) {
+		if(u.getTransactionId() != this.previousTransactionId) {
+			t.totalEventsCount = t.totalEventsCount + u.getTransaction().length;
+			t.previousTransactionId = u.getTransactionId();
 		} else {
 			// do nothing
 		}

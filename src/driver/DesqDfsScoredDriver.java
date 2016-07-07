@@ -1,18 +1,20 @@
 package driver;
 
+import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import mining.interestingness.DfsOnePassScored;
+import mining.scores.DesqDfsScore;
 import mining.scores.FrequencyScore;
 import mining.scores.InformationGainScore;
 import mining.scores.LocalInformationGainScore;
 import mining.scores.RankedScoreList;
 import mining.scores.RankedScoreListAll;
-import mining.scores.SPMScore;
-import mining.statistics.GlobalInformationGainStatistic;
-import mining.statistics.GlobalItemDocFrequencyStatistic;
+import mining.statistics.collectors.DesqGlobalDataCollector;
+import mining.statistics.old.GlobalInformationGainStatistic;
+import mining.statistics.old.GlobalItemDocFrequencyStatistic;
 import patex.PatEx;
 import utils.Dictionary;
 import writer.SequentialWriter;
@@ -79,8 +81,9 @@ public class DesqDfsScoredDriver {
 		logger.log(Level.INFO, "Mining P-frequent sequences...");
 		
 		RankedScoreList rankedScoreList = new RankedScoreListAll(true);
-		GlobalItemDocFrequencyStatistic globalItemFrequency = new GlobalItemDocFrequencyStatistic();
-		SPMScore score = new FrequencyScore(globalItemFrequency);
+		
+		DesqDfsScore score = new FrequencyScore(xFst);
+		HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?,?>, ?>> globalDataCollectors = score.getGlobalDataCollectors();
 		
 		
 //		GlobalInformationGainStatistic globalInformationGainStatistic = new GlobalInformationGainStatistic(sequenceFile);
@@ -88,7 +91,12 @@ public class DesqDfsScoredDriver {
 
 //		SPMScore score = new LocalInformationGainScore();
 		
-		DfsOnePassScored dfs = new DfsOnePassScored(sigma, xFst, score, rankedScoreList, score.getLocalCollectors(), writeOutput);
+		DfsOnePassScored dfs = new DfsOnePassScored(sigma, 
+										xFst, 
+										score, 
+										rankedScoreList,
+										globalDataCollectors,
+										writeOutput);
 		
 		totalTime.start();
 		

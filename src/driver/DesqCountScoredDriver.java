@@ -6,11 +6,11 @@ import java.util.logging.Logger;
 
 import mining.interestingness.DesqCountScored;
 import mining.interestingness.OnePassIterativeScored;
+import mining.scores.DesqDfsScore;
 import mining.scores.InformationGainScore;
 import mining.scores.RankedScoreList;
 import mining.scores.RankedScoreListAll;
-import mining.scores.SPMScore;
-import mining.statistics.GlobalInformationGainStatistic;
+import mining.statistics.old.GlobalInformationGainStatistic;
 import patex.PatEx;
 //import mining.TwoPass;
 import utils.Dictionary;
@@ -84,7 +84,7 @@ public class DesqCountScoredDriver {
 		logger.log(Level.INFO, "Mining P-frequent sequences...");
 		
 		GlobalInformationGainStatistic globalInformationGainStatistic = new GlobalInformationGainStatistic(sequenceFile);
-		SPMScore score = new InformationGainScore(xFst.convertToFstGraph(), globalInformationGainStatistic, Dictionary.getInstance(), xFst);
+		DesqDfsScore score = new InformationGainScore(xFst.convertToFstGraph(), globalInformationGainStatistic, Dictionary.getInstance(), xFst);
 		RankedScoreList rankedScoreList = new RankedScoreListAll(true);
 		
 		//DesqCount dc = new OnePassRecursive(support, xFst, writeOutput, useFlist);

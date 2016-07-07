@@ -1,4 +1,4 @@
-package mining.statistics;
+package mining.statistics.old;
 
 import utils.Dictionary;
 

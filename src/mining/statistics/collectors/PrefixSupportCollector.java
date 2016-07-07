@@ -1,4 +1,4 @@
-package mining.statistics;
+package mining.statistics.collectors;
 
 import java.util.Collections;
 import java.util.Set;
@@ -8,9 +8,11 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collector;
 
-public class PrefixSupportCollector implements DesqCountCollector<PrefixSupportCollector, Integer>, 
+import mining.statistics.data.ProjDbStatData;
+
+public class PrefixSupportCollector implements  DesqProjDbDataCollector<PrefixSupportCollector, Integer>,
 												Supplier<PrefixSupportCollector>,
-												BiConsumer<PrefixSupportCollector, SPMStatisticsData> {
+												BiConsumer<PrefixSupportCollector, ProjDbStatData> {
 	// Data of the accumulator, BiConsumer 
 	int support;
 	int previousTransactionId;
@@ -33,7 +35,7 @@ public class PrefixSupportCollector implements DesqCountCollector<PrefixSupportC
 
 	// Collector Method
 	@Override
-	public BiConsumer<PrefixSupportCollector, SPMStatisticsData> accumulator() {
+	public BiConsumer<PrefixSupportCollector, ProjDbStatData> accumulator() {
 		return (acc, elem) -> acc.accept(acc, elem);
 	}
 	
@@ -65,10 +67,10 @@ public class PrefixSupportCollector implements DesqCountCollector<PrefixSupportC
 	
 	// BiConsumer Method
 	@Override
-	public void accept(PrefixSupportCollector t, SPMStatisticsData u) {
-		if(u.transactionId != this.previousTransactionId) {
+	public void accept(PrefixSupportCollector t, ProjDbStatData u) {
+		if(u.getTransactionId() != this.previousTransactionId) {
 			t.support = t.support + 1;
-			t.previousTransactionId = u.transactionId;
+			t.previousTransactionId = u.getTransactionId();
 		} else {
 			// do nothing
 		}

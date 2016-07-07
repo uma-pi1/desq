@@ -1,5 +1,9 @@
 package mining.scores;
 
+import it.unimi.dsi.fastutil.ints.Int2IntMap.Entry;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -7,25 +11,23 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collector;
+import java.util.function.Function;
 
-import fst.OutputLabel;
-import fst.XFst;
-import it.unimi.dsi.fastutil.ints.Int2IntMap.Entry;
-import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import mining.statistics.DesqCountCollector;
-import mining.statistics.FstStateItemCollector;
-import mining.statistics.GlobalInformationGainStatistic;
-import mining.statistics.LocalItemFrequencyCollector;
-import mining.statistics.MaxRemainingTransactionLengthCollector;
-import mining.statistics.PrefixSupportCollector;
+import mining.statistics.DesqDfsMiningCollectorBase;
+import mining.statistics.collectors.DesqProjDbDataCollector;
+import mining.statistics.collectors.FstStateItemCollector;
+import mining.statistics.collectors.LocalItemFrequencyCollector;
+import mining.statistics.collectors.MaxRemainingTransactionLengthCollector;
+import mining.statistics.collectors.PrefixSupportCollector;
+import mining.statistics.old.GlobalInformationGainStatistic;
 import tools.FstEdge;
 import tools.FstGraph;
 import utils.Dictionary;
 import utils.Hierarchy;
+import fst.OutputLabel;
+import fst.XFst;
 
-public class InformationGainScore extends DesqBaseScore implements SPMScore {
+public class InformationGainScore extends DesqBaseScore implements DesqDfsScore {
 	GlobalInformationGainStatistic globalInformationGainStatistic;
 	
 //	double minInformationGain;
@@ -47,24 +49,24 @@ public class InformationGainScore extends DesqBaseScore implements SPMScore {
 		buildValidItemIndex();
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
-	public HashMap<String, DesqCountCollector<DesqCountCollector<?, ?>, ?>> getLocalCollectors() {
-		HashMap<String, DesqCountCollector<DesqCountCollector<?, ?>, ?>> collectors = new HashMap<String, DesqCountCollector<DesqCountCollector<?, ?>,?>>();
-		collectors.put("PREFIXSUPPORT", (DesqCountCollector) new PrefixSupportCollector());
+	public HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> getLocalCollectors() {
+		HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> collectors = new HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>();
+		collectors.put("PREFIXSUPPORT", (DesqProjDbDataCollector<?,?>) new PrefixSupportCollector());
 //		collectors.put("PREFIXSUPPORT", new EventsCountCollector());
-		collectors.put("FST_STATES", (DesqCountCollector) new FstStateItemCollector());
-		collectors.put("LOCAL_ITEM_FREQUENCIES", (DesqCountCollector) new LocalItemFrequencyCollector());
-		collectors.put("MAX_REMAIN_TRANSACTION_LENGTH", (DesqCountCollector) new MaxRemainingTransactionLengthCollector());
+		collectors.put("FST_STATES", (DesqProjDbDataCollector<?,?>) new FstStateItemCollector());
+		collectors.put("LOCAL_ITEM_FREQUENCIES", (DesqProjDbDataCollector<?,?>) new LocalItemFrequencyCollector());
+		collectors.put("MAX_REMAIN_TRANSACTION_LENGTH", (DesqProjDbDataCollector<?,?>) new MaxRemainingTransactionLengthCollector());
 		return collectors;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public double getMaximumScore(int[] items, HashMap<String, ?> statData) {
+	public double getMaximumScore(int[] items, HashMap<String,? extends DesqProjDbDataCollector<?,?>> statData) {
 		double maxScore = 0;
-		
-		int maxTransactionLength = (Integer) statData.get("MAX_REMAIN_TRANSACTION_LENGTH");
-		int prefixSupport = (Integer) statData.get("PREFIXSUPPORT");
+
+		int prefixSupport = ((Function<PrefixSupportCollector, Integer>) statData.get("PREFIXSUPPORT").finisher()).apply((PrefixSupportCollector) statData.get("PREFIXSUPPORT")) ;
+		int maxTransactionLength = ((Function<MaxRemainingTransactionLengthCollector, Integer>) statData.get("MAX_REMAIN_TRANSACTION_LENGTH").finisher()).apply((MaxRemainingTransactionLengthCollector) statData.get("MAX_REMAIN_TRANSACTION_LENGTH")) ;
 		@SuppressWarnings("unchecked")
 		HashSet<Integer> fstStates = (HashSet<Integer>) statData.get("FST_STATES");
 		buildItemMap((Int2IntOpenHashMap) statData.get("LOCAL_ITEM_FREQUENCIES"));
@@ -258,7 +260,7 @@ public class InformationGainScore extends DesqBaseScore implements SPMScore {
 //	}
 
 	@Override
-	public double getScore(int[] prefix, HashMap<String, ?> statCollectors, int support){
+	public double getScore(int[] prefix, HashMap<String,? extends DesqProjDbDataCollector<?,?>> statCollectors, int support) {
 		double totalInformationGain = 0;
 		for (int i = 0; i < prefix.length; i++) {
 			totalInformationGain = totalInformationGain + globalInformationGainStatistic.getInformationGain(prefix[i]);

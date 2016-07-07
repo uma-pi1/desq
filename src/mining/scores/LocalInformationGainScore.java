@@ -1,35 +1,42 @@
 package mining.scores;
 
 import java.util.HashMap;
+import java.util.function.Function;
 import java.util.stream.Collector;
 
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
-import mining.statistics.DesqCountCollector;
-import mining.statistics.EventsCountCollector;
-import mining.statistics.FstStateItemCollector;
-import mining.statistics.MaxRemainingTransactionLengthCollector;
-import mining.statistics.PrefixSupportCollector;
-import mining.statistics.ProjDatabaseFrequencyCollector;
+import mining.statistics.DesqDfsMiningCollectorBase;
+import mining.statistics.collectors.DesqProjDbDataCollector;
+import mining.statistics.collectors.EventsCountCollector;
+import mining.statistics.collectors.FstStateItemCollector;
+import mining.statistics.collectors.MaxRemainingTransactionLengthCollector;
+import mining.statistics.collectors.PrefixSupportCollector;
+import mining.statistics.collectors.ProjDatabaseFrequencyCollector;
 
-public class LocalInformationGainScore extends DesqBaseScore implements SPMScore {	
+public class LocalInformationGainScore extends DesqBaseScore implements DesqDfsScore {	
 		
+
 	@Override
-	public HashMap<String, DesqCountCollector<DesqCountCollector<?, ?>, ?>> getLocalCollectors() {
-		HashMap<String, DesqCountCollector<?,?>> collectors = new HashMap<String, DesqCountCollector<?,?>>();
-		collectors.put("PREFIXSUPPORT", new PrefixSupportCollector());
-		collectors.put("TOTAL_EVENT_COUNT", new EventsCountCollector());
-		collectors.put("FST_STATES", new FstStateItemCollector());
-		collectors.put("PROJ_DB_FREQUENCIES", new ProjDatabaseFrequencyCollector());
-		collectors.put("MAX_REMAIN_TRANSACTION_LENGTH", new MaxRemainingTransactionLengthCollector());
+	public HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> getLocalCollectors() {
+		HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> collectors = new HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>();
+		collectors.put("PREFIXSUPPORT", (DesqProjDbDataCollector<?, ?>) new PrefixSupportCollector());
+		collectors.put("TOTAL_EVENT_COUNT", (DesqProjDbDataCollector<?,?>) new EventsCountCollector());
+		collectors.put("FST_STATES", (DesqProjDbDataCollector<?,?>) new FstStateItemCollector());
+		collectors.put("PROJ_DB_FREQUENCIES", (DesqProjDbDataCollector<?,?>) new ProjDatabaseFrequencyCollector());
+		collectors.put("MAX_REMAIN_TRANSACTION_LENGTH", (DesqProjDbDataCollector<?,?>) new MaxRemainingTransactionLengthCollector());
 		return collectors;
 	}
 
 	@Override
-	public double getScore(int[] prefix, HashMap<String, ?> statCollectors, int support){
+	public double getScore(int[] prefix, HashMap<String,? extends DesqProjDbDataCollector<?,?>> statCollectors, int support) {
 		double totalInformationGain = 0;
-		int eventsCount = (Integer) statCollectors.get("TOTAL_EVENT_COUNT");
-//		int prefixSupport = (Integer) statCollectors.get("PREFIXSUPPORT");
+		EventsCountCollector sup = (EventsCountCollector) statCollectors.get("TOTAL_EVENT_COUNT");
+		
 		@SuppressWarnings("unchecked")
+		Function<EventsCountCollector, Integer> func = (Function<EventsCountCollector, Integer>) statCollectors.get("TOTAL_EVENT_COUNT").finisher();
+		
+		int eventsCount = func.apply(sup);
+		
 		Int2IntOpenHashMap projDBItemFrequencies = (Int2IntOpenHashMap) statCollectors.get("PROJ_DB_FREQUENCIES");
 
 		for (int i = 0; i < prefix.length; i++) {

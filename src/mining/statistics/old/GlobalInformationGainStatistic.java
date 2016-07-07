@@ -1,4 +1,4 @@
-package mining.statistics;
+package mining.statistics.old;
 
 import java.io.BufferedReader;
 import java.io.DataInputStream;

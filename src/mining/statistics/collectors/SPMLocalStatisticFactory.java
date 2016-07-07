@@ -1,4 +1,4 @@
-package mining.statistics;
+package mining.statistics.collectors;
 
 import java.util.stream.Collector;
 

@@ -1,4 +1,4 @@
-package mining.statistics;
+package mining.statistics.collectors;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -9,9 +9,11 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collector;
 
-public class FstStateItemCollector implements DesqCountCollector<FstStateItemCollector, HashSet<Integer>>, 
+import mining.statistics.data.ProjDbStatData;
+
+public class FstStateItemCollector implements DesqProjDbDataCollector<FstStateItemCollector, HashSet<Integer>>, 
 												Supplier<FstStateItemCollector>,
-												BiConsumer<FstStateItemCollector, SPMStatisticsData> {
+												BiConsumer<FstStateItemCollector, ProjDbStatData> {
 	// Data of the accumulator, BiConsumer 
 	HashSet<Integer> fstStates = new HashSet<Integer>();
 	
@@ -32,7 +34,7 @@ public class FstStateItemCollector implements DesqCountCollector<FstStateItemCol
 
 	// Collector Method
 	@Override
-	public BiConsumer<FstStateItemCollector, SPMStatisticsData> accumulator() {
+	public BiConsumer<FstStateItemCollector, ProjDbStatData> accumulator() {
 		return (acc, elem) -> acc.accept(acc, elem);
 	}
 	
@@ -67,7 +69,7 @@ public class FstStateItemCollector implements DesqCountCollector<FstStateItemCol
 	
 	// BiConsumer Method
 	@Override
-	public void accept(FstStateItemCollector t, SPMStatisticsData u) {
-		t.fstStates.add(u.stateFST);
+	public void accept(FstStateItemCollector t, ProjDbStatData u) {
+		t.fstStates.add(u.getStateFST());
 	}
 }

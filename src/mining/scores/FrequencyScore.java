@@ -4,67 +4,67 @@ import java.util.HashMap;
 import java.util.function.Function;
 import java.util.stream.Collector;
 
-import mining.statistics.DesqCountCollector;
-import mining.statistics.GlobalItemDocFrequencyStatistic;
-import mining.statistics.PrefixSupportCollector;
+import fst.XFst;
+import mining.statistics.collectors.DesqGlobalDataCollector;
+import mining.statistics.collectors.DesqProjDbDataCollector;
+import mining.statistics.collectors.ItemSupportCollector;
+import mining.statistics.collectors.PrefixSupportCollector;
+import mining.statistics.old.GlobalItemDocFrequencyStatistic;
 
-public class FrequencyScore implements SPMScore {
-	GlobalItemDocFrequencyStatistic globalItemFrequencyStatistic;
+public class FrequencyScore extends DesqBaseScore {
 	
-	PrefixSupportCollector prefixFrequencyStatistic;
-	
-	int minFrequency;
-	
-	public FrequencyScore(GlobalItemDocFrequencyStatistic globalItemFrequencyStatistic) {
-//		super(fstGraph);
-//		this.minFrequency = minFrequency;
-		this.globalItemFrequencyStatistic = globalItemFrequencyStatistic;
+	public FrequencyScore(XFst xfst) {
+		super(xfst);
 	}
 
-//	@Override
-//	public boolean isItemRelevant(int item) {
-//		return globalItemFrequencyStatistic.getFrequency(item) >= minFrequency;
-//	}
+	public double getMaxScoreByItem(
+			int item,
+			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors) {
+		
+		ItemSupportCollector sup = (ItemSupportCollector) globalDataCollectors.get(ItemSupportCollector.ID);
+		
+		@SuppressWarnings("unchecked")
+		Function<ItemSupportCollector, int[]> func = (Function<ItemSupportCollector, int[]>) globalDataCollectors.get(ItemSupportCollector.ID).finisher();		
+		
+		return func.apply(sup)[item]; 
+	}
 
-//	@Override
-//	public double getScore(double score) {
-//		return score >= minFrequency;
-//	}
-
-//	@Override
-//	public double getScore(int[] prefix, SPMLocalStatisticCollector[] statisticCollector) {
-//		return ((PrefixDocFrequencyStatistic) statisticCollector[statisticCollector.length]).getFrequency() >= minFrequency;
-//	}
-//
-//	@Override
-//	public double getMaximumScore(int[] items, int support, SPMLocalStatisticCollector[] sequenceStatistics) {
-//		return support;
-//	}
-
-	public double getItemScore(int item) {
-		return globalItemFrequencyStatistic.getFrequency(item);
+	public double getScoreByProjDb(int[] sequence, 
+			HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollectors,
+			HashMap<String,? extends DesqProjDbDataCollector<?,?>> projDbCollectors) {
+		
+		PrefixSupportCollector sup = (PrefixSupportCollector) projDbCollectors.get("PREFIXSUPPORT");
+		@SuppressWarnings("unchecked")
+		Function<PrefixSupportCollector, Integer> func = (Function<PrefixSupportCollector, Integer>) projDbCollectors.get("PREFIXSUPPORT").finisher();
+		
+		return func.apply(sup);
+		
 	}
 
 	@Override
-	public double getScore(int[] prefix, HashMap<String, DesqCountCollector<?,?>> statData, int support) {
-		return support;
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public double getMaximumScore(int[] items, HashMap<String, DesqCountCollector<?,?>> statData) {
-		PrefixSupportCollector sup = (PrefixSupportCollector) statData.get("PREFIXSUPPORT");
-		Function<PrefixSupportCollector, Integer> func = (Function<PrefixSupportCollector, Integer>) statData.get("PREFIXSUPPORT").finisher();
+	public double getMaxScoreByPrefix(int[] prefix,  
+			HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollectors,
+			HashMap<String,? extends DesqProjDbDataCollector<?,?>> projDbCollectors) {
+		
+		PrefixSupportCollector sup = (PrefixSupportCollector) projDbCollectors.get("PREFIXSUPPORT");
+		
+		@SuppressWarnings("unchecked")
+		Function<PrefixSupportCollector, Integer> func = (Function<PrefixSupportCollector, Integer>) projDbCollectors.get("PREFIXSUPPORT").finisher();
+		
 		return func.apply(sup);
 	}
 
-
-	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Override
-	public HashMap<String, DesqCountCollector<DesqCountCollector<?, ?>, ?>> getLocalCollectors() {
-		HashMap<String, DesqCountCollector<DesqCountCollector<?, ?>, ?>> collectors = new HashMap<String, DesqCountCollector<DesqCountCollector<?, ?>,?>>();
-		collectors.put("PREFIXSUPPORT", (DesqCountCollector) new PrefixSupportCollector());
-		return collectors;
+	public HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?, ?>, ?>> getGlobalDataCollectors() {
+		HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?, ?>, ?>> globalDataCollectors = new HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?, ?>, ?>>();
+		globalDataCollectors.put(ItemSupportCollector.ID, (DesqGlobalDataCollector<?,?>) new ItemSupportCollector());
+		return globalDataCollectors;
 	}
 
+	@Override
+	public HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> getProjDbCollectors() {
+		HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> projDbCollectors = new HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>();
+		projDbCollectors.put("PREFIXSUPPORT", (DesqProjDbDataCollector<?,?>) new PrefixSupportCollector());
+		return projDbCollectors;
+	}
 }

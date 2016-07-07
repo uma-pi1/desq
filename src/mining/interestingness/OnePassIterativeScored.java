@@ -11,8 +11,9 @@ import fst.XFst;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import mining.scores.DesqDfsScore;
 import mining.scores.RankedScoreList;
-import mining.scores.SPMScore;
+import mining.statistics.collectors.DesqProjDbDataCollector;
 
 public class OnePassIterativeScored extends DesqCountScored {
 
@@ -46,8 +47,8 @@ public class OnePassIterativeScored extends DesqCountScored {
 	int stateListSize = 0;
 
 	@SuppressWarnings("unchecked")
-	public OnePassIterativeScored(double sigma, XFst xfst, SPMScore score, @SuppressWarnings("rawtypes") HashMap<String, Collector> collectors, RankedScoreList rankedScoreList, boolean writeOutput, Match match) {
-		super(sigma, xfst, score, collectors, rankedScoreList, writeOutput, match);
+	public OnePassIterativeScored(double sigma, XFst xfst, DesqDfsScore score, HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> hashMap, RankedScoreList rankedScoreList, boolean writeOutput, Match match) {
+		super(sigma, xfst, score, hashMap, rankedScoreList, writeOutput, match);
 		
 		numStates = xfst.numStates();
 		statePrefix = (ObjectArrayList<Node>[]) new ObjectArrayList[numStates];
@@ -168,7 +169,9 @@ public class OnePassIterativeScored extends DesqCountScored {
 									node = new Node(id, statePrefix[fromState]);
 									if (isFinal)
 										computeOutput(node);
-									nextStatePrefix[toState].add(node);
+									
+									if(score.getMaximumScore(getCurrentPrefix(node, null), statCollectors) >= sigma)
+										nextStatePrefix[toState].add(node);
 								}
 							}
 
@@ -210,6 +213,24 @@ public class OnePassIterativeScored extends DesqCountScored {
 			computeOutput(n);
 		}
 		buffer.remove(buffer.size() - 1);
+	}
+	
+	private int[] getCurrentPrefix(Node node, IntArrayList prefix) {
+		
+		if(prefix == null) {
+			prefix = new IntArrayList();
+		}
+		
+		if (node == null) {
+			return reverse(prefix.toIntArray());
+		}
+
+		prefix.add(node.item);
+		for (Node n : node.prefixes) {
+			getCurrentPrefix(n,prefix);
+		}
+		
+		return null;
 	}
 
 	private int[] reverse(int[] a) {

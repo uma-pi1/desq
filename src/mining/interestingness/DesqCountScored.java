@@ -9,8 +9,10 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.stream.Collector;
 
+import mining.scores.DesqDfsScore;
 import mining.scores.RankedScoreList;
-import mining.scores.SPMScore;
+import mining.statistics.DesqCountMiningCollector;
+import mining.statistics.collectors.DesqProjDbDataCollector;
 import driver.DesqConfig.Match;
 import fst.XFst;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -62,22 +64,21 @@ public abstract class DesqCountScored {
 
 	protected Match match;
 	
-	protected SPMScore score;
+	protected DesqDfsScore score;
 	
 	RankedScoreList rankedScoreList;
 	
-	@SuppressWarnings("rawtypes")
-	protected HashMap<String, Collector> collectors;
+	protected HashMap<String, ? extends DesqCountMiningCollector<?, ?>> collectors;
 	
 	// Methods
 	
-	public DesqCountScored(double sigma, XFst dfa, SPMScore score, @SuppressWarnings("rawtypes") HashMap<String, Collector> collectors, RankedScoreList rankedScoreList, boolean writeOutput,  Match match) {
+	public DesqCountScored(double sigma, XFst dfa, DesqDfsScore score, HashMap<String, DesqCountMiningCollector<? extends DesqCountMiningCollector<?, ?>, ?>> hashMap, RankedScoreList rankedScoreList, boolean writeOutput,  Match match) {
 		this.sigma = sigma;
 		this.xfst = dfa;
 		this.writeOutput = writeOutput;
 		this.match = match;
 		this.score = score;
-		this.collectors = collectors;
+		this.collectors = hashMap;
 		this.rankedScoreList = rankedScoreList;
 	}
 	

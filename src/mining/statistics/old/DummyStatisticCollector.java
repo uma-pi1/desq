@@ -1,6 +1,6 @@
 package mining.statistics.old;
 
-import mining.statistics.PrefixSupportCollector;
+import mining.statistics.collectors.PrefixSupportCollector;
 
 public class DummyStatisticCollector implements SPMStatisticsAggregator {
 //	@Override

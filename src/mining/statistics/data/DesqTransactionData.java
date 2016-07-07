@@ -1,10 +1,8 @@
-package mining.statistics;
+package mining.statistics.data;
 
-public class SPMStatisticsData {
+public class DesqTransactionData {
 	int[] transaction;
 	int transactionId;
-	int stateFST;
-	int position;
 	
 	public int[] getTransaction() {
 		return transaction;
@@ -18,16 +16,5 @@ public class SPMStatisticsData {
 	public void setTransactionId(int transactionId) {
 		this.transactionId = transactionId;
 	}
-	public int getStateFST() {
-		return stateFST;
-	}
-	public void setStateFST(int stateFST) {
-		this.stateFST = stateFST;
-	}
-	public int getPosition() {
-		return position;
-	}
-	public void setPosition(int position) {
-		this.position = position;
-	}
+	
 }
