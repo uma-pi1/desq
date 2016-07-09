@@ -190,7 +190,7 @@ public class DfsOnePassScored extends DesqDfsScored {
 			Node child = node.children.get(itemId);
 			
 			if (score.getMaxScoreByPrefix(getCurrentSequence(child, dfsLevel + 1), globalDataCollectors, child.getPrefixProjDbCollectors()) >= sigma) {
-				child.previousCollectors = prefixCollectors = getPreviousCollectors(node, dfsLevel);
+				child.previousCollectors = getPreviousCollectors(node, dfsLevel);
 				expand(child);
 			}
 			child.clear();
@@ -485,7 +485,7 @@ public class DfsOnePassScored extends DesqDfsScored {
 			HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>[] prefixCollectors = (HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>[]) Array.newInstance(projDbCollectors.getClass(), arraysize);
 			
 			if(previousCollectors != null) {
-				System.arraycopy(previousCollectors, 0, prefixCollectors, 0, previousCollectors.length -1);
+				System.arraycopy(previousCollectors, 0, prefixCollectors, 0, previousCollectors.length);
 			}
 			prefixCollectors[arraysize - 1] = localAccumulators;
 			

@@ -47,11 +47,11 @@ public class LocalInformationGainScore extends DesqBaseScore implements DesqDfsS
 //		Function<PrefixSupportCollector, Integer> func = (Function<PrefixSupportCollector, Integer>) prefixProjDbCollectors[prefixProjDbCollectors.length - 1].get("PREFIXSUPPORT").finisher();
 //		EventsCountCollector eventsCountCollector = (EventsCountCollector) prefixProjDbCollectors[prefixProjDbCollectors.length].get("TOTAL_EVENT_COUNT");
 		@SuppressWarnings("unchecked")
-		Function<EventsCountCollector, Integer> eventsCountFunction = (Function<EventsCountCollector, Integer>) prefixProjDbCollectors[prefixProjDbCollectors.length].get("TOTAL_EVENT_COUNT").finisher();
+		Function<EventsCountCollector, Integer> eventsCountFunction = (Function<EventsCountCollector, Integer>) prefixProjDbCollectors[prefixProjDbCollectors.length - 1].get("TOTAL_EVENT_COUNT").finisher();
 		
 //		ProjDatabaseFrequencyCollector projDbFrequencyCollector = (ProjDatabaseFrequencyCollector) prefixProjDbCollectors[prefixProjDbCollectors.length].get("PROJ_DB_FREQUENCIES");
 		@SuppressWarnings("unchecked")
-		Function<ProjDatabaseFrequencyCollector, Int2IntOpenHashMap> projDbFrequencyFunction = (Function<ProjDatabaseFrequencyCollector, Int2IntOpenHashMap>) prefixProjDbCollectors[prefixProjDbCollectors.length].get("PROJ_DB_FREQUENCIES").finisher();
+		Function<ProjDatabaseFrequencyCollector, Int2IntOpenHashMap> projDbFrequencyFunction = (Function<ProjDatabaseFrequencyCollector, Int2IntOpenHashMap>) prefixProjDbCollectors[prefixProjDbCollectors.length - 1].get("PROJ_DB_FREQUENCIES").finisher();
 
 		for (int i = 0; i < sequence.length; i++) {
 			int eventsCount = eventsCountFunction.apply((EventsCountCollector) prefixProjDbCollectors[i].get("TOTAL_EVENT_COUNT"));
