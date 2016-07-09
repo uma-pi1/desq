@@ -17,8 +17,6 @@ public class DesqBaseScore implements DesqScore,
 		this.xfst = xfst;
 	}
 
-
-
 	@Override
 	public double getScoreBySequence(
 			int[] sequence,
@@ -27,19 +25,17 @@ public class DesqBaseScore implements DesqScore,
 	}
 
 	@Override
-	public double getScoreByProjDb(
-			int[] sequence,
-			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors,
-			HashMap<String, ? extends DesqProjDbDataCollector<?, ?>> projDbCollectors) {
+	public double getScoreByProjDb(int[] sequence, 
+			HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollectors,
+			HashMap<String,? extends DesqProjDbDataCollector<?,?>> finalStateProjDbCollectors,
+			HashMap<String,? extends DesqProjDbDataCollector<?,?>>[] prefixProjDbCollectors) {
 		throw new NotImplementedExcepetion();
 	}
 
 	@Override
-	public double getScoreByResultSet(
-			int[] sequence,
-			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors,
-			HashMap<String, ? extends DesqResultDataCollector<?, ?>> resultDataCollectors,
-			HashMap<String, ? extends DesqProjDbDataCollector<?, ?>> projDbCollectors) {
+	public double getScoreByResultSet(int[] sequence,
+			HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollectors,
+			HashMap<String,? extends DesqResultDataCollector<?,?>> resultDataCollectors) {
 		throw new NotImplementedExcepetion();
 	}
 
@@ -62,21 +58,29 @@ public class DesqBaseScore implements DesqScore,
 	public double getMaxScoreByPrefix(
 			int[] prefix,
 			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors,
-			HashMap<String, ? extends DesqProjDbDataCollector<?, ?>> projDbCollectors) {
-		throw new NotImplementedExcepetion();
+			HashMap<String, ? extends DesqProjDbDataCollector<?, ?>>[] prefixProjDbCollectors) {
+		return Double.MAX_VALUE;
 	}
 
 	@Override
 	public double getMaxScoreByPrefix(
 			int[] prefix,
 			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollector) {
-		throw new NotImplementedExcepetion();
+		return Double.MAX_VALUE;
 	}
 	
 	@Override
 	public double getMaxScoreByItem(
 			int item,
 			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors) {
+		return Double.MAX_VALUE;
+	}
+
+	@Override
+	public double getScoreByProjDb(
+			int[] sequence,
+			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors,
+			HashMap<String, ? extends DesqProjDbDataCollector<?, ?>> finalStateProjDbCollectors) {
 		throw new NotImplementedExcepetion();
 	}
 }

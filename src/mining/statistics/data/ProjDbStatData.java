@@ -5,6 +5,7 @@ public class ProjDbStatData {
 	int transactionId;
 	int stateFST;
 	int position;
+	boolean inFinalState;
 	
 	public int[] getTransaction() {
 		return transaction;
@@ -29,5 +30,11 @@ public class ProjDbStatData {
 	}
 	public void setPosition(int position) {
 		this.position = position;
+	}
+	public boolean isInFinalState() {
+		return inFinalState;
+	}
+	public void setInFinalState(boolean inFinalState) {
+		this.inFinalState = inFinalState;
 	}
 }

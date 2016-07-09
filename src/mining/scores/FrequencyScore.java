@@ -16,7 +16,8 @@ public class FrequencyScore extends DesqBaseScore {
 	public FrequencyScore(XFst xfst) {
 		super(xfst);
 	}
-
+	
+	@Override
 	public double getMaxScoreByItem(
 			int item,
 			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors) {
@@ -28,28 +29,40 @@ public class FrequencyScore extends DesqBaseScore {
 		
 		return func.apply(sup)[item]; 
 	}
-
+	
+	@Override
 	public double getScoreByProjDb(int[] sequence, 
 			HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollectors,
-			HashMap<String,? extends DesqProjDbDataCollector<?,?>> projDbCollectors) {
+			HashMap<String,? extends DesqProjDbDataCollector<?,?>> finalStateProjDbCollectors,
+			HashMap<String,? extends DesqProjDbDataCollector<?,?>>[] prefixProjDbCollectors) {
+
+		return (getScoreByProjDb(sequence, globalDataCollectors, finalStateProjDbCollectors));
 		
-		PrefixSupportCollector sup = (PrefixSupportCollector) projDbCollectors.get("PREFIXSUPPORT");
+	}
+	
+	@Override
+	public double getScoreByProjDb(
+			int[] sequence,
+			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors,
+			HashMap<String, ? extends DesqProjDbDataCollector<?, ?>> finalStateProjDbCollectors) {
+		
+		PrefixSupportCollector sup = (PrefixSupportCollector) finalStateProjDbCollectors.get("PREFIXSUPPORT");
 		@SuppressWarnings("unchecked")
-		Function<PrefixSupportCollector, Integer> func = (Function<PrefixSupportCollector, Integer>) projDbCollectors.get("PREFIXSUPPORT").finisher();
-		
+		Function<PrefixSupportCollector, Integer> func = (Function<PrefixSupportCollector, Integer>) finalStateProjDbCollectors.get("PREFIXSUPPORT").finisher();
+
 		return func.apply(sup);
-		
 	}
 
 	@Override
-	public double getMaxScoreByPrefix(int[] prefix,  
-			HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollectors,
-			HashMap<String,? extends DesqProjDbDataCollector<?,?>> projDbCollectors) {
+	public double getMaxScoreByPrefix(
+			int[] prefix,
+			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors,
+			HashMap<String, ? extends DesqProjDbDataCollector<?, ?>>[] prefixProjDbCollectors) {
 		
-		PrefixSupportCollector sup = (PrefixSupportCollector) projDbCollectors.get("PREFIXSUPPORT");
+		PrefixSupportCollector sup = (PrefixSupportCollector) prefixProjDbCollectors[prefixProjDbCollectors.length - 1].get("PREFIXSUPPORT");
 		
 		@SuppressWarnings("unchecked")
-		Function<PrefixSupportCollector, Integer> func = (Function<PrefixSupportCollector, Integer>) projDbCollectors.get("PREFIXSUPPORT").finisher();
+		Function<PrefixSupportCollector, Integer> func = (Function<PrefixSupportCollector, Integer>) prefixProjDbCollectors[prefixProjDbCollectors.length - 1].get("PREFIXSUPPORT").finisher();
 		
 		return func.apply(sup);
 	}

@@ -1,16 +1,17 @@
 package driver;
 
+import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import mining.interestingness.DesqCountScored;
 import mining.interestingness.OnePassIterativeScored;
-import mining.scores.DesqDfsScore;
-import mining.scores.InformationGainScore;
+import mining.scores.DesqCountScore;
+import mining.scores.FrequencyScore;
 import mining.scores.RankedScoreList;
 import mining.scores.RankedScoreListAll;
-import mining.statistics.old.GlobalInformationGainStatistic;
+import mining.statistics.collectors.DesqGlobalDataCollector;
 import patex.PatEx;
 //import mining.TwoPass;
 import utils.Dictionary;
@@ -49,7 +50,6 @@ public class DesqCountScoredDriver {
 		double support = conf.getSigma();
 		
 		boolean writeOutput = conf.isWriteOutput();
-		boolean useFlist = conf.isUseFlist();
 		
 		
 		String sequenceFile = input.concat("/raw/part-r-00000");
@@ -83,16 +83,25 @@ public class DesqCountScoredDriver {
 		
 		logger.log(Level.INFO, "Mining P-frequent sequences...");
 		
-		GlobalInformationGainStatistic globalInformationGainStatistic = new GlobalInformationGainStatistic(sequenceFile);
-		DesqDfsScore score = new InformationGainScore(xFst.convertToFstGraph(), globalInformationGainStatistic, Dictionary.getInstance(), xFst);
+//		GlobalInformationGainStatistic globalInformationGainStatistic = new GlobalInformationGainStatistic(sequenceFile);
+//		DesqDfsScore score = new InformationGainScore(xFst.convertToFstGraph(), globalInformationGainStatistic, Dictionary.getInstance(), xFst);
 		RankedScoreList rankedScoreList = new RankedScoreListAll(true);
 		
+		
+		DesqCountScore score = new FrequencyScore(xFst);
+		HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?,?>, ?>> globalDataCollectors = score.getGlobalDataCollectors();
+		
 		//DesqCount dc = new OnePassRecursive(support, xFst, writeOutput, useFlist);
-		DesqCountScored dc = new OnePassIterativeScored(support, xFst, score, score.getLocalCollectors(), rankedScoreList, writeOutput, match);
+		DesqCountScored dc = new OnePassIterativeScored(support, 
+															xFst, 
+															score, 
+															globalDataCollectors, rankedScoreList, writeOutput, match);
 		
 		totalTime.start();
 		
 		dc.scan(sequenceFile);
+		
+		rankedScoreList.printList();
 		
 		totalTime.stop();
 		

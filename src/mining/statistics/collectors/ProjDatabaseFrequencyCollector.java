@@ -1,15 +1,15 @@
 package mining.statistics.collectors;
 
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
+
 import java.util.Collections;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.Collector;
 
 import mining.statistics.data.ProjDbStatData;
-import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 
 public class ProjDatabaseFrequencyCollector implements DesqProjDbDataCollector<ProjDatabaseFrequencyCollector, Int2IntOpenHashMap>, 
 												Supplier<ProjDatabaseFrequencyCollector>,

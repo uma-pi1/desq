@@ -28,11 +28,7 @@ import fst.OutputLabel;
 import fst.XFst;
 
 public class InformationGainScore extends DesqBaseScore implements DesqDfsScore {
-	GlobalInformationGainStatistic globalInformationGainStatistic;
-	
-//	double minInformationGain;
 	FstGraph fstGraph;
-	Hierarchy hierarchy;
 	XFst xFst;
 
 	RankedScoreList rankedScoreList;
@@ -40,11 +36,8 @@ public class InformationGainScore extends DesqBaseScore implements DesqDfsScore 
 	Int2ObjectOpenHashMap<ArrayList<Integer>> stateValidItems = new Int2ObjectOpenHashMap<ArrayList<Integer>>();
 	Int2IntOpenHashMap stateItemCycleIndicator = new Int2IntOpenHashMap();
 	
-	public InformationGainScore(FstGraph fstGraph, GlobalInformationGainStatistic globalInformationGainStatistic, 
-						Hierarchy hierarchy, XFst xFst) {
-		this.globalInformationGainStatistic = globalInformationGainStatistic;
+	public InformationGainScore(FstGraph fstGraph, XFst xFst) {
 		this.fstGraph = fstGraph;
-		this.hierarchy = hierarchy;
 		this.xFst = xFst;
 		buildValidItemIndex();
 	}

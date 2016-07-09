@@ -10,6 +10,7 @@ import mining.scores.DesqDfsScore;
 import mining.scores.FrequencyScore;
 import mining.scores.InformationGainScore;
 import mining.scores.LocalInformationGainScore;
+import mining.scores.NotImplementedExcepetion;
 import mining.scores.RankedScoreList;
 import mining.scores.RankedScoreListAll;
 import mining.statistics.collectors.DesqGlobalDataCollector;
@@ -81,15 +82,23 @@ public class DesqDfsScoredDriver {
 		logger.log(Level.INFO, "Mining P-frequent sequences...");
 		
 		RankedScoreList rankedScoreList = new RankedScoreListAll(true);
+
 		
-		DesqDfsScore score = new FrequencyScore(xFst);
-		HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?,?>, ?>> globalDataCollectors = score.getGlobalDataCollectors();
+		HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?, ?>, ?>> globalDataCollectors = new HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?, ?>, ?>>();
 		
+//		DesqDfsScore score = new FrequencyScore(xFst);
 		
 //		GlobalInformationGainStatistic globalInformationGainStatistic = new GlobalInformationGainStatistic(sequenceFile);
 //		SPMScore score = new InformationGainScore(xFst.convertToFstGraph(), globalInformationGainStatistic, Dictionary.getInstance(), xFst);
 
-//		SPMScore score = new LocalInformationGainScore();
+		DesqDfsScore score = new LocalInformationGainScore(xFst);
+		
+		try {
+			globalDataCollectors = score.getGlobalDataCollectors();
+			
+		} catch (NotImplementedExcepetion exception) {
+			// do nothing
+		}
 		
 		DfsOnePassScored dfs = new DfsOnePassScored(sigma, 
 										xFst, 
