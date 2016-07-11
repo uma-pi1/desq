@@ -206,9 +206,11 @@ public class OnePassIterativeScored extends DesqCountScored {
 	private void outputBuffer() {
 
 		if (!buffer.isEmpty()) {
+			if(score.getScoreBySequence(reverse(buffer.toIntArray()), globalDataCollectors) >= sigma) {
+				addSequenceToOutput(reverse(buffer.toIntArray()), score.getScoreBySequence(reverse(buffer.toIntArray()), globalDataCollectors));
+			};
+			
 			updateFinalSequenceStatistics(reverse(buffer.toIntArray()));
-//			countSequence(reverse(buffer.toIntArray()));
-			// System.out.println(buffer);
 		}
 	}
 

@@ -17,12 +17,12 @@ public class DesqBaseScore implements DesqScore,
 		this.xfst = xfst;
 	}
 
-	@Override
-	public double getScoreBySequence(
-			int[] sequence,
-			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors) {
-		throw new NotImplementedExcepetion();
-	}
+//	@Override
+//	public double getScoreBySequence(
+//			int[] sequence,
+//			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors) {
+//		throw new NotImplementedExcepetion();
+//	}
 
 	@Override
 	public double getScoreByProjDb(int[] sequence, 
@@ -81,6 +81,13 @@ public class DesqBaseScore implements DesqScore,
 			int[] sequence,
 			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors,
 			HashMap<String, ? extends DesqProjDbDataCollector<?, ?>> finalStateProjDbCollectors) {
+		throw new NotImplementedExcepetion();
+	}
+
+	@Override
+	public double getScoreBySequence(
+			int[] sequence,
+			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors) {
 		throw new NotImplementedExcepetion();
 	}
 }

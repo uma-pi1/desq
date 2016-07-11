@@ -2,6 +2,7 @@ package mining.interestingness;
 
 import fst.XFst;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.objects.Object2DoubleOpenCustomHashMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenCustomHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenCustomHashMap;
 
@@ -9,7 +10,9 @@ import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -17,6 +20,9 @@ import mining.scores.DesqCountScore;
 import mining.scores.RankedScoreList;
 import mining.statistics.collectors.DesqGlobalDataCollector;
 import mining.statistics.collectors.DesqProjDbDataCollector;
+import mining.statistics.collectors.DesqResultDataCollector;
+import mining.statistics.data.DesqSequenceData;
+import mining.statistics.data.DesqTransactionData;
 import mining.statistics.data.ProjDbStatData;
 import utils.Dictionary;
 import utils.IntArrayStrategy;
@@ -33,8 +39,11 @@ public abstract class DesqCountScored {
 
 	protected Dictionary dictionary = Dictionary.getInstance();
 
-	protected Object2LongOpenCustomHashMap<int[]> outputSequences = new Object2LongOpenCustomHashMap<int[]>(
-			new IntArrayStrategy());
+	protected Object2DoubleOpenCustomHashMap<int[]> outputSequences = new Object2DoubleOpenCustomHashMap<int[]>(new IntArrayStrategy());
+//	
+	protected ArrayList<int[]> inputSequences = new ArrayList<int[]>();
+	
+//	protected ArrayList<int[]> outputSequences = new ArrayList<int[]>();
 
 	protected double sigma;
 
@@ -68,13 +77,17 @@ public abstract class DesqCountScored {
 	
 	protected DesqCountScore score;
 	
-	RankedScoreList rankedScoreList;
-	
 	protected HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?,?>, ?>> globalDataCollectors;
 	protected HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> projDbCollectors;
-	ProjDbStatData projDbStatData = new ProjDbStatData();
+	protected HashMap<String, DesqResultDataCollector<? extends DesqResultDataCollector<?, ?>, ?>> resultDataCollectors;
 	
-	protected Object2ObjectOpenCustomHashMap<int[], HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> > outputSequenceList = new Object2ObjectOpenCustomHashMap<int[],HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>>(new IntArrayStrategy());
+	private RankedScoreList rankedScoreList;
+	
+	private ProjDbStatData projDbStatData = new ProjDbStatData();
+	private DesqSequenceData sequenceData = new DesqSequenceData();
+	private DesqTransactionData transactionData;
+	
+	protected Object2ObjectOpenCustomHashMap<int[], HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> > minedSequenceSet = new Object2ObjectOpenCustomHashMap<int[],HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>>(new IntArrayStrategy());
 	
 	// Methods
 	
@@ -87,6 +100,7 @@ public abstract class DesqCountScored {
 		
 		this.projDbCollectors = score.getProjDbCollectors();
 		this.globalDataCollectors = globalDataCollectors;
+		this.resultDataCollectors = score.getResultDataCollectors();
 		
 		this.rankedScoreList = rankedScoreList;
 	}
@@ -98,6 +112,7 @@ public abstract class DesqCountScored {
 		BufferedReader br = new BufferedReader(new InputStreamReader(in));
 
 		IntArrayList buffer = new IntArrayList();
+		int transactionId = 0;
 		
 		String line;
 		while ((line = br.readLine()) != null) {
@@ -108,68 +123,77 @@ public abstract class DesqCountScored {
 					sequence[i] = Integer.parseInt(str[i]);
 				}
 				
-				sid = sid + 1;
-				gpt = 0;
-				gptUnique = 0;
-				buffer.clear();
-				//computeMatch(buffer, 0, dfa.getInitialState());
-				computeMatch();
-				globalGpt += gpt;
-				globalGptUnique += gptUnique;
+				inputSequences.add(sequence);
 				
-				if(gpt > 0)
-					totalMatchedSequences++;
+				transactionData.setTransaction(sequence);
+				transactionData.setTransactionId(transactionId++);
+				
+				for (Entry<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?, ?>, ?>> entry: globalDataCollectors.entrySet()) {
+					@SuppressWarnings("unchecked")
+					DesqGlobalDataCollector<DesqGlobalDataCollector<?,?>, ?> coll = (DesqGlobalDataCollector<DesqGlobalDataCollector<?, ?>, ?>) entry.getValue();
+					coll.accumulator().accept(coll, transactionData);
+				}
 			}
 		}
 		br.close();
 		
-		totalMatches = outputSequences.size();
-
-		// output all frequent sequences
-//		for (Map.Entry<int[], Long> entry : outputSequences.entrySet()) {
-//			long value = entry.getValue();
-//			int support = PrimitiveUtils.getLeft(value);
-////			if (score.getScore(entry.getKey(), collectors, support) >= sigma) {
-//			if (score.getScoreByProjDb(entry.getKey(), globalDataCollectors, finalStateProjDbCollectors) >= sigma) {
-//				numPatterns++;
-//				if(writeOutput) {
-//					rankedScoreList.addNewOutputSequence(entry.getKey(), score.getScore(entry.getKey(), collectors, support), support);
-////					writer.write(entry.getKey(), support);
-//				}
-//			}
-//		}
-		
-		for (Map.Entry<int[], HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>> entry : outputSequenceList.entrySet()) {
+		for(int sId = 0; sId < inputSequences.size(); ++sId) {
+			sequence = inputSequences.get(sId);
 			
+			sid = sid + 1;
+			gpt = 0;
+			gptUnique = 0;
+			buffer.clear();
+			//computeMatch(buffer, 0, dfa.getInitialState());
+			computeMatch();
+			globalGpt += gpt;
+			globalGptUnique += gptUnique;
+			
+			if(gpt > 0)
+				totalMatchedSequences++;
+		}
+		
+		// evaluate sequences by projected database statistics
+		for (Map.Entry<int[], HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>> entry : minedSequenceSet.entrySet()) {
 			HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> finalCollectors = entry.getValue();
 			if (score.getScoreByProjDb(entry.getKey(), globalDataCollectors, finalCollectors) >= sigma) {
-				numPatterns++;
-				if(writeOutput) {
-					rankedScoreList.addNewOutputSequence(entry.getKey(), score.getScoreByProjDb(entry.getKey(), globalDataCollectors, finalCollectors), 0);
-				}
+				addSequenceToOutput(entry.getKey(), score.getScoreByProjDb(entry.getKey(), globalDataCollectors, finalCollectors));				
 			}
 		}
+		
+		// evaluate sequences by result statistics, remove sequences 
+		for (Entry<int[], Double> entry : outputSequences.entrySet()) {
+			if (score.getScoreByResultSet(entry.getKey(), globalDataCollectors, resultDataCollectors) >= sigma) {
+				outputSequences.put(entry.getKey(), score.getScoreByResultSet(entry.getKey(), globalDataCollectors, resultDataCollectors));		
+			} else {
+				outputSequences.remove(entry.getKey());
+			}
+		}
+		
+		// output sequences
+		totalMatches = outputSequences.size();
+		
 	}
 	
 	protected abstract void computeMatch();
 
-	protected void countSequence(int[] sequence) {
-		gpt++;
-		Long supSid = outputSequences.get(sequence);
-		if (supSid == null) {
-			outputSequences.put(sequence, PrimitiveUtils.combine(1, sid));
-			gptUnique++;
-			return;
-		}
-		if (PrimitiveUtils.getRight(supSid) != sid) {
-			int newCount = PrimitiveUtils.getLeft(supSid) + 1;
-			outputSequences.put(sequence, PrimitiveUtils.combine(newCount, sid));
-			gptUnique++;
-		}
-	}
+//	protected void countSequence(int[] sequence) {
+//		gpt++;
+//		Long supSid = outputSequences.get(sequence);
+//		if (supSid == null) {
+//			outputSequences.put(sequence, PrimitiveUtils.combine(1, sid));
+//			gptUnique++;
+//			return;
+//		}
+//		if (PrimitiveUtils.getRight(supSid) != sid) {
+//			int newCount = PrimitiveUtils.getLeft(supSid) + 1;
+//			outputSequences.put(sequence, PrimitiveUtils.combine(newCount, sid));
+//			gptUnique++;
+//		}
+//	}
 	
 	protected void updateFinalSequenceStatistics(int[] sequence) {
-		HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> finalStateProjDbAccumulators = outputSequenceList.get(sequence);
+		HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> finalStateProjDbAccumulators = minedSequenceSet.get(sequence);
 		if (finalStateProjDbAccumulators == null) {
 			finalStateProjDbAccumulators = new HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>();
 			for (Entry<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> entry: projDbCollectors.entrySet()) {
@@ -191,10 +215,22 @@ public abstract class DesqCountScored {
 			@SuppressWarnings("unchecked")
 			DesqProjDbDataCollector<DesqProjDbDataCollector<?,?>, ?> finalProjDBCollector = (DesqProjDbDataCollector<DesqProjDbDataCollector<?, ?>, ?>) finalStateProjDbAccumulators.get(entry.getKey());
 			finalProjDBCollector.accumulator().accept(entry.getValue(), projDbStatData);
-		}		
-		outputSequenceList.put(sequence, finalStateProjDbAccumulators);
+		}
+		minedSequenceSet.put(sequence, finalStateProjDbAccumulators);
 	}
-
+	
+	protected void addSequenceToOutput(int[] outputSeq, double score) {
+		outputSequences.put(outputSeq, score);
+		sequenceData.setSequence(outputSeq);
+		
+		for (Entry<String, DesqResultDataCollector<? extends DesqResultDataCollector<?, ?>, ?>> resultCollectorEntry: resultDataCollectors.entrySet()) {
+			@SuppressWarnings("unchecked")
+			DesqResultDataCollector<DesqResultDataCollector<?,?>, ?> resultCollector = (DesqResultDataCollector<DesqResultDataCollector<?, ?>, ?>) resultCollectorEntry.getValue();
+			resultCollector.accumulator().accept(resultCollector, sequenceData);
+		}
+		
+		numPatterns++;
+	}
 
 	public long getGlobalGpt() {
 		return globalGpt;
@@ -220,42 +256,6 @@ public abstract class DesqCountScored {
 		return totalMatches;
 	}
 	
-//	private final class Prefix {
-//		
-//		int[] prefix;
-//		
-//		Prefix(int[] prefix) {
-//			this.prefix = prefix;
-//		}
-//
-//		@Override
-//		public int hashCode() {
-//			final int prime = 31;
-//			int result = 1;
-//			result = prime * result + getOuterType().hashCode();
-//			result = prime * result + Arrays.hashCode(prefix);
-//			return result;
-//		}
-//
-//		@Override
-//		public boolean equals(Object obj) {
-//			if (this == obj)
-//				return true;
-//			if (obj == null)
-//				return false;
-//			if (getClass() != obj.getClass())
-//				return false;
-//			Prefix other = (Prefix) obj;
-//			if (!getOuterType().equals(other.getOuterType()))
-//				return false;
-//			if (!Arrays.equals(prefix, other.prefix))
-//				return false;
-//			return true;
-//		}
-//
-//		private DesqCountScored getOuterType() {
-//			return DesqCountScored.this;
-//		}
-//	}
+
 
 }

@@ -60,14 +60,12 @@ public class DfsOnePassScored extends DesqDfsScored {
 	HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> finalStateProjDbAccumulators;
 	
 	// hashmaps that hold information 
-	HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?,?>, ?>> globalDataCollectors;
-//	Object2ObjectOpenHashMap<Prefix, HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>> prefixCollectors;
 	HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>[] prefixCollectors;
 	
 	ProjDbStatData projDbStatData = new ProjDbStatData();
 	
 	public DfsOnePassScored(double sigma, XFst xfst, DesqDfsScore score, RankedScoreList rankedScoreList, HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?,?>, ?>> globalDataCollectors, boolean writeOutput) {
-		super(sigma, xfst, writeOutput);
+		super(sigma, xfst, globalDataCollectors, writeOutput);
 		initialState = xfst.getInitialState();
 		
 		currentStateSet = new boolean[xfst.numStates()];
@@ -76,7 +74,6 @@ public class DfsOnePassScored extends DesqDfsScored {
 		this.score = score;
 		this.rankedScoreList = rankedScoreList;
 		this.projDbCollectors = score.getProjDbCollectors();
-		this.globalDataCollectors = globalDataCollectors;
 		this.finalStateProjDbAccumulators = new HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>();
 //		this.prefixCollectors = new Object2ObjectOpenHashMap<Prefix, HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>>();
 	}

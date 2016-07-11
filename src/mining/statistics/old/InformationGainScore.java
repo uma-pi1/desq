@@ -1,89 +1,36 @@
-package mining.scores;
+package mining.statistics.old;
 
-import java.util.HashMap;
-import java.util.function.Function;
 
-import mining.statistics.collectors.DesqGlobalDataCollector;
-import mining.statistics.collectors.DesqProjDbDataCollector;
-import mining.statistics.collectors.FstStateItemCollector;
-import mining.statistics.collectors.GlobalEventsCountCollector;
-import mining.statistics.collectors.ItemSupportCollector;
-import mining.statistics.collectors.LocalItemFrequencyCollector;
-import mining.statistics.collectors.MaxRemainingTransactionLengthCollector;
-import mining.statistics.collectors.PrefixSupportCollector;
-import tools.FstGraph;
-import fst.XFst;
-
-public class InformationGainScore extends DesqBaseScore {
-	FstGraph fstGraph;
-	XFst xFst;
-
+public class InformationGainScore {
+//public class InformationGainScore extends DesqBaseScore implements DesqDfsScore {
+//	FstGraph fstGraph;
+//	XFst xFst;
+//
 //	RankedScoreList rankedScoreList;
 //	Int2ObjectOpenHashMap<ScoredHierarchyItem> itemMap = new Int2ObjectOpenHashMap<ScoredHierarchyItem>();
 //	Int2ObjectOpenHashMap<ArrayList<Integer>> stateValidItems = new Int2ObjectOpenHashMap<ArrayList<Integer>>();
 //	Int2IntOpenHashMap stateItemCycleIndicator = new Int2IntOpenHashMap();
-	
-	public InformationGainScore(XFst xFst) {
-		super(xFst);
-		this.xFst = xFst;
-		this.fstGraph = xFst.convertToFstGraph();
+//	
+//	public InformationGainScore(FstGraph fstGraph, XFst xFst) {
+//		this.fstGraph = fstGraph;
+//		this.xFst = xFst;
 //		buildValidItemIndex();
-	}
-
-	@Override
-	public HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?,?>, ?>> getProjDbCollectors() {
-		HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> collectors = new HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>();
-		collectors.put("PREFIXSUPPORT", new PrefixSupportCollector());
-		collectors.put("FST_STATES", new FstStateItemCollector());
-		collectors.put("LOCAL_ITEM_FREQUENCIES", new LocalItemFrequencyCollector());
-		collectors.put("MAX_REMAIN_TRANSACTION_LENGTH", new MaxRemainingTransactionLengthCollector());
-		return collectors;
-	}
-	
-	@Override
-	public HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?, ?>, ?>> getGlobalDataCollectors() {
-		HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?, ?>, ?>> collectors = new HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?, ?>, ?>>();
-		collectors.put("TOTAL_EVENT_COUNT", (DesqGlobalDataCollector<?,?>) new GlobalEventsCountCollector());
-		collectors.put(ItemSupportCollector.ID, (DesqGlobalDataCollector<?,?>) new ItemSupportCollector());
-		return collectors;
-	}
-	
-
-	@Override
-	public double getScoreBySequence(int[] sequence, 
-			HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollectors) {
-		
-		@SuppressWarnings("unchecked")
-		Function<GlobalEventsCountCollector, Integer> eventsCountFunction = (Function<GlobalEventsCountCollector, Integer>) globalDataCollectors.get("TOTAL_EVENT_COUNT").finisher();
-		int eventsCount = eventsCountFunction.apply((GlobalEventsCountCollector) globalDataCollectors.get("TOTAL_EVENT_COUNT"));
-		
-		
-		ItemSupportCollector sup = (ItemSupportCollector) globalDataCollectors.get(ItemSupportCollector.ID);
-		@SuppressWarnings("unchecked")
-		Function<ItemSupportCollector, int[]> func = (Function<ItemSupportCollector, int[]>) globalDataCollectors.get(ItemSupportCollector.ID).finisher();		
-		
-		double totalInformationGain = 0;
-		
-		for (int i = 0; i < sequence.length; i++) {
-			totalInformationGain = totalInformationGain + (-1 * (Math.log(((double)func.apply(sup)[sequence[i]]) / ((double) eventsCount)) / Math.log(func.apply(sup).length)));
-		}
-		return totalInformationGain;
-	}
-
-	
-	@Override
-	public double getMaxScoreByPrefix(
-			int[] prefix,
-			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollector) {
-				
-		return 0;
-	}
-
+//	}
+//
+//	@Override
+//	public HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> getLocalCollectors() {
+//		HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> collectors = new HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>();
+//		collectors.put("PREFIXSUPPORT", (DesqProjDbDataCollector<?,?>) new PrefixSupportCollector());
+////		collectors.put("PREFIXSUPPORT", new EventsCountCollector());
+//		collectors.put("FST_STATES", (DesqProjDbDataCollector<?,?>) new FstStateItemCollector());
+//		collectors.put("LOCAL_ITEM_FREQUENCIES", (DesqProjDbDataCollector<?,?>) new LocalItemFrequencyCollector());
+//		collectors.put("MAX_REMAIN_TRANSACTION_LENGTH", (DesqProjDbDataCollector<?,?>) new MaxRemainingTransactionLengthCollector());
+//		return collectors;
+//	}
+//
 //	@SuppressWarnings("unchecked")
 //	@Override
-//	public double getMaxScoreByPrefix(
-//			int[] prefix,
-//			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollector) {
+//	public double getMaximumScore(int[] items, HashMap<String,? extends DesqProjDbDataCollector<?,?>> statData) {
 //		double maxScore = 0;
 //
 //		int prefixSupport = ((Function<PrefixSupportCollector, Integer>) statData.get("PREFIXSUPPORT").finisher()).apply((PrefixSupportCollector) statData.get("PREFIXSUPPORT")) ;
@@ -172,114 +119,124 @@ public class InformationGainScore extends DesqBaseScore {
 ////		System.out.println(Arrays.toString(items) + maxScore);
 //		return maxScore;
 //	}
-	
+//	
+////	@Override
+////	public boolean isSequenceExpandable(int[] prefix, SPMLocalStatisticCollector statisticCollector) {
+////		double maxScore = 0;
+////		
+////		TransactionStateItemStatistic localStatistic = ((TransactionStateItemStatistic) statisticCollector);
+////		buildItemMap(localStatistic);
+////
+////		// TODO: one could determine whether the reachable Edges of one state is a subset of the another state => only the superset needs to processed (worst case assumption)
+////		// TODO: improvement by determining the reachable states for each accepted state ... disallow union of possible transitions (tighter bound)
+////		// TODO: get the maximum number of cycle iterations => challenge: how to treat the "." -> many possible configurations possible
+////		boolean firstIteration = true;
+////		
+////		for (int  pFSTState : localStatistic.getpFSTStates()) {
+////			int stateMaxTransactionLength = localStatistic.getMaxTransactionLength();
+////			
+////			List<FstEdge> reachableEdges = fstGraph.getReachableEdgesPerState(pFSTState);
+////			ArrayList<Integer> stateMaxSequence = new ArrayList<Integer>();
+////			
+////			if(!firstIteration) {
+////				// reset the state counts
+////				itemMap.entrySet().forEach(entry -> {
+////					entry.getValue().resetStateCount = true;
+////				});
+////				firstIteration = false;
+////			}
+////
+////			// for each item in the priority queue until max transaction length or priorityQueue is empty
+////			for (Iterator<ScoredHierarchyItem> iterator = sortedItemSet.iterator(); iterator.hasNext();) {
+////				ScoredHierarchyItem maxScoreItem = iterator.next();
+////				
+////				// reset the occurrence count of this item
+////				int maxItemOccurrences = 0;
+////				int itemsAddedCount = 0;
+////
+////				for (FstEdge edge : reachableEdges) {
+////					if(edge.getLabel().equals(OutputLabel.Type.EPSILON)) {
+////						// edge cannot create any output
+////						continue;
+////					}
+////					
+////					if(!edge.isWildcardTransition() && !checkIsOutputValid(edge, maxScoreItem.getItemId())) {
+////						// no
+////						// -> continue with next edge
+////						continue;
+////					} else {
+////						// yes
+////						// is edge part of cycle?
+////						if(maxItemOccurrences == 0) {
+////							maxItemOccurrences = getMaxItemOccurrence(maxScoreItem.getItemId(), maxScoreItem.getStateCount());;
+////						}
+////					
+////						if(edge.isPartOfCylce()) {
+////							// yes -> for loop until no more items or max transaction length
+////							
+////							
+////							while(maxItemOccurrences > 0 && stateMaxTransactionLength > 0) {
+////								// reduce the counters
+////								maxItemOccurrences--;
+////								stateMaxTransactionLength--;
+////								itemsAddedCount++;
+////								
+////								// add the item to the sequence
+////								stateMaxSequence.add(maxScoreItem.getItemId());
+////							}
+////						} else {	
+////							// no -> use max item
+////							if(maxItemOccurrences > 0 && stateMaxTransactionLength > 0) {
+////								stateMaxTransactionLength--;
+////								maxItemOccurrences--;
+////								itemsAddedCount++;
+////								
+////								// get max item and add it to the max sequence if count of parents is not 0
+////								stateMaxSequence.add(maxScoreItem.getItemId());
+////							}
+////						}
+////						
+////						if(maxItemOccurrences == 0 || stateMaxTransactionLength == 0) {
+////							// stop processing, item cannot be added anymore
+////							break;
+////						}
+////					}
+////					
+////					if(maxItemOccurrences == 0 || stateMaxTransactionLength == 0) {
+////						// stop processing, item cannot be added anymore
+////						break;
+////					}
+////				}
+////				// maximum transaction length for the state reached
+////				if(stateMaxTransactionLength == 0) {
+////					break;
+////				} else {
+////					updateStateCountIndex(maxScoreItem, itemsAddedCount);
+////				}
+////			}
+////			
+//////			System.out.println("Generated Array: " + Arrays.toString(stateMaxSequence.toArray(new String[stateMaxSequence.size()])));
+////			
+////			double sequenceScore = getSequenceScore(concatenateSequence(prefix, stateMaxSequence), localStatistic.getFrequency());
+////			
+////			if(sequenceScore > maxScore) {
+////				maxScore = sequenceScore;
+////			}
+////		}
+////
+////		return isSequenceScoreSufficient(maxScore);
+////	}
+//
 //	@Override
-//	public boolean isSequenceExpandable(int[] prefix, SPMLocalStatisticCollector statisticCollector) {
-//		double maxScore = 0;
-//		
-//		TransactionStateItemStatistic localStatistic = ((TransactionStateItemStatistic) statisticCollector);
-//		buildItemMap(localStatistic);
-//
-//		// TODO: one could determine whether the reachable Edges of one state is a subset of the another state => only the superset needs to processed (worst case assumption)
-//		// TODO: improvement by determining the reachable states for each accepted state ... disallow union of possible transitions (tighter bound)
-//		// TODO: get the maximum number of cycle iterations => challenge: how to treat the "." -> many possible configurations possible
-//		boolean firstIteration = true;
-//		
-//		for (int  pFSTState : localStatistic.getpFSTStates()) {
-//			int stateMaxTransactionLength = localStatistic.getMaxTransactionLength();
-//			
-//			List<FstEdge> reachableEdges = fstGraph.getReachableEdgesPerState(pFSTState);
-//			ArrayList<Integer> stateMaxSequence = new ArrayList<Integer>();
-//			
-//			if(!firstIteration) {
-//				// reset the state counts
-//				itemMap.entrySet().forEach(entry -> {
-//					entry.getValue().resetStateCount = true;
-//				});
-//				firstIteration = false;
-//			}
-//
-//			// for each item in the priority queue until max transaction length or priorityQueue is empty
-//			for (Iterator<ScoredHierarchyItem> iterator = sortedItemSet.iterator(); iterator.hasNext();) {
-//				ScoredHierarchyItem maxScoreItem = iterator.next();
-//				
-//				// reset the occurrence count of this item
-//				int maxItemOccurrences = 0;
-//				int itemsAddedCount = 0;
-//
-//				for (FstEdge edge : reachableEdges) {
-//					if(edge.getLabel().equals(OutputLabel.Type.EPSILON)) {
-//						// edge cannot create any output
-//						continue;
-//					}
-//					
-//					if(!edge.isWildcardTransition() && !checkIsOutputValid(edge, maxScoreItem.getItemId())) {
-//						// no
-//						// -> continue with next edge
-//						continue;
-//					} else {
-//						// yes
-//						// is edge part of cycle?
-//						if(maxItemOccurrences == 0) {
-//							maxItemOccurrences = getMaxItemOccurrence(maxScoreItem.getItemId(), maxScoreItem.getStateCount());;
-//						}
-//					
-//						if(edge.isPartOfCylce()) {
-//							// yes -> for loop until no more items or max transaction length
-//							
-//							
-//							while(maxItemOccurrences > 0 && stateMaxTransactionLength > 0) {
-//								// reduce the counters
-//								maxItemOccurrences--;
-//								stateMaxTransactionLength--;
-//								itemsAddedCount++;
-//								
-//								// add the item to the sequence
-//								stateMaxSequence.add(maxScoreItem.getItemId());
-//							}
-//						} else {	
-//							// no -> use max item
-//							if(maxItemOccurrences > 0 && stateMaxTransactionLength > 0) {
-//								stateMaxTransactionLength--;
-//								maxItemOccurrences--;
-//								itemsAddedCount++;
-//								
-//								// get max item and add it to the max sequence if count of parents is not 0
-//								stateMaxSequence.add(maxScoreItem.getItemId());
-//							}
-//						}
-//						
-//						if(maxItemOccurrences == 0 || stateMaxTransactionLength == 0) {
-//							// stop processing, item cannot be added anymore
-//							break;
-//						}
-//					}
-//					
-//					if(maxItemOccurrences == 0 || stateMaxTransactionLength == 0) {
-//						// stop processing, item cannot be added anymore
-//						break;
-//					}
-//				}
-//				// maximum transaction length for the state reached
-//				if(stateMaxTransactionLength == 0) {
-//					break;
-//				} else {
-//					updateStateCountIndex(maxScoreItem, itemsAddedCount);
-//				}
-//			}
-//			
-////			System.out.println("Generated Array: " + Arrays.toString(stateMaxSequence.toArray(new String[stateMaxSequence.size()])));
-//			
-//			double sequenceScore = getSequenceScore(concatenateSequence(prefix, stateMaxSequence), localStatistic.getFrequency());
-//			
-//			if(sequenceScore > maxScore) {
-//				maxScore = sequenceScore;
-//			}
+//	public double getScore(int[] prefix, HashMap<String,? extends DesqProjDbDataCollector<?,?>> statCollectors, int support) {
+//		double totalInformationGain = 0;
+//		for (int i = 0; i < prefix.length; i++) {
+//			totalInformationGain = totalInformationGain + globalInformationGainStatistic.getInformationGain(prefix[i]);
 //		}
-//
-//		return isSequenceScoreSufficient(maxScore);
+//		return totalInformationGain;
+////		return (totalInformationGain * (support - 1));
 //	}
-
+//
 //	public void buildValidItemIndex() {
 //		int numItems = Dictionary.getInstance().getFlist().length;
 //		

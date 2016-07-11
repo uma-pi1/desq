@@ -6,7 +6,12 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map.Entry;
 
+import mining.statistics.collectors.DesqGlobalDataCollector;
+import mining.statistics.data.DesqSequenceData;
+import mining.statistics.data.DesqTransactionData;
 import utils.Dictionary;
 import writer.SequentialWriter;
 import fst.XFst;
@@ -35,14 +40,19 @@ public abstract class DesqDfsScored {
 	
 	protected boolean writeOutput = true;
 	
+	protected HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?,?>, ?>> globalDataCollectors;
+	
+	private DesqTransactionData transactionData;
+	
 	// Methods
 	
 	public DesqDfsScored() {}
 	
-	public DesqDfsScored(double sigma, XFst xfst, boolean writeOutput) {
+	public DesqDfsScored(double sigma, XFst xfst, HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?,?>, ?>> globalDataCollectors, boolean writeOutput) {
 		this.sigma = sigma;
 		this.xfst = xfst;
 		this.writeOutput = writeOutput;
+		this.transactionData = new DesqTransactionData();
 	}
 	
 	public void clear() {
@@ -54,10 +64,10 @@ public abstract class DesqDfsScored {
 		DataInputStream in = new DataInputStream(fstream);
 		BufferedReader br = new BufferedReader(new InputStreamReader(in));
 		String line;
+		int transactionId = 0;
 		
 		while((line = br.readLine()) != null) {
 			if(!line.isEmpty()) {
-//				String[] rawSequence = line.split("\\s* \\s*");
 				String[] rawSequence = line.split(" ");
 				int[] inputSequence = new int[rawSequence.length];
 				int i = 0;
@@ -68,8 +78,17 @@ public abstract class DesqDfsScored {
 				        System.out.println(rawSequence + " " + inputSequence.length); 
 				    }
 				}
-				
 				addInputSequence(inputSequence);
+				
+				transactionData.setTransaction(inputSequence);
+				transactionData.setTransactionId(transactionId++);
+				
+				for (Entry<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?, ?>, ?>> entry: globalDataCollectors.entrySet()) {
+					@SuppressWarnings("unchecked")
+					DesqGlobalDataCollector<DesqGlobalDataCollector<?,?>, ?> coll = (DesqGlobalDataCollector<DesqGlobalDataCollector<?, ?>, ?>) entry.getValue();
+					coll.accumulator().accept(coll, transactionData);
+				}
+				
 			}
 		}
 		br.close();
