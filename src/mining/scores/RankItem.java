@@ -5,7 +5,6 @@ import java.util.Comparator;
 
 public class RankItem implements Comparable<RankItem> {
 	double score;
-	int support;
 	int[] sequence;
 	
 	public static Comparator<RankItem> scoreComparator = new Comparator<RankItem>() {
@@ -14,9 +13,8 @@ public class RankItem implements Comparable<RankItem> {
 	    }           
 	};
 	
-	public RankItem(int[] sequence, double score, int support) {
+	public RankItem(int[] sequence, double score) {
 		this.score = score;
-		this.support = support;
 		this.sequence = sequence;
 	}
 

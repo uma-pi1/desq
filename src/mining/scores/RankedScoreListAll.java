@@ -15,10 +15,10 @@ public class RankedScoreListAll implements RankedScoreList {
 	}
 	
 	@Override
-	public void addNewOutputSequence(int[] sequence, double score, int support) {
+	public void addNewOutputSequence(int[] sequence, double score) {
 		int[] seq = new int[sequence.length];
 		System.arraycopy(sequence, 0, seq, 0, sequence.length);
-		outputSequences.add(new RankItem(seq, score, support));
+		outputSequences.add(new RankItem(seq, score));
 	}
 
 	@Override
@@ -36,18 +36,16 @@ public class RankedScoreListAll implements RankedScoreList {
 		
 		int[][] sequences = new int[outputSequences.size()][];
 		double[] scores = new double[outputSequences.size()];
-		long[] support = new long[outputSequences.size()]; 
 		
 		int arrayIndex = 0;
 		for (RankItem rankItem : outputSequences) {
 			sequences[arrayIndex] = rankItem.sequence;
 			scores[arrayIndex] = rankItem.score;
-			support[arrayIndex] = rankItem.support;
 			
 			arrayIndex++;
 			
 		}
-		writer.writeAll(sequences, support, scores);
+		writer.writeAll(sequences, scores);
 		
 	}
 }

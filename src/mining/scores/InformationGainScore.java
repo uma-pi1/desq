@@ -1,23 +1,43 @@
 package mining.scores;
 
+import it.unimi.dsi.fastutil.ints.Int2DoubleAVLTreeMap;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.SortedSet;
+import java.util.TreeMap;
 import java.util.function.Function;
 
 import mining.statistics.collectors.DesqGlobalDataCollector;
 import mining.statistics.collectors.DesqProjDbDataCollector;
 import mining.statistics.collectors.FstStateItemCollector;
 import mining.statistics.collectors.GlobalEventsCountCollector;
+import mining.statistics.collectors.GlobalItemMaxRepetitionCollector;
+import mining.statistics.collectors.GlobalMaxTransactionLengthCollector;
 import mining.statistics.collectors.ItemSupportCollector;
 import mining.statistics.collectors.LocalItemFrequencyCollector;
 import mining.statistics.collectors.MaxRemainingTransactionLengthCollector;
 import mining.statistics.collectors.PrefixSupportCollector;
+import tools.FstEdge;
 import tools.FstGraph;
+import utils.Dictionary;
+import fst.OutputLabel;
 import fst.XFst;
 
 public class InformationGainScore extends DesqBaseScore {
 	FstGraph fstGraph;
 	XFst xFst;
-
+	HashMap<Integer, SortedSet<Double>> fstStateList;
+	double[] gainList;
+	ArrayList<ArrayList<Integer>> stateItems = new ArrayList<ArrayList<Integer>>();
+	
 //	RankedScoreList rankedScoreList;
 //	Int2ObjectOpenHashMap<ScoredHierarchyItem> itemMap = new Int2ObjectOpenHashMap<ScoredHierarchyItem>();
 //	Int2ObjectOpenHashMap<ArrayList<Integer>> stateValidItems = new Int2ObjectOpenHashMap<ArrayList<Integer>>();
@@ -27,6 +47,7 @@ public class InformationGainScore extends DesqBaseScore {
 		super(xFst);
 		this.xFst = xFst;
 		this.fstGraph = xFst.convertToFstGraph();
+		this.gainList = new double[Dictionary.getInstance().getFlist().length];
 //		buildValidItemIndex();
 	}
 
@@ -43,16 +64,134 @@ public class InformationGainScore extends DesqBaseScore {
 	@Override
 	public HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?, ?>, ?>> getGlobalDataCollectors() {
 		HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?, ?>, ?>> collectors = new HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?, ?>, ?>>();
-		collectors.put("TOTAL_EVENT_COUNT", (DesqGlobalDataCollector<?,?>) new GlobalEventsCountCollector());
-		collectors.put(ItemSupportCollector.ID, (DesqGlobalDataCollector<?,?>) new ItemSupportCollector());
+		collectors.put("TOTAL_EVENT_COUNT", new GlobalEventsCountCollector());
+		collectors.put(ItemSupportCollector.ID, new ItemSupportCollector());
+		collectors.put(GlobalItemMaxRepetitionCollector.ID, new GlobalItemMaxRepetitionCollector());
+		collectors.put(GlobalMaxTransactionLengthCollector.ID, new GlobalMaxTransactionLengthCollector());
+		
 		return collectors;
 	}
 	
 
 	@Override
 	public double getScoreBySequence(int[] sequence, 
-			HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollectors) {
+			HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollectors) {		
 		
+		if(gainList.length == 0) {
+			createInformationGainList(globalDataCollectors,Dictionary.getInstance().getFlist());
+		}
+		if(sequence != null) {
+			double totalInformationGain = 0;
+			
+			for (int i = 0; i < sequence.length; i++) {
+				totalInformationGain = totalInformationGain + gainList[sequence[i]];
+			}
+			
+			return totalInformationGain;
+		} else {
+			return 0;
+		}
+		
+	}
+
+	
+	@Override
+	public double getMaxScoreByPrefix(
+			int[] prefix,
+			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors,
+			int[] transaction,
+			int position,
+			int fstState) {
+		return Double.MAX_VALUE;
+//		if(fstStateList == null) {
+//			createStateItems(globalDataCollectors);
+//		}
+//		
+//		GlobalItemMaxRepetitionCollector sup = (GlobalItemMaxRepetitionCollector) globalDataCollectors.get(GlobalItemMaxRepetitionCollector.ID);
+//		@SuppressWarnings("unchecked")
+//		Function<GlobalItemMaxRepetitionCollector, int[]> func = (Function<GlobalItemMaxRepetitionCollector, int[]>) globalDataCollectors.get(GlobalItemMaxRepetitionCollector.ID).finisher();
+//		int[] maxRepetitionList = func.apply(sup);
+//		
+//		double maxInformationGain = getScoreBySequence(prefix, globalDataCollectors);
+//		int maxLength = transaction.length - position;
+//		
+//		ArrayList<Integer> fstStateItems = stateItems.get(fstState);
+//		
+//		for(int i = 0; i<fstStateItems.size(); i++) {
+//			int maxRepetition = maxRepetitionList[fstStateItems.get(i)]; 
+//			while(maxLength != 0  && maxRepetition != 0) {
+//				maxInformationGain = maxInformationGain + gainList[fstStateItems.get(i)];
+//				maxLength--;
+//				maxRepetition--;
+//			}
+//			
+//			if(maxLength == 0) {
+//				break;
+//			}
+//		}
+//		
+//		return maxInformationGain;
+	}
+	
+	private HashSet<Integer> generateOutputItems(XFst xFst, int state, int[] flist) {
+		HashSet<Integer> outputItems = new HashSet<Integer>();
+		for (int itemId = 0; itemId < flist.length; itemId++) {
+			if (xfst.hasOutgoingTransition(state, itemId)) {
+				for (int tId = 0; tId < xfst.numTransitions(state); ++tId) {
+					if (xfst.canStep(itemId, state, tId)) {
+
+						OutputLabel olabel = xfst.getOutputLabel(state, tId);
+	
+						switch (olabel.type) {
+						case EPSILON:
+							
+							break;
+	
+						case CONSTANT:
+							outputItems.add(olabel.item);
+							break;
+	
+						case SELF:
+							outputItems.add(itemId);
+							break;
+	
+						case SELFGENERALIZE:
+							outputItems.addAll(getParents(itemId, olabel.item));
+							break;
+	
+						default:
+							break;
+						}
+					}
+				}
+			}
+		}
+		
+		return outputItems;
+	}
+		
+	private ArrayList<Integer> getParents(int itemId, int rootItemId) {
+		ArrayList<Integer> stack = new ArrayList<Integer>();
+		IntOpenHashSet tempAnc = new IntOpenHashSet();
+		
+		int top = 0;
+		stack.add(itemId);
+		tempAnc.add(itemId);
+		while (top < stack.size()) {
+			int currItemId = stack.get(top);
+			for (int parentId : Dictionary.getInstance().getParents(currItemId)) {
+				if (xfst.isReachable(rootItemId, parentId) && !tempAnc.contains(parentId)) {
+					stack.add(parentId);
+					tempAnc.add(parentId);
+				}
+			}
+			top++;
+		}
+		tempAnc.clear();
+		return stack;
+	}
+	
+	private void createInformationGainList(HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollectors, int[] flist) {
 		@SuppressWarnings("unchecked")
 		Function<GlobalEventsCountCollector, Integer> eventsCountFunction = (Function<GlobalEventsCountCollector, Integer>) globalDataCollectors.get("TOTAL_EVENT_COUNT").finisher();
 		int eventsCount = eventsCountFunction.apply((GlobalEventsCountCollector) globalDataCollectors.get("TOTAL_EVENT_COUNT"));
@@ -60,23 +199,53 @@ public class InformationGainScore extends DesqBaseScore {
 		
 		ItemSupportCollector sup = (ItemSupportCollector) globalDataCollectors.get(ItemSupportCollector.ID);
 		@SuppressWarnings("unchecked")
-		Function<ItemSupportCollector, int[]> func = (Function<ItemSupportCollector, int[]>) globalDataCollectors.get(ItemSupportCollector.ID).finisher();		
+		Function<ItemSupportCollector, int[]> func = (Function<ItemSupportCollector, int[]>) globalDataCollectors.get(ItemSupportCollector.ID).finisher();
 		
-		double totalInformationGain = 0;
-		
-		for (int i = 0; i < sequence.length; i++) {
-			totalInformationGain = totalInformationGain + (-1 * (Math.log(((double)func.apply(sup)[sequence[i]]) / ((double) eventsCount)) / Math.log(func.apply(sup).length)));
+		for (int itemId = 0; itemId < flist.length; itemId++) {
+			gainList[itemId] = (-1 * (Math.log(((double)func.apply(sup)[itemId]) / ((double) eventsCount)) / Math.log(func.apply(sup).length)));
 		}
-		return totalInformationGain;
 	}
-
 	
-	@Override
-	public double getMaxScoreByPrefix(
-			int[] prefix,
-			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollector) {
+	private void createStateItems(HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollectors) {
+		boolean[] visitedFstStates = new boolean[xFst.numStates()]; 
+		fstStateList = new HashMap<Integer, SortedSet<Double>>();	
+		HashSet<Integer> outputItems = new HashSet<Integer>();
+		
+		ItemSupportCollector sup = (ItemSupportCollector) globalDataCollectors.get(ItemSupportCollector.ID);
+		@SuppressWarnings("unchecked")
+		Function<ItemSupportCollector, int[]> func = (Function<ItemSupportCollector, int[]>) globalDataCollectors.get(ItemSupportCollector.ID).finisher();
+		int[] flist = func.apply(sup);
+		
+		if(gainList.length == 0) {
+			createInformationGainList(globalDataCollectors,Dictionary.getInstance().getFlist());
+		}
+		
+		for(int i = 0; i<xFst.numStates();i++) {
+			List<FstEdge> edge = fstGraph.getReachableEdgesPerState(i);
+			ArrayList<Integer> itemList = new ArrayList<Integer>();
+			for (Iterator<FstEdge> iterator = edge.iterator(); iterator.hasNext();) {
+				FstEdge fstEdge = (FstEdge) iterator.next();
 				
-		return 0;
+				if(visitedFstStates[fstEdge.getFromState()] != true) {
+					outputItems.addAll(generateOutputItems(xFst, fstEdge.getToState(),flist));
+				}
+	
+				visitedFstStates[fstEdge.getFromState()] = true;
+			}
+			Arrays.fill(visitedFstStates, false);
+			for (Iterator<Integer> iterator = outputItems.iterator(); iterator.hasNext();) {
+				Integer itemId = (Integer) iterator.next();
+				itemList.add(itemId);
+			}
+			stateItems.add(itemList);
+			stateItems.get(i).sort(new Comparator<Integer>() {
+					@Override
+					public int compare(Integer o1, Integer o2) {
+						return Double.compare(gainList[o1], gainList[o2]) * -1;
+					}
+				});
+			outputItems.clear();
+		}
 	}
 
 //	@SuppressWarnings("unchecked")

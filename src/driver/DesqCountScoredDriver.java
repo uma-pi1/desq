@@ -12,6 +12,7 @@ import mining.scores.FrequencyScore;
 import mining.scores.RankedScoreList;
 import mining.scores.RankedScoreListAll;
 import mining.statistics.collectors.DesqGlobalDataCollector;
+import mining.scores.InformationGainScore;
 import patex.PatEx;
 //import mining.TwoPass;
 import utils.Dictionary;
@@ -88,8 +89,10 @@ public class DesqCountScoredDriver {
 		RankedScoreList rankedScoreList = new RankedScoreListAll(true);
 		
 		
-		DesqCountScore score = new FrequencyScore(xFst);
+//		DesqCountScore score = new FrequencyScore(xFst);
+		DesqCountScore score = new InformationGainScore(xFst);
 		HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?,?>, ?>> globalDataCollectors = score.getGlobalDataCollectors();
+		
 		
 		//DesqCount dc = new OnePassRecursive(support, xFst, writeOutput, useFlist);
 		DesqCountScored dc = new OnePassIterativeScored(support, 

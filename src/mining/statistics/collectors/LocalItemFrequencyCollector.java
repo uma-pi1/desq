@@ -72,7 +72,7 @@ public class LocalItemFrequencyCollector implements DesqProjDbDataCollector<Loca
 	// BiConsumer Method
 	@Override
 	public void accept(LocalItemFrequencyCollector t, ProjDbStatData u) {
-		if(u.getTransactionId() != this.previousTransactionId) {
+		if(u.getTransactionId() != this.previousTransactionId && u.getPosition() >= 0) {
 			int itemPos = u.getPosition();
 			int currentItem;
 			while (itemPos < u.getTransaction().length) {

@@ -173,7 +173,7 @@ public class DfsOnePassScored extends DesqDfsScored {
 //						outputSequence[--size] = parent.suffixItemId;
 //						parent = parent.parent;
 //					}
-					rankedScoreList.addNewOutputSequence(outputSequence, score.getScoreByProjDb(outputSequence, globalDataCollectors, finalStateProjDbAccumulators, node.getPrefixProjDbCollectors()), support);
+					rankedScoreList.addNewOutputSequence(outputSequence, score.getScoreByProjDb(outputSequence, globalDataCollectors, finalStateProjDbAccumulators, node.getPrefixProjDbCollectors()));
 	//				writer.write(outputSequence, score.getScore(getCurrentSequence(node), getStatisticData(node)));
 					//System.out.println(Arrays.toString(outputSequence) + " : " + support);
 				}

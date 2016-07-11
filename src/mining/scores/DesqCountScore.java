@@ -8,7 +8,11 @@ import mining.statistics.collectors.DesqResultDataCollector;
 
 public interface DesqCountScore extends DesqScore {
 
-	public double getMaxScoreByPrefix(int[] prefix,  HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollector);
+	public double getMaxScoreByPrefix(int[] prefix,  
+			HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollector,
+			int[] transaction,
+			int position,
+			int fstState);
 	
 	public double getScoreByProjDb(int[] sequence, 
 			HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollectors,

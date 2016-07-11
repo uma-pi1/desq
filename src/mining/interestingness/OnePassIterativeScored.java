@@ -11,6 +11,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.HashMap;
 
 import mining.scores.DesqCountScore;
+import mining.scores.NotImplementedExcepetion;
 import mining.scores.RankedScoreList;
 import mining.statistics.collectors.DesqGlobalDataCollector;
 import driver.DesqConfig.Match;
@@ -45,6 +46,7 @@ public class OnePassIterativeScored extends DesqCountScored {
 	ObjectArrayList<Node>[] statePrefix;
 	int[] stateList;
 	int stateListSize = 0;
+	boolean executeScoreBySequence = true;
 
 	@SuppressWarnings("unchecked")
 	public OnePassIterativeScored(double sigma, XFst xfst, DesqCountScore score, HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?, ?>, ?>> globalDataCollectors, RankedScoreList rankedScoreList, boolean writeOutput, Match match) {
@@ -136,7 +138,11 @@ public class OnePassIterativeScored extends DesqCountScored {
 								if (isFinal)
 									computeOutput(node);
 								
-								if(score.getMaxScoreByPrefix(getCurrentPrefix(node, null), globalDataCollectors) >= sigma) {
+								if(score.getMaxScoreByPrefix(getCurrentPrefix(node, null), 
+												globalDataCollectors,
+												sequence,
+												pos,
+												toState) >= sigma) {
 									nextStatePrefix[toState].add(node);
 								}
 							}
@@ -149,7 +155,11 @@ public class OnePassIterativeScored extends DesqCountScored {
 								if (isFinal)
 									computeOutput(node);
 								
-								if(score.getMaxScoreByPrefix(getCurrentPrefix(node, null), globalDataCollectors) >= sigma) {
+								if(score.getMaxScoreByPrefix(getCurrentPrefix(node, null), 
+										globalDataCollectors,
+										sequence,
+										pos,
+										toState) >= sigma) {
 									nextStatePrefix[toState].add(node);
 								}
 							}
@@ -178,7 +188,11 @@ public class OnePassIterativeScored extends DesqCountScored {
 									if (isFinal)
 										computeOutput(node);
 									
-									if(score.getMaxScoreByPrefix(getCurrentPrefix(node, null), globalDataCollectors) >= sigma) {
+									if(score.getMaxScoreByPrefix(getCurrentPrefix(node, null), 
+											globalDataCollectors,
+											sequence,
+											pos,
+											toState) >= sigma) {
 										nextStatePrefix[toState].add(node);
 									}
 								}
@@ -206,9 +220,15 @@ public class OnePassIterativeScored extends DesqCountScored {
 	private void outputBuffer() {
 
 		if (!buffer.isEmpty()) {
-			if(score.getScoreBySequence(reverse(buffer.toIntArray()), globalDataCollectors) >= sigma) {
-				addSequenceToOutput(reverse(buffer.toIntArray()), score.getScoreBySequence(reverse(buffer.toIntArray()), globalDataCollectors));
-			};
+			if(executeScoreBySequence) {
+				try {
+					if(score.getScoreBySequence(reverse(buffer.toIntArray()), globalDataCollectors) >= sigma) {
+						addSequenceToOutput(reverse(buffer.toIntArray()), score.getScoreBySequence(reverse(buffer.toIntArray()), globalDataCollectors));
+					};
+				} catch (NotImplementedExcepetion e)  {
+					executeScoreBySequence = false;
+				}
+			}
 			
 			updateFinalSequenceStatistics(reverse(buffer.toIntArray()));
 		}

@@ -65,7 +65,10 @@ public class DesqBaseScore implements DesqScore,
 	@Override
 	public double getMaxScoreByPrefix(
 			int[] prefix,
-			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollector) {
+			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollector,
+			int[] transaction,
+			int position,
+			int fstState) {
 		return Double.MAX_VALUE;
 	}
 	

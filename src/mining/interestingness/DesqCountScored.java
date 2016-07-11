@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import mining.scores.DesqCountScore;
+import mining.scores.NotImplementedExcepetion;
 import mining.scores.RankedScoreList;
 import mining.statistics.collectors.DesqGlobalDataCollector;
 import mining.statistics.collectors.DesqProjDbDataCollector;
@@ -82,10 +83,11 @@ public abstract class DesqCountScored {
 	protected HashMap<String, DesqResultDataCollector<? extends DesqResultDataCollector<?, ?>, ?>> resultDataCollectors;
 	
 	private RankedScoreList rankedScoreList;
+	private boolean executeResultDataCollection;
 	
 	private ProjDbStatData projDbStatData = new ProjDbStatData();
 	private DesqSequenceData sequenceData = new DesqSequenceData();
-	private DesqTransactionData transactionData;
+	private DesqTransactionData transactionData = new DesqTransactionData();
 	
 	protected Object2ObjectOpenCustomHashMap<int[], HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> > minedSequenceSet = new Object2ObjectOpenCustomHashMap<int[],HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>>(new IntArrayStrategy());
 	
@@ -100,7 +102,11 @@ public abstract class DesqCountScored {
 		
 		this.projDbCollectors = score.getProjDbCollectors();
 		this.globalDataCollectors = globalDataCollectors;
-		this.resultDataCollectors = score.getResultDataCollectors();
+		try {
+			this.resultDataCollectors = score.getResultDataCollectors();
+		} catch (NotImplementedExcepetion e) {
+			this.resultDataCollectors = null;
+		}
 		
 		this.rankedScoreList = rankedScoreList;
 	}
@@ -161,17 +167,23 @@ public abstract class DesqCountScored {
 			}
 		}
 		
-		// evaluate sequences by result statistics, remove sequences 
-		for (Entry<int[], Double> entry : outputSequences.entrySet()) {
-			if (score.getScoreByResultSet(entry.getKey(), globalDataCollectors, resultDataCollectors) >= sigma) {
-				outputSequences.put(entry.getKey(), score.getScoreByResultSet(entry.getKey(), globalDataCollectors, resultDataCollectors));		
-			} else {
-				outputSequences.remove(entry.getKey());
+		if(resultDataCollectors != null) {
+			// evaluate sequences by result statistics, remove sequences 
+			for (Entry<int[], Double> entry : outputSequences.entrySet()) {
+				if (score.getScoreByResultSet(entry.getKey(), globalDataCollectors, resultDataCollectors) >= sigma) {
+					outputSequences.put(entry.getKey(), score.getScoreByResultSet(entry.getKey(), globalDataCollectors, resultDataCollectors));		
+				} else {
+					outputSequences.remove(entry.getKey());
+				}
 			}
 		}
 		
 		// output sequences
 		totalMatches = outputSequences.size();
+		
+		for (Entry<int[], Double> entry : outputSequences.entrySet()) {
+			rankedScoreList.addNewOutputSequence(entry.getKey(), entry.getValue());
+		}
 		
 	}
 	
@@ -221,15 +233,23 @@ public abstract class DesqCountScored {
 	
 	protected void addSequenceToOutput(int[] outputSeq, double score) {
 		outputSequences.put(outputSeq, score);
-		sequenceData.setSequence(outputSeq);
+		numPatterns++;
 		
-		for (Entry<String, DesqResultDataCollector<? extends DesqResultDataCollector<?, ?>, ?>> resultCollectorEntry: resultDataCollectors.entrySet()) {
-			@SuppressWarnings("unchecked")
-			DesqResultDataCollector<DesqResultDataCollector<?,?>, ?> resultCollector = (DesqResultDataCollector<DesqResultDataCollector<?, ?>, ?>) resultCollectorEntry.getValue();
-			resultCollector.accumulator().accept(resultCollector, sequenceData);
+		if(executeResultDataCollection ) {
+			try {
+				sequenceData.setSequence(outputSeq);
+				
+				for (Entry<String, DesqResultDataCollector<? extends DesqResultDataCollector<?, ?>, ?>> resultCollectorEntry: resultDataCollectors.entrySet()) {
+					@SuppressWarnings("unchecked")
+					DesqResultDataCollector<DesqResultDataCollector<?,?>, ?> resultCollector = (DesqResultDataCollector<DesqResultDataCollector<?, ?>, ?>) resultCollectorEntry.getValue();
+					resultCollector.accumulator().accept(resultCollector, sequenceData);
+				}
+			} catch(NotImplementedExcepetion e) {
+				executeResultDataCollection = false;
+			}
 		}
 		
-		numPatterns++;
+		
 	}
 
 	public long getGlobalGpt() {

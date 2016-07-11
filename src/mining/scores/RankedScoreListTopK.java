@@ -26,21 +26,21 @@ public class RankedScoreListTopK implements RankedScoreList {
 	
 	
 	@Override
-	public void addNewOutputSequence(int[] sequence, double score, int support) {
+	public void addNewOutputSequence(int[] sequence, double score) {
 		int[] seq = new int[sequence.length];
 		System.arraycopy(sequence, 0, seq, 0, sequence.length);
 		
 		if(score > minScore && outputSequences.size() <= maxTopK) {
-			outputSequences.add(new RankItem(seq, score, support));
+			outputSequences.add(new RankItem(seq, score));
 		}
 		
 		if(score > minScore && outputSequences.size() > maxTopK) {
-			outputSequences.add(new RankItem(seq, score, support));
+			outputSequences.add(new RankItem(seq, score));
 			outputSequences.remove(outputSequences.last());
 		}
 		
 		if(score == minScore) {
-			outputSequences.add(new RankItem(seq, score, support));
+			outputSequences.add(new RankItem(seq, score));
 		}
 		
 		if(outputSequences.size() >= maxTopK) {
@@ -66,12 +66,11 @@ public class RankedScoreListTopK implements RankedScoreList {
 		for (RankItem rankItem : outputSequences) {
 			sequences[arrayIndex] = rankItem.sequence;
 			scores[arrayIndex] = rankItem.score;
-			support[arrayIndex] = rankItem.support;
 			
 			arrayIndex++;
 			
 		}
-		writer.writeAll(sequences, support, scores);
+		writer.writeAll(sequences, scores);
 		
 	}
 }

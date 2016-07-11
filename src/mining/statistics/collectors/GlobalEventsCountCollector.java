@@ -6,10 +6,8 @@ import java.util.function.BiConsumer;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.Collector;
 
 import mining.statistics.data.DesqTransactionData;
-import mining.statistics.data.ProjDbStatData;
 
 public class GlobalEventsCountCollector implements DesqGlobalDataCollector<GlobalEventsCountCollector, Integer>, 
 												Supplier<GlobalEventsCountCollector>,
