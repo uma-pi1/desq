@@ -14,6 +14,9 @@ import mining.statistics.data.ProjDbStatData;
 public class FstStateItemCollector implements DesqProjDbDataCollector<FstStateItemCollector, HashSet<Integer>>, 
 												Supplier<FstStateItemCollector>,
 												BiConsumer<FstStateItemCollector, ProjDbStatData> {
+	
+	public static final String ID = "FST_STATES";
+	
 	// Data of the accumulator, BiConsumer 
 	HashSet<Integer> fstStates = new HashSet<Integer>();
 	

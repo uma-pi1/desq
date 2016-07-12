@@ -5,15 +5,19 @@ package mining.interestingness;
 import fst.OutputLabel;
 import fst.XFst;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntListIterator;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 
 import mining.scores.DesqCountScore;
 import mining.scores.NotImplementedExcepetion;
 import mining.scores.RankedScoreList;
 import mining.statistics.collectors.DesqGlobalDataCollector;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import driver.DesqConfig.Match;
 
 public class OnePassIterativeScored extends DesqCountScored {
@@ -78,133 +82,123 @@ public class OnePassIterativeScored extends DesqCountScored {
 		statePrefix[initialState].add(null);
 
 		while (pos < sequence.length) {
-			step();
-			pos++;
+			try {
+				step();
+				pos++;
+			}catch( NotImplementedExcepetion e) {
+				break;
+			}
+			
 		}
 		reset();
 
 	}
 
-	private void step() {
+	private void step() throws NotImplementedExcepetion{
 		@SuppressWarnings("unchecked")
 		ObjectArrayList<Node>[] nextStatePrefix = (ObjectArrayList<Node>[]) new ObjectArrayList[numStates];
 		int[] nextStateList = new int[numStates];
 		int nextStateListSize = 0;
-
+		int breakCounter = 0;
 		int itemId = sequence[pos];
 		
 
 		for (int i = 0; i < stateListSize; i++) {
 			int fromState = stateList[i];
+			
 
-			if (xfst.hasOutgoingTransition(fromState, itemId)) {
-				for (int tId = 0; tId < xfst.numTransitions(fromState); ++tId) {
-					if (xfst.canStep(itemId, fromState, tId)) {
-						int toState = xfst.getToState(fromState, tId);
-						OutputLabel olabel = xfst.getOutputLabel(fromState, tId);
-
-						
-						boolean isFinal = xfst.isFinalState(toState);
-						if(rStrict) {
-							if (pos == sequence.length -1) {
-								isFinal &= true;
-							} else{
-								isFinal = false;
+				if (xfst.hasOutgoingTransition(fromState, itemId)) {
+					for (int tId = 0; tId < xfst.numTransitions(fromState); ++tId) {
+						if (xfst.canStep(itemId, fromState, tId)) {
+							stepCounts++;
+							int toState = xfst.getToState(fromState, tId);
+							OutputLabel olabel = xfst.getOutputLabel(fromState, tId);
+	
+							
+							boolean isFinal = xfst.isFinalState(toState);
+							if(rStrict) {
+								if (pos == sequence.length -1) {
+									isFinal &= true;
+								} else{
+									isFinal = false;
+								}
 							}
-						}
-						
-						
-						Node node;
-
-						if (null == nextStatePrefix[toState]) {
-							nextStatePrefix[toState] = new ObjectArrayList<Node>();
-							nextStateList[nextStateListSize++] = toState;
-						}
-
-						switch (olabel.type) {
-						case EPSILON:
-							if (isFinal)
-								computeOutput(statePrefix[fromState]);
-								
-							for (Node n : statePrefix[fromState])
-								nextStatePrefix[toState].add(n);
-							break;
-
-						case CONSTANT:
-							int outputItemId = olabel.item;
-							if (score.getMaxScoreByItem(outputItemId, globalDataCollectors) >= sigma) {
-								node = new Node(outputItemId, statePrefix[fromState]);
-								
+							
+							
+							Node node;
+	
+							if (null == nextStatePrefix[toState]) {
+								nextStatePrefix[toState] = new ObjectArrayList<Node>();
+								nextStateList[nextStateListSize++] = toState;
+							}
+	
+							switch (olabel.type) {
+							case EPSILON:
 								if (isFinal)
-									computeOutput(node);
-								
-								if(score.getMaxScoreByPrefix(getCurrentPrefix(node, null), 
-												globalDataCollectors,
-												sequence,
-												pos,
-												toState) >= sigma) {
-									nextStatePrefix[toState].add(node);
-								}
-							}
-							break;
-
-						case SELF:
-							if (score.getMaxScoreByItem(itemId, globalDataCollectors) >= sigma) {
-								node = new Node(itemId, statePrefix[fromState]);
-								
-								if (isFinal)
-									computeOutput(node);
-								
-								if(score.getMaxScoreByPrefix(getCurrentPrefix(node, null), 
-										globalDataCollectors,
-										sequence,
-										pos,
-										toState) >= sigma) {
-									nextStatePrefix[toState].add(node);
-								}
-							}
-							break;
-
-						case SELFGENERALIZE:
-							IntArrayList stack = new IntArrayList();
-							int top = 0;
-							int rootItemId = olabel.item;
-							stack.add(itemId);
-							tempAnc.add(itemId);
-							while (top < stack.size()) {
-								int currItemId = stack.getInt(top);
-								for (int parentId : dictionary.getParents(currItemId)) {
-									if (xfst.isReachable(rootItemId, parentId) && !tempAnc.contains(parentId)) {
-										stack.add(parentId);
-										tempAnc.add(parentId);
-									}
-								}
-								top++;
-							}
-							tempAnc.clear();
-							for (int id : stack) {
-								if(score.getMaxScoreByItem(id, globalDataCollectors) >= sigma) {
-									node = new Node(id, statePrefix[fromState]);
+									computeOutput(statePrefix[fromState]);
+									
+								for (Node n : statePrefix[fromState])
+									nextStatePrefix[toState].add(n);
+								break;
+	
+							case CONSTANT:
+								int outputItemId = olabel.item;
+								if (score.getMaxScoreByItem(outputItemId, globalDataCollectors) >= sigma) {
+									node = new Node(outputItemId, statePrefix[fromState]);
+									
 									if (isFinal)
 										computeOutput(node);
 									
-									if(score.getMaxScoreByPrefix(getCurrentPrefix(node, null), 
-											globalDataCollectors,
-											sequence,
-											pos,
-											toState) >= sigma) {
-										nextStatePrefix[toState].add(node);
+									nextStatePrefix[toState].add(node);
+								}
+								break;
+	
+							case SELF:
+								if (score.getMaxScoreByItem(itemId, globalDataCollectors) >= sigma) {
+									node = new Node(itemId, statePrefix[fromState]);
+									
+									if (isFinal)
+										computeOutput(node);
+									
+									nextStatePrefix[toState].add(node);
+								}
+								break;
+	
+							case SELFGENERALIZE:
+								IntArrayList stack = new IntArrayList();
+								int top = 0;
+								int rootItemId = olabel.item;
+								stack.add(itemId);
+								tempAnc.add(itemId);
+								while (top < stack.size()) {
+									int currItemId = stack.getInt(top);
+									for (int parentId : dictionary.getParents(currItemId)) {
+										if (xfst.isReachable(rootItemId, parentId) && !tempAnc.contains(parentId)) {
+											stack.add(parentId);
+											tempAnc.add(parentId);
+										}
+									}
+									top++;
+								}
+								tempAnc.clear();
+								for (int id : stack) {
+									if(score.getMaxScoreByItem(id, globalDataCollectors) >= sigma) {
+										node = new Node(id, statePrefix[fromState]);
+										if (isFinal)
+											computeOutput(node);
+										
+											nextStatePrefix[toState].add(node);
 									}
 								}
+	
+								break;
+							default:
+								break;
 							}
-
-							break;
-						default:
-							break;
 						}
+	
 					}
-
-				}
+//				}
 			}
 		}
 		this.stateList = nextStateList;
@@ -230,6 +224,13 @@ public class OnePassIterativeScored extends DesqCountScored {
 				}
 			}
 			
+//			for (IntListIterator iterator = buffer.iterator(); iterator.hasNext();) {
+//				System.out.print("OUTPUT: ");
+//				Integer is = iterator.next();
+//				System.out.print(is + " ");
+//			}
+//			System.out.println("");
+			
 			updateFinalSequenceStatistics(reverse(buffer.toIntArray()));
 		}
 	}
@@ -244,25 +245,48 @@ public class OnePassIterativeScored extends DesqCountScored {
 		for (Node n : node.prefixes) {
 			computeOutput(n);
 		}
+//		for (IntListIterator iterator = buffer.iterator(); iterator.hasNext();) {
+//			Integer is = iterator.next();
+//			System.out.print(is + " ");
+//		}
+//		System.out.println("");
 		buffer.remove(buffer.size() - 1);
 	}
 	
-	private int[] getCurrentPrefix(Node node, IntArrayList prefix) {
+	private int[] getCurrentPrefix(ObjectArrayList<Node> statePrefix) {
+//		
+//		if(prefix == null) {
+//			prefix = new IntArrayList();
+//		}
+//		
+//		if (node == null) {
+//			return reverse(prefix.toIntArray());
+//		}
+//
+//		prefix.add(node.item);
+//		for (Node n : node.prefixes) {
+//			return getCurrentPrefix(n,prefix);
+//		}
 		
-		if(prefix == null) {
-			prefix = new IntArrayList();
-		}
-		
-		if (node == null) {
-			return reverse(prefix.toIntArray());
-		}
+		int[] prefix = new int[statePrefix.size()];
+		int i = 0;
+		for (Iterator<Node> iterator = statePrefix.iterator(); iterator.hasNext();) {
+			Node node = (Node) iterator.next();
+			ObjectArrayList<Node> prefixes= node.prefixes;
+			while(prefixes!=null) {
+				prefixes = node.prefixes;
+			}
 
-		prefix.add(node.item);
-		for (Node n : node.prefixes) {
-			getCurrentPrefix(n,prefix);
+			i++;
 		}
 		
-		return null;
+//		score.getMaxScoreByPrefix(getCurrentPrefix(statePrefix[fromState]), 
+//				globalDataCollectors,
+//				sequence,
+//				pos,
+//				fromState) < sigma)
+		
+		return prefix;
 	}
 
 	private int[] reverse(int[] a) {

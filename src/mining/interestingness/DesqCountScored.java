@@ -82,6 +82,8 @@ public abstract class DesqCountScored {
 	protected HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> projDbCollectors;
 	protected HashMap<String, DesqResultDataCollector<? extends DesqResultDataCollector<?, ?>, ?>> resultDataCollectors;
 	
+	protected int stepCounts = 0;
+	
 	private RankedScoreList rankedScoreList;
 	private boolean executeResultDataCollection;
 	
@@ -160,11 +162,15 @@ public abstract class DesqCountScored {
 		}
 		
 		// evaluate sequences by projected database statistics
-		for (Map.Entry<int[], HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>> entry : minedSequenceSet.entrySet()) {
-			HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> finalCollectors = entry.getValue();
-			if (score.getScoreByProjDb(entry.getKey(), globalDataCollectors, finalCollectors) >= sigma) {
-				addSequenceToOutput(entry.getKey(), score.getScoreByProjDb(entry.getKey(), globalDataCollectors, finalCollectors));				
+		try {
+			for (Map.Entry<int[], HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>> entry : minedSequenceSet.entrySet()) {
+				HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> finalCollectors = entry.getValue();
+				if (score.getScoreByProjDb(entry.getKey(), globalDataCollectors, finalCollectors) >= sigma) {
+					addSequenceToOutput(entry.getKey(), score.getScoreByProjDb(entry.getKey(), globalDataCollectors, finalCollectors));				
+				}
 			}
+		} catch(NotImplementedExcepetion e) {
+			// do nothing...
 		}
 		
 		if(resultDataCollectors != null) {
@@ -184,6 +190,8 @@ public abstract class DesqCountScored {
 		for (Entry<int[], Double> entry : outputSequences.entrySet()) {
 			rankedScoreList.addNewOutputSequence(entry.getKey(), entry.getValue());
 		}
+		
+		System.out.println(stepCounts);
 		
 	}
 	

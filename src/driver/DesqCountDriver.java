@@ -80,7 +80,8 @@ public class DesqCountDriver {
 		logger.log(Level.INFO, "Mining P-frequent sequences...");
 		
 		//DesqCount dc = new OnePassRecursive(support, xFst, writeOutput, useFlist);
-		DesqCount dc = new OnePassIterative(support, xFst, writeOutput, useFlist, match);
+//		DesqCount dc = new OnePassIterative(support, xFst, writeOutput, useFlist, match);
+		DesqCount dc = new OnePassRecursive(support, xFst, writeOutput, useFlist, match);
 		
 		totalTime.start();
 		

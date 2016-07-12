@@ -13,7 +13,9 @@ import mining.statistics.data.ProjDbStatData;
 public class MaxRemainingTransactionLengthCollector implements DesqProjDbDataCollector<MaxRemainingTransactionLengthCollector, Integer>, 
 												Supplier<MaxRemainingTransactionLengthCollector>,
 												BiConsumer<MaxRemainingTransactionLengthCollector, ProjDbStatData> {
-	// Data of the accumulator, BiConsumer 
+	public static final String ID = "MAX_REMAIN_TRANSACTION_LENGTH"; 
+	
+	//Data of the accumulator, BiConsumer 
 	int maxLength;
 	int previousTransactionId;
 	

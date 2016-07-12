@@ -44,6 +44,8 @@ public abstract class DesqDfsScored {
 	
 	private DesqTransactionData transactionData;
 	
+	protected int stepCounts = 0;
+	
 	// Methods
 	
 	public DesqDfsScored() {}
@@ -53,6 +55,7 @@ public abstract class DesqDfsScored {
 		this.xfst = xfst;
 		this.writeOutput = writeOutput;
 		this.transactionData = new DesqTransactionData();
+		this.globalDataCollectors = globalDataCollectors;
 	}
 	
 	public void clear() {
@@ -92,6 +95,7 @@ public abstract class DesqDfsScored {
 			}
 		}
 		br.close();
+		
 	}
 	
 	protected abstract void addInputSequence(int[] inputSequence);

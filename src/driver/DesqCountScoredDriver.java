@@ -7,6 +7,7 @@ import java.util.logging.Logger;
 
 import mining.interestingness.DesqCountScored;
 import mining.interestingness.OnePassIterativeScored;
+import mining.interestingness.OnePassRecursiveScored;
 import mining.scores.DesqCountScore;
 import mining.scores.FrequencyScore;
 import mining.scores.RankedScoreList;
@@ -95,10 +96,15 @@ public class DesqCountScoredDriver {
 		
 		
 		//DesqCount dc = new OnePassRecursive(support, xFst, writeOutput, useFlist);
-		DesqCountScored dc = new OnePassIterativeScored(support, 
-															xFst, 
-															score, 
-															globalDataCollectors, rankedScoreList, writeOutput, match);
+//		DesqCountScored dc = new OnePassIterativeScored(support, 
+//															xFst, 
+//															score, 
+//															globalDataCollectors, rankedScoreList, writeOutput, match);
+		
+		DesqCountScored dc = new OnePassRecursiveScored(support, 
+				xFst, 
+				score, 
+				globalDataCollectors, rankedScoreList, writeOutput, match);
 		
 		totalTime.start();
 		

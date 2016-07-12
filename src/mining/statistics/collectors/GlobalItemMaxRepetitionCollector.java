@@ -74,6 +74,17 @@ public class GlobalItemMaxRepetitionCollector implements  DesqGlobalDataCollecto
 			} else {
 				transactionFreq.put(u.getTransaction()[i], 1);
 			}
+			
+			int[] ancestors = Dictionary.getInstance().getAncestors(u.getTransaction()[i]);
+			for(int j=0; j<ancestors.length; j++) {
+				if (transactionFreq.containsKey(ancestors[j])) {
+					itemValue = transactionFreq.get(ancestors[j]);
+					transactionFreq.put(ancestors[j], itemValue + 1);
+					itemValue = 0;
+				} else {
+					transactionFreq.put(ancestors[j], 1);
+				}
+			}
 		}
 		
 		for (Iterator<Entry<Integer, Integer>> iterator = transactionFreq.entrySet().iterator(); iterator.hasNext();) {

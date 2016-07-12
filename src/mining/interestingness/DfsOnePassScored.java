@@ -102,6 +102,8 @@ public class DfsOnePassScored extends DesqDfsScored {
 			child.clear();
 		}
 		root.clear();
+		
+		System.out.println(stepCounts);
 	}
 
 	private void expand(Node node) throws IOException, InterruptedException {
@@ -263,6 +265,7 @@ public class DfsOnePassScored extends DesqDfsScored {
 				if (xfst.hasOutgoingTransition(s, itemId)) {
 					for (int tId = 0; tId < xfst.numTransitions(s); ++tId) {
 						if (xfst.canStep(itemId, s, tId)) {
+							stepCounts++;
 							int toState = xfst.getToState(s, tId);
 							OutputLabel olabel = xfst.getOutputLabel(s, tId);
 

@@ -91,7 +91,8 @@ public class DesqDfsScoredDriver {
 //		GlobalInformationGainStatistic globalInformationGainStatistic = new GlobalInformationGainStatistic(sequenceFile);
 //		SPMScore score = new InformationGainScore(xFst.convertToFstGraph(), globalInformationGainStatistic, Dictionary.getInstance(), xFst);
 
-		DesqDfsScore score = new LocalInformationGainScore(xFst);
+//		DesqDfsScore score = new LocalInformationGainScore(xFst);
+		DesqDfsScore score = new InformationGainScore(xFst);
 		
 		try {
 			globalDataCollectors = score.getGlobalDataCollectors();
