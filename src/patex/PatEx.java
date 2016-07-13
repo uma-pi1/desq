@@ -1,14 +1,13 @@
 package patex;
 
-import fst.BasicFst;
-import fst.FstOperations;
-import fst.XFst;
-import fst.Fst;
-
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 
+import fst.BasicFst;
+import fst.Fst;
+import fst.FstOperations;
+import fst.XFst;
 import patex.PatExParser.CaptureContext;
 import patex.PatExParser.ConcatContext;
 import patex.PatExParser.ConcatExpressionContext;

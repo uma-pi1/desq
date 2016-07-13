@@ -57,7 +57,7 @@ public class EncodeData {
 	/**
 	 * Records an item (label) and add it (id) to the hierarchy
 	 * 
-	 * @param item
+	 * @param fid
 	 *            name (label)
 	 * @return internal id of the item
 	 */

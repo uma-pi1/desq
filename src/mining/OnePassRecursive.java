@@ -2,10 +2,10 @@ package mining;
 
 
 import driver.DesqConfig.Match;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import fst.OutputLabel;
 import fst.XFst;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 
 public class OnePassRecursive extends DesqCount {
 	

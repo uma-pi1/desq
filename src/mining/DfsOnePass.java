@@ -4,13 +4,13 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.BitSet;
 
+import fst.OutputLabel;
+import fst.XFst;
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import fst.OutputLabel;
-import fst.XFst;
 
 /**
  * DfsOnePass.java

@@ -5,11 +5,11 @@ package mining;
 import java.util.Arrays;
 
 import driver.DesqConfig.Match;
+import fst.OutputLabel;
+import fst.XFst;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import fst.OutputLabel;
-import fst.XFst;
 
 public class OnePassIterative extends DesqCount {
 

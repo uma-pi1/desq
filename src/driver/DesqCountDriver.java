@@ -1,8 +1,5 @@
 package driver;
 
-import fst.XFst;
-import fst.Fst;
-
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -10,6 +7,8 @@ import java.util.logging.Logger;
 import com.google.common.base.Stopwatch;
 
 import driver.DesqConfig.Match;
+import fst.Fst;
+import fst.XFst;
 import patex.PatEx;
 import mining.DesqCount;
 import mining.OnePassIterative;

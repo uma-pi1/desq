@@ -8,14 +8,14 @@ import java.util.logging.Logger;
 
 import com.google.common.base.Stopwatch;
 
+import fst.Fst;
+import fst.XFst;
 import mining.DesqDfs;
 import mining.DfsOnePass;
 import patex.PatEx;
 import utils.Dictionary;
 import writer.LogWriter;
 import writer.SequentialWriter;
-import fst.Fst;
-import fst.XFst;
 
 /**
  * DesqDfsDriver.java
