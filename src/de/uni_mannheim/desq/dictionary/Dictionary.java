@@ -101,19 +101,19 @@ public class Dictionary {
 			int itemFid = it.nextInt();
 			if (!descendants.contains(itemFid)) {
 				descendants.add(itemFid);
-				addDescendants(itemFid, descendants);
+				addDescendants(getItemByFid(itemFid), descendants);
 			}
 		}
 		return IntSetUtils.optimize(descendants);
 	}
 	
-	/** Adds all descendants of the specified item. Assumes that whenever a descendant is in
-	 * itemFids, so are its descendants. */
-	private void addDescendants(int itemFid, IntSet itemFids) {
-		for (Item child : getItemByFid(itemFid).children) {
+	/** Adds all descendants of the specified item to itemFids, excluding the given item and all 
+	 * descendants of items already present in itemFids. */	
+	public void addDescendants(Item item, IntSet itemFids) {
+		for (Item child : item.children) {
 			if (!itemFids.contains(child.fid)) {
 				itemFids.add(child.fid);
-				addDescendants(child.fid, itemFids);
+				addDescendants(getItemByFid(child.fid), itemFids);
 			}
 		}
 	}
@@ -131,19 +131,19 @@ public class Dictionary {
 			int itemFid = it.nextInt();
 			if (!ascendants.contains(itemFid)) {
 				ascendants.add(itemFid);
-				addAscendants(itemFid, ascendants);
+				addAscendants(getItemByFid(itemFid), ascendants);
 			}
 		}
 		return ascendants;
 	}
 	
-	/** Adds all ascendants of the specified item. Assumes that whenever a ascendant is in
-	 * itemFids, so are its ascendants. */
-	private void addAscendants(int itemFid, IntSet itemFids) {
-		for (Item parent : getItemByFid(itemFid).parents) {
+	/** Adds all ascendants of the specified item to itemFids, excluding the given item and all 
+	 * ascendants of items already present in itemFids. */	
+	public void addAscendants(Item item, IntSet itemFids) {
+		for (Item parent : item.parents) {
 			if (!itemFids.contains(parent.fid)) {
 				itemFids.add(parent.fid);
-				addAscendants(parent.fid, itemFids);
+				addAscendants(getItemByFid(parent.fid), itemFids);
 			}
 		}
 	}
@@ -151,9 +151,11 @@ public class Dictionary {
 	/** Returns a copy of this dictionary that contains only the specified items (including
 	 * the *direct* links between these items).
 	 * 
-	 * TODO: also add indirect links?
+	 * TODO: also add indirect links? (takes some thought to figure out which links to acutally add and how to do this 
+	 * reasonably efficiently; perhaps helpful: a method that removes "unnecessary" links)
 	 */
 	public Dictionary restrictedCopy(IntSet itemFids) {
+		// copy the relevant items
 		Dictionary dict = new Dictionary();
 		for (Item item : itemsByFid.values()) {
 			if (!itemFids.contains(item.fid)) continue;
@@ -161,6 +163,7 @@ public class Dictionary {
 			dict.addItem(copiedItem);
 		}
 		
+		// add indirect links
 		for (Item copiedItem : dict.itemsById.values()) {
 			Item item = getItemByFid(copiedItem.fid);
 			for (Item child : item.children) {
