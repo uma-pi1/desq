@@ -3,9 +3,9 @@ package de.uni_mannheim.desq.fst;
 import java.util.Iterator;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.dictionary.Itemset;
-import de.uni_mannheim.desq.dictionary.SingleItemset;
 import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.ints.IntSets;
 
 public class BasicTransition extends Transition {
 	enum InputLabelType { SELF, SELF_DESCENDANTS };
@@ -18,7 +18,7 @@ public class BasicTransition extends Transition {
 	final OutputLabelType outputLabelType;
 
 	// internal indexes
-	final Itemset inputFids;
+	final IntSet inputFids;
 	final Dictionary outputDict;
 
 	private BasicTransition(BasicTransition other) {
@@ -44,10 +44,10 @@ public class BasicTransition extends Transition {
 			inputFids = null;
 		else switch (inputLabelType) {
 		case SELF:
-			inputFids = Itemset.create(inputLabel);
+			inputFids = IntSets.singleton(inputLabel);
 			break;
 		case SELF_DESCENDANTS:
-			inputFids = dict.descendantsItemset(inputLabel);
+			inputFids = dict.descendantsFids(inputLabel);
 			break;
 		default:
 			 inputFids = null;
@@ -57,7 +57,7 @@ public class BasicTransition extends Transition {
 			if (outputLabel == 0) 
 				outputDict = dict;
 			else
-				outputDict = dict.descendantsDictionary(outputLabel);
+				outputDict = dict.restrictedCopy(dict.descendantsFids(outputLabel));
 		} else outputDict = null;
 	}	
 
@@ -124,7 +124,7 @@ public class BasicTransition extends Transition {
 			it2.itemState.itemFid = itemFid;
 			it2.itemState.state = toState;
 			if (outputLabelType == OutputLabelType.SELF_ASCENDANTS) {
-				it2.fidIterator = outputDict.ascendantsIterator(itemFid);
+				it2.fidIterator = outputDict.ascendantsFids(itemFid).iterator();
 			}
 		} else {
 			it2.itemState.itemFid = -1;
