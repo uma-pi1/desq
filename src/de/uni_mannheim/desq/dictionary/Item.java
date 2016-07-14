@@ -1,6 +1,7 @@
 package de.uni_mannheim.desq.dictionary;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /** A single item in a dictionary. */
@@ -36,5 +37,14 @@ public class Item {
 		item.cFreq = cFreq;
 		item.dFreq = dFreq;
 		return item;
+	}
+	
+	public static Comparator<Item> dfreqDecrComparator() {
+		return new Comparator<Item>() {
+			@Override
+			public int compare(Item o1, Item o2) {
+				return o2.dFreq - o1.dFreq;
+			}
+		};
 	}
 }

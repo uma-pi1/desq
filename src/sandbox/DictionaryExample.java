@@ -2,8 +2,6 @@ package sandbox;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.dictionary.DictionaryIO;
@@ -38,8 +36,20 @@ public class DictionaryExample {
 		// restrict the dictionary to specified subset
 		Dictionary restricted = dict.restrictedCopy(
 				dict.descendantsFids(dict.getItemBySid("DT@").fid));
-		DictionaryIO.saveToDel(System.out, restricted, true);
-		
+		DictionaryIO.saveToDel(System.out, restricted, false, true);
+	
+		// clear the counts in the dictionary and recopute
+		System.out.println("Recomputing counts");
+		System.out.println(
+				DictionaryIO.itemToDelLine(dict.getItemBySid("be@VB@"), true, true));
+		dict.clearCounts();
+		System.out.println(
+				DictionaryIO.itemToDelLine(dict.getItemBySid("be@VB@"), true, true));
+		SequenceReader dataReader = new DelSequenceReader(
+				new FileInputStream("data-local/nyt-1991-data.del"), false);
+		dict.incCounts(dataReader);
+		System.out.println(
+				DictionaryIO.itemToDelLine(dict.getItemBySid("be@VB@"), true, true));
 	}
 	
 	static void icdm16() throws IOException {
@@ -51,15 +61,23 @@ public class DictionaryExample {
 		// print data
 		System.out.println("Input sequences:");
 		SequenceReader dataReader = new DelSequenceReader(
-				new FileInputStream("data/icdm16/example-data.del"));
+				new FileInputStream("data/icdm16/example-data.del"), false);
 		IntList inputSequence = new IntArrayList();
-		while (dataReader.read(inputSequence)) {
-			List<Item> items = new ArrayList<Item>();
-			for (int id : inputSequence) {
-				items.add(dict.getItemById(id));
-			}
-			System.out.println(items);
+		while (dataReader.readAsIds(inputSequence)) {
+			System.out.println(dict.getItemsByIds(inputSequence));
 		}
+		
+		// update hierarchy
+		dataReader = new DelSequenceReader(
+				new FileInputStream("data/icdm16/example-data.del"), false);
+		dict.incCounts(dataReader);
+		System.out.println("Dictionary with counts: ");
+		DictionaryIO.saveToDel(System.out, dict, false, true);
+		
+		// update fids
+		System.out.println("Dictionary with new fids: ");
+		dict.recomputeFids();
+		DictionaryIO.saveToDel(System.out, dict, true, true);
 	}
 	
 	

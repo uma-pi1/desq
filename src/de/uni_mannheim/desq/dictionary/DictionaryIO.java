@@ -68,7 +68,7 @@ public class DictionaryIO {
 	}
 	
 	/** Format an item in del file format */
-	public static String itemToDelLine(Item item, boolean withStatistics) {
+	public static String itemToDelLine(Item item, boolean useFids, boolean withStatistics) {
 		StringBuilder sb = new StringBuilder();
 		sb.append(item.sid);
 		sb.append("\t");
@@ -77,10 +77,8 @@ public class DictionaryIO {
 			sb.append("\t");
 			sb.append(Integer.toString(item.dFreq));
 			sb.append("\t");
-			sb.append(Integer.toString(item.fid));
-		} else {
-			sb.append(Integer.toString(item.id));
 		}
+		sb.append(Integer.toString(useFids ? item.fid : item.id));
 		sb.append("\t");
 		if (item.parents.isEmpty()) {
 			sb.append("0");
@@ -88,23 +86,24 @@ public class DictionaryIO {
 			String sep = "";
 			for (Item parent : item.parents) {
 				sb.append(sep);
-				sb.append(Integer.toString(withStatistics ? parent.fid : parent.id));
+				sb.append(Integer.toString(useFids ? parent.fid : parent.id));
 				sep = ",";
 			}
 		}
 		return sb.toString();
 	}
 	
-	/** Save a dictionary to del line format. If withStatitics is set, uses fids, else uses ids. */
-	public static void saveToDel(OutputStream out, Dictionary dict, boolean withStatistics) throws IOException {
+	/** Save a dictionary to del line format. */
+	public static void saveToDel(OutputStream out, Dictionary dict, 
+			boolean useFids, boolean withStatistics) throws IOException {
 		List<Integer> items = new ArrayList<Integer>(
-				withStatistics ? dict.itemsByFid.keySet() : dict.itemsById.keySet());
+				useFids ? dict.itemsByFid.keySet() : dict.itemsById.keySet());
 		Collections.sort(items);
 		
 		OutputStreamWriter writer = new OutputStreamWriter(out);
 		for (Integer i : items) {
-			Item item = withStatistics ? dict.getItemByFid(i) : dict.getItemById(i);
-			writer.write(itemToDelLine(item, withStatistics));
+			Item item = useFids ? dict.getItemByFid(i) : dict.getItemById(i);
+			writer.write(itemToDelLine(item, useFids, withStatistics));
 			writer.write("\n");
 		}
 		writer.flush();

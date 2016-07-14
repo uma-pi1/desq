@@ -1,5 +1,9 @@
 package de.uni_mannheim.desq.mining;
 
+import java.io.IOException;
+
+import de.uni_mannheim.desq.io.SequenceReader;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 public abstract class DesqMiner {
@@ -10,9 +14,17 @@ public abstract class DesqMiner {
 		this.ctx = ctx;
 	}
 	
-	/** Adds a new input sequence. The provided sequence must not be buffered by this miner. */
+	/** Adds a new input sequence (composed of fids). The provided sequence must 
+	 * not be buffered by this miner. */
 	protected abstract void addInputSequence(IntList inputSequence);
 	
+	public void addInputSequences(SequenceReader in) throws IOException {
+		IntList inputSequence = new IntArrayList();
+		while (in.readAsFids(inputSequence)) {
+			addInputSequence(inputSequence);
+		}
+	}
+
 	/** Mines all added input sequences */
 	protected abstract void mine();
 }
