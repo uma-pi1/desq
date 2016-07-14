@@ -1,12 +1,12 @@
 package sandbox;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.dictionary.DictionaryIO;
 import de.uni_mannheim.desq.dictionary.Item;
+import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
 public class DictionaryExample {
@@ -34,6 +34,7 @@ public class DictionaryExample {
 		Dictionary restricted = dict.restrictedCopy(
 				dict.descendantsFids(dict.getItemBySid("DT@").fid));
 		DictionaryIO.saveToDel(System.out, restricted, true);
+		
 	}
 	
 	static void icdm16() throws IOException {
@@ -47,7 +48,7 @@ public class DictionaryExample {
 	
 	
 	public static void main(String[] args) throws IOException {
-		//nyt();
-		icdm16();
+		nyt();
+		//icdm16();
 	}
 }

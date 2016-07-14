@@ -2,11 +2,14 @@ package de.uni_mannheim.desq.dictionary;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import de.uni_mannheim.desq.utils.IntSetUtils;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
@@ -183,8 +186,16 @@ public class Dictionary {
 		return dict;
 	}
 	
-	// Returns array a where a[i] is document frequency of item with fid i */
+	/** Returns array a where a[i] is document frequency of item with fid i. Be careful when fids
+	 * are sparse; the resulting array might then get big */
 	public IntList getFlist() {
-		return null;
+		IntList flist = new IntArrayList();
+		flist.size(itemsByFid.size()+1);
+		for(Entry<Integer, Item> entry : itemsByFid.entrySet()) {
+			int fid = entry.getKey().intValue();
+			if (fid>flist.size()) flist.size(fid+1);
+			flist.set(fid, entry.getValue().dFreq);
+		}
+		return flist;
 	}
 }
