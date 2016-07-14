@@ -1,6 +1,7 @@
 package de.uni_mannheim.desq.dictionary;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,7 +22,7 @@ public class Dictionary {
 	
 	// -- updating the hierarchy ------------------------------------------------------------------
 	
-	/** Adds a new item to the hierarchy */
+	/** Adds a new item to the hierarchy. If the fid equals 0, it won't be indexed */
 	public void addItem(Item item) {
 		if (containsId(item.id)) {
 			throw new IllegalArgumentException("Item id '" + item.id + "' exists already");
@@ -39,6 +40,10 @@ public class Dictionary {
 	
 	
 	// -- access to indexes -----------------------------------------------------------------------
+	
+	public Collection<Item> allItems() {
+		return itemsById.values();
+	}
 	
 	/** Checks whether there is an item with the given ID in the hierarchy. */
 	public boolean containsId(int itemId) {
