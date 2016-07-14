@@ -2,10 +2,15 @@ package sandbox;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.dictionary.DictionaryIO;
 import de.uni_mannheim.desq.dictionary.Item;
+import de.uni_mannheim.desq.io.DelSequenceReader;
+import de.uni_mannheim.desq.io.SequenceReader;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
@@ -41,14 +46,25 @@ public class DictionaryExample {
 		// load the dictionary
 		Dictionary dict = DictionaryIO.loadFromDel(
 				new FileInputStream("data/icdm16/example-dict.del"), false);
-		System.out.println(dict.allItems());
+		System.out.println("All items: " + dict.allItems());
 		
-		DictionaryIO.saveToDel(System.out, dict, false);
+		// print data
+		System.out.println("Input sequences:");
+		SequenceReader dataReader = new DelSequenceReader(
+				new FileInputStream("data/icdm16/example-data.del"));
+		IntList inputSequence = new IntArrayList();
+		while (dataReader.read(inputSequence)) {
+			List<Item> items = new ArrayList<Item>();
+			for (int id : inputSequence) {
+				items.add(dict.getItemById(id));
+			}
+			System.out.println(items);
+		}
 	}
 	
 	
 	public static void main(String[] args) throws IOException {
-		nyt();
-		//icdm16();
+		//nyt();
+		icdm16();
 	}
 }

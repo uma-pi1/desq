@@ -6,7 +6,6 @@ import java.io.Writer;
 
 import it.unimi.dsi.fastutil.ints.IntList;
 
-/** Collects patterns in del format: count <TAB> comma-separated list of ids or fids */
 public class DelPatternWriter extends PatternWriter {
 	private PrintWriter writer;
 	private boolean convertToIds;

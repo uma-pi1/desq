@@ -107,5 +107,6 @@ public class DictionaryIO {
 			writer.write(itemToDelLine(item, withStatistics));
 			writer.write("\n");
 		}
+		writer.flush();
 	}
 }
