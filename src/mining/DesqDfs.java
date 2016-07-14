@@ -13,7 +13,7 @@ import java.util.BitSet;
 
 import fst.XFst;
 import utils.Dictionary;
-import writer.SequentialWriter;
+import writer.DelWriter;
 
 /**
  * DesqDfs.java
@@ -31,7 +31,7 @@ public abstract class DesqDfs {
 	
 	protected int sigma;
 	
-	protected SequentialWriter writer = SequentialWriter.getInstance();
+	protected DelWriter writer = DelWriter.getInstance();
 	
 	protected int[] flist = Dictionary.getInstance().getFlist();
 	

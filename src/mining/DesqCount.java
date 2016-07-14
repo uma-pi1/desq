@@ -13,7 +13,7 @@ import it.unimi.dsi.fastutil.objects.Object2LongOpenCustomHashMap;
 import utils.Dictionary;
 import utils.IntArrayStrategy;
 import utils.PrimitiveUtils;
-import writer.SequentialWriter;
+import writer.DelWriter;
 
 
 /**
@@ -43,7 +43,7 @@ public abstract class DesqCount {
 	
 	protected int[] flist = Dictionary.getInstance().getFlist();
 
-	protected SequentialWriter writer = SequentialWriter.getInstance();
+	protected DelWriter writer = DelWriter.getInstance();
 	
 	protected long gpt = 0L;
 	

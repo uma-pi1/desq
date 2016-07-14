@@ -1,15 +1,16 @@
 package writer;
 
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.	Int2ObjectOpenHashMap;
 
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
-public class SequentialWriter implements Writer {
+// TODO: remove; superceded by DelPatternCollector
+public class DelWriter implements Writer {
 
-	private static SequentialWriter instance = null;
+	private static DelWriter instance = null;
 
 	private Int2ObjectOpenHashMap<String> itemIdToItemMap = new Int2ObjectOpenHashMap<String>();
 
@@ -17,13 +18,13 @@ public class SequentialWriter implements Writer {
 
 	// -- Methods
 
-	protected SequentialWriter() {
+	protected DelWriter() {
 
 	}
 
-	public static SequentialWriter getInstance() {
+	public static DelWriter getInstance() {
 		if (instance == null) {
-			instance = new SequentialWriter();
+			instance = new DelWriter();
 		}
 		return instance;
 	}

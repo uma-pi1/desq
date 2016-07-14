@@ -16,8 +16,7 @@ import mining.OnePassIterative;
 import mining.OnePassRecursive;
 //import mining.TwoPass;
 import utils.Dictionary;
-//import writer.LogWriter;
-import writer.SequentialWriter;
+import writer.DelWriter;
 
 /**
  * DesqCountDriver.java
@@ -57,7 +56,7 @@ public class DesqCountDriver {
 		
 		/** initialize writer */
 		if(writeOutput) {
-		SequentialWriter writer = SequentialWriter.getInstance();
+		DelWriter writer = DelWriter.getInstance();
 			writer.setItemIdToItemMap(dict.getItemIdToName());
 			writer.setOutputPath(output);
 		}	

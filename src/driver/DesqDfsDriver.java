@@ -14,8 +14,8 @@ import mining.DesqDfs;
 import mining.DfsOnePass;
 import patex.PatEx;
 import utils.Dictionary;
-import writer.LogWriter;
-import writer.SequentialWriter;
+import writer.LogPatternWriter;
+import writer.DelWriter;
 
 /**
  * DesqDfsDriver.java
@@ -50,7 +50,7 @@ public class DesqDfsDriver {
 		
 		/** initialize writer */
 		if(writeOutput) {
-		SequentialWriter writer = SequentialWriter.getInstance();
+		DelWriter writer = DelWriter.getInstance();
 			writer.setItemIdToItemMap(dict.getItemIdToName());
 			writer.setOutputPath(output);
 		}	
