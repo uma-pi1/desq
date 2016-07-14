@@ -26,5 +26,5 @@ public abstract class DesqMiner {
 	}
 
 	/** Mines all added input sequences */
-	protected abstract void mine();
+	public abstract void mine();
 }

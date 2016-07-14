@@ -2,7 +2,9 @@ package de.uni_mannheim.desq.dictionary;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /** A single item in a dictionary. */
 public class Item {
@@ -14,6 +16,7 @@ public class Item {
 	public int dFreq = -1;
 	public List<Item> children = new ArrayList<Item>();
 	public List<Item> parents = new ArrayList<Item>();
+	public Map<String,Object> properties = new HashMap<String,Object>();
 	
 	public Item(int id, String sid) {
 		this.id = id;
@@ -30,12 +33,13 @@ public class Item {
 		return sid;
 	}
 	
-	/** Returns a copy of this item but does not copy childs and parents and shares the k/v pairs */
+	/** Returns a copy of this item but does not copy childs and parents and shares the properties */
 	public Item shallowCopyWithoutEdges() {
 		Item item = new Item(id, sid);
 		item.fid = fid;
 		item.cFreq = cFreq;
 		item.dFreq = dFreq;
+		item.properties = properties;
 		return item;
 	}
 	

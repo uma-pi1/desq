@@ -7,7 +7,9 @@ import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.dictionary.DictionaryIO;
 import de.uni_mannheim.desq.dictionary.Item;
 import de.uni_mannheim.desq.io.DelSequenceReader;
+import de.uni_mannheim.desq.io.DelSequenceWriter;
 import de.uni_mannheim.desq.io.SequenceReader;
+import de.uni_mannheim.desq.io.SequenceWriter;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntSet;
@@ -78,6 +80,15 @@ public class DictionaryExample {
 		System.out.println("Dictionary with new fids: ");
 		dict.recomputeFids();
 		DictionaryIO.saveToDel(System.out, dict, true, true);
+		
+		// show converted input sequences
+		dataReader = new DelSequenceReader(
+				new FileInputStream("data/icdm16/example-data.del"), false);
+		SequenceWriter dataWriter = new DelSequenceWriter(System.out, false);
+		while (dataReader.readAsIds(inputSequence)) {
+			dict.idsToFids(inputSequence);
+			dataWriter.write(inputSequence);
+		}
 	}
 	
 	

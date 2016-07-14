@@ -6,7 +6,7 @@ import de.uni_mannheim.desq.io.PatternWriter;
 
 public class DesqMinerContext {
 	public Dictionary dict;
-	public PatternWriter patternCollector;
+	public PatternWriter patternWriter;
 	public int sigma;
 	public Fst fst;
 }
