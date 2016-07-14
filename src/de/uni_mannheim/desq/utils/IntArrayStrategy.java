@@ -1,4 +1,4 @@
-package utils;
+package de.uni_mannheim.desq.utils;
 
 import java.util.Arrays;
 

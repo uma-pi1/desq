@@ -29,8 +29,8 @@ public class Item {
 		return label;
 	}
 	
-	/** Returns a copy of this item but does not copy childs and parents */
-	public Item copyWithoutEdges() {
+	/** Returns a copy of this item but does not copy childs and parents and shares the k/v pairs */
+	public Item shallowCopyWithoutEdges() {
 		Item item = new Item(id, label);
 		item.fid = fid;
 		item.cFreq = cFreq;

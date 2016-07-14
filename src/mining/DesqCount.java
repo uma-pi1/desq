@@ -6,12 +6,12 @@ import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.util.Map;
 
+import de.uni_mannheim.desq.utils.IntArrayStrategy;
 import driver.DesqConfig.Match;
 import fst.XFst;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenCustomHashMap;
 import utils.Dictionary;
-import utils.IntArrayStrategy;
 import utils.PrimitiveUtils;
 import writer.DelWriter;
 

@@ -1,5 +1,7 @@
 package driver;
 
+// TODO: this should only contain information for a particular mining task, but no 
+// description of inputs and outputs. If we need this, use a subclass.
 public class DesqConfig {
 	public static enum Method {
 		DESQCOUNT, DESQDFS

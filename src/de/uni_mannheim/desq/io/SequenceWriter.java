@@ -1,14 +1,14 @@
-package de.uni_mannheim.desq.collector;
+package de.uni_mannheim.desq.io;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import it.unimi.dsi.fastutil.ints.IntList;
 
-public abstract class PatternCollector {
+public abstract class SequenceWriter {
 	// can be used by implementing classes to access item information
 	Dictionary dict = null;
 	
-	/** Collects a pattern mined by Desq. The provided IntList must not be buffered by the collector. */
-	public abstract void collect(IntList itemFids, long count);
+	/** Collects an input sequence. */
+	public abstract void collect(IntList itemFids);
 	
 	public abstract void close();
 	

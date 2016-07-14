@@ -7,7 +7,11 @@ public abstract class Fst {
 	// array of states
 	
 	public abstract State getInitialState();
+	public abstract void setInitialState(State state);
 	public abstract State getState(int stateId);
-	
+	public abstract State addState();
 	public abstract Fst shallowCopy();
+	
+	// sets state numbers
+	public abstract void updateStateNumbers();
 }

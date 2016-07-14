@@ -12,7 +12,7 @@ public class DictionaryExample {
 	public static void main(String[] args) throws IOException {
 		// load the dictionary
 		Dictionary dict = DictionaryIO.loadFromDel(
-				new FileInputStream("data-local/nyt-1991.del"));
+				new FileInputStream("data-local/nyt-1991-dict.del"));
 		
 		Item item;
 		IntSet fids;

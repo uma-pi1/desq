@@ -7,6 +7,7 @@ import java.util.Map;
 
 import de.uni_mannheim.desq.utils.IntSetUtils;
 import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.ints.IntSets;
@@ -159,7 +160,7 @@ public class Dictionary {
 		Dictionary dict = new Dictionary();
 		for (Item item : itemsByFid.values()) {
 			if (!itemFids.contains(item.fid)) continue;
-			Item copiedItem = item.copyWithoutEdges();
+			Item copiedItem = item.shallowCopyWithoutEdges();
 			dict.addItem(copiedItem);
 		}
 		
@@ -175,5 +176,10 @@ public class Dictionary {
 		}
 		
 		return dict;
+	}
+	
+	// Returns array a where a[i] is document frequency of item with fid i */
+	public IntList getFlist() {
+		return null;
 	}
 }
