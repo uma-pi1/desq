@@ -16,9 +16,9 @@ public class DictionaryIO {
 	public static void addItemFromDelLine(Dictionary dict, String line) {
 		// create the item
 		String[] columns = line.split("\t");
-		String label = columns[0];
+		String sid = columns[0];
 		int id = Integer.parseInt(columns[3]);
-		Item item = new Item(id, label);
+		Item item = new Item(id, sid);
 		item.fid = item.id;
 		item.cFreq = Integer.parseInt(columns[1]);
 		item.dFreq = Integer.parseInt(columns[2]);
@@ -36,7 +36,7 @@ public class DictionaryIO {
 	
 	/** Load dictionary from del file format.
 	 * 
-	 * label <TAB> cFreq <TAB> dFreq <TAB> id <TAB> comma-separated parent ids
+	 * sid <TAB> cFreq <TAB> dFreq <TAB> id <TAB> comma-separated parent ids
 	 * 
 	 */
 	public static Dictionary loadFromDel(InputStream in) throws IOException {
@@ -53,7 +53,7 @@ public class DictionaryIO {
 	/** Format an item in del file format */
 	public static String itemToDelLine(Item item) {
 		StringBuilder sb = new StringBuilder();
-		sb.append(item.label);
+		sb.append(item.sid);
 		sb.append("\t");
 		sb.append(Integer.toString(item.cFreq));
 		sb.append("\t");

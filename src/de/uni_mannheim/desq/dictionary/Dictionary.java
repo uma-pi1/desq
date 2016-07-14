@@ -17,7 +17,7 @@ public class Dictionary {
 	// indexes
 	Map<Integer, Item> itemsById = new HashMap<Integer, Item>();
 	Map<Integer, Item> itemsByFid = new HashMap<Integer, Item>();
-	Map<String, Item> itemsByLabel = new HashMap<String, Item>();
+	Map<String, Item> itemsBySid = new HashMap<String, Item>();
 	
 	// -- updating the hierarchy ------------------------------------------------------------------
 	
@@ -26,15 +26,15 @@ public class Dictionary {
 		if (containsId(item.id)) {
 			throw new IllegalArgumentException("Item id '" + item.id + "' exists already");
 		}
-		if (itemsByLabel.containsKey(item.label)) {
-			throw new IllegalArgumentException("Item label '" + item.label + "' exists already");
+		if (itemsBySid.containsKey(item.sid)) {
+			throw new IllegalArgumentException("Item sid '" + item.sid + "' exists already");
 		}
 		if (item.fid >= 0 && itemsByFid.containsKey(item.fid)) {
 			throw new IllegalArgumentException("Item fid '" + item.id + "' exists already");
 		}
 		itemsById.put(item.id, item);
 		if (item.fid >= 0) itemsByFid.put(item.fid, item);
-		itemsByLabel.put(item.label, item);		
+		itemsBySid.put(item.sid, item);		
 	}
 	
 	
@@ -76,14 +76,14 @@ public class Dictionary {
 		}		
 	}
 	
-	/** Checks whether there is an item with the given label in the hierarchy. */
-	public boolean containsLabel(String itemLabel) {
-		return itemsByLabel.containsKey(itemLabel);
+	/** Checks whether there is an item with the given sid in the hierarchy. */
+	public boolean containsSid(String itemSid) {
+		return itemsBySid.containsKey(itemSid);
 	}
 	
-	/** Returns the item with the given id (or null if no such item exists) */
-	public Item getItemByLabel(String itemLabel) {
-		return itemsByLabel.get(itemLabel);
+	/** Returns the item with the given sid (or null if no such item exists) */
+	public Item getItemBySid(String itemSid) {
+		return itemsBySid.get(itemSid);
 	}
 	
 	

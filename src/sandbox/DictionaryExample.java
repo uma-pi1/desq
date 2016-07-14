@@ -18,20 +18,20 @@ public class DictionaryExample {
 		IntSet fids;
 
 		// compute ascendants
-		item = dict.getItemByLabel("was@be@VB@");
+		item = dict.getItemBySid("was@be@VB@");
 		System.out.println(item);
 		fids = dict.ascendantsFids(item.fid);
 		System.out.println("Asc: " + dict.getItemsByFids(fids));
 
 		// compute descendants
-		item = dict.getItemByLabel("be@VB@");
+		item = dict.getItemBySid("be@VB@");
 		System.out.println(item);
 		fids = dict.descendantsFids(item.fid);
 		System.out.println("Desc: " + dict.getItemsByFids(fids));
 
 		// restrict the dictionary to specified subset
 		Dictionary restricted = dict.restrictedCopy(
-				dict.descendantsFids(dict.getItemByLabel("DT@").fid));
+				dict.descendantsFids(dict.getItemBySid("DT@").fid));
 		DictionaryIO.saveToDel(System.out, restricted);
 	}
 }

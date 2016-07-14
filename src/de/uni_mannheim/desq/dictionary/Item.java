@@ -6,7 +6,7 @@ import java.util.List;
 /** A single item in a dictionary. */
 public class Item {
 	public int id;
-	public String label;
+	public String sid;
 
 	public int fid = -1;
 	public int cFreq = -1;
@@ -14,9 +14,9 @@ public class Item {
 	public List<Item> children = new ArrayList<Item>();
 	public List<Item> parents = new ArrayList<Item>();
 	
-	public Item(int id, String label) {
+	public Item(int id, String sid) {
 		this.id = id;
-		this.label = label;
+		this.sid = sid;
 	}
 	
 	/** Connects child and parent. Modifies child.parents and parent.children. */ 
@@ -26,12 +26,12 @@ public class Item {
 	}
 	
 	public String toString() {
-		return label;
+		return sid;
 	}
 	
 	/** Returns a copy of this item but does not copy childs and parents and shares the k/v pairs */
 	public Item shallowCopyWithoutEdges() {
-		Item item = new Item(id, label);
+		Item item = new Item(id, sid);
 		item.fid = fid;
 		item.cFreq = cFreq;
 		item.dFreq = dFreq;
