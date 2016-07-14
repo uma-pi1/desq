@@ -15,7 +15,7 @@ public class DictionaryIO {
 	/** Adds an item to the specified dictionary by deconding a line from del file format. */
 	public static void addItemFromDelLine(Dictionary dict, String line) {
 		// create the item
-		String[] columns = line.split("[\t ]");
+		String[] columns = line.split("\t");
 		String label = columns[0];
 		int id = Integer.parseInt(columns[3]);
 		Item item = new Item(id, label);
