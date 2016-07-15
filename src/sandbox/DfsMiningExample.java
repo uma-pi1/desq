@@ -11,6 +11,8 @@ import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.mining.DesqMiner;
 import de.uni_mannheim.desq.mining.DesqMinerContext;
 import de.uni_mannheim.desq.mining.DfsMiner;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
 
 public class DfsMiningExample {
 	static void icdm16() throws IOException {
@@ -23,18 +25,35 @@ public class DfsMiningExample {
 				new FileInputStream("data/icdm16/example-data.del"), false);
 		dict.incCounts(dataReader);
 		dict.recomputeFids();
-		DictionaryIO.saveToDel(System.out, dict, true, true);
+		//DictionaryIO.saveToDel(System.out, dict, true, true);
 
+		// print sequences
+		System.out.println("Input sequences:");
+		dataReader = new DelSequenceReader(
+				new FileInputStream("data/icdm16/example-data.del"), false);
+		dataReader.setDictionary(dict);
+		IntList inputSequence = new IntArrayList();
+		while (dataReader.readAsFids(inputSequence)) {
+			System.out.println(dict.getItemsByFids(inputSequence));
+		}
+		
 		// Perform mining 
+		int sigma = 4;
+		int gamma = 0;
+		int lambda = 2;
+		boolean generalize = true;
+		
+		System.out.println("\nPatterns (sigma=" + sigma + ", gamma="+gamma 
+				+ ", lambda="+lambda + ", generalize="+generalize);
 		dataReader = new DelSequenceReader(
 				new FileInputStream("data/icdm16/example-data.del"), false);
 		dataReader.setDictionary(dict);
 		DesqMinerContext ctx = new DesqMinerContext();
-		ctx.sigma = 2;
+		ctx.sigma = sigma;
 		MemoryPatternWriter result = new MemoryPatternWriter();
 		ctx.patternWriter = result;
 		ctx.dict = dict;
-		DesqMiner miner = new DfsMiner(ctx,0,100,false);
+		DesqMiner miner = new DfsMiner(ctx,gamma,lambda,generalize);
 		miner.addInputSequences(dataReader);
 		miner.mine();
 		
