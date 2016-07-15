@@ -16,5 +16,12 @@ public abstract class Transition {
 	public abstract Transition shallowCopy();
 
 	// setToState
+	public void setToState(State state) {
+		this.toState = state;
+	}
+	
 	// getToState
+	public State getToState() {
+		return toState;
+	}
 }

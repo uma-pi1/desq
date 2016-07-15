@@ -8,8 +8,8 @@ import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.ints.IntSets;
 
 public class BasicTransition extends Transition {
-	enum InputLabelType { SELF, SELF_DESCENDANTS };
-	enum OutputLabelType { SELF, SELF_ASCENDANTS, CONSTANT, EPSILON };
+	public enum InputLabelType { SELF, SELF_DESCENDANTS };
+	public enum OutputLabelType { SELF, SELF_ASCENDANTS, CONSTANT, EPSILON };
 
 	// parameters
 	final int inputLabel; 
@@ -98,6 +98,12 @@ public class BasicTransition extends Transition {
 			}
 
 			return itemState;
+		}
+
+		@Override
+		public void remove() {
+			// TODO Auto-generated method stub
+			
 		}
 		
 	}

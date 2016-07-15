@@ -30,11 +30,11 @@ public class DfsMiningExample {
 				new FileInputStream("data/icdm16/example-data.del"), false);
 		dataReader.setDictionary(dict);
 		DesqMinerContext ctx = new DesqMinerContext();
-		ctx.sigma = 4;
+		ctx.sigma = 2;
 		MemoryPatternWriter result = new MemoryPatternWriter();
 		ctx.patternWriter = result;
 		ctx.dict = dict;
-		DesqMiner miner = new DfsMiner(ctx,0,100,true);
+		DesqMiner miner = new DfsMiner(ctx,0,100,false);
 		miner.addInputSequences(dataReader);
 		miner.mine();
 		

@@ -68,7 +68,7 @@ public class DfsMiner extends DesqMiner {
 
 	@Override
 	public void addInputSequence(IntList inputSequence) {
-		addInputSequence(inputSequence, 0, inputSequence.size()-1, 1);
+		addInputSequence(inputSequence, 0, inputSequence.size(), 1);
 	}
 	
 	
@@ -78,7 +78,7 @@ public class DfsMiner extends DesqMiner {
 
 		int length = toIndex - fromIndex;
 		int[] inputTransaction = new int[length];
-		for (int i=0; i<length; i++)
+		for (int i=0; i < length; i++)
 			inputTransaction[i] = inputSequence.getInt(i+fromIndex);
 		inputTransactions.add(inputTransaction);
 

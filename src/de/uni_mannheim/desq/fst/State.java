@@ -1,33 +1,85 @@
 package de.uni_mannheim.desq.fst;
 
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Set;
 
-// don't keep abstract
-public abstract class State {
+
+ 
+public class State {
+	
+	int stateId;
 	// set of transitions
+	Set<Transition> transitionSet;
 	boolean isFinal;
 	
-	private class ItemStateIterator implements Iterator<ItemState> {
-		int transitionId;
-		ItemStateIterator it; // for current transition
+	public State() {
+		this(false);
+	}
+	
+	
+	public State(boolean isFinal) {
+		this.transitionSet = new HashSet<Transition>();
+		this.isFinal = isFinal;
+	}
+	
+	
+	public int getStateId(){
+		return stateId;
+	}
+	
+	public void setStateId(int stateId){
+		this.stateId = stateId;
+	}
+	
+	public void addTransition(Transition t) {
+		transitionSet.add(t);
+	}
+	
+	public void addEpsilonTransition(State to) {
+		if (to.isFinal)
+			isFinal = true;
+		for (Transition t : to.transitionSet) {
+			transitionSet.add(t);
+		}
+	}
+	
+	private class TransitionIterator implements Iterator<Transition> {
+		TransitionIterator it;
 		
 		@Override
 		public boolean hasNext() {
-			// TODO Auto-generated method stub
-			return false;
+			return it.hasNext();
 		}
 
 		@Override
-		public ItemState next() {
-			// TODO Auto-generated method stub
-			return null;
+		public Transition next() {
+			return it.next();
 		}
-		
+
+		@Override
+		public void remove() {
+			// TODO Auto-generated method stub
+		}
 	}
 	
-	public Iterator<ItemState> consume(int item) {
+	public Iterator<Transition> consume(int item) {
 		return consume(item, null);
 	}
-	public abstract Iterator<ItemState> consume(int item, Iterator<ItemState> it);
-	public boolean isFinal() { return isFinal; }
+	
+	public Iterator<Transition> consume(int item, Iterator<Transition> it) {
+		TransitionIterator it2 = null;
+		if(it != null && it instanceof TransitionIterator)
+			it2 = (TransitionIterator)it;
+		else
+			it2 = new TransitionIterator();
+		
+		it2.it = (TransitionIterator) transitionSet.iterator();
+		
+		return it2;
+	}
+	
+	public boolean isFinal() { 
+		return isFinal; 
+	}
 }
