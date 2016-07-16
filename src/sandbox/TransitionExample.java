@@ -93,6 +93,16 @@ public class TransitionExample {
 				dict);
 		match(t, dict.getItemBySid("Germany@LOCATION@ENTITY@"), dict);
 
+		
+		System.out.println();
+		// (A^)
+		item = dict.getItemBySid("LOCATION@ENTITY@");
+		System.out.println("inputLabel = " + item.sid + " transition = A:$-A");
+		t = new BasicTransition(item.fid, InputLabelType.SELF_DESCENDANTS, item.fid, OutputLabelType.SELF_ASCENDANTS,
+				toState, dict);
+		match(t, dict.getItemBySid("Germany@LOCATION@ENTITY@"), dict);
+		
+		
 		System.out.println();
 		// misc
 		System.out.println("inputLabel = " + item.sid + " transition = A:A");
