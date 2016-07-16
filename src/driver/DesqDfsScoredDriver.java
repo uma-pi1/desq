@@ -18,6 +18,7 @@ import mining.statistics.old.GlobalInformationGainStatistic;
 import mining.statistics.old.GlobalItemDocFrequencyStatistic;
 import patex.PatEx;
 import utils.Dictionary;
+import visual.GraphViz;
 import writer.SequentialWriter;
 
 import com.google.common.base.Stopwatch;
@@ -108,6 +109,7 @@ public class DesqDfsScoredDriver {
 										globalDataCollectors,
 										writeOutput);
 		
+
 		totalTime.start();
 		
 		dfs.scan(sequenceFile);

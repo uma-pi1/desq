@@ -4,16 +4,20 @@ import it.unimi.dsi.fastutil.ints.Int2IntArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+
+import fst.OutputLabel.Type;
 
 public class FstGraph {
 	
 	private boolean[] acceptedStates;
 	private Int2ObjectArrayMap<ArrayList<FstEdge>> fstEdgesPerState;
 	private Int2ObjectArrayMap<List<FstEdge>> reachableEdgesPerState;
-	private Int2IntArrayMap maxTransitionsToFinalState = new Int2IntArrayMap();
+	private Object[] maxTransitionsToFinalState;
 	private ArrayList<ArrayList<FstEdge>> edgesToState = new ArrayList<ArrayList<FstEdge>>();
+	private CyclePath[] primaryCyclePaths;
 
 	public FstGraph(Int2ObjectArrayMap<ArrayList<FstEdge>> fstEdgesPerState, boolean[] acceptedStates) {
 		this.fstEdgesPerState = fstEdgesPerState;
@@ -24,7 +28,8 @@ public class FstGraph {
 		// an edge is defined by from state, to state and output label
 		// the ID is added to more easily compare the edges
 		
-		List<FstEdge[]> cycles = getAllCycles();
+		List<FstEdge[]> cycles = getAllCycles(false);
+		maxTransitionsToFinalState = new Object[acceptedStates.length];
 		
 		int edgeId = 0;
 		for (int i = 0; i < fstEdgesPerState.size(); i++) {
@@ -48,9 +53,23 @@ public class FstGraph {
 			
 			reachableEdgesPerState.put(i, getReachableEdges(i));
 			
-			List<FstEdge[]> stateCycles = getCyclesPerState(i);
+			List<FstEdge[]> stateCycles = getCyclesPerState(i, true);
 			if(stateCycles.size() != 0) {
-				maxTransitionsToFinalState.put(i, Integer.MAX_VALUE);
+				ArrayList<CyclePath> cyclePaths = new ArrayList<CyclePath>();
+				for(int j=0; j<acceptedStates.length;j++) {
+					if(acceptedStates[j]) {
+						GraphAnalyzer analyzer = new GraphAnalyzer();
+						// TODO: cycles over multiple edges are not considered correctly yet!
+						List<FstEdge[]> primaryPaths = filterNonPrimaryPath(analyzer.getPathsToState(i, j));
+						
+						for (int k = 0; k < primaryPaths.size(); k++) {
+							CyclePath cyclePath = new CyclePath(primaryPaths.get(k), cycles);
+							cyclePaths.add(cyclePath);
+						}
+					}
+				}
+				maxTransitionsToFinalState[i] = cyclePaths;
+//				maxTransitionsToFinalState[i] = Integer.MAX_VALUE;
 			} else {
 				int maxTransitions = 0;
 				for(int j=0; j<acceptedStates.length;j++) {
@@ -62,24 +81,27 @@ public class FstGraph {
 						}
 					}
 				}
-				maxTransitionsToFinalState.put(i, maxTransitions);
+				ArrayList<CyclePath> cyclePaths = new ArrayList<CyclePath>();
+				CyclePath cyclePath = new CyclePath(maxTransitions);
+				cyclePaths.add(cyclePath);
+				maxTransitionsToFinalState[i] = cyclePaths;
 			}
 		}
-		System.out.println("Done");
+//		System.out.println("Done");
 	}
 	
 	public Int2ObjectArrayMap<ArrayList<FstEdge>> getFstEdges() {
 		return fstEdgesPerState;
 	}
 
-	public List<FstEdge[]> getAllCycles() {
+	public List<FstEdge[]> getAllCycles(boolean findSubsequentCycles) {
 		GraphAnalyzer cycleDetector = new GraphAnalyzer();
-		return cycleDetector.getAllCycles();
+		return cycleDetector.getAllCycles(findSubsequentCycles);
 	}
 	
-	public List<FstEdge[]> getCyclesPerState(int state) {
+	public List<FstEdge[]> getCyclesPerState(int state, boolean findSubsequentCycles) {
 		GraphAnalyzer cycleDetector = new GraphAnalyzer();
-		return cycleDetector.getCyclesForState(state);
+		return cycleDetector.getCyclesForState(state, findSubsequentCycles);
 	}
 	
 	public List<FstEdge> getReachableEdgesPerState(int state) {
@@ -94,8 +116,63 @@ public class FstGraph {
 		return states;
 	}
 	
-	private void getPathsToState(int fromState, int toState, ArrayList<FstEdge> path) {
+	public List<FstEdge[]> filterNonPrimaryPath(List<FstEdge[]> paths) {
+		System.out.println("PrimaryPaths");
+		List<FstEdge[]> primaryPaths = new ArrayList<FstEdge[]>();
+		boolean[] primaryPathInfo = new boolean[paths.size()];
 		
+		// for all paths
+		for(int subPathNumber = 0; subPathNumber < paths.size(); subPathNumber++) {
+			FstEdge[] subPath = paths.get(subPathNumber);
+			boolean primaryPath = true;
+			// compare with all other paths
+			for(int otherPathsNumber = 0; otherPathsNumber < paths.size(); otherPathsNumber++) {
+				FstEdge[] path = paths.get(otherPathsNumber);
+				if(!pathEquals(subPath, path)) {
+					boolean[] edgeExists = new boolean[subPath.length];
+					
+					// compare each edge
+					for(int i = 0; i < subPath.length; i++) {	
+						// with each other edge from other path
+						for(int j = 0; j<path.length; j++) {
+							if(subPath[i].equals(path[j])) {
+								edgeExists[i] = true;
+							}
+						}
+					}
+					boolean primary = false;
+					for (int i = 0; i < edgeExists.length; i++) {
+						if(edgeExists[i] == false) {
+							primary = true;
+						}
+					}
+					
+					if(!primary) {
+						if(primaryPathInfo[otherPathsNumber] == false && otherPathsNumber < subPathNumber) {
+							// compared path is not a primary graph either... wait until it was compared with a primary graph
+						} else {
+							primaryPath = false;
+						}
+					} 
+						
+				}
+			}
+			
+			if(primaryPath) {
+				primaryPathInfo[subPathNumber] = true;
+				for (int i = 0; i < subPath.length; i++) {
+					if(i==0) System.out.print(subPath[i].fromState);
+					System.out.print(" -> " +subPath[i].toState);
+				}
+				System.out.println("");
+				primaryPaths.add(subPath);
+			}
+		}
+		
+		return primaryPaths;
+	}
+	
+	private void getPathsToState(int fromState, int toState, ArrayList<FstEdge> path) {
 		if(path == null) {
 			path = new ArrayList<FstEdge>();
 			edgesToState.clear();
@@ -116,17 +193,33 @@ public class FstGraph {
 		}
 	}
 	
-	public int getMaxTransitionsToFinalState(int state) {
-		return maxTransitionsToFinalState.get(state);
+	public int getMaxTransitionsToFinalState(int state, int cycleRepeats[]) {
+		ArrayList<CyclePath> cyclePaths = (ArrayList<CyclePath>) maxTransitionsToFinalState[state];
+		int maxLength = 0;
+		for (CyclePath cyclePath : cyclePaths) {
+			maxLength = Integer.max(maxLength, cyclePath.getMaxLength(cycleRepeats));
+		}
+		return maxLength;
 	}
-	
-	
-	
+
 	private List<FstEdge> getReachableEdges(int state) {
 		/* for all edges from that vertex */
 		GraphAnalyzer graphAnalyzer = new GraphAnalyzer();
 		
 		return graphAnalyzer.getReachableEdges(state);
+	}
+	
+	// check of both arrays have same lengths and contents
+	private Boolean pathEquals(FstEdge[] a, FstEdge[] b) {
+		Boolean ret = (a[0] == b[0]) && (a.length == b.length);
+
+		for (int i = 1; ret && (i < a.length); i++) {
+			if (!a[i].equals(b[i])) {
+				ret = false;
+			}
+		}
+
+		return ret;
 	}
 	
 	// graph analyzing methods
@@ -135,6 +228,42 @@ public class FstGraph {
 		private List<FstEdge> edges = new ArrayList<FstEdge>();
 		
 		public GraphAnalyzer() {}
+		
+		public List<FstEdge[]> getPathsToState(int fromState, int toState) {
+			System.out.println("Path to final state from " + fromState + ":");
+			for (FstEdge edge : fstEdgesPerState.get(fromState)) {
+				getPathsToState(edge.toState, toState, new FstEdge[] { edge });
+			}
+			return paths;
+		}
+		
+		private void getPathsToState(int fromState, int toState, FstEdge[] path) {
+			FstEdge[] sub = new FstEdge[path.length + 1];
+			
+			for (FstEdge edge : fstEdgesPerState.get(fromState)) {
+				
+				if (!visited(edge, path)) {
+					sub[0] = edge;
+					System.arraycopy(path, 0, sub, 1, path.length);
+					// go one step further
+					getPathsToState(edge.toState, toState, sub);
+					
+					if(edge.getToState() == toState) {
+//						System.out.println(Arrays.toString(sub));
+						FstEdge[] finalPath = invert(sub);
+						
+						for (int i = 0; i < finalPath.length; i++) {
+							if(i==0) System.out.print(finalPath[i].fromState);
+							System.out.print(" -> " +finalPath[i].toState);
+						}
+						System.out.println("");
+						paths.add(finalPath);
+					}
+				} else {
+					// cycle that should not be followed!
+				}
+			}
+		}
 		
 		
 		public List<FstEdge> getReachableEdges(int state) {
@@ -147,21 +276,21 @@ public class FstGraph {
 			return edges;
 		}
 		
-		public List<FstEdge[]> getAllCycles() {
+		public List<FstEdge[]> getAllCycles(boolean findSubsequentCycles) {
 			/* for all vertices in the graph */
 			for (int i = 0; i < fstEdgesPerState.size(); i++) {
 				/* for all edges from that vertex */
 				for (FstEdge edge : fstEdgesPerState.get(i)) {
-					findNewCycles(new FstEdge[] { edge });
+					findNewCycles(new FstEdge[] { edge }, findSubsequentCycles);
 				}
 			}
 			return paths;
 		}
 		
-		public List<FstEdge[]> getCyclesForState(int state) {
+		public List<FstEdge[]> getCyclesForState(int state, boolean findSubsequentCycles) {
 			/* for all edges from that vertex */
 			for (FstEdge edge : fstEdgesPerState.get(state)) {
-				findNewCycles(new FstEdge[] { edge });
+				findNewCycles(new FstEdge[] { edge }, findSubsequentCycles);
 			}		
 			return paths;
 		}
@@ -189,7 +318,7 @@ public class FstGraph {
 			}
 		}
 
-		private void findNewCycles(FstEdge[] path) {
+		private void findNewCycles(FstEdge[] path, boolean findSubsequentCycles) {
 			FstEdge n = path[0];
 			FstEdge[] sub = new FstEdge[path.length + 1];
 			
@@ -200,12 +329,20 @@ public class FstGraph {
 						System.arraycopy(path, 0, sub, 1, path.length);
 						
 						// explore extended path
-						findNewCycles(sub);
+						findNewCycles(sub, findSubsequentCycles);
 				} else {
-					//if ( (edge.equals(path[path.length - 1]))) 
-					// cycle found
-					if (isNew(invert(path))) {
-						paths.add(invert(path));
+					if(findSubsequentCycles) {
+						if (isNew(invert(path))) {
+							paths.add(invert(path));
+						}
+					} else {
+						// cycle found
+						if (edge.equals(path[path.length - 1])) {
+							// cycle found
+							if (isNew(invert(path))) {
+								paths.add(invert(path));
+							}
+						}	
 					}
 				}
 			}
@@ -216,7 +353,7 @@ public class FstGraph {
 			Boolean ret = (a[0] == b[0]) && (a.length == b.length);
 
 			for (int i = 1; ret && (i < a.length); i++) {
-				if (a[i].equals(b[i])) {
+				if (!a[i].equals(b[i])) {
 					ret = false;
 				}
 			}
@@ -282,5 +419,65 @@ public class FstGraph {
 
 	}
 
+	private class CyclePath {
+		// for each state the constant length part
+		int constantLength;
+		
+		// for each state and cycle the cycle lengths in the paths 
+		int[] cyclesLengths;
+		
+		public CyclePath(int constantLength) {
+			this.constantLength = constantLength;
+			this.cyclesLengths = new int[0];
+		}
+		
+		public CyclePath(FstEdge[] path, List<FstEdge[]> cycles) {
+			
+			cyclesLengths = new int[cycles.size()];
+			constantLength = 0;
+			
+			for (int pathStart = 0; pathStart < path.length; pathStart++) {
+				boolean cycleFound = false;
+				
+				FstEdge[] sub = new FstEdge[1];
+				sub[0] = path[pathStart];
+				
+				for (int pathPos = pathStart + 1; pathPos < path.length; pathPos++) {
+					for(int i = 0; i< cycles.size(); i++) {
+						if(pathEquals(sub, cycles.get(i))) {
+							cycleFound = true;
+							for (int j = 0; j < cycles.get(i).length; j++) {
+								if(cycles.get(i)[j].label.type != Type.EPSILON) {
+									cyclesLengths[i]++;
+								}
+							}
+						}
+					}
+					
+					FstEdge[] oldPath = sub;
+					
+					sub = new FstEdge[oldPath.length+1];
+					System.arraycopy(oldPath, 0, sub, 0, oldPath.length);
+					sub[oldPath.length] = path[pathPos];
+				}
+				
+				if(cycleFound == false) {
+					if(path[pathStart].label.type != Type.EPSILON) {
+						constantLength++;
+					}
+				}
+			}
+		}
+		
+		public int getMaxLength(int[] cycleRepeats) {
+			int maxLength = 0;
+			for (int i = 0; i < cyclesLengths.length; i++) {
+				maxLength = maxLength + cycleRepeats[i] * cyclesLengths[i];
+			}
+			return maxLength + constantLength;
+		}
+		// save item information gain for each state and path?!
+	}
 	
+
 }

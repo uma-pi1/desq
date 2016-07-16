@@ -10,6 +10,8 @@ import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import it.unimi.dsi.fastutil.ints.Int2IntLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import mining.statistics.data.DesqTransactionData;
 import utils.Dictionary;
 
@@ -64,26 +66,14 @@ public class GlobalItemMaxRepetitionCollector implements  DesqGlobalDataCollecto
 	// BiConsumer Method
 	@Override
 	public void accept(GlobalItemMaxRepetitionCollector t, DesqTransactionData u) {
-		HashMap<Integer, Integer> transactionFreq = new HashMap<Integer, Integer>();
-		int itemValue;
+		Int2IntOpenHashMap transactionFreq = new Int2IntOpenHashMap(u.getTransaction().length*2);
+		
 		for (int i = 0; i < u.getTransaction().length; i++) {
-			if (transactionFreq.containsKey(u.getTransaction()[i])) {
-				itemValue = transactionFreq.get(u.getTransaction()[i]);
-				transactionFreq.put(u.getTransaction()[i], itemValue + 1);
-				itemValue = 0;
-			} else {
-				transactionFreq.put(u.getTransaction()[i], 1);
-			}
+			transactionFreq.addTo(u.getTransaction()[i], 1);
 			
 			int[] ancestors = Dictionary.getInstance().getAncestors(u.getTransaction()[i]);
 			for(int j=0; j<ancestors.length; j++) {
-				if (transactionFreq.containsKey(ancestors[j])) {
-					itemValue = transactionFreq.get(ancestors[j]);
-					transactionFreq.put(ancestors[j], itemValue + 1);
-					itemValue = 0;
-				} else {
-					transactionFreq.put(ancestors[j], 1);
-				}
+				transactionFreq.addTo(ancestors[j], 1);
 			}
 		}
 		

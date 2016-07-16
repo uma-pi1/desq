@@ -1,8 +1,11 @@
 package mining.statistics.data;
 
+import fst.XFst;
+
 public class DesqTransactionData {
 	int[] transaction;
 	int transactionId;
+	XFst xFst;
 	
 	public int[] getTransaction() {
 		return transaction;
@@ -15,6 +18,13 @@ public class DesqTransactionData {
 	}
 	public void setTransactionId(int transactionId) {
 		this.transactionId = transactionId;
+	}
+	
+	public XFst getxFst() {
+		return xFst;
+	}
+	public void setxFst(XFst xFst) {
+		this.xFst = xFst;
 	}
 	
 }

@@ -11,6 +11,7 @@ public interface DesqCountScore extends DesqScore {
 	public double getMaxScoreByPrefix(int[] prefix,  
 			HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollector,
 			int[] transaction,
+			int transactionId,
 			int position,
 			int fstState);
 	

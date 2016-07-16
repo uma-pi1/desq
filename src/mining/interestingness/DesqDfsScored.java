@@ -85,6 +85,7 @@ public abstract class DesqDfsScored {
 				
 				transactionData.setTransaction(inputSequence);
 				transactionData.setTransactionId(transactionId++);
+				transactionData.setxFst(xfst);
 				
 				for (Entry<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?, ?>, ?>> entry: globalDataCollectors.entrySet()) {
 					@SuppressWarnings("unchecked")

@@ -17,11 +17,9 @@ public class MaxRemainingTransactionLengthCollector implements DesqProjDbDataCol
 	
 	//Data of the accumulator, BiConsumer 
 	int maxLength;
-	int previousTransactionId;
 	
 	// Constructor for the supplier
 	public MaxRemainingTransactionLengthCollector() {
-		this.previousTransactionId = -1;
 	}
 	
 	// Constructor for the collector
@@ -70,11 +68,6 @@ public class MaxRemainingTransactionLengthCollector implements DesqProjDbDataCol
 	// BiConsumer Method
 	@Override
 	public void accept(MaxRemainingTransactionLengthCollector t, ProjDbStatData u) {
-		if(u.getTransactionId() != this.previousTransactionId) {
-			t.maxLength = Integer.max(t.maxLength, u.getTransaction().length - u.getPosition());
-			t.previousTransactionId = u.getTransactionId();
-		} else {
-			// do nothing
-		}
+		t.maxLength = Integer.max(t.maxLength, u.getTransaction().length - u.getPosition());
 	}
 }

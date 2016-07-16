@@ -67,6 +67,7 @@ public class DesqBaseScore implements DesqScore,
 			int[] prefix,
 			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollector,
 			int[] transaction,
+			int transactionId,
 			int position,
 			int fstState) {
 		return Double.MAX_VALUE;

@@ -1,6 +1,8 @@
-package mining.statistics.collectors;
+package mining.statistics.old;
 
 import java.util.stream.Collector;
+
+import mining.statistics.collectors.PrefixSupportCollector;
 
 public class SPMLocalStatisticFactory {
 	

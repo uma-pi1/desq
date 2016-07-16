@@ -1,5 +1,6 @@
 package utils;
 
+import it.unimi.dsi.fastutil.ints.Int2IntArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
@@ -34,6 +35,7 @@ public class Dictionary implements Hierarchy{
 	}
 
 	protected int[] flist;
+	protected Int2ObjectOpenHashMap<int[]> ancestorList = new Int2ObjectOpenHashMap<int[]>() ;
 
 	protected int[][] parents;
 
@@ -190,22 +192,30 @@ public class Dictionary implements Hierarchy{
 	}
 	
 	public int[] getAncestors(int itemId) {
-		IntOpenHashSet anc = new IntOpenHashSet();
-		IntArrayList stack = new IntArrayList();
-		stack.add(itemId);
-		int top = 0;
-		while(top < stack.size()) {
-			int ancId = stack.getInt(top);
-			if(!anc.contains(ancId)) {
-				anc.add(ancId);
-				for(int parent : getParents(ancId)) {
-					stack.add(parent);
+		// caching mechanism
+		if(ancestorList.containsKey(itemId)) {
+			return ancestorList.get(itemId);
+		} else {
+			IntOpenHashSet anc = new IntOpenHashSet();
+			IntArrayList stack = new IntArrayList();
+			stack.add(itemId);
+			int top = 0;
+			while(top < stack.size()) {
+				int ancId = stack.getInt(top);
+				if(!anc.contains(ancId)) {
+					anc.add(ancId);
+					for(int parent : getParents(ancId)) {
+						stack.add(parent);
+					}
 				}
+				top++;
 			}
-			top++;
+			stack = null;
+			int[] ancestors = anc.toIntArray();
+			ancestorList.put(itemId, ancestors);
+			return ancestors;
 		}
-		stack = null;
-		return anc.toIntArray();
+
 	}
 	
 	public int getTotalItems() {

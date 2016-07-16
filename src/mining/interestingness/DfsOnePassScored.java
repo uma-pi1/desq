@@ -144,6 +144,7 @@ public class DfsOnePassScored extends DesqDfsScored {
 				projDbStatData.setStateFST(-1);
 				projDbStatData.setTransaction(sequenceBuffer);
 				projDbStatData.setTransactionId(sId);
+				projDbStatData.setxFst(xfst);
 				projDbStatData.setInFinalState(true);
 				
 				for (Entry<String, DesqProjDbDataCollector<?, ?>> entry : finalStateProjDbAccumulators.entrySet()) {
@@ -465,11 +466,13 @@ public class DfsOnePassScored extends DesqDfsScored {
 			projDbStatData.setStateFST(state);
 			projDbStatData.setTransaction(transaction);
 			projDbStatData.setTransactionId(sequenceId);
+			projDbStatData.setxFst(xfst);
+			projDbStatData.setGlobalDataCollectors(globalDataCollectors);
 			for (Entry<String, DesqProjDbDataCollector<?, ?>> entry : node.localAccumulators.entrySet()) {
 				
 				// at compile time it is not decided which type the accept function 
 				@SuppressWarnings("unchecked")
-				DesqProjDbDataCollector<DesqProjDbDataCollector<?,?>, ?> nodeProjDbCollector = (DesqProjDbDataCollector<DesqProjDbDataCollector<?, ?>, ?>) node.localAccumulators.get(entry.getKey());
+				DesqProjDbDataCollector<DesqProjDbDataCollector<?,?>, ?> nodeProjDbCollector = (DesqProjDbDataCollector<DesqProjDbDataCollector<?, ?>, ?>) entry.getValue();
 				nodeProjDbCollector.accumulator().accept(entry.getValue(), projDbStatData);
 			}
 		}

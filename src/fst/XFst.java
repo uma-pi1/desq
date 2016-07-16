@@ -159,9 +159,9 @@ public class XFst {
 						edges = new ArrayList<FstEdge>();
 					}
 					if(0 == ilabels[s][tId]) {
-						edges.add(new FstEdge(s, toStates[s][tId], olabels[s][tId], true));
+						edges.add(new FstEdge(s, toStates[s][tId], olabels[s][tId], ilabels[s][tId], true, tId));
 					} else {
-						edges.add(new FstEdge(s, toStates[s][tId], olabels[s][tId], false));
+						edges.add(new FstEdge(s, toStates[s][tId], olabels[s][tId], ilabels[s][tId], false, tId));
 					}
 					graphEdges.put(s, edges);
 					

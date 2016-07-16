@@ -5,6 +5,8 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.objects.Object2DoubleOpenCustomHashMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenCustomHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenCustomHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashBigSet;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
 import java.io.BufferedReader;
 import java.io.DataInputStream;
@@ -92,6 +94,7 @@ public abstract class DesqCountScored {
 	private DesqTransactionData transactionData = new DesqTransactionData();
 	
 	protected Object2ObjectOpenCustomHashMap<int[], HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> > minedSequenceSet = new Object2ObjectOpenCustomHashMap<int[],HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>>(new IntArrayStrategy());
+//	protected ObjectOpenHashSet<int[]> minedSequences = new ObjectOpenHashSet<int[]>(new IntArrayStrategy());
 	
 	// Methods
 	
@@ -128,13 +131,18 @@ public abstract class DesqCountScored {
 				String[] str = line.split(" ");
 				sequence = new int[str.length];
 				for (int i = 0; i < str.length; ++i) {
-					sequence[i] = Integer.parseInt(str[i]);
+					try {
+						sequence[i] = Integer.parseInt(str[i]);
+					} catch (NumberFormatException e) {
+				        System.out.println(sequence + " " + sequence.length); 
+				    }
 				}
 				
 				inputSequences.add(sequence);
 				
 				transactionData.setTransaction(sequence);
 				transactionData.setTransactionId(transactionId++);
+				transactionData.setxFst(xfst);
 				
 				for (Entry<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?, ?>, ?>> entry: globalDataCollectors.entrySet()) {
 					@SuppressWarnings("unchecked")
@@ -213,30 +221,33 @@ public abstract class DesqCountScored {
 //	}
 	
 	protected void updateFinalSequenceStatistics(int[] sequence) {
-		HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> finalStateProjDbAccumulators = minedSequenceSet.get(sequence);
-		if (finalStateProjDbAccumulators == null) {
-			finalStateProjDbAccumulators = new HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>();
-			for (Entry<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> entry: projDbCollectors.entrySet()) {
+		if(projDbCollectors.size() > 0) {
+			HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> finalStateProjDbAccumulators = minedSequenceSet.get(sequence);
+			if (finalStateProjDbAccumulators == null) {
+				finalStateProjDbAccumulators = new HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>();
+				for (Entry<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> entry: projDbCollectors.entrySet()) {
+					@SuppressWarnings("unchecked")
+					DesqProjDbDataCollector<DesqProjDbDataCollector<?,?>, ?> coll = (DesqProjDbDataCollector<DesqProjDbDataCollector<?, ?>, ?>) entry.getValue();
+					finalStateProjDbAccumulators.put(entry.getKey(), coll.supplier().get());
+				}
+	
+			} 
+			
+			projDbStatData.setPosition(-1);
+			projDbStatData.setStateFST(-1);
+			projDbStatData.setTransaction(this.sequence);
+			projDbStatData.setTransactionId(this.sid);
+			projDbStatData.setInFinalState(true);
+			
+			for (Entry<String, DesqProjDbDataCollector<?, ?>> entry : finalStateProjDbAccumulators.entrySet()) {
+				// at compile time it is not decided which type the accept function 
 				@SuppressWarnings("unchecked")
-				DesqProjDbDataCollector<DesqProjDbDataCollector<?,?>, ?> coll = (DesqProjDbDataCollector<DesqProjDbDataCollector<?, ?>, ?>) entry.getValue();
-				finalStateProjDbAccumulators.put(entry.getKey(), coll.supplier().get());
+				DesqProjDbDataCollector<DesqProjDbDataCollector<?,?>, ?> finalProjDBCollector = (DesqProjDbDataCollector<DesqProjDbDataCollector<?, ?>, ?>) finalStateProjDbAccumulators.get(entry.getKey());
+				finalProjDBCollector.accumulator().accept(entry.getValue(), projDbStatData);
 			}
-
-		} 
-		
-		projDbStatData.setPosition(-1);
-		projDbStatData.setStateFST(-1);
-		projDbStatData.setTransaction(this.sequence);
-		projDbStatData.setTransactionId(this.sid);
-		projDbStatData.setInFinalState(true);
-		
-		for (Entry<String, DesqProjDbDataCollector<?, ?>> entry : finalStateProjDbAccumulators.entrySet()) {
-			// at compile time it is not decided which type the accept function 
-			@SuppressWarnings("unchecked")
-			DesqProjDbDataCollector<DesqProjDbDataCollector<?,?>, ?> finalProjDBCollector = (DesqProjDbDataCollector<DesqProjDbDataCollector<?, ?>, ?>) finalStateProjDbAccumulators.get(entry.getKey());
-			finalProjDBCollector.accumulator().accept(entry.getValue(), projDbStatData);
+			minedSequenceSet.put(sequence, finalStateProjDbAccumulators);
 		}
-		minedSequenceSet.put(sequence, finalStateProjDbAccumulators);
+		
 	}
 	
 	protected void addSequenceToOutput(int[] outputSeq, double score) {

@@ -12,6 +12,8 @@ public class FstEdge  implements Comparable<FstEdge> {
 	int id;
 	int fromState;
 	int toState;
+	int transitionId;
+	int ilabel;
 	
 	boolean isPartOfCycle;
 	boolean isWildcardTransition;
@@ -26,11 +28,13 @@ public class FstEdge  implements Comparable<FstEdge> {
 		this.outputCache = new Int2ByteOpenHashMap();
 	}
 	
-	public FstEdge(int fromVertex, int toVertex, OutputLabel label, boolean isWildcardTransition) {
+	public FstEdge(int fromVertex, int toVertex, OutputLabel label, int ilabel, boolean isWildcardTransition, int transitionId) {
 		this.fromState = fromVertex;
 		this.toState = toVertex;
 		this.label = label;
+		this.ilabel = ilabel;
 		this.isWildcardTransition = isWildcardTransition;
+		this.transitionId = transitionId;
 		this.outputCache = new Int2ByteOpenHashMap();
 	}
 
@@ -51,7 +55,7 @@ public class FstEdge  implements Comparable<FstEdge> {
 	public boolean equals(Object obj) {
 		if(obj instanceof FstEdge) {
 			FstEdge edge = (FstEdge) obj;
-			return edge.fromState == this.fromState && edge.toState == this.toState && edge.label.item == this.label.item;
+			return edge.fromState == this.fromState && edge.toState == this.toState && edge.label.item == this.label.item && edge.ilabel == this.ilabel;
 		}
 		
 		return super.equals(obj);
@@ -91,6 +95,14 @@ public class FstEdge  implements Comparable<FstEdge> {
 	
 	public byte getOutputCacheEntry(int item) {
 		return outputCache.get(item);
+	}
+
+	public int getTransitionId() {
+		return transitionId;
+	}
+
+	public void setTransitionId(int transitionId) {
+		this.transitionId = transitionId;
 	}
 	
 }

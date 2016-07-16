@@ -77,7 +77,7 @@ public class LocalItemFrequencyCollector implements DesqProjDbDataCollector<Loca
 			int currentItem;
 			while (itemPos < u.getTransaction().length) {
 				currentItem = u.getTransaction()[itemPos];
-				localItemFrequencies.put(currentItem, localItemFrequencies.get(currentItem) + 1);
+				localItemFrequencies.addTo(currentItem, 1);
 				itemPos++;
 			}
 			t.previousTransactionId = u.getTransactionId();

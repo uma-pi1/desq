@@ -66,6 +66,7 @@ public class OnePassRecursiveScored extends DesqCountScored {
 							if(score.getMaxScoreByPrefix(buffer.toIntArray(), 
 									globalDataCollectors,
 									sequence,
+									sid,
 									pos + 1,
 									toState) >= sigma) {
 								step(pos + 1, toState);
@@ -80,6 +81,7 @@ public class OnePassRecursiveScored extends DesqCountScored {
 							if(score.getMaxScoreByPrefix(buffer.toIntArray(), 
 									globalDataCollectors,
 									sequence,
+									sid,
 									pos + 1,
 									toState) >= sigma) {
 								step(pos + 1, toState);
@@ -109,6 +111,7 @@ public class OnePassRecursiveScored extends DesqCountScored {
 								if(score.getMaxScoreByPrefix(buffer.toIntArray(), 
 																globalDataCollectors,
 																sequence,
+																sid,
 																pos + 1,
 																toState) >= sigma) {
 									step(pos + 1, toState);
