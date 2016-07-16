@@ -64,7 +64,7 @@ public class BasicTransition extends Transition {
 	
 	private class ItemStateIterator implements Iterator<ItemState> {
 		int fid;
-		ItemState itemState;
+		ItemState itemState = new ItemState();
 		IntIterator fidIterator;
 		
 		@Override
@@ -127,10 +127,12 @@ public class BasicTransition extends Transition {
 			it2 = new ItemStateIterator();
 		
 		if (inputLabel==0 || inputFids.contains(itemFid)) {
+			it2.fid = itemFid;
 			it2.itemState.itemFid = itemFid;
 			it2.itemState.state = toState;
 			if (outputLabelType == OutputLabelType.SELF_ASCENDANTS) {
 				it2.fidIterator = outputDict.ascendantsFids(itemFid).iterator();
+				it2.fidIterator.next();
 			}
 		} else {
 			it2.itemState.itemFid = -1;

@@ -161,7 +161,7 @@ public class DfsMiner extends DesqMiner {
 						while (!item.parents.isEmpty()) {
 							assert item.parents.size()==1;
 							item = item.parents.get(0);
-							itemId = item.id;
+							itemId = item.fid;
 							//if (globalItems.itemIndex.get(itemId).support >= sigma) {
 							if (flist[itemId] >= sigma) {
 								localItems.addItem(itemId, transactionId, transactionSupports.get(transactionId),

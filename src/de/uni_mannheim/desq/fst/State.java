@@ -45,7 +45,7 @@ public class State {
 	}
 	
 	private class TransitionIterator implements Iterator<Transition> {
-		TransitionIterator it;
+		Iterator<Transition> it;
 		
 		@Override
 		public boolean hasNext() {
@@ -74,7 +74,7 @@ public class State {
 		else
 			it2 = new TransitionIterator();
 		
-		it2.it = (TransitionIterator) transitionSet.iterator();
+		it2.it = transitionSet.iterator();
 		
 		return it2;
 	}
