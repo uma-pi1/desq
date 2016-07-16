@@ -1,2 +1,7 @@
 target/
 /data-local
+/.idea
+/.settings
+/desq.iml
+/.project
+/.classpath
