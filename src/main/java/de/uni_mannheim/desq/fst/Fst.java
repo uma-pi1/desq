@@ -73,4 +73,9 @@ public class Fst {
 	public State getState(int stateId) {
 		return states.get(stateId);
 	}
+	
+	public int numStates() {
+		assert states!= null;
+		return states.size();
+	}
 }
