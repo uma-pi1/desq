@@ -2,6 +2,7 @@ package sandbox;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.URL;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.dictionary.DictionaryIO;
@@ -15,10 +16,9 @@ import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
 public class DictionaryExample {
-	static void nyt() throws IOException {
+	void nyt() throws IOException {
 		// load the dictionary
-		Dictionary dict = DictionaryIO.loadFromDel(
-				new FileInputStream("data-local/nyt-1991-dict.del"), true);
+		Dictionary dict = DictionaryIO.loadFromDel(new FileInputStream("data-local/nyt-1991-dict.del"), true);
 		
 		Item item;
 		IntSet fids;
@@ -54,24 +54,24 @@ public class DictionaryExample {
 				DictionaryIO.itemToDelLine(dict.getItemBySid("be@VB@"), true, true));
 	}
 	
-	static void icdm16() throws IOException {
+	void icdm16() throws IOException {
+		URL dictFile = getClass().getResource("/icdm16-example/dict.del");
+		URL dataFile = getClass().getResource("/icdm16-example/data.del");
+
 		// load the dictionary
-		Dictionary dict = DictionaryIO.loadFromDel(
-				new FileInputStream("data/icdm16/example-dict.del"), false);
+		Dictionary dict = DictionaryIO.loadFromDel(dictFile.openStream(), false);
 		System.out.println("All items: " + dict.allItems());
 		
 		// print data
 		System.out.println("Input sequences:");
-		SequenceReader dataReader = new DelSequenceReader(
-				new FileInputStream("data/icdm16/example-data.del"), false);
+		SequenceReader dataReader = new DelSequenceReader(dataFile.openStream(), false);
 		IntList inputSequence = new IntArrayList();
 		while (dataReader.readAsIds(inputSequence)) {
 			System.out.println(dict.getItemsByIds(inputSequence));
 		}
 		
 		// update hierarchy
-		dataReader = new DelSequenceReader(
-				new FileInputStream("data/icdm16/example-data.del"), false);
+		dataReader = new DelSequenceReader(dataFile.openStream(), false);
 		dict.incCounts(dataReader);
 		System.out.println("Dictionary with counts: ");
 		DictionaryIO.saveToDel(System.out, dict, false, true);
@@ -82,8 +82,7 @@ public class DictionaryExample {
 		DictionaryIO.saveToDel(System.out, dict, true, true);
 		
 		// show converted input sequences
-		dataReader = new DelSequenceReader(
-				new FileInputStream("data/icdm16/example-data.del"), false);
+		dataReader = new DelSequenceReader(dataFile.openStream(), false);
 		SequenceWriter dataWriter = new DelSequenceWriter(System.out, false);
 		while (dataReader.readAsIds(inputSequence)) {
 			dict.idsToFids(inputSequence);
@@ -93,7 +92,7 @@ public class DictionaryExample {
 	
 	
 	public static void main(String[] args) throws IOException {
-		//nyt();
-		icdm16();
+		//new DictionaryExample().nyt();
+		new DictionaryExample().icdm16();
 	}
 }

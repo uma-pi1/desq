@@ -2,6 +2,7 @@ package sandbox;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.URL;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.dictionary.DictionaryIO;
@@ -15,22 +16,22 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 public class DfsMiningExample {
-	static void icdm16() throws IOException {
+	void icdm16() throws IOException {
+		URL dictFile = getClass().getResource("/icdm16-example/dict.del");
+		URL dataFile = getClass().getResource("/icdm16-example/data.del");
+
 		// load the dictionary
-		Dictionary dict = DictionaryIO.loadFromDel(
-				new FileInputStream("data/icdm16/example-dict.del"), false);
-		
+		Dictionary dict = DictionaryIO.loadFromDel(dictFile.openStream(), false);
+
 		// update hierarchy
-		SequenceReader dataReader = new DelSequenceReader(
-				new FileInputStream("data/icdm16/example-data.del"), false);
+		SequenceReader dataReader = new DelSequenceReader(dataFile.openStream(), false);
 		dict.incCounts(dataReader);
 		dict.recomputeFids();
 		//DictionaryIO.saveToDel(System.out, dict, true, true);
 
 		// print sequences
 		System.out.println("Input sequences:");
-		dataReader = new DelSequenceReader(
-				new FileInputStream("data/icdm16/example-data.del"), false);
+		dataReader = new DelSequenceReader(dataFile.openStream(), false);
 		dataReader.setDictionary(dict);
 		IntList inputSequence = new IntArrayList();
 		while (dataReader.readAsFids(inputSequence)) {
@@ -45,8 +46,7 @@ public class DfsMiningExample {
 		
 		System.out.println("\nPatterns (sigma=" + sigma + ", gamma="+gamma 
 				+ ", lambda="+lambda + ", generalize="+generalize);
-		dataReader = new DelSequenceReader(
-				new FileInputStream("data/icdm16/example-data.del"), false);
+		dataReader = new DelSequenceReader(dataFile.openStream(), false);
 		dataReader.setDictionary(dict);
 		DesqMinerContext ctx = new DesqMinerContext();
 		ctx.sigma = sigma;
@@ -66,7 +66,7 @@ public class DfsMiningExample {
 
 	public static void main(String[] args) throws IOException {
 		//nyt();
-		icdm16();
+		new DfsMiningExample().icdm16();
 	}
 
 }

@@ -12,6 +12,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.*;
+import java.net.URL;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -23,7 +24,7 @@ public class DfsMinerTest {
     public void icdm() throws IOException {
         TemporaryFolder folder = new TemporaryFolder();
         folder.create();
-        System.out.println("Temporary folder: " + folder.getRoot());
+        //System.out.println("Temporary folder: " + folder.getRoot());
 
         int sigma = 2;
         int gamma = 0;
@@ -32,28 +33,28 @@ public class DfsMinerTest {
         String fileName;
 
         sigma = 2; gamma = 0; lambda = 3; generalize = true;
-        fileName = "icdm-" + sigma + "-" + gamma + "-" + lambda + "-" + generalize + ".out";
+        fileName = "icdm16-example-patterns-" + sigma + "-" + gamma + "-" + lambda + "-" + generalize + ".out";
         File actualFile = folder.newFile(fileName);
         icdmTestRun(actualFile, sigma, gamma, lambda, generalize);
-        File expectedFile = new File("src/test/java/de/uni_mannheim/desq/mining/DfsMinerTest-gold/" + fileName);
-        assertThat(actualFile).hasSameContentAs(expectedFile);
+        URL expectedFile = getClass().getResource("/" + getClass().getPackage().getName().replace(".", "/") +
+                "/" + fileName);
+        assertThat(actualFile).hasSameContentAs(new File(expectedFile.getPath()));
     }
 
     private void icdmTestRun(File outputDelFile,
                              int sigma, int gamma, int lambda, boolean generalize) throws IOException {
         // load the dictionary
-        Dictionary dict = DictionaryIO.loadFromDel(
-                new FileInputStream("data/icdm16/example-dict.del"), false);
+        URL dictFile = getClass().getResource("/icdm16-example/dict.del");
+        URL dataFile = getClass().getResource("/icdm16-example/data.del");
+        Dictionary dict = DictionaryIO.loadFromDel(dictFile.openStream(), false);
 
         // update hierarchy
-        SequenceReader dataReader = new DelSequenceReader(
-                new FileInputStream("data/icdm16/example-data.del"), false);
+        SequenceReader dataReader = new DelSequenceReader(dataFile.openStream(), false);
         dict.incCounts(dataReader);
         dict.recomputeFids();
 
         // Perform pattern mining
-        dataReader = new DelSequenceReader(
-                new FileInputStream("data/icdm16/example-data.del"), false);
+        dataReader = new DelSequenceReader(dataFile.openStream(), false);
         dataReader.setDictionary(dict);
         DesqMinerContext ctx = new DesqMinerContext();
         ctx.sigma = sigma;
