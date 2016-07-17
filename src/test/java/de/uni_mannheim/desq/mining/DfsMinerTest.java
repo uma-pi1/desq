@@ -35,7 +35,7 @@ public class DfsMinerTest {
         fileName = "icdm-" + sigma + "-" + gamma + "-" + lambda + "-" + generalize + ".out";
         File actualFile = folder.newFile(fileName);
         icdmTestRun(actualFile, sigma, gamma, lambda, generalize);
-        File expectedFile = new File("test/de/uni_mannheim/desq/mining/DfsMinerTest-gold/" + fileName);
+        File expectedFile = new File("src/test/java/de/uni_mannheim/desq/mining/DfsMinerTest-gold/" + fileName);
         assertThat(actualFile).hasSameContentAs(expectedFile);
     }
 
