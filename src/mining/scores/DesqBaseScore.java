@@ -69,7 +69,8 @@ public class DesqBaseScore implements DesqScore,
 			int[] transaction,
 			int transactionId,
 			int position,
-			int fstState) {
+			int fstState,
+			int[] transCount) {
 		return Double.MAX_VALUE;
 	}
 	

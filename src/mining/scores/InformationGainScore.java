@@ -10,11 +10,13 @@ import java.util.List;
 import java.util.SortedSet;
 import java.util.function.Function;
 
+import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.util.FixedBitSet;
 
 import com.zaxxer.sparsebits.SparseBitSet;
 
 import fst.OutputLabel;
+import fst.OutputLabel.Type;
 import fst.XFst;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
@@ -41,6 +43,11 @@ public class InformationGainScore extends DesqBaseScore {
 	double[] gainList;
 	Object[] stateItems;
 	double[][] maxExtensionValuesPerState;
+	FixedBitSet[] stateBitSets;
+	SparseBitSet[] sparseStateBitSets; 
+	Int2IntOpenHashMap itemOccurrenceCount = new Int2IntOpenHashMap();
+	int previousTransactionId = -1;
+	double maxUpToNow = 0;
 	
 	public InformationGainScore(XFst xFst) {
 		super(xFst);
@@ -48,6 +55,24 @@ public class InformationGainScore extends DesqBaseScore {
 		this.fstGraph = xFst.convertToFstGraph();
 		this.stateItems = new Object[xFst.numStates()];
 	}
+	
+//	@Override
+//	public double getMaxScoreByItem(
+//			int item,
+//			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors) {
+//		
+//		ItemSupportCollector sup = (ItemSupportCollector) globalDataCollectors.get(ItemSupportCollector.ID);
+//		
+//		@SuppressWarnings("unchecked")
+//		Function<ItemSupportCollector, int[]> func = (Function<ItemSupportCollector, int[]>) globalDataCollectors.get(ItemSupportCollector.ID).finisher();		
+//		
+//		if(func.apply(sup)[item] > 1) {
+//			return Double.MAX_VALUE;
+//		} else {
+//			return 0;
+//		}
+////		return  ; 
+//	}
 
 	@Override
 	public HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?,?>, ?>> getProjDbCollectors() {
@@ -90,6 +115,10 @@ public class InformationGainScore extends DesqBaseScore {
 				totalInformationGain = totalInformationGain + gainList[sequence[i]];
 			}
 //			System.out.println(totalInformationGain);
+//			if(maxUpToNow < totalInformationGain) {
+//				System.out.println(maxUpToNow);
+//				maxUpToNow = totalInformationGain;
+//			}
 			return totalInformationGain;
 		} else {
 			return 0;
@@ -185,7 +214,6 @@ public class InformationGainScore extends DesqBaseScore {
 		FstStateItemCollector sup = (FstStateItemCollector) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(FstStateItemCollector.ID);
 		@SuppressWarnings("unchecked")
 		Function<FstStateItemCollector, HashSet<Integer>> func = (Function<FstStateItemCollector, HashSet<Integer>>) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(FstStateItemCollector.ID).finisher();
-		
 		HashSet<Integer> fstStates = func.apply(sup);
 		
 //		GlobalItemMaxRepetitionCollector maxRepCollector = (GlobalItemMaxRepetitionCollector) globalDataCollectors.get(GlobalItemMaxRepetitionCollector.ID);
@@ -208,21 +236,36 @@ public class InformationGainScore extends DesqBaseScore {
 		Function<LocalEdgeMaxCycleCollector, int[]> maxEdgeCycleFunc = (Function<LocalEdgeMaxCycleCollector, int[]>) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(LocalEdgeMaxCycleCollector.ID).finisher();
 		int[] maxEdgeCycles = maxEdgeCycleFunc.apply(maxEdgeCycleCollector);
 
-		if(fstStateList == null) {
-			createStateItems(globalDataCollectors);
+		if(sparseStateBitSets == null) {
+//			createStateItems(globalDataCollectors);
+			createStateItemSparseBitSets(globalDataCollectors);
 		}
+		
+		
 		
 		double maxScore = 0;
 		for (Iterator<Integer> iterator = fstStates.iterator(); iterator.hasNext();) {
 			Integer fstState = (Integer) iterator.next();
+			
 			int maxLength = maxEdgeCycles[fstState];
 			
-			maxScore = Double.max(maxScore, getMaxInformationGain(prefix, maxLength, fstState, localItemOcc));
+			SparseBitSet stateItemOcc = localItemOcc.clone();
+			stateItemOcc.and(sparseStateBitSets[fstState]);
+			
+			maxScore = Double.max(maxScore, getMaxInformationGain(prefix, maxLength, fstState, stateItemOcc));
 		}
 		
+		maxScore = maxScore + getScoreBySequence(prefix, globalDataCollectors);
+		
+		localItemOccIndicator.clear();
 		return maxScore;
 	}
+
 	
+	/*
+	 * (non-Javadoc)
+	 * this function works based on global data for DESQ-COUNT
+	 */
 	@Override
 	public double getMaxScoreByPrefix(
 			int[] prefix,
@@ -230,7 +273,8 @@ public class InformationGainScore extends DesqBaseScore {
 			int[] transaction,
 			int transactionId,
 			int position,
-			int fstState) {
+			int fstState,
+			int[] transCount) {
 //		return Double.MAX_VALUE;
 		
 		if(fstStateList == null) {
@@ -258,25 +302,139 @@ public class InformationGainScore extends DesqBaseScore {
 			for(int i = 0; i<xFst.numStates(); i++) {
 				Arrays.fill(maxExtensionValuesPerState[i], initValue);
 			}
-			
 		}
 		
-		int maxLength = transaction.length - position;
-		maxLength = Integer.min(maxLength,maxEdgeCycles.get(transactionId)[fstState]);
+		
+		int maxLength = maxEdgeCycles.get(transactionId)[fstState];
+		
+//		System.out.println(fstState);
+//		System.out.println("before:" + maxLength);
+//		for(FstEdge edge: fstGraph.getReachableEdgesPerState(fstState)) {
+//			if(edge.getLabel().type != Type.EPSILON) {
+//				maxLength = maxLength - transCount[edge.getTransitionId()*10 + edge.getFromState()];
+//			}
+//		}
+
+//		System.out.println("after:" + maxLength);
+		
+		maxLength = Integer.min(maxLength, transaction.length - position);
+		
+//		System.out.println("after tran<s:" + maxLength);
+		
 		double maxInformationGain = getScoreBySequence(prefix, globalDataCollectors);
 		double initValue = -1;
-		
-		if(maxExtensionValuesPerState[fstState][maxLength] == initValue) {
-			double maxAdditionalInformationGain = getMaxInformationGain(prefix, maxLength, fstState, maxRepetitionList, globalDataCollectors);
-			maxInformationGain = maxInformationGain + maxAdditionalInformationGain;
-			maxExtensionValuesPerState[fstState][maxLength] = maxAdditionalInformationGain;
-		} else {
-//			System.out.println("buffer");
-			maxInformationGain = maxInformationGain + maxExtensionValuesPerState[fstState][maxLength];
+		if(maxLength >= 0) {
+			if(maxExtensionValuesPerState[fstState][maxLength] == initValue) {
+				double maxAdditionalInformationGain = getMaxInformationGain(prefix, maxLength, fstState, maxRepetitionList, globalDataCollectors);
+				maxInformationGain = maxInformationGain + maxAdditionalInformationGain;
+				maxExtensionValuesPerState[fstState][maxLength] = maxAdditionalInformationGain;
+			} else {
+	//			System.out.println("buffer");
+				maxInformationGain = maxInformationGain + maxExtensionValuesPerState[fstState][maxLength];
+			}
 		}
 		
 		return maxInformationGain;
 	}
+
+	/*
+	 * (non-Javadoc)
+	 * this function works based on local data for DESQ-COUNT
+	 */
+//	@Override
+//	public double getMaxScoreByPrefix(
+//			int[] prefix,
+//			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors,
+//			int[] transaction,
+//			int transactionId,
+//			int position,
+//			int fstState) {
+//		
+//		itemOccurrenceCount.clear();
+//		
+//		if(fstStateList == null) {
+////			createStateItems(globalDataCollectors);
+//			createStateItemBitSets(globalDataCollectors);
+//		}
+//		
+//		FixedBitSet localItemOcc = new FixedBitSet(Dictionary.getInstance().getFlist().length);
+//		int pos = position;
+//		while(pos < transaction.length) {
+//			localItemOcc.set((transaction[pos]-Dictionary.getInstance().getFlist().length)*-1);
+//			itemOccurrenceCount.addTo(transaction[pos], 1);
+//			pos++;
+//		}
+//		localItemOcc.and(stateBitSets[fstState]);
+//		
+//		GlobalEdgeMaxCycleCollector maxEdgeCycleCollector = (GlobalEdgeMaxCycleCollector) globalDataCollectors.get(GlobalEdgeMaxCycleCollector.ID);
+//		@SuppressWarnings("unchecked")
+//		Function<GlobalEdgeMaxCycleCollector, ArrayList<int[]>> maxEdgeCycleFunc = (Function<GlobalEdgeMaxCycleCollector, ArrayList<int[]>>) globalDataCollectors.get(GlobalEdgeMaxCycleCollector.ID).finisher();
+//		ArrayList<int[]> maxEdgeCycles = maxEdgeCycleFunc.apply(maxEdgeCycleCollector);
+//		
+//		int maxLength = transaction.length - position;
+//		maxLength = Integer.min(maxLength, maxEdgeCycles.get(transactionId)[fstState]);
+//		double maxInformationGain = getScoreBySequence(prefix, globalDataCollectors);
+//		
+//		maxInformationGain = maxInformationGain + getMaxInformationGain(prefix, maxLength, fstState, localItemOcc);
+//		
+//		return maxInformationGain;
+//	}
+	
+//	@Override
+//	public double getMaxScoreByPrefix(
+//			int[] prefix,
+//			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors,
+//			int[] transaction,
+//			int transactionId,
+//			int position,
+//			int fstState) {
+//		
+////		itemOccurrenceCount.clear();
+//		
+//		if(fstStateList == null) {
+////			createStateItems(globalDataCollectors);
+//			createStateItemBitSets(globalDataCollectors);
+//		}
+//		
+//		if(maxExtensionValuesPerState == null || transactionId != previousTransactionId) {
+//			maxExtensionValuesPerState = new double[xFst.numStates()][transaction.length];
+//			double initValue = -1;
+//			for(int i = 0; i<xFst.numStates(); i++) {
+//				Arrays.fill(maxExtensionValuesPerState[i], initValue);
+//			}
+//		}
+//		
+//		previousTransactionId = transactionId;
+//		
+//		GlobalEdgeMaxCycleCollector maxEdgeCycleCollector = (GlobalEdgeMaxCycleCollector) globalDataCollectors.get(GlobalEdgeMaxCycleCollector.ID);
+//		@SuppressWarnings("unchecked")
+//		Function<GlobalEdgeMaxCycleCollector, ArrayList<int[]>> maxEdgeCycleFunc = (Function<GlobalEdgeMaxCycleCollector, ArrayList<int[]>>) globalDataCollectors.get(GlobalEdgeMaxCycleCollector.ID).finisher();
+//		ArrayList<int[]> maxEdgeCycles = maxEdgeCycleFunc.apply(maxEdgeCycleCollector);
+//		
+//		int maxLength = transaction.length - position;
+//		maxLength = Integer.min(maxLength, maxEdgeCycles.get(transactionId)[fstState]);
+//		
+//		double maxInformationGain = getScoreBySequence(prefix, globalDataCollectors);
+//		double initValue = -1;
+//		
+//		if(maxExtensionValuesPerState[fstState][maxLength] == initValue) {
+//			FixedBitSet localItemOcc = new FixedBitSet(Dictionary.getInstance().getFlist().length);
+//			int pos = 0;
+//			while(pos < transaction.length) {
+//				localItemOcc.set((transaction[pos]-Dictionary.getInstance().getFlist().length)*-1);
+//				pos++;
+//			}
+//			localItemOcc.and(stateBitSets[fstState]);
+//			
+//			double infoGainExtension = getMaxInformationGain(prefix, maxLength, fstState, localItemOcc);
+//			maxExtensionValuesPerState[fstState][maxLength] = infoGainExtension;
+//			maxInformationGain = infoGainExtension + maxInformationGain;
+//		} else {
+//			maxInformationGain = maxInformationGain + maxExtensionValuesPerState[fstState][maxLength];
+//		}
+//		
+//		return maxInformationGain;
+//	}
 	
 	
 	private double getMaxInformationGain(int[] prefix, int maxLength, int fstState, Int2IntOpenHashMap maxRepetitionList, Int2IntOpenHashMap localEdgeMaxCycles, HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollectors) {
@@ -373,7 +531,7 @@ public class InformationGainScore extends DesqBaseScore {
 			int itemId = fstStateItems[i];
 			int maxRepetition = maxRepetitionList[itemId];
 			// TODO: here I could optimize the array access rates
-			if(maxRepetition > 0 && maxLength > 0) {
+			if(maxRepetition > 0 && maxLength > 0 && itemId != 0) {
 				if(maxLength > maxRepetition) {
 					maxInformationGain = maxInformationGain + ( gainList[itemId] * maxRepetition );
 					maxLength = maxLength - maxRepetition;
@@ -402,6 +560,39 @@ public class InformationGainScore extends DesqBaseScore {
 		if(maxLength > 0 && itemId != 0) {
 			return maxInformationGain = gainList[itemId] * maxLength;
 		}
+		
+		return maxInformationGain;
+	}
+	
+	private double getMaxInformationGain(int[] prefix, int maxLength, int fstState, FixedBitSet itemOccurrence) {
+		
+//		Integer[] fstStateItems = (Integer[]) stateItems[fstState];
+		
+		double maxInformationGain = 0;
+		// invert item id in order to get the correct id for information gain
+		if(maxLength > 0) {
+			while(true) {
+				int itemId = itemOccurrence.nextSetBit(0);
+				if(DocIdSetIterator.NO_MORE_DOCS != itemId) {
+					itemId = itemId * -1 + itemOccurrence.length();
+//					int itemRepetition = itemOccurrenceCount.get(itemId);
+//					if(maxLength > itemRepetition) {
+//						maxInformationGain = maxInformationGain + gainList[itemId] * itemRepetition;
+//						maxLength = maxLength - itemRepetition;
+//					} else {
+						maxInformationGain = maxInformationGain + gainList[itemId] * maxLength;
+//						maxLength = 0;
+//					}
+					
+//					if(maxLength == 0) {
+						break;
+//					}
+				} else {
+					break;
+				}
+			}
+		}
+
 		
 		return maxInformationGain;
 	}
@@ -552,6 +743,92 @@ public class InformationGainScore extends DesqBaseScore {
 		
 		for (int itemId = 0; itemId < flist.length; itemId++) {
 			gainList[itemId] = (-1 * (Math.log(((double)func.apply(sup)[itemId]) / ((double) eventsCount)) / Math.log(func.apply(sup).length)));
+		}
+	}
+	
+	private void createStateItemBitSets(HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollectors) {
+		boolean[] visitedFstStates = new boolean[xFst.numStates()]; 
+		fstStateList = new HashMap<Integer, SortedSet<Double>>();	
+		HashSet<Integer> outputItems = new HashSet<Integer>();
+		
+		stateBitSets = new FixedBitSet[xfst.numStates()];
+		
+		ItemSupportCollector sup = (ItemSupportCollector) globalDataCollectors.get(ItemSupportCollector.ID);
+		@SuppressWarnings("unchecked")
+		Function<ItemSupportCollector, int[]> func = (Function<ItemSupportCollector, int[]>) globalDataCollectors.get(ItemSupportCollector.ID).finisher();
+		int[] flist = func.apply(sup);
+		
+		if(gainList == null) {
+			createInformationGainList(globalDataCollectors,Dictionary.getInstance().getFlist());
+		}
+		
+		for(int i = 0; i<xFst.numStates();i++) {
+			List<FstEdge> edge = fstGraph.getReachableEdgesPerState(i);
+			FixedBitSet stateBitSet = new FixedBitSet(flist.length);
+			
+			for (Iterator<FstEdge> iterator = edge.iterator(); iterator.hasNext();) {
+				FstEdge fstEdge = (FstEdge) iterator.next();
+				
+				if(visitedFstStates[fstEdge.getFromState()] != true) {
+					outputItems.addAll(generateOutputItems(xFst, fstEdge.getFromState(),flist));
+				}
+	
+				visitedFstStates[fstEdge.getFromState()] = true;
+			}
+			
+			Arrays.fill(visitedFstStates, false);
+
+			for (Iterator<Integer> iterator = outputItems.iterator(); iterator.hasNext();) {
+				Integer itemId = (Integer) iterator.next();
+				stateBitSet.set((itemId-flist.length)*-1);
+			}
+			
+			stateBitSets[i] = stateBitSet;
+			
+			outputItems.clear();
+		}
+	}
+	
+	private void createStateItemSparseBitSets(HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollectors) {
+		boolean[] visitedFstStates = new boolean[xFst.numStates()]; 
+		fstStateList = new HashMap<Integer, SortedSet<Double>>();	
+		HashSet<Integer> outputItems = new HashSet<Integer>();
+		
+		sparseStateBitSets = new SparseBitSet[xfst.numStates()];
+		
+		ItemSupportCollector sup = (ItemSupportCollector) globalDataCollectors.get(ItemSupportCollector.ID);
+		@SuppressWarnings("unchecked")
+		Function<ItemSupportCollector, int[]> func = (Function<ItemSupportCollector, int[]>) globalDataCollectors.get(ItemSupportCollector.ID).finisher();
+		int[] flist = func.apply(sup);
+		
+		if(gainList == null) {
+			createInformationGainList(globalDataCollectors,Dictionary.getInstance().getFlist());
+		}
+		
+		for(int i = 0; i<xFst.numStates();i++) {
+			List<FstEdge> edge = fstGraph.getReachableEdgesPerState(i);
+			SparseBitSet stateBitSet = new SparseBitSet(flist.length);
+			
+			for (Iterator<FstEdge> iterator = edge.iterator(); iterator.hasNext();) {
+				FstEdge fstEdge = (FstEdge) iterator.next();
+				
+				if(visitedFstStates[fstEdge.getFromState()] != true) {
+					outputItems.addAll(generateOutputItems(xFst, fstEdge.getFromState(),flist));
+				}
+	
+				visitedFstStates[fstEdge.getFromState()] = true;
+			}
+			
+			Arrays.fill(visitedFstStates, false);
+
+			for (Iterator<Integer> iterator = outputItems.iterator(); iterator.hasNext();) {
+				Integer itemId = (Integer) iterator.next();
+				stateBitSet.set((itemId-flist.length)*-1);
+			}
+			
+			sparseStateBitSets[i] = stateBitSet;
+			
+			outputItems.clear();
 		}
 	}
 	

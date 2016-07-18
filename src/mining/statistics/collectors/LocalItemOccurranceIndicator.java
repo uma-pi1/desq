@@ -27,17 +27,23 @@ public class LocalItemOccurranceIndicator implements DesqProjDbDataCollector<Loc
 	// Data of the accumulator, BiConsumer 
 	public static final String ID = "LOCAL_ITEM_OCC_INDICATOR";
 	int previousTransactionId;
-	ArrayList<SparseBitSet> globalItemOccList;
+	ArrayList<FixedBitSet> globalItemOccList;
 	SparseBitSet localItemOccList = new SparseBitSet(Dictionary.getInstance().getFlist().length);
 	int items = Dictionary.getInstance().getFlist().length;
+	int minStartPosition;
 	
 	public LocalItemOccurranceIndicator() {
 		this.previousTransactionId = -1;
+		this.minStartPosition = -1;
 	}
 	
 //	public LocalItemMaxRepetitionCollector(Int2IntOpenHashMap itemFrequencies) {
 //		this.localItemFrequencies = itemFrequencies;
 //	}
+	
+	public void clear() {
+		localItemOccList = null;
+	}
 	
 	// Collector Method
 	@Override
@@ -84,25 +90,37 @@ public class LocalItemOccurranceIndicator implements DesqProjDbDataCollector<Loc
 	// BiConsumer Method
 	@Override
 	public void accept(LocalItemOccurranceIndicator t, ProjDbStatData u) {
-		
-		if(u.getTransactionId() != this.previousTransactionId && u.getPosition() >= 0) {
-			
-//			if(globalItemOccList == null) {
-//				GlobalItemOccurrenceCollector itemOccIndicator = (GlobalItemOccurrenceCollector) u.getGlobalDataCollectors().get(GlobalItemOccurrenceCollector.ID);
-//				@SuppressWarnings("unchecked")
-//				Function<GlobalItemOccurrenceCollector,  ArrayList<FixedBitSet>> itemIndicatorFunc = (Function<GlobalItemOccurrenceCollector, ArrayList<FixedBitSet>>) u.getGlobalDataCollectors().get(GlobalItemOccurrenceCollector.ID).finisher();
-//				globalItemOccList = itemIndicatorFunc.apply(itemOccIndicator);
-//			}
-			
-			int itemPos = u.getPosition();
-			int currentItem;
-			while (itemPos < u.getTransaction().length) {
-				currentItem = u.getTransaction()[itemPos];
-				localItemOccList.set((currentItem-items)*-1);
-				itemPos++;
+		if(u.getPosition() >= 0) {
+			if(u.getTransactionId() != this.previousTransactionId) {
+				previousTransactionId = u.getTransactionId();
+				minStartPosition = u.getPosition();
+	//			if(globalItemOccList == null) {
+	//				GlobalItemOccurrenceCollector itemOccIndicator = (GlobalItemOccurrenceCollector) u.getGlobalDataCollectors().get(GlobalItemOccurrenceCollector.ID);
+	//				@SuppressWarnings("unchecked")
+	//				Function<GlobalItemOccurrenceCollector,  ArrayList<FixedBitSet>> itemIndicatorFunc = (Function<GlobalItemOccurrenceCollector, ArrayList<FixedBitSet>>) u.getGlobalDataCollectors().get(GlobalItemOccurrenceCollector.ID).finisher();
+	//				globalItemOccList = itemIndicatorFunc.apply(itemOccIndicator);
+	//			}
+				
+				int itemPos = u.getPosition();
+				int currentItem;
+				while (itemPos < u.getTransaction().length) {
+					currentItem = u.getTransaction()[itemPos];
+					localItemOccList.set((currentItem-items)*-1);
+					itemPos++;
+				}
+			} else {
+				 
+				if(u.getPosition() < this.minStartPosition) {
+					int itemPos = u.getPosition();
+					int currentItem;
+					while (itemPos < this.minStartPosition) {
+						currentItem = u.getTransaction()[itemPos];
+						localItemOccList.set((currentItem-items)*-1);
+						itemPos++;
+					}
+					this.minStartPosition = u.getPosition();
+				}
 			}
-		} else {
-			// do nothing
 		}
 	}
 }

@@ -4,6 +4,7 @@ package mining.interestingness;
 import java.util.HashMap;
 
 import driver.DesqConfig.Match;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import mining.scores.DesqCountScore;
@@ -30,10 +31,15 @@ public class OnePassRecursiveScored extends DesqCountScored {
 	@Override
 	protected void computeMatch() {
 		buffer.clear();
-		step(0, xfst.getInitialState());
+		int numTransitions = 0;
+		for(int i = 0; i < xfst.numStates(); i++) {
+			numTransitions =  Integer.max(numTransitions, xfst.numTransitions(i));
+		}
+		int[] transitionCount = new int[xfst.numStates() + numTransitions*10];
+		step(0, xfst.getInitialState(), transitionCount);
 	}
 
-	private void step(int pos, int state) {
+	private void step(int pos, int state, int[] transCount) {
 		if (xfst.isFinalState(state)) {
 			if (!buffer.isEmpty()) {
 				// System.out.println(buffer);
@@ -56,20 +62,24 @@ public class OnePassRecursiveScored extends DesqCountScored {
 					switch (olabel.type) {
 					
 					case EPSILON:
-						step(pos + 1, toState);
+						step(pos + 1, toState, transCount);
 						break;
 					
 					case CONSTANT:
 						int outputItemId = olabel.item;
 						if (score.getMaxScoreByItem(outputItemId, globalDataCollectors) >= sigma) {
 							buffer.add(outputItemId);
+							int[] newTransCount = new int[transCount.length];
+							System.arraycopy(transCount, 0, newTransCount, 0, transCount.length);
+							newTransCount[state + tId*10]++;
 							if(score.getMaxScoreByPrefix(buffer.toIntArray(), 
 									globalDataCollectors,
 									sequence,
 									sid,
 									pos + 1,
-									toState) >= sigma) {
-								step(pos + 1, toState);
+									toState,
+									newTransCount) >= sigma) {
+								step(pos + 1, toState, newTransCount);
 							}
 							buffer.remove(buffer.size() - 1);
 						}
@@ -78,13 +88,17 @@ public class OnePassRecursiveScored extends DesqCountScored {
 					case SELF:
 						if (score.getMaxScoreByItem(itemId, globalDataCollectors) >= sigma) {
 							buffer.add(itemId);
+							int[] newTransCount = new int[transCount.length];
+							System.arraycopy(transCount, 0, newTransCount, 0, transCount.length);
+							newTransCount[state + tId*10]++;
 							if(score.getMaxScoreByPrefix(buffer.toIntArray(), 
 									globalDataCollectors,
 									sequence,
 									sid,
 									pos + 1,
-									toState) >= sigma) {
-								step(pos + 1, toState);
+									toState,
+									newTransCount) >= sigma) {
+								step(pos + 1, toState, newTransCount);
 							}
 							buffer.remove(buffer.size() - 1);
 						}
@@ -108,13 +122,17 @@ public class OnePassRecursiveScored extends DesqCountScored {
 						for(int id : stack) {
 							if (score.getMaxScoreByItem(id, globalDataCollectors) >= sigma) {
 								buffer.add(id);
+								int[] newTransCount = new int[transCount.length];
+								System.arraycopy(transCount, 0, newTransCount, 0, transCount.length);
+								newTransCount[state + tId*10]++;
 								if(score.getMaxScoreByPrefix(buffer.toIntArray(), 
 																globalDataCollectors,
 																sequence,
 																sid,
 																pos + 1,
-																toState) >= sigma) {
-									step(pos + 1, toState);
+																toState,
+																newTransCount) >= sigma) {
+									step(pos + 1, toState, newTransCount);
 								}
 								buffer.remove(buffer.size() - 1);
 							}

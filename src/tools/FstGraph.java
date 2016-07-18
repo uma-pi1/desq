@@ -194,6 +194,7 @@ public class FstGraph {
 	}
 	
 	public int getMaxTransitionsToFinalState(int state, int cycleRepeats[]) {
+		@SuppressWarnings("unchecked")
 		ArrayList<CyclePath> cyclePaths = (ArrayList<CyclePath>) maxTransitionsToFinalState[state];
 		int maxLength = 0;
 		for (CyclePath cyclePath : cyclePaths) {

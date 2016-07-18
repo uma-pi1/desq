@@ -17,6 +17,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import com.google.common.base.Stopwatch;
 
 import mining.scores.DesqCountScore;
 import mining.scores.NotImplementedExcepetion;
@@ -31,6 +36,7 @@ import utils.Dictionary;
 import utils.IntArrayStrategy;
 import utils.PrimitiveUtils;
 import writer.SequentialWriter;
+import driver.DesqDfsScoredDriver;
 import driver.DesqConfig.Match;
 
 
@@ -84,7 +90,7 @@ public abstract class DesqCountScored {
 	protected HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> projDbCollectors;
 	protected HashMap<String, DesqResultDataCollector<? extends DesqResultDataCollector<?, ?>, ?>> resultDataCollectors;
 	
-	protected int stepCounts = 0;
+	protected long stepCounts = 0;
 	
 	private RankedScoreList rankedScoreList;
 	private boolean executeResultDataCollection;
@@ -92,6 +98,8 @@ public abstract class DesqCountScored {
 	private ProjDbStatData projDbStatData = new ProjDbStatData();
 	private DesqSequenceData sequenceData = new DesqSequenceData();
 	private DesqTransactionData transactionData = new DesqTransactionData();
+	
+	public static Stopwatch scanTime = Stopwatch.createUnstarted();
 	
 	protected Object2ObjectOpenCustomHashMap<int[], HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> > minedSequenceSet = new Object2ObjectOpenCustomHashMap<int[],HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>>(new IntArrayStrategy());
 //	protected ObjectOpenHashSet<int[]> minedSequences = new ObjectOpenHashSet<int[]>(new IntArrayStrategy());
@@ -124,7 +132,7 @@ public abstract class DesqCountScored {
 
 		IntArrayList buffer = new IntArrayList();
 		int transactionId = 0;
-		
+		scanTime.start();
 		String line;
 		while ((line = br.readLine()) != null) {
 			if (!line.isEmpty()) {
@@ -152,6 +160,9 @@ public abstract class DesqCountScored {
 			}
 		}
 		br.close();
+		
+		scanTime.stop();
+		Logger.getLogger(DesqDfsScoredDriver.class.getSimpleName()).log(Level.INFO, "Scan Took " + scanTime.elapsed(TimeUnit.SECONDS) +"s");
 		
 		for(int sId = 0; sId < inputSequences.size(); ++sId) {
 			sequence = inputSequences.get(sId);

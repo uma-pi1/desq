@@ -102,6 +102,7 @@ public class GlobalEdgeMaxCycleCollector implements DesqGlobalDataCollector<Glob
 			if(fstCycles == null) {
 				List<FstEdge[]> allCycles = graph.getAllCycles(false);
 				fstCycles = new Object[allCycles.size()];
+				System.out.println("All Cycles:");
 				for(int i = 0; i<allCycles.size(); i++) {
 					for(int cycleEdge = 0; cycleEdge < allCycles.get(i).length; cycleEdge++) {
 						if(cycleEdge == 0) {

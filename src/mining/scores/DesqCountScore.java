@@ -13,7 +13,8 @@ public interface DesqCountScore extends DesqScore {
 			int[] transaction,
 			int transactionId,
 			int position,
-			int fstState);
+			int fstState,
+			int[] transCount);
 	
 	public double getScoreByProjDb(int[] sequence, 
 			HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollectors,

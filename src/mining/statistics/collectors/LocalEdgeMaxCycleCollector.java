@@ -88,7 +88,7 @@ public class LocalEdgeMaxCycleCollector implements DesqProjDbDataCollector<Local
 	// BiConsumer Method
 	@Override
 	public void accept(LocalEdgeMaxCycleCollector t, ProjDbStatData u) {
-		if(u.getTransactionId() != this.previousTransactionId && u.getPosition() >= 0) {
+		if(u.getPosition() >= 0) {
 			if(globalMaxEdgeCycles == null) {
 				GlobalEdgeMaxCycleCollector maxEdgeCycleCollector = (GlobalEdgeMaxCycleCollector) u.getGlobalDataCollectors().get(GlobalEdgeMaxCycleCollector.ID);
 				@SuppressWarnings("unchecked")

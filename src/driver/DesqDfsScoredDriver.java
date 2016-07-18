@@ -34,7 +34,9 @@ public class DesqDfsScoredDriver {
 
 	// Timers
 	public static Stopwatch totalTime = Stopwatch.createUnstarted();
+	public static Stopwatch scanTime = Stopwatch.createUnstarted();
 	public static Stopwatch fstTime = Stopwatch.createUnstarted();
+	
 	
 	private static Logger logger = Logger.getLogger(DesqDfsScoredDriver.class.getSimpleName());
 	
@@ -112,14 +114,19 @@ public class DesqDfsScoredDriver {
 
 		totalTime.start();
 		
+		scanTime.start();
 		dfs.scan(sequenceFile);
+		scanTime.stop();
+		
+		logger.log(Level.INFO, "Scan Took " + scanTime.elapsed(TimeUnit.SECONDS) +"s");
+		
 		dfs.mine();
 		
 		rankedScoreList.printList();
 
 		totalTime.stop();
 
-		logger.log(Level.INFO, "Took " + totalTime.elapsed(TimeUnit.SECONDS) +"s");
+		logger.log(Level.INFO, "Total Took " + totalTime.elapsed(TimeUnit.SECONDS) +"s");
 	}
 
 }
