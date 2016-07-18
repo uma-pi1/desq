@@ -2,9 +2,7 @@ package de.uni_mannheim.desq.mining;
 
 import de.uni_mannheim.desq.util.PropertiesUtils;
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.ints.*;
 
 import java.util.BitSet;
 import java.util.Iterator;
@@ -25,7 +23,8 @@ public class DesqDfs extends MemoryDesqMiner {
 	int[] inputSequence;
 	boolean reachedFinalState;
 	int dfsLevel = 0;
-	
+    IntList outputSequence = new IntArrayList();
+
 	public DesqDfs(DesqMinerContext ctx) {
 		super(ctx);
 		this.fst = ctx.fst;
@@ -42,7 +41,7 @@ public class DesqDfs extends MemoryDesqMiner {
 		Node root = new Node(null, 0);
 		for(int sid = 0; sid < inputSequences.size(); ++sid) {
 			inputSequence = inputSequences.get(sid);
-			incStep(sid, 0, fst.getInitialState().getStateId(), root);
+			incStep(sid, 0, fst.getInitialState().getId(), root);
 		}
 		
 		final IntIterator it = root.children.keySet().iterator();
@@ -92,19 +91,17 @@ public class DesqDfs extends MemoryDesqMiner {
 			
 			if (ctx.patternWriter != null) {
 				// compute output sequence
-				int[] outputSequence = new int[dfsLevel];
+                outputSequence.size(dfsLevel);
 				int size = dfsLevel;
 				
-				outputSequence[--size] = node.suffixItemId;
+				outputSequence.set(--size, node.suffixItemId);
 				Node parent = node.parent;
 				while(parent.parent != null) {
-					outputSequence[--size] = parent.suffixItemId;
+					outputSequence.set(--size, parent.suffixItemId);
 					parent = parent.parent;
 				}
-				//TODO: think of a different way!
-				//ctx.patternWriter.write(outputSequence, support);
-				ctx.patternWriter.write(new IntArrayList(outputSequence), support);
-				//System.out.println(Arrays.toString(outputSequence) + " : " + support);
+				ctx.patternWriter.write(outputSequence, support);
+				//System.out.println(outputSequence + " : " + support);
 			}
 		}
 		
@@ -130,23 +127,17 @@ public class DesqDfs extends MemoryDesqMiner {
 		int itemFid = inputSequence[pos];
 		
 		//TODO: reuse iterators!
-		Iterator<Transition> it = fst.getState(stateId).consume(itemFid);
-		while(it.hasNext()) {
-			Transition t = it.next();
-			if(t.matches(itemFid)) {
-				Iterator<ItemState> is = t.consume(itemFid);
-				while(is.hasNext()) {
-					ItemState itemState = is.next();
-					int outputItemFid = itemState.itemFid;
+        Iterator<ItemState> itemStateIt = fst.getState(stateId).consume(itemFid);
+        while(itemStateIt.hasNext()) {
+			ItemState itemState = itemStateIt.next();
+			int outputItemFid = itemState.itemFid;
 					
-					int toStateId = itemState.state.getStateId();
-					if(outputItemFid == 0) { //EPS output
-						incStep(sid, pos + 1, toStateId, node);
-					} else {
-						if(flist[outputItemFid] >= sigma) {
-							node.append(outputItemFid, sid, pos + 1, toStateId);
-						}
-					}
+			int toStateId = itemState.state.getId();
+			if(outputItemFid == 0) { //EPS output
+				incStep(sid, pos + 1, toStateId, node);
+			} else {
+				if(flist[outputItemFid] >= sigma) {
+					node.append(outputItemFid, sid, pos + 1, toStateId);
 				}
 			}
 		}
@@ -158,9 +149,9 @@ public class DesqDfs extends MemoryDesqMiner {
 			int lastSequenceId = -1;
 			int suffixItemId;
 			Node parent;
-			ByteArrayList projectedDatabase = new ByteArrayList();;
+			ByteArrayList projectedDatabase = new ByteArrayList();
 			BitSet[] statePosSet = new BitSet[fst.numStates()];
-			Int2ObjectOpenHashMap<Node> children = new Int2ObjectOpenHashMap<Node>();
+			Int2ObjectMap<Node> children = new Int2ObjectOpenHashMap<>();
 
 			Node(Node parent, int suffixItemId) {
 				this.parent = parent;

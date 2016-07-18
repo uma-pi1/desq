@@ -62,27 +62,28 @@ public class BasicTransition extends Transition {
 	}	
 
 	
-	private class ItemStateIterator implements Iterator<ItemState> {
-		int fid;
+	private static class ItemStateIterator implements Iterator<ItemState> {
+		BasicTransition transition;
+	    int fid;
 		ItemState itemState = new ItemState();
 		IntIterator fidIterator;
 		
 		@Override
 		public boolean hasNext() {
-			return fid>=0;
+            return fid>=0;
 		}
 
 		@Override
 		public ItemState next() {
 			assert fid>=0;
-			
-			switch (outputLabelType) {
+
+			switch (transition.outputLabelType) {
 			case EPSILON:
 				itemState.itemFid = 0;
 				fid = -1;
 				break;
 			case CONSTANT:
-				itemState.itemFid = outputLabel;
+				itemState.itemFid = transition.outputLabel;
 				fid = -1;
 				break;
 			case SELF:
@@ -126,15 +127,15 @@ public class BasicTransition extends Transition {
 			resultIt = new ItemStateIterator();
 		
 		if (inputLabel==0 || inputFids.contains(itemFid)) {
-			resultIt.fid = itemFid;
-			resultIt.itemState.itemFid = itemFid;
+			resultIt.transition = this;
+		    resultIt.fid = itemFid;
 			resultIt.itemState.state = toState;
 			if (outputLabelType == OutputLabelType.SELF_ASCENDANTS) {
 				resultIt.fidIterator = outputDict.ascendantsFids(itemFid).iterator();
 				resultIt.fid = resultIt.fidIterator.nextInt();
 			}
 		} else {
-			resultIt.itemState.itemFid = -1;
+			resultIt.fid = -1;
 		}
 
 		return resultIt;

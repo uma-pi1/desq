@@ -1,12 +1,8 @@
 package de.uni_mannheim.desq.fst;
 
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Stream;
 
 import de.uni_mannheim.desq.visual.Vfst;
 
@@ -16,11 +12,13 @@ public class Fst {
 	// initial state
 	State initialState;
 	
-	// list of states; initialized only after state numbers are updated; see updateStateNumbers()
-	ArrayList<State> states;
+	// list of states; initialized only after state numbers are updated; see updateStates()
+	List<State> states = new ArrayList<State>();;
+	List<State> finalStates = new ArrayList<State>();;
 	
 	public Fst() {
 		initialState = new State();
+        updateStates();
 	}
 	
 	public State getInitialState() {
@@ -32,38 +30,25 @@ public class Fst {
 	}
 	
 	
-	public Set<State> getFinalStates() {
-		HashSet<State> finalStates = new HashSet<State>();
-		HashSet<State> visited = new HashSet<State>();
-		LinkedList<State> worklist = new LinkedList<State>();
-		worklist.add(initialState);
-		visited.add(initialState);
-		while (worklist.size() > 0) {
-			State s = worklist.removeFirst();
-			if (s.isFinal())
-				finalStates.add(s);
-			for (Transition t : s.transitionSet)
-				if (!visited.contains(t.getToState())) {
-					visited.add(t.getToState());
-					worklist.add(t.getToState());
-				}
-		}
+	public Collection<State> getFinalStates() {
 		return finalStates;
 	}
 	
-	// sets state numbers and add all states indexed by stateIds to this fst
-	public void updateStateNumbers() {
-		states = new ArrayList<State>();
+	/** Recomputes state and final state list. Must be called whenever any state in the FST is modified. */
+	public void updateStates() {
+		states.clear();
+		finalStates.clear();
 		int number = 0;
-		Set<State> visited = new HashSet<State>();
-		LinkedList<State> worklist = new LinkedList<State>();
+		Set<State> visited = new HashSet<>();
+		LinkedList<State> worklist = new LinkedList<>(); // TODO: make stack
 		worklist.add(initialState);
 		
 		while (worklist.size() > 0) {
 			State s = worklist.removeFirst();
 			if (!visited.contains(s)) {
-				s.setStateId(number++);
+				s.setId(number++);
 				states.add(s);
+				if (s.isFinal) finalStates.add(s);
 				for (Transition t : s.transitionSet) {
 					worklist.add(t.toState);
 				}
@@ -76,47 +61,37 @@ public class Fst {
 		return states.get(stateId);
 	}
 	
-	public Set<State> getStates() {
-		Set<State> visited 	= new HashSet<State>();
-		LinkedList<State> worklist = new LinkedList<State>();
-		worklist.add(initialState);
-		visited.add(initialState);
-		while (worklist.size() > 0) {
-			State s = worklist.removeFirst();
-			for (Transition t : s.transitionSet)
-				if (!visited.contains(t.toState)) {
-					visited.add(t.toState);
-					worklist.add(t.toState);
-				}
-		}
-		return visited;
+	public List<State> getStates() {
+		return states;
 	}
 	
 	public int numStates() {
-		assert states!= null;
+		assert states != null;
 		return states.size();
 	}
 	
 	// returns a copy of FST with shallow copy of its transitions
 	public Fst shallowCopy() {
 		Fst fstCopy = new Fst();
-		Map<State, State> stateMap = new HashMap<State, State>();
-		Set<State> states = getStates();
+		Map<State, State> stateMap = new HashMap<>();
 		for(State state : states) {
 			stateMap.put(state, new State());
 		}
 		for(State state : states) {
 			State stateCopy = stateMap.get(state);
 			stateCopy.isFinal = state.isFinal;
+			fstCopy.states.add(stateCopy);
+			if (state.isFinal) fstCopy.finalStates.add(stateCopy);
 			if(state == initialState) {
 				fstCopy.initialState = stateCopy;
 			}
-			for(Transition t : state.transitionSet) {
+			for (Transition t : state.transitionSet) {
 				Transition tCopy = t.shallowCopy();
 				tCopy.setToState(stateMap.get(t.toState));
 				stateCopy.addTransition(tCopy);
 			}
 		}
+
 		return fstCopy;
 	}
 	
@@ -128,14 +103,14 @@ public class Fst {
 	
 	public void print(String file, boolean updateStateNumbers) {
 		if(updateStateNumbers)
-			updateStateNumbers();
+			updateStates();
 		Vfst vfst = new Vfst(file);
 		vfst.beginGraph();
 		for(State s : states) {
 			for(Transition t : s.transitionSet)
-				vfst.add(String.valueOf(s.stateId), t.toString(), String.valueOf(t.getToState().stateId));
+                vfst.add(String.valueOf(s.id), t.toString(), String.valueOf(t.getToState().id));
 			if(s.isFinal)
-				vfst.addAccepted(String.valueOf(s.stateId));
+				vfst.addAccepted(String.valueOf(s.id));
 		}
 		vfst.endGraph();
 	}

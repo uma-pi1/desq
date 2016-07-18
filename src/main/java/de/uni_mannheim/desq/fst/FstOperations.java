@@ -9,17 +9,19 @@ public final class FstOperations {
 	public static Fst concatenate(Fst a, Fst b) {
 		for (State state : a.getFinalStates()) {
 			state.isFinal = false;
-			state.addEpsilonTransition(b.initialState);
+			state.simulateEpsilonTransition(b.initialState);
 		}
-		return a;
+		a.updateStates();
+        return a;
 	}
 
 	/** Returns an FST that is a union of two FSTs */
 	public static Fst union(Fst a, Fst b) {
 		State s = new State();
-		s.addEpsilonTransition(a.initialState);
-		s.addEpsilonTransition(b.initialState);
+		s.simulateEpsilonTransition(a.initialState);
+		s.simulateEpsilonTransition(b.initialState);
 		a.initialState = s;
+		a.updateStates();
 		return a;
 	}
 
@@ -27,10 +29,11 @@ public final class FstOperations {
 	public static Fst kleene(Fst a) {
 		State s = new State();
 		s.isFinal = true;
-		s.addEpsilonTransition(a.initialState);
+		s.simulateEpsilonTransition(a.initialState);
 		for (State p : a.getFinalStates())
-			p.addEpsilonTransition(s);
+			p.simulateEpsilonTransition(s);
 		a.initialState = s;
+		a.updateStates();
 		return a;
 	}
 
@@ -38,41 +41,44 @@ public final class FstOperations {
 	public static Fst plus(Fst a) {
 		// return concatenate(n, kleene(n));
 		for (State s : a.getFinalStates()) {
-			s.addEpsilonTransition(a.initialState);
+			s.simulateEpsilonTransition(a.initialState);
 		}
+		a.updateStates();
 		return a;
 	}
 
 	/** Returns an FST that accepts zero or one of a given NFA */
 	public static Fst optional(Fst a) {
 		State s = new State();
-		s.addEpsilonTransition(a.initialState);
+		s.simulateEpsilonTransition(a.initialState);
 		s.isFinal = true;
 		a.initialState = s;
+		a.updateStates();
 		return a;
 	}
 
-	public static Fst repeatMax(Fst a, int max) {
-		if (max == 0) {
+	public static Fst repeat(Fst a, int n) {
+		if (n == 0) {
 			System.err.println("ERROR");
 			System.exit(-1);
 		}
-		Fst[] fstList = new Fst[max - 1];
+		Fst[] fstList = new Fst[n - 1];
 		for (int i = 0; i < fstList.length; ++i) {
 			fstList[i] = a.shallowCopy();
 		}
 		for (int i = 0; i < fstList.length; ++i) {
 			for (State state : a.getFinalStates()) {
 				state.isFinal = false;
-				state.addEpsilonTransition(fstList[i].initialState);
+				state.simulateEpsilonTransition(fstList[i].initialState);
 			}
+			a.updateStates();
 		}
 		return a;
 	}
 	
 	public static Fst repeatMin(Fst a, int min) {
 		Fst aPlus = plus(a.shallowCopy());
-		Fst aMax = repeatMax(a.shallowCopy(), min - 1);
+		Fst aMax = repeat(a.shallowCopy(), min - 1);
 		return concatenate(aMax, aPlus);
 	}
 	
@@ -82,24 +88,26 @@ public final class FstOperations {
 		if (min == 0) {
 			fst = new Fst();
 			fst.initialState.isFinal = true;
+            fst.updateStates();
 		} else if (min == 1) {
 			fst = a.shallowCopy();
 		} else {
-			fst = repeatMax(a.shallowCopy(), min);
+			fst = repeat(a.shallowCopy(), min);
 		}
 		if (max > 0) {
 			Fst aa = a.shallowCopy();
 			while (--max > 0) {
 				Fst ab = a.shallowCopy();
 				for (State state : ab.getFinalStates()) {
-					state.addEpsilonTransition(aa.initialState);
+					state.simulateEpsilonTransition(aa.initialState);
 				}
 				aa = ab;
 			}
 			for (State state : fst.getFinalStates()) {
-				state.addEpsilonTransition(aa.initialState);
+				state.simulateEpsilonTransition(aa.initialState);
 			}
 		}
+		fst.updateStates();
 		return fst;
 	}
 	

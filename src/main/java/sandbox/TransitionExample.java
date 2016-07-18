@@ -26,7 +26,7 @@ public class TransitionExample {
 
 		// Create a toState
 		State toState = new State();
-		// toState.setStateId(1);
+		// toState.setId(1);
 
 		// test item
 		item = dict.getItemBySid("are@be@VB@");
@@ -112,13 +112,14 @@ public class TransitionExample {
 
 	}
 
+	static Iterator<ItemState> it;
 	public static void match(Transition t, Item item, Dictionary dict) {
 		System.out.println("inputItemSid = " + item);
-		Iterator<ItemState> it;
+
 		ItemState is;
 
 		if (t.matches(item.fid)) {
-			it = t.consume(item.fid);
+			it = t.consume(item.fid, it);
 			while (it.hasNext()) {
 				is = it.next();
 				System.out.println("outputItemSid = " + dict.getItemByFid(is.itemFid));

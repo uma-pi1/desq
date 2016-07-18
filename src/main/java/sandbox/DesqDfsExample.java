@@ -45,14 +45,15 @@ public class DesqDfsExample {
 		}
 
 		// input parameters
-		String patternExpression = "[c|d]([A^|B=^]+)e";
-		// String patternExpression = "(A^)";
+		//String patternExpression = "[c|d]([A^|B=^]+)e";
+		String patternExpression = "(A^{2,})";
 		int sigma = 2;
 
 		// create fst
 		patternExpression = ".* [" + patternExpression.trim() + "]";
 		PatEx patEx = new PatEx(patternExpression, dict);
 		Fst fst = patEx.translate();
+		//fst.print("test");
 
 		System.out.println("\nPattern Expression=" + patternExpression + " sigma=" + sigma);
 		dataReader = new DelSequenceReader(dataFile.openStream(), false);

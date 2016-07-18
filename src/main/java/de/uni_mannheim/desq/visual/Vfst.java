@@ -44,6 +44,7 @@ public class Vfst {
 	
 	public void add(String fromState, String edgeLabel, String toState) {
 		String dotString = fromState + " -> " + toState + " [label=\"" + edgeLabel + "\"];";
+		//System.out.println(dotString);
 		gv.addln(dotString);
 	}
 }

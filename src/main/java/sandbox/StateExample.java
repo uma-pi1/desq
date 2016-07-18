@@ -21,9 +21,9 @@ public class StateExample {
 		Dictionary dict = DictionaryIO.loadFromDel(new FileInputStream("data-local/nyt-1991-dict.del"), true);
 
 		State toState1 = new State();
-		toState1.setStateId(1);
+		toState1.setId(1);
 		State toState2 = new State();
-		toState2.setStateId(2);
+		toState2.setId(2);
 
 		State fromState = new State();
 
@@ -49,19 +49,12 @@ public class StateExample {
 
 		Item inputItem = dict.getItemBySid("said@say@VB@");
 
-		Iterator<Transition> it = fromState.consume(inputItem.fid);
+		Iterator<ItemState> it = fromState.consume(inputItem.fid);
 		while (it.hasNext()) {
 			System.out.println();
-			Transition t = it.next();
-			if (t.matches(inputItem.fid)) {
-				Iterator<ItemState> is = t.consume(inputItem.fid);
-				while (is.hasNext()) {
-					ItemState itemState = is.next();
-					System.out.println("outputItemFid = " + itemState.itemFid + ": toStateId = "
-							+ itemState.state.getStateId());
-				}
-			}
-
+			ItemState itemState = it.next();
+			System.out.println("outputItemFid = " + itemState.itemFid + ": toStateId = "
+					+ itemState.state.getId());
 		}
 		
 	}

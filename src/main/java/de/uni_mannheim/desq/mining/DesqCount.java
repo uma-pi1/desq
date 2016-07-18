@@ -11,7 +11,9 @@ import de.uni_mannheim.desq.util.PrimitiveUtils;
 import de.uni_mannheim.desq.util.PropertiesUtils;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenCustomHashMap;
+import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 
 public class DesqCount extends DesqMiner {
 	
@@ -27,7 +29,7 @@ public class DesqCount extends DesqMiner {
 	int[] flist;
 	IntList buffer;
 	IntList inputSequence;
-	Object2LongOpenCustomHashMap<int[]> outputSequences;
+	Object2LongMap<IntList> outputSequences = new Object2LongOpenHashMap<>();
 
 	public DesqCount(DesqMinerContext ctx, boolean useFlist) {
 		super(ctx);
@@ -36,10 +38,10 @@ public class DesqCount extends DesqMiner {
 		this.sigma = PropertiesUtils.getLong(ctx.properties, "minSupport");
 		this.flist = ctx.dict.getFlist().toIntArray();
 		buffer = new IntArrayList();
-		outputSequences = new Object2LongOpenCustomHashMap<int[]>(
-				new IntArrayStrategy());
+//		outputSequences =
+//				new IntArrayStrategy());
 		this.sid = 0;
-		this.initialStateId = ctx.fst.getInitialState().getStateId();
+		this.initialStateId = ctx.fst.getInitialState().getId();
 		this.useFlist = useFlist;
 	}
 
@@ -52,12 +54,12 @@ public class DesqCount extends DesqMiner {
 
 	@Override
 	public void mine() {
-		for(Map.Entry<int[], Long> entry : outputSequences.entrySet()) {
+		for(Map.Entry<IntList, Long> entry : outputSequences.entrySet()) {
 			long value = entry.getValue();
 			int support = PrimitiveUtils.getLeft(value);
 			if(support >= sigma) {
 				if (ctx.patternWriter != null) 
-					ctx.patternWriter.write(new IntArrayList(entry.getKey()), support);
+					ctx.patternWriter.write(entry.getKey(), support);
 			}
 		}
 	}
@@ -66,44 +68,41 @@ public class DesqCount extends DesqMiner {
 		
 		if(fst.getState(stateId).isFinal()) {
 			if(!buffer.isEmpty())
-				countSequence(buffer.toIntArray());
+				countSequence(buffer);
 		}
 		if(pos == inputSequence.size())
 			return;
 		
 		int itemFid = inputSequence.getInt(pos); // current input item in the sequence
-		
-		Iterator<Transition> it = fst.getState(stateId).consume(itemFid);
-		while(it.hasNext()) {
-			Transition t = it.next();
-			if(t.matches(itemFid)) {
-				Iterator<ItemState> is = t.consume(itemFid);
-				while(is.hasNext()) {
-					ItemState itemState = is.next();
-					int outputItemFid = itemState.itemFid;
+
+        //TODO: reuse iterators!
+        Iterator<ItemState> itemStateIt = fst.getState(stateId).consume(itemFid);
+		while(itemStateIt.hasNext()) {
+            ItemState itemState = itemStateIt.next();
+            int outputItemFid = itemState.itemFid;
 					
-					int toStateId = itemState.state.getStateId();
-					if(outputItemFid == 0) { //EPS output
-						step(pos + 1, toStateId);
-					} else {
-						if(!useFlist || flist[outputItemFid] >= sigma) {
-							buffer.add(outputItemFid);
-							step(pos + 1, toStateId);
-							buffer.remove(buffer.size() - 1);
-						}
-					}
+			int toStateId = itemState.state.getId();
+			if(outputItemFid == 0) { //EPS output
+				step(pos + 1, toStateId);
+			} else {
+				if(!useFlist || flist[outputItemFid] >= sigma) {
+					buffer.add(outputItemFid);
+					step(pos + 1, toStateId);
+					buffer.remove(buffer.size() - 1);
 				}
 			}
 		}
 	}
 
-	private void countSequence(int[] sequence) {
+	private void countSequence(IntList sequence) {
 		Long supSid = outputSequences.get(sequence);
 		if (supSid == null) {
-			outputSequences.put(sequence, PrimitiveUtils.combine(1, sid));
+			outputSequences.put(new IntArrayList(sequence), PrimitiveUtils.combine(1, sid)); // need to copy here
 			return;
 		}
 		if (PrimitiveUtils.getRight(supSid) != sid) {
+		    // TODO: can overflow
+		    // if chang order: newCount = count + 1 // no combine
 			int newCount = PrimitiveUtils.getLeft(supSid) + 1;
 			outputSequences.put(sequence, PrimitiveUtils.combine(newCount, sid));
 		}

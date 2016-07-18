@@ -64,7 +64,7 @@ public class PatEx {
 		// Create FST from the syntax tree
 		Fst fst = visitor.visit(tree);
 
-		fst.updateStateNumbers();
+		fst.updateStates();
 		return fst;
 	}
 	public class Visitor extends PatExBaseVisitor<Fst> {
@@ -119,7 +119,7 @@ public class PatEx {
 		@Override
 		public Fst visitRepeatMaxExpression(RepeatMaxExpressionContext ctx) {
 			int max = Integer.parseInt(ctx.WORD().getText());
-			return FstOperations.repeatMax(visit(ctx.repeatexp()), max);
+			return FstOperations.repeat(visit(ctx.repeatexp()), max);
 		}
 
 		
@@ -189,7 +189,7 @@ public class PatEx {
 				t = new BasicTransition(0, InputLabelType.SELF, -1, OutputLabelType.EPSILON, new State(true), dict);
 			}
 			fst.getInitialState().addTransition(t);
-			
+			fst.updateStates();
 			return fst;
 		}
 
@@ -250,7 +250,7 @@ public class PatEx {
 			
 			Transition t = new BasicTransition(inputLabel, inputLabelType, outputLabel, outputLabelType, new State(true), dict);
 			fst.getInitialState().addTransition(t);
-			
+			fst.updateStates();
 			return fst;
 		}
 		
