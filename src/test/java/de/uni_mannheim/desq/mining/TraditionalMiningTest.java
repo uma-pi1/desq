@@ -62,7 +62,8 @@ public abstract class TraditionalMiningTest {
             InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
         Class<? extends DesqMiner> minerClass = getMinerClass();
         String fileName = getBaseFileName() + "-" + sigma + "-" + gamma + "-" + lambda + "-" + generalize + ".del";
-        File actualFile = TestUtils.newTemporaryFile(getClass().getName(), fileName);
+        File actualFile = TestUtils.newTemporaryFile(
+                TestUtils.getPackageResourcesPath(getClass()) + "/" + getBaseFolderName(), fileName);
         mine(actualFile);
         try {
             File expectedFile = TestUtils.getPackageResource(getClass(), getBaseFolderName() + "/" + fileName);
