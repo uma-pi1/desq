@@ -2,7 +2,6 @@ package de.uni_mannheim.desq.fst;
 
 
 import java.util.*;
-import java.util.stream.Stream;
 
 import de.uni_mannheim.desq.visual.Vfst;
 
@@ -96,19 +95,12 @@ public class Fst {
 				stateCopy.addTransition(tCopy);
 			}
 		}
-
 		return fstCopy;
 	}
 	
 	
 	// print the fst to a file
 	public void print(String file) {
-		print(file, true);
-	}
-	
-	public void print(String file, boolean updateStateNumbers) {
-		if(updateStateNumbers)
-			updateStates();
 		Vfst vfst = new Vfst(file);
 		vfst.beginGraph();
 		for(State s : states) {
@@ -118,5 +110,13 @@ public class Fst {
 				vfst.addAccepted(String.valueOf(s.id));
 		}
 		vfst.endGraph();
+	}
+	
+	public List<State> reverse() {
+		return FstOperations.reverse(this);
+	}
+	
+	public List<State> reverse(boolean createNewInitialState) {
+		return FstOperations.reverse(this, createNewInitialState);
 	}
 }
