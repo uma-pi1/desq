@@ -2,17 +2,32 @@ package de.uni_mannheim.desq.dictionary;
 
 import java.util.*;
 
-/** A single item in a dictionary. */
+/** A single item in a dictionary.  */
 public class Item {
+	/** Stable global identifier of this item */
 	public int id;
+
+	/** Unique name of this item */
 	public String sid;
 
+	/** Internal "frequency" identifier of this item used to support efficient mining. This identifier is not
+     * necessarily stable; e.g., set {@link Dictionary#recomputeFids()}}. */
 	public int fid = -1;
+
+	/** Collection frequency of this item */
 	public int cFreq = -1;
-	public int dFreq = -1;
+
+    /** Document frequency of this ite, */
+    public int dFreq = -1;
+
+    /** Children of this item */
 	public List<Item> children = new ArrayList<>();
-	public List<Item> parents = new ArrayList<>();
-	public Properties properties;
+
+    /** Parents of this item. */
+    public List<Item> parents = new ArrayList<>();
+
+    /** Other properties associated with this item */
+    public Properties properties;
 	
 	public Item(int id, String sid) {
 		this.id = id;
@@ -38,7 +53,8 @@ public class Item {
 		item.properties = properties;
 		return item;
 	}
-	
+
+	/** Returns a comparator that compares by {@link de.uni_mannheim.desq.dictionary.Item#dFreq} descending. */
 	public static Comparator<Item> dfreqDecrComparator() {
 		return (o1, o2) -> o2.dFreq - o1.dFreq;
 	}
