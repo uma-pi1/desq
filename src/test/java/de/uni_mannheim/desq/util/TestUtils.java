@@ -33,7 +33,7 @@ public class TestUtils {
     public static File newTemporaryFile(String folder, String filename) throws IOException {
         getTemporaryFolder();
         File newFolder = new File(temporaryFolder.getRoot().getPath() + "/" + folder);
-        if (!newFolder.exists()) newFolder.mkdir();
+        if (!newFolder.exists()) newFolder.mkdirs();
         File newFile = new File(newFolder.getPath() + "/" + filename);
         newFile.createNewFile();
         logger.info("Creating temporary file: " + newFile);
