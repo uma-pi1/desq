@@ -44,8 +44,6 @@ public class DfsMiningExample {
 		int lambda = 2;
 		boolean generalize = true;
 		
-		System.out.println("\nPatterns (sigma=" + sigma + ", gamma="+gamma 
-				+ ", lambda="+lambda + ", generalize="+generalize);
 		dataReader = new DelSequenceReader(dataFile.openStream(), false);
 		dataReader.setDictionary(dict);
 		DesqMinerContext ctx = new DesqMinerContext();
@@ -53,6 +51,7 @@ public class DfsMiningExample {
 		MemoryPatternWriter result = new MemoryPatternWriter();
 		ctx.patternWriter = result;
         ctx.properties = PrefixGrowthMiner.createProperties(sigma,gamma,lambda,generalize);
+		System.out.println("\nPatterns " + ctx.properties.toString());
 		DesqMiner miner = new PrefixGrowthMiner(ctx);
 		miner.addInputSequences(dataReader);
 		miner.mine();
