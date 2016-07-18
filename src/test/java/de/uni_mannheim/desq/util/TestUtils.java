@@ -25,18 +25,17 @@ public class TestUtils {
         if (temporaryFolder == null) {
             temporaryFolder = new TemporaryFolder();
             temporaryFolder.create();
-            logger.info("Creating temporary folder: " + temporaryFolder.getRoot());
+            logger.info("Created temporary folder: " + temporaryFolder.getRoot());
         }
         return temporaryFolder;
     }
 
-    public static File newTemporaryFile(String folder, String filename) throws IOException {
+    public static File newTemporaryFile(String filename) throws IOException {
         getTemporaryFolder();
-        File newFolder = new File(temporaryFolder.getRoot().getPath() + "/" + folder);
-        if (!newFolder.exists()) newFolder.mkdirs();
-        File newFile = new File(newFolder.getPath() + "/" + filename);
+        File newFile = new File(temporaryFolder.getRoot().getPath() + "/" + filename);
+        newFile.getParentFile().mkdirs();
         newFile.createNewFile();
-        logger.info("Creating temporary file: " + newFile);
+        logger.debug("Created temporary file: " + newFile);
         return newFile;
     }
 

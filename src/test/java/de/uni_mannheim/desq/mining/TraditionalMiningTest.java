@@ -45,9 +45,6 @@ public abstract class TraditionalMiningTest {
     /** Reader for data */
     public abstract SequenceReader getSequenceReader() throws IOException;
 
-    /** Subfolder name for expected outputs (can be empty) */
-    public abstract String getBaseFolderName();
-
     /** Base file name for expected outputs */
     public abstract String getBaseFileName();
 
@@ -63,10 +60,10 @@ public abstract class TraditionalMiningTest {
         Class<? extends DesqMiner> minerClass = getMinerClass();
         String fileName = getBaseFileName() + "-" + sigma + "-" + gamma + "-" + lambda + "-" + generalize + ".del";
         File actualFile = TestUtils.newTemporaryFile(
-                TestUtils.getPackageResourcesPath(getClass()) + "/" + getBaseFolderName(), fileName);
+                TestUtils.getPackageResourcesPath(getClass()) + "/" + fileName);
         mine(actualFile);
         try {
-            File expectedFile = TestUtils.getPackageResource(getClass(), getBaseFolderName() + "/" + fileName);
+            File expectedFile = TestUtils.getPackageResource(getClass(), fileName);
             assertThat(actualFile).hasSameContentAs(expectedFile);
         } catch (NullPointerException e) {
             logger.error("Can't access expected data file for " + actualFile);
