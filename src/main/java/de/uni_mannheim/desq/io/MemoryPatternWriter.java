@@ -6,8 +6,6 @@ import java.util.List;
 import de.uni_mannheim.desq.mining.Pattern;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
-import it.unimi.dsi.fastutil.longs.LongArrayList;
-import it.unimi.dsi.fastutil.longs.LongList;
 
 /** Keeps all output in memory */
 public class MemoryPatternWriter extends PatternWriter {

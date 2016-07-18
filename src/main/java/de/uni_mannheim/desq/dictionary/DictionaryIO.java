@@ -16,8 +16,8 @@ public class DictionaryIO {
 	public static void addItemFromDelLine(Dictionary dict, String line, boolean withStatistics) {
 		// create the item
 		String[] columns = line.split("\t");
-		Item item = null;
-		String[] parents = null;
+		Item item;
+		String[] parents;
 		if (withStatistics) {
 			String sid = columns[0];
 			int id = Integer.parseInt(columns[3]);
@@ -96,8 +96,8 @@ public class DictionaryIO {
 	/** Save a dictionary to del line format. */
 	public static void saveToDel(OutputStream out, Dictionary dict, 
 			boolean useFids, boolean withStatistics) throws IOException {
-		List<Integer> items = new ArrayList<Integer>(
-				useFids ? dict.itemsByFid.keySet() : dict.itemsById.keySet());
+		List<Integer> items = new ArrayList<>(
+                useFids ? dict.itemsByFid.keySet() : dict.itemsById.keySet());
 		Collections.sort(items);
 		
 		OutputStreamWriter writer = new OutputStreamWriter(out);

@@ -3,7 +3,6 @@ package de.uni_mannheim.desq.io;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Writer;
-import java.util.Comparator;
 
 import it.unimi.dsi.fastutil.ints.IntList;
 

@@ -11,19 +11,13 @@ import java.util.Map.Entry;
 
 import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.util.IntSetUtils;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntCollection;
-import it.unimi.dsi.fastutil.ints.IntIterator;
-import it.unimi.dsi.fastutil.ints.IntList;
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import it.unimi.dsi.fastutil.ints.IntSet;
-import it.unimi.dsi.fastutil.ints.IntSets;
+import it.unimi.dsi.fastutil.ints.*;
 
 /** A set of items arranged in a hierarchy */ 
 public class Dictionary {
 	// indexes
-	Map<Integer, Item> itemsById = new HashMap<>();
-	Map<Integer, Item> itemsByFid = new HashMap<>();
+	Int2ObjectMap<Item> itemsById = new Int2ObjectOpenHashMap<>();
+	Int2ObjectMap<Item> itemsByFid = new Int2ObjectOpenHashMap<>();
 	Map<String, Item> itemsBySid = new HashMap<>();
 	
 	// -- updating the hierarchy ------------------------------------------------------------------
@@ -41,7 +35,7 @@ public class Dictionary {
 		}
 		itemsById.put(item.id, item);
 		if (item.fid >= 0) itemsByFid.put(item.fid, item);
-		itemsBySid.put(item.sid, item);		
+		itemsBySid.put(item.sid, item);
 	}
 	
 	/** Updates the counts of the hierarchy by adding the given input sequence. 

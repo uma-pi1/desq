@@ -16,8 +16,6 @@ public abstract class PatternWriter extends WithDictionary {
     }
 
     public void writeAll(Collection<Pattern> patterns) {
-        for (Pattern pattern : patterns) {
-            write(pattern);
-        }
+        patterns.forEach(this::write);
     }
 }

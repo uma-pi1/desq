@@ -40,11 +40,6 @@ public class Item {
 	}
 	
 	public static Comparator<Item> dfreqDecrComparator() {
-		return new Comparator<Item>() {
-			@Override
-			public int compare(Item o1, Item o2) {
-				return o2.dFreq - o1.dFreq;
-			}
-		};
+		return (o1, o2) -> o2.dFreq - o1.dFreq;
 	}
 }

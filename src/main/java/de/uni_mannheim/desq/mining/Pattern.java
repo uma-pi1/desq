@@ -3,8 +3,6 @@ package de.uni_mannheim.desq.mining;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
-import java.util.Comparator;
-
 /**
  * Created by rgemulla on 18.07.2016.
  */
