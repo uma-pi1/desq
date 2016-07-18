@@ -1,5 +1,12 @@
 package de.uni_mannheim.desq.fst;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 public final class FstOperations {
 
 	private FstOperations() {
@@ -110,5 +117,47 @@ public final class FstOperations {
 		return fst;
 	}
 	
+	
+	public static void minimize(Fst fst) {
+		
+	}
+	
+	public static List<State> reverse(Fst fst) {
+		return reverse(fst, true);
+	}
+	
+	public static List<State> reverse(Fst fst, boolean createNewInitialState) {
+		Map<State, Set<Transition>> reverseTMap = new HashMap<>();
+
+		reverseTMap.put(fst.initialState, new HashSet<Transition>());
+
+		for (State s : fst.states) {
+			for (Transition t : s.transitionSet) {
+				Set<Transition> tSet = reverseTMap.get(t.toState);
+				if (tSet == null) {
+					tSet = new HashSet<Transition>();
+					reverseTMap.put(t.toState, tSet);
+				}
+				Transition r = t.shallowCopy();
+				r.setToState(s);
+				tSet.add(r);
+			}
+		}
+
+		// Update states with reverse transtitions
+		for (State s1 : fst.states) {
+			s1.transitionSet = reverseTMap.get(s1);
+		}
+
+		if (createNewInitialState) {
+			// If we want one initial state
+			fst.initialState = new State();
+			for (State a : fst.finalStates) {
+				fst.initialState.simulateEpsilonTransition(a);
+			}
+			fst.updateStates();
+		}
+		return fst.finalStates;
+	}
 	
 }
