@@ -42,6 +42,9 @@ public abstract class TraditionalMiningTest {
     /** Reader for data */
     public abstract SequenceReader getSequenceReader() throws IOException;
 
+    /** Subfolder name for expected outputs (can be empty) */
+    public abstract String getBaseFolderName();
+
     /** Base file name for expected outputs */
     public abstract String getBaseFileName();
 
@@ -58,7 +61,7 @@ public abstract class TraditionalMiningTest {
         String fileName = getBaseFileName() + "-" + sigma + "-" + gamma + "-" + lambda + "-" + generalize + ".del";
         File actualFile = TestUtils.newTemporaryFile(getClass().getName(), fileName);
         mine(actualFile);
-        File expectedFile = TestUtils.getPackageResource(getClass(), fileName);
+        File expectedFile = TestUtils.getPackageResource(getClass(), getBaseFolderName() + "/" + fileName);
         assertThat(actualFile).hasSameContentAs(expectedFile);
     }
 

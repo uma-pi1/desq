@@ -49,6 +49,11 @@ public abstract class Icdm16TraditionalMiningTest extends TraditionalMiningTest 
     }
 
     @Override
+    public String getBaseFolderName() {
+        return "icdm16/";
+    }
+
+    @Override
     public String getBaseFileName() {
         return "icdm16-traditional-patterns-ids";
     }

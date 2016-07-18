@@ -3,6 +3,7 @@ package de.uni_mannheim.desq.util;
 import de.uni_mannheim.desq.io.DelPatternReader;
 import de.uni_mannheim.desq.io.DelPatternWriter;
 import de.uni_mannheim.desq.mining.Pattern;
+import org.apache.log4j.Logger;
 import org.junit.rules.*;
 import org.junit.rules.TemporaryFolder;
 
@@ -11,14 +12,12 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.logging.LogManager;
-import java.util.logging.Logger;
 
 /**
  * Created by rgemulla on 18.07.2016.
  */
 public class TestUtils {
-    private static Logger logger = Logger.getLogger(TestUtils.class.getName());
+    private static Logger logger = Logger.getLogger(TestUtils.class);
 
     private static org.junit.rules.TemporaryFolder temporaryFolder;
 
