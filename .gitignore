@@ -6,3 +6,4 @@ target/
 /.project
 /.classpath
 /desq.log
+/desq-test.log
