@@ -1,4 +1,4 @@
-package de.uni_mannheim.desq.utils;
+package de.uni_mannheim.desq.util;
 
 import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.ints.IntSets;

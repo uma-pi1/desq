@@ -3,6 +3,7 @@ package de.uni_mannheim.desq.io;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Writer;
+import java.util.Comparator;
 
 import it.unimi.dsi.fastutil.ints.IntList;
 
@@ -24,8 +25,8 @@ public class DelPatternWriter extends PatternWriter {
 	}
 
 	@Override
-	public void write(IntList itemFids, long count) {
-		writer.print(count);
+	public void write(IntList itemFids, long frequency) {
+		writer.print(frequency);
 		writer.print("\t");
 		String sep="";
 		for (int i=0; i<itemFids.size(); i++) {

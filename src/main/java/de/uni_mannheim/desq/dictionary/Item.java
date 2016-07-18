@@ -1,10 +1,6 @@
 package de.uni_mannheim.desq.dictionary;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /** A single item in a dictionary. */
 public class Item {
@@ -14,9 +10,9 @@ public class Item {
 	public int fid = -1;
 	public int cFreq = -1;
 	public int dFreq = -1;
-	public List<Item> children = new ArrayList<Item>();
-	public List<Item> parents = new ArrayList<Item>();
-	public Map<String,Object> properties = new HashMap<String,Object>();
+	public List<Item> children = new ArrayList<>();
+	public List<Item> parents = new ArrayList<>();
+	public Properties properties;
 	
 	public Item(int id, String sid) {
 		this.id = id;

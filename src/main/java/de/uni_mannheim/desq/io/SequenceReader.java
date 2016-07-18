@@ -7,7 +7,12 @@ import it.unimi.dsi.fastutil.ints.IntList;
 public abstract class SequenceReader extends WithDictionary {
 	// reads next sequence and stores it in itemFids; returns false when no more data
 	public abstract boolean read(IntList items) throws IOException;
-	
+
+	// true if the reader produces fids, false if ids
+	public abstract boolean usesFids();
+
+	public abstract void close() throws IOException;
+
 	public boolean readAsIds(IntList itemIds) throws IOException {
 		boolean hasNext = read(itemIds);
 		if (hasNext && usesFids()) {
@@ -24,6 +29,4 @@ public abstract class SequenceReader extends WithDictionary {
 		return hasNext;
 	}
 
-	// true if the reader produces fids, false if ids
-	public abstract boolean usesFids();
 }
