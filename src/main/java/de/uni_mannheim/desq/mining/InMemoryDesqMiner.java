@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 public abstract class InMemoryDesqMiner extends DesqMiner {
-	protected ArrayList<int[]> inputSequences = new ArrayList<int[]>();
+	protected ArrayList<int[]> inputSequences = new ArrayList<>();
 	
 	protected InMemoryDesqMiner(DesqMinerContext ctx) {
 		super(ctx);

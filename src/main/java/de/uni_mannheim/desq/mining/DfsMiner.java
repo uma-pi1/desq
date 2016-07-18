@@ -2,7 +2,9 @@ package de.uni_mannheim.desq.mining;
 
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Properties;
 
+import de.uni_mannheim.desq.util.PropertiesUtils;
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -12,17 +14,17 @@ import mining.PostingList;
 /**
  * @author Kaustubh Beedkar (kbeedkar@uni-mannheim.de)
  *
- * Gives wrong results (see DfsMiningExample). Also needs to be cleaned up.
+ * Also needs to be cleaned up.
  */
 public class DfsMiner extends DesqMiner {
 	// parameters for mining
-	protected int sigma;
+	protected long sigma;
 	protected int gamma;
 	protected int lambda;
 	protected boolean generalize = false;
 
 	// helper variables
-	protected ArrayList<int[]> inputTransactions = new ArrayList<int[]>();
+	protected ArrayList<int[]> inputTransactions = new ArrayList<>();
 	protected IntArrayList transactionSupports = new IntArrayList();
 	private int noOutputPatterns = 0;
 	protected int beginItem = 0;
@@ -32,12 +34,9 @@ public class DfsMiner extends DesqMiner {
 	public int itemsCounted = 0;
 	int[] flist;
 
-	public DfsMiner(DesqMinerContext ctx, int gamma, int lambda, boolean generalize) {
+	public DfsMiner(DesqMinerContext ctx) {
 		super(ctx);
-		this.sigma = ctx.sigma;
-		this.gamma = gamma;
-		this.lambda = lambda;
-		this.generalize = generalize;
+		setParameters(ctx.properties);
 		this.flist = ctx.dict.getFlist().toIntArray();
 	}
 
@@ -45,6 +44,22 @@ public class DfsMiner extends DesqMiner {
 		inputTransactions.clear();
 		transactionSupports.clear();
 		globalItems.clear();
+	}
+
+	public static Properties createProperties(int sigma, int gamma, int lambda, boolean generalize) {
+		Properties properties = new Properties();
+		PropertiesUtils.set(properties, "minSupport", sigma);
+		PropertiesUtils.set(properties, "maxGap", gamma);
+		PropertiesUtils.set(properties, "maxLength", lambda);
+		PropertiesUtils.set(properties, "generalize", generalize);
+		return properties;
+	}
+
+	public void setParameters(Properties properties) {
+		this.sigma = PropertiesUtils.getLong(ctx.properties, "minSupport");
+		this.gamma = PropertiesUtils.getInt(ctx.properties, "maxGap");
+		this.lambda = PropertiesUtils.getInt(ctx.properties, "maxLength");
+		this.generalize = PropertiesUtils.getBoolean(ctx.properties, "generalize");
 	}
 
 	public void setParameters(int sigma, int gamma, int lambda, boolean generalize) {
@@ -141,7 +156,7 @@ public class DfsMiner extends DesqMiner {
 			while (transactions.hasNextValue()) {
 				int position = transactions.nextValue();
 
-				/** Add items in the right gamma+1 neighborhood */
+				/* Add items in the right gamma+1 neighborhood */
 				int gap = 0;
 				for (int j = 0; gap <= gamma && (position + j + 1 < transaction.length); ++j) {
 					int itemId = transaction[position + j + 1];
@@ -223,7 +238,7 @@ public class DfsMiner extends DesqMiner {
 
 	private static final class Items {
 
-		Int2ObjectOpenHashMap<Item> itemIndex = new Int2ObjectOpenHashMap<Item>();
+		Int2ObjectOpenHashMap<Item> itemIndex = new Int2ObjectOpenHashMap<>();
 
 		public void addItem(int itemId, int transactionId, int support, int position) {
 			

@@ -1,4 +1,4 @@
-package de.uni_mannheim.desq.utils;
+package de.uni_mannheim.desq.util;
 
 /**
  *

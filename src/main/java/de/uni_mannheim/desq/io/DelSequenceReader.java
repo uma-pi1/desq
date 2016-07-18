@@ -32,6 +32,11 @@ public class DelSequenceReader extends SequenceReader {
 	@Override
 	public boolean usesFids() {
 		return usesFids;
-	}	
+	}
+
+	@Override
+	public void close() throws IOException {
+		reader.close();
+	}
 
 }

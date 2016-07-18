@@ -6,8 +6,9 @@ import java.util.Map;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.ItemState;
 import de.uni_mannheim.desq.fst.Transition;
-import de.uni_mannheim.desq.utils.IntArrayStrategy;
-import de.uni_mannheim.desq.utils.PrimitiveUtils;
+import de.uni_mannheim.desq.util.IntArrayStrategy;
+import de.uni_mannheim.desq.util.PrimitiveUtils;
+import de.uni_mannheim.desq.util.PropertiesUtils;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenCustomHashMap;
@@ -16,7 +17,7 @@ public class DesqCount extends DesqMiner {
 	
 	// parameters for mining
 	Fst fst;
-	int sigma;
+	long sigma;
 	boolean useFlist = true;
 	
 	
@@ -32,7 +33,7 @@ public class DesqCount extends DesqMiner {
 		super(ctx);
 		// TODO Auto-generated constructor stub
 		this.fst = ctx.fst;
-		this.sigma = ctx.sigma;
+		this.sigma = PropertiesUtils.getLong(ctx.properties, "minSupport");
 		this.flist = ctx.dict.getFlist().toIntArray();
 		buffer = new IntArrayList();
 		outputSequences = new Object2LongOpenCustomHashMap<int[]>(

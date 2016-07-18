@@ -1,10 +1,23 @@
 package de.uni_mannheim.desq.io;
 
+import de.uni_mannheim.desq.mining.Pattern;
 import it.unimi.dsi.fastutil.ints.IntList;
 
+import java.util.Collection;
+
 public abstract class PatternWriter extends WithDictionary {
-	/** Collects a pattern mined by Desq. The provided IntList must not be buffered by the collector. */
-	public abstract void write(IntList itemFids, long count);
-	
+	/** Writes a pattern given in terms of fids. The provided IntList must not be buffered. */
+	public abstract void write(IntList itemFids, long frequency);
+
 	public abstract void close();
+
+    /** Writes a pattern given in terms of fids. The provided Pattern must not be buffered. */
+    public void write(Pattern pattern) {
+        write(pattern.getItemFids(), pattern.getFrequency());
+    }
+
+    /** Writes a collection of pattern given in terms of fids. The provided Patterns must not be buffered. */
+    public void writeAll(Collection<Pattern> patterns) {
+        patterns.forEach(this::write);
+    }
 }

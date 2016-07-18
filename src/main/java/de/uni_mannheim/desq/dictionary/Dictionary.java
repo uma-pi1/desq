@@ -10,21 +10,15 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import de.uni_mannheim.desq.io.SequenceReader;
-import de.uni_mannheim.desq.utils.IntSetUtils;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntCollection;
-import it.unimi.dsi.fastutil.ints.IntIterator;
-import it.unimi.dsi.fastutil.ints.IntList;
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import it.unimi.dsi.fastutil.ints.IntSet;
-import it.unimi.dsi.fastutil.ints.IntSets;
+import de.uni_mannheim.desq.util.IntSetUtils;
+import it.unimi.dsi.fastutil.ints.*;
 
 /** A set of items arranged in a hierarchy */ 
 public class Dictionary {
 	// indexes
-	Map<Integer, Item> itemsById = new HashMap<Integer, Item>();
-	Map<Integer, Item> itemsByFid = new HashMap<Integer, Item>();
-	Map<String, Item> itemsBySid = new HashMap<String, Item>();
+	Int2ObjectMap<Item> itemsById = new Int2ObjectOpenHashMap<>();
+	Int2ObjectMap<Item> itemsByFid = new Int2ObjectOpenHashMap<>();
+	Map<String, Item> itemsBySid = new HashMap<>();
 	
 	// -- updating the hierarchy ------------------------------------------------------------------
 	
@@ -41,7 +35,7 @@ public class Dictionary {
 		}
 		itemsById.put(item.id, item);
 		if (item.fid >= 0) itemsByFid.put(item.fid, item);
-		itemsBySid.put(item.sid, item);		
+		itemsBySid.put(item.sid, item);
 	}
 	
 	/** Updates the counts of the hierarchy by adding the given input sequence. 
@@ -111,7 +105,7 @@ public class Dictionary {
 	}
 	/** Returns all items for the given fids */
 	public List<Item> getItemsByIds(IntCollection itemIds) {
-		List<Item> items = new ArrayList<Item>();
+		List<Item> items = new ArrayList<>();
 		getItemsByIds(itemIds, items);
 		return items;
 	}
@@ -137,7 +131,7 @@ public class Dictionary {
 	
 	/** Returns all items for the given fids */
 	public List<Item> getItemsByFids(IntCollection itemFids) {
-		List<Item> items = new ArrayList<Item>();
+		List<Item> items = new ArrayList<>();
 		getItemsByFids(itemFids, items);
 		return items;
 	}
@@ -272,7 +266,7 @@ public class Dictionary {
 		IntList flist = new IntArrayList();
 		flist.size(itemsByFid.size()+1);
 		for(Entry<Integer, Item> entry : itemsByFid.entrySet()) {
-			int fid = entry.getKey().intValue();
+			int fid = entry.getKey();
 			if (fid>flist.size()) flist.size(fid+1);
 			flist.set(fid, entry.getValue().dFreq);
 		}
@@ -340,7 +334,7 @@ public class Dictionary {
         // items with a higher frequency will always appear before items
         // with lower frequency (under the assumption that document frequencies
         // are valid).
-        List<Item> items = new ArrayList<Item>(allItems());
+        List<Item> items = new ArrayList<>(allItems());
         Collections.sort(items, Item.dfreqDecrComparator());
 
         /* Fire off a DFS from each node in the graph. */
@@ -356,7 +350,6 @@ public class Dictionary {
      * encountered by the search.
      *
      * @param item The node to begin the search from.
-     * @param g The graph in which to perform the search.
      * @param orderingIds A list holding the topological sort of the graph.
      * @param visitedIds A set of nodes that have already been visited.
      * @param expandedIds A set of nodes that have been fully expanded.

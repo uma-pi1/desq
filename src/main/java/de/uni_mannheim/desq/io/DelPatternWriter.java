@@ -24,8 +24,8 @@ public class DelPatternWriter extends PatternWriter {
 	}
 
 	@Override
-	public void write(IntList itemFids, long count) {
-		writer.print(count);
+	public void write(IntList itemFids, long frequency) {
+		writer.print(frequency);
 		writer.print("\t");
 		String sep="";
 		for (int i=0; i<itemFids.size(); i++) {

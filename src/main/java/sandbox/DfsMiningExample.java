@@ -1,6 +1,5 @@
 package sandbox;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URL;
 
@@ -12,6 +11,7 @@ import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.mining.DesqMiner;
 import de.uni_mannheim.desq.mining.DesqMinerContext;
 import de.uni_mannheim.desq.mining.DfsMiner;
+import de.uni_mannheim.desq.mining.Pattern;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
@@ -49,18 +49,18 @@ public class DfsMiningExample {
 		dataReader = new DelSequenceReader(dataFile.openStream(), false);
 		dataReader.setDictionary(dict);
 		DesqMinerContext ctx = new DesqMinerContext();
-		ctx.sigma = sigma;
+        ctx.dict = dict;
 		MemoryPatternWriter result = new MemoryPatternWriter();
 		ctx.patternWriter = result;
-		ctx.dict = dict;
-		DesqMiner miner = new DfsMiner(ctx,gamma,lambda,generalize);
+        ctx.properties = DfsMiner.createProperties(sigma,gamma,lambda,generalize);
+		DesqMiner miner = new DfsMiner(ctx);
 		miner.addInputSequences(dataReader);
 		miner.mine();
 		
-		for (int i=0; i<result.size(); i++) {
-			System.out.print(result.getFrequency(i));
+		for (Pattern pattern : result.getPatterns()) {
+			System.out.print(pattern.getFrequency());
 			System.out.print(": ");
-			System.out.println(dict.getItemsByFids(result.getPattern(i)));
+			System.out.println(dict.getItemsByFids(pattern.getItemFids()));
 		}
 	}
 
@@ -68,5 +68,4 @@ public class DfsMiningExample {
 		//nyt();
 		new DfsMiningExample().icdm16();
 	}
-
 }
