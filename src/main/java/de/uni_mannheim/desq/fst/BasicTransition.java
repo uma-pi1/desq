@@ -132,7 +132,7 @@ public class BasicTransition extends Transition {
 			it2.itemState.state = toState;
 			if (outputLabelType == OutputLabelType.SELF_ASCENDANTS) {
 				it2.fidIterator = outputDict.ascendantsFids(itemFid).iterator();
-				it2.fidIterator.next();
+				it2.fid = it2.fidIterator.next();
 			}
 		} else {
 			it2.itemState.itemFid = -1;

@@ -32,7 +32,7 @@ public class StateExample {
 		fromState.addTransition(t1);
 
 		// A:EPS
-		Item item = dict.getItemBySid("ENTITY@");
+		Item item = dict.getItemBySid("VB@");
 		Transition t2 = new BasicTransition(item.fid, InputLabelType.SELF_DESCENDANTS, -1, OutputLabelType.EPSILON,
 				toState2, dict);
 		fromState.addTransition(t2);
@@ -47,7 +47,7 @@ public class StateExample {
 				OutputLabelType.SELF_ASCENDANTS, toState2, dict);
 		fromState.addTransition(t4);
 
-		Item inputItem = dict.getItemBySid("Germany@LOCATION@ENTITY@");
+		Item inputItem = dict.getItemBySid("said@say@VB@");
 
 		Iterator<Transition> it = fromState.consume(inputItem.fid);
 		while (it.hasNext()) {
@@ -57,7 +57,7 @@ public class StateExample {
 				Iterator<ItemState> is = t.consume(inputItem.fid);
 				while (is.hasNext()) {
 					ItemState itemState = is.next();
-					System.out.println("outputItemSid = " + dict.getItemByFid(itemState.itemFid) + ": toStateId = "
+					System.out.println("outputItemFid = " + itemState.itemFid + ": toStateId = "
 							+ itemState.state.getStateId());
 				}
 			}
