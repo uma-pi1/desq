@@ -8,6 +8,8 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
 
+import de.uni_mannheim.desq.visual.Vfst;
+
 
  
 public class Fst {
@@ -116,5 +118,25 @@ public class Fst {
 			}
 		}
 		return fstCopy;
+	}
+	
+	
+	// print the fst to a file
+	public void print(String file) {
+		print(file, true);
+	}
+	
+	public void print(String file, boolean updateStateNumbers) {
+		if(updateStateNumbers)
+			updateStateNumbers();
+		Vfst vfst = new Vfst(file);
+		vfst.beginGraph();
+		for(State s : states) {
+			for(Transition t : s.transitionSet)
+				vfst.add(String.valueOf(s.stateId), t.toString(), String.valueOf(t.getToState().stateId));
+			if(s.isFinal)
+				vfst.addAccepted(String.valueOf(s.stateId));
+		}
+		vfst.endGraph();
 	}
 }
