@@ -10,7 +10,7 @@ import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.mining.DesqMiner;
 import de.uni_mannheim.desq.mining.DesqMinerContext;
-import de.uni_mannheim.desq.mining.DfsMiner;
+import de.uni_mannheim.desq.mining.PrefixGrowthMiner;
 import de.uni_mannheim.desq.mining.Pattern;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
@@ -52,8 +52,8 @@ public class DfsMiningExample {
         ctx.dict = dict;
 		MemoryPatternWriter result = new MemoryPatternWriter();
 		ctx.patternWriter = result;
-        ctx.properties = DfsMiner.createProperties(sigma,gamma,lambda,generalize);
-		DesqMiner miner = new DfsMiner(ctx);
+        ctx.properties = PrefixGrowthMiner.createProperties(sigma,gamma,lambda,generalize);
+		DesqMiner miner = new PrefixGrowthMiner(ctx);
 		miner.addInputSequences(dataReader);
 		miner.mine();
 		

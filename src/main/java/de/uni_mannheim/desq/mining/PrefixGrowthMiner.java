@@ -16,7 +16,7 @@ import mining.PostingList;
  *
  * Also needs to be cleaned up.
  */
-public class DfsMiner extends DesqMiner {
+public class PrefixGrowthMiner extends DesqMiner {
 	// parameters for mining
 	protected long sigma;
 	protected int gamma;
@@ -34,7 +34,7 @@ public class DfsMiner extends DesqMiner {
 	public int itemsCounted = 0;
 	int[] flist;
 
-	public DfsMiner(DesqMinerContext ctx) {
+	public PrefixGrowthMiner(DesqMinerContext ctx) {
 		super(ctx);
 		setParameters(ctx.properties);
 		this.flist = ctx.dict.getFlist().toIntArray();

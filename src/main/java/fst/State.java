@@ -62,7 +62,7 @@ public class State{
 
 	/*@Override
 	public int hashCode() {
-		return id;
+		return gid;
 	}*/
 
 }

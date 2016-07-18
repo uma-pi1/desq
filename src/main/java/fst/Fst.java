@@ -249,7 +249,7 @@ public class Fst {
 			if (!visited.contains(s)) {
 				for (Transition t : s.transitions) {
 					worklist.add(t.to);
-					//vdfa.add(t.to.id, s.id, t.yield, t.label, false);
+					//vdfa.add(t.to.gid, s.gid, t.yield, t.label, false);
 					String olabel = null;
 					if (t.oLabel.type == OutputLabel.Type.EPSILON) {
 						olabel = "eps";

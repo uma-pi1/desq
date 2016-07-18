@@ -24,16 +24,16 @@ public class Dictionary {
 	
 	/** Adds a new item to the hierarchy. If the fid equals 0, it won't be indexed */
 	public void addItem(Item item) {
-		if (containsId(item.id)) {
-			throw new IllegalArgumentException("Item id '" + item.id + "' exists already");
+		if (containsId(item.gid)) {
+			throw new IllegalArgumentException("Item gid '" + item.gid + "' exists already");
 		}
 		if (itemsBySid.containsKey(item.sid)) {
 			throw new IllegalArgumentException("Item sid '" + item.sid + "' exists already");
 		}
 		if (item.fid >= 0 && itemsByFid.containsKey(item.fid)) {
-			throw new IllegalArgumentException("Item fid '" + item.id + "' exists already");
+			throw new IllegalArgumentException("Item fid '" + item.gid + "' exists already");
 		}
-		itemsById.put(item.id, item);
+		itemsById.put(item.gid, item);
 		if (item.fid >= 0) itemsByFid.put(item.fid, item);
 		itemsBySid.put(item.sid, item);
 	}
@@ -46,7 +46,7 @@ public class Dictionary {
 			int ii = inputSequence.getInt(i);
 			Item item = fid ? getItemByFid(ii) : getItemById(ii);
 			ancItems.clear();
-			ancItems.add(item.id);
+			ancItems.add(item.gid);
 			addAscendantIds(item, ancItems);
 			for (int id : ancItems) {
 				getItemById(id).cFreq++;
@@ -99,7 +99,7 @@ public class Dictionary {
 		return itemsById.containsKey(itemId);
 	}
 	
-	/** Returns the item with the given id (or null if no such item exists) */
+	/** Returns the item with the given gid (or null if no such item exists) */
 	public Item getItemById(int itemId) {
 		return itemsById.get(itemId);
 	}
@@ -222,9 +222,9 @@ public class Dictionary {
 	 * ascendants of items already present in itemFids. */	
 	public void addAscendantIds(Item item, IntSet itemIds) {
 		for (Item parent : item.parents) {
-			if (!itemIds.contains(parent.id)) {
-				itemIds.add(parent.id);
-				addAscendantIds(getItemById(parent.id), itemIds);
+			if (!itemIds.contains(parent.gid)) {
+				itemIds.add(parent.gid);
+				addAscendantIds(getItemById(parent.gid), itemIds);
 			}
 		}
 	}
@@ -284,7 +284,7 @@ public class Dictionary {
 	public void fidsToIds(IntList fids) {
 		for (int i=0; i<fids.size(); i++) {
 			int fid = fids.getInt(i);
-			int id = getItemByFid(fid).id;
+			int id = getItemByFid(fid).gid;
 			fids.set(i, id);	
 		}
 	}
@@ -361,7 +361,7 @@ public class Dictionary {
         /* Check whether we've been here before.  If so, we should stop the
          * search.
          */
-        if (visitedIds.contains(item.id)) {
+        if (visitedIds.contains(item.gid)) {
             /* There are two cases to consider.  First, if this node has
              * already been expanded, then it's already been assigned a
              * position in the final topological sort and we don't need to
@@ -370,12 +370,12 @@ public class Dictionary {
              * and therefore is part of a cycle.  In that case, we should 
              * report an error.
              */
-            if (expandedIds.contains(item.id)) return;
+            if (expandedIds.contains(item.gid)) return;
             throw new IllegalArgumentException("Graph contains a cycle.");
         }
         
         /* Mark that we've been here */
-        visitedIds.add(item.id);
+        visitedIds.add(item.gid);
 
         /* Recursively explore all of the node's predecessors. */
         for (Item predecessor: item.parents)
@@ -384,9 +384,9 @@ public class Dictionary {
         /* Having explored all of the node's predecessors, we can now add this
          * node to the sorted ordering.
          */
-        orderingIds.add(item.id);
+        orderingIds.add(item.gid);
 
         /* Similarly, mark that this node is done being expanded. */
-        expandedIds.add(item.id);
+        expandedIds.add(item.gid);
     }
 }

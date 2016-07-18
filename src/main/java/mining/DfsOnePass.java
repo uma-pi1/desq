@@ -166,9 +166,9 @@ public class DfsOnePass extends DesqDfs {
 						break;
 
 					case SELFGENERALIZE:
-						for (int id : getParents(itemId, olabel.item)) {
-							if (flist[id] >= sigma) {
-								node.append(id, sId, pos + 1, toState);
+						for (int gid : getParents(itemId, olabel.item)) {
+							if (flist[gid] >= sigma) {
+								node.append(gid, sId, pos + 1, toState);
 							}
 						}
 						break;

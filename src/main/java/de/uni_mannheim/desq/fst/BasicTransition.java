@@ -92,7 +92,7 @@ public class BasicTransition extends Transition {
 			case SELF_ASCENDANTS:
 				itemState.itemFid = fid;
 				if (fidIterator.hasNext())
-					fid = fidIterator.next().intValue();
+					fid = fidIterator.nextInt();
 				else
 					fid = -1;
 			}
@@ -102,8 +102,7 @@ public class BasicTransition extends Transition {
 
 		@Override
 		public void remove() {
-			// TODO Auto-generated method stub
-			
+			throw new UnsupportedOperationException();
 		}
 		
 	}
@@ -120,25 +119,25 @@ public class BasicTransition extends Transition {
 
 	@Override
 	public Iterator<ItemState> consume(int itemFid, Iterator<ItemState> it) {
-		ItemStateIterator it2 = null;
+		ItemStateIterator resultIt = null;
 		if (it != null && it instanceof ItemStateIterator) 
-			it2 = (ItemStateIterator)it;
+			resultIt = (ItemStateIterator)it;
 		else
-			it2 = new ItemStateIterator();
+			resultIt = new ItemStateIterator();
 		
 		if (inputLabel==0 || inputFids.contains(itemFid)) {
-			it2.fid = itemFid;
-			it2.itemState.itemFid = itemFid;
-			it2.itemState.state = toState;
+			resultIt.fid = itemFid;
+			resultIt.itemState.itemFid = itemFid;
+			resultIt.itemState.state = toState;
 			if (outputLabelType == OutputLabelType.SELF_ASCENDANTS) {
-				it2.fidIterator = outputDict.ascendantsFids(itemFid).iterator();
-				it2.fid = it2.fidIterator.next();
+				resultIt.fidIterator = outputDict.ascendantsFids(itemFid).iterator();
+				resultIt.fid = resultIt.fidIterator.nextInt();
 			}
 		} else {
-			it2.itemState.itemFid = -1;
+			resultIt.itemState.itemFid = -1;
 		}
 
-		return it2;
+		return resultIt;
 	}
 
 	@Override

@@ -4,10 +4,10 @@ import java.util.ArrayList;
 
 import it.unimi.dsi.fastutil.ints.IntList;
 
-public abstract class InMemoryDesqMiner extends DesqMiner {
+public abstract class MemoryDesqMiner extends DesqMiner {
 	protected ArrayList<int[]> inputSequences = new ArrayList<>();
 	
-	protected InMemoryDesqMiner(DesqMinerContext ctx) {
+	protected MemoryDesqMiner(DesqMinerContext ctx) {
 		super(ctx);
 	}
 	

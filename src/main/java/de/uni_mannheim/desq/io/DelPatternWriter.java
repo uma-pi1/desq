@@ -33,7 +33,7 @@ public class DelPatternWriter extends PatternWriter {
 			writer.write(sep);
 			sep = "\t";
 			if (convertToIds) {
-				writer.print( dict.getItemByFid(fid).id );					
+				writer.print( dict.getItemByFid(fid).gid);
 			} else {
 				writer.print( fid );
 			}

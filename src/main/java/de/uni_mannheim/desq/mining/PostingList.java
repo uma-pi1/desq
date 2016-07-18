@@ -11,7 +11,7 @@ public final class PostingList {
 
 	/**
 	 * Appends compressed value v to the given posting list. Set v=0 for a
-	 * separator, v=transactionId+1 for a transaction id, and v=position+1 for a
+	 * separator, v=transactionId+1 for a transaction gid, and v=position+1 for a
 	 * position.
 	 */
 	public static final void addCompressed(int v, ByteArrayList postingList) {
@@ -104,11 +104,11 @@ public final class PostingList {
 
 		while (true) {
 
-			/** Merge positions if same transaction id */
+			/** Merge positions if same transaction gid */
 			if (aTransactionId == bTransactionId) {
 				if (postingList.size() > 0)
 					PostingList.addCompressed(0, postingList);
-				/** Add transaction id */
+				/** Add transaction gid */
 				PostingList.addCompressed(aTransactionId + 1, postingList);
 				support++;
 

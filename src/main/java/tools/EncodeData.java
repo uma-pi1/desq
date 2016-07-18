@@ -55,11 +55,11 @@ public class EncodeData {
 	}
 
 	/**
-	 * Records an item (label) and add it (id) to the hierarchy
+	 * Records an item (label) and add it (gid) to the hierarchy
 	 * 
 	 * @param fid
 	 *            name (label)
-	 * @return internal id of the item
+	 * @return internal gid of the item
 	 */
 	private int recordItem(String name) {
 		int id = ids.getInt(name);

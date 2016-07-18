@@ -13,7 +13,7 @@ import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.ItemState;
 import de.uni_mannheim.desq.fst.Transition;
 
-public class DesqDfs extends InMemoryDesqMiner {
+public class DesqDfs extends MemoryDesqMiner {
 
 	
 	// parameters for mining

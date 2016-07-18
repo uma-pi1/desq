@@ -5,7 +5,7 @@ import java.util.*;
 /** A single item in a dictionary.  */
 public class Item {
 	/** Stable global identifier of this item */
-	public int id;
+	public int gid;
 
 	/** Unique name of this item */
 	public String sid;
@@ -30,7 +30,7 @@ public class Item {
     public Properties properties;
 	
 	public Item(int id, String sid) {
-		this.id = id;
+		this.gid = id;
 		this.sid = sid;
 	}
 	
@@ -46,7 +46,7 @@ public class Item {
 	
 	/** Returns a copy of this item but does not copy childs and parents and shares the properties */
 	public Item shallowCopyWithoutEdges() {
-		Item item = new Item(id, sid);
+		Item item = new Item(gid, sid);
 		item.fid = fid;
 		item.cFreq = cFreq;
 		item.dFreq = dFreq;

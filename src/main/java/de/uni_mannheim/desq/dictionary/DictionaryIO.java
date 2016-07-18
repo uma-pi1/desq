@@ -22,7 +22,7 @@ public class DictionaryIO {
 			String sid = columns[0];
 			int id = Integer.parseInt(columns[3]);
 			item = new Item(id, sid);
-			item.fid = item.id;
+			item.fid = item.gid;
 			item.cFreq = Integer.parseInt(columns[1]);
 			item.dFreq = Integer.parseInt(columns[2]);
 			dict.addItem(item);
@@ -50,10 +50,10 @@ public class DictionaryIO {
 	/** Load dictionary from del file format.
 	 * 
 	 * with statistics:
-	 * sid <TAB> cFreq <TAB> dFreq <TAB> id (equals fid) <TAB> comma-separated parent ids
+	 * sid <TAB> cFreq <TAB> dFreq <TAB> gid (equals fid) <TAB> comma-separated parent ids
 	 * 
 	 * without statistics:
-	 * sid <TAB> id <TAB> comma-separated parent ids
+	 * sid <TAB> gid <TAB> comma-separated parent ids
 	 * 
 	 */
 	public static Dictionary loadFromDel(InputStream in, boolean withStatistics) throws IOException {
@@ -78,7 +78,7 @@ public class DictionaryIO {
 			sb.append(Integer.toString(item.dFreq));
 			sb.append("\t");
 		}
-		sb.append(Integer.toString(useFids ? item.fid : item.id));
+		sb.append(Integer.toString(useFids ? item.fid : item.gid));
 		sb.append("\t");
 		if (item.parents.isEmpty()) {
 			sb.append("0");
@@ -86,7 +86,7 @@ public class DictionaryIO {
 			String sep = "";
 			for (Item parent : item.parents) {
 				sb.append(sep);
-				sb.append(Integer.toString(useFids ? parent.fid : parent.id));
+				sb.append(Integer.toString(useFids ? parent.fid : parent.gid));
 				sep = ",";
 			}
 		}
