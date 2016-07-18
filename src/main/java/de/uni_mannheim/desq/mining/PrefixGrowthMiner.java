@@ -46,7 +46,7 @@ public class PrefixGrowthMiner extends DesqMiner {
 		globalItems.clear();
 	}
 
-	public static Properties createProperties(int sigma, int gamma, int lambda, boolean generalize) {
+	public static Properties createProperties(long sigma, int gamma, int lambda, boolean generalize) {
 		Properties properties = new Properties();
 		PropertiesUtils.set(properties, "minSupport", sigma);
 		PropertiesUtils.set(properties, "maxGap", gamma);
@@ -62,7 +62,7 @@ public class PrefixGrowthMiner extends DesqMiner {
 		this.generalize = PropertiesUtils.getBoolean(ctx.properties, "generalize");
 	}
 
-	public void setParameters(int sigma, int gamma, int lambda, boolean generalize) {
+	public void setParameters(long sigma, int gamma, int lambda, boolean generalize) {
 		this.sigma = sigma;
 		this.gamma = gamma;
 		this.lambda = lambda;
