@@ -46,7 +46,7 @@ public class DesqDfsExample {
 
 		// input parameters
 		//String patternExpression = "[c|d]([A^|B=^]+)e";
-		String patternExpression = "(A^{2,})";
+		String patternExpression = "A^{2,})";
 		int sigma = 2;
 
 		// create fst

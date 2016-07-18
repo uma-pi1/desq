@@ -59,8 +59,7 @@ public final class FstOperations {
 
 	public static Fst repeat(Fst a, int n) {
 		if (n == 0) {
-			System.err.println("ERROR");
-			System.exit(-1);
+		    return new Fst(true);
 		}
 		Fst[] fstList = new Fst[n - 1];
 		for (int i = 0; i < fstList.length; ++i) {
@@ -84,11 +83,11 @@ public final class FstOperations {
 	
 	public static Fst repeatMinMax(Fst a, int min, int max) {
 		max -= min;
-		Fst fst;
+		assert max>=0;
+        if (max==0) return new Fst(true);
+        Fst fst;
 		if (min == 0) {
-			fst = new Fst();
-			fst.initialState.isFinal = true;
-            fst.updateStates();
+			fst = new Fst(true);
 		} else if (min == 1) {
 			fst = a.shallowCopy();
 		} else {
