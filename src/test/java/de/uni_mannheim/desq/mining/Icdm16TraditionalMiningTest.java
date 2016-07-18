@@ -17,7 +17,7 @@ public abstract class Icdm16TraditionalMiningTest extends TraditionalMiningTest 
     @Parameterized.Parameters
     public static Collection<Object[]> data() {
         List<Object[]> parameters = new ArrayList<Object[]>();
-        for (Long sigma : new Long[] {4L,5L,6L,7L})
+        for (Long sigma : new Long[] {1L,3L,5L,7L})
             for (Integer gamma : new Integer[] {0,1,2})
                 for (Integer lambda : new Integer[] {1,3,5,7})
                     for (Boolean generalize : new Boolean[]{ false, true})

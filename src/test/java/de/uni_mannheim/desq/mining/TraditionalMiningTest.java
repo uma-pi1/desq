@@ -4,6 +4,7 @@ import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.io.DelPatternWriter;
 import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.util.TestUtils;
+import org.apache.log4j.Logger;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -22,6 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @RunWith(Parameterized.class)
 public abstract class TraditionalMiningTest {
+    private static Logger logger = Logger.getLogger(TraditionalMiningTest.class);
+
     long sigma;
     int gamma, lambda;
     boolean generalize;
@@ -61,8 +64,13 @@ public abstract class TraditionalMiningTest {
         String fileName = getBaseFileName() + "-" + sigma + "-" + gamma + "-" + lambda + "-" + generalize + ".del";
         File actualFile = TestUtils.newTemporaryFile(getClass().getName(), fileName);
         mine(actualFile);
-        File expectedFile = TestUtils.getPackageResource(getClass(), getBaseFolderName() + "/" + fileName);
-        assertThat(actualFile).hasSameContentAs(expectedFile);
+        try {
+            File expectedFile = TestUtils.getPackageResource(getClass(), getBaseFolderName() + "/" + fileName);
+            assertThat(actualFile).hasSameContentAs(expectedFile);
+        } catch (NullPointerException e) {
+            logger.error("Can't access expected data file for " + actualFile);
+            throw e;
+        }
     }
 
     public void mine(File outputDelFile)
