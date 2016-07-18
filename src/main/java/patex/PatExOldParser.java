@@ -1,6 +1,6 @@
-// Generated from PatEx.g4 by ANTLR 4.5
+// Generated from PatExOld.g4 by ANTLR 4.5
 
-    package de.uni_mannheim.desq.patex;
+    package patex;
 
 import org.antlr.v4.runtime.atn.*;
 import org.antlr.v4.runtime.dfa.DFA;
@@ -12,7 +12,7 @@ import java.util.Iterator;
 import java.util.ArrayList;
 
 @SuppressWarnings({"all", "warnings", "unchecked", "unused", "cast"})
-public class PatExParser extends Parser {
+public class PatExOldParser extends Parser {
 	static { RuntimeMetaData.checkVersion("4.5", RuntimeMetaData.VERSION); }
 
 	protected static final DFA[] _decisionToDFA;
@@ -71,7 +71,7 @@ public class PatExParser extends Parser {
 	}
 
 	@Override
-	public String getGrammarFileName() { return "PatEx.g4"; }
+	public String getGrammarFileName() { return "PatExOld.g4"; }
 
 	@Override
 	public String[] getRuleNames() { return ruleNames; }
@@ -82,7 +82,7 @@ public class PatExParser extends Parser {
 	@Override
 	public ATN getATN() { return _ATN; }
 
-	public PatExParser(TokenStream input) {
+	public PatExOldParser(TokenStream input) {
 		super(input);
 		_interp = new ParserATNSimulator(this,_ATN,_decisionToDFA,_sharedContextCache);
 	}
@@ -104,15 +104,15 @@ public class PatExParser extends Parser {
 		public UnionContext(PatexContext ctx) { copyFrom(ctx); }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).enterUnion(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).enterUnion(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).exitUnion(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).exitUnion(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof PatExVisitor ) return ((PatExVisitor<? extends T>)visitor).visitUnion(this);
+			if ( visitor instanceof PatExOldVisitor ) return ((PatExOldVisitor<? extends T>)visitor).visitUnion(this);
 			else return visitor.visitChildren(this);
 		}
 	}
@@ -157,15 +157,15 @@ public class PatExParser extends Parser {
 		public ConcatContext(UnionexpContext ctx) { copyFrom(ctx); }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).enterConcat(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).enterConcat(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).exitConcat(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).exitConcat(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof PatExVisitor ) return ((PatExVisitor<? extends T>)visitor).visitConcat(this);
+			if ( visitor instanceof PatExOldVisitor ) return ((PatExOldVisitor<? extends T>)visitor).visitConcat(this);
 			else return visitor.visitChildren(this);
 		}
 	}
@@ -179,15 +179,15 @@ public class PatExParser extends Parser {
 		public UnionExpressionContext(UnionexpContext ctx) { copyFrom(ctx); }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).enterUnionExpression(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).enterUnionExpression(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).exitUnionExpression(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).exitUnionExpression(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof PatExVisitor ) return ((PatExVisitor<? extends T>)visitor).visitUnionExpression(this);
+			if ( visitor instanceof PatExOldVisitor ) return ((PatExOldVisitor<? extends T>)visitor).visitUnionExpression(this);
 			else return visitor.visitChildren(this);
 		}
 	}
@@ -252,15 +252,15 @@ public class PatExParser extends Parser {
 		public ConcatExpressionContext(ConcatexpContext ctx) { copyFrom(ctx); }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).enterConcatExpression(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).enterConcatExpression(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).exitConcatExpression(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).exitConcatExpression(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof PatExVisitor ) return ((PatExVisitor<? extends T>)visitor).visitConcatExpression(this);
+			if ( visitor instanceof PatExOldVisitor ) return ((PatExOldVisitor<? extends T>)visitor).visitConcatExpression(this);
 			else return visitor.visitChildren(this);
 		}
 	}
@@ -271,15 +271,15 @@ public class PatExParser extends Parser {
 		public RepeatExpressionContext(ConcatexpContext ctx) { copyFrom(ctx); }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).enterRepeatExpression(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).enterRepeatExpression(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).exitRepeatExpression(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).exitRepeatExpression(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof PatExVisitor ) return ((PatExVisitor<? extends T>)visitor).visitRepeatExpression(this);
+			if ( visitor instanceof PatExOldVisitor ) return ((PatExOldVisitor<? extends T>)visitor).visitRepeatExpression(this);
 			else return visitor.visitChildren(this);
 		}
 	}
@@ -339,15 +339,15 @@ public class PatExParser extends Parser {
 		public OptionalExpressionContext(RepeatexpContext ctx) { copyFrom(ctx); }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).enterOptionalExpression(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).enterOptionalExpression(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).exitOptionalExpression(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).exitOptionalExpression(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof PatExVisitor ) return ((PatExVisitor<? extends T>)visitor).visitOptionalExpression(this);
+			if ( visitor instanceof PatExOldVisitor ) return ((PatExOldVisitor<? extends T>)visitor).visitOptionalExpression(this);
 			else return visitor.visitChildren(this);
 		}
 	}
@@ -355,22 +355,22 @@ public class PatExParser extends Parser {
 		public RepeatexpContext repeatexp() {
 			return getRuleContext(RepeatexpContext.class,0);
 		}
-		public List<TerminalNode> WORD() { return getTokens(PatExParser.WORD); }
+		public List<TerminalNode> WORD() { return getTokens(PatExOldParser.WORD); }
 		public TerminalNode WORD(int i) {
-			return getToken(PatExParser.WORD, i);
+			return getToken(PatExOldParser.WORD, i);
 		}
 		public RepeatMinMaxExpressionContext(RepeatexpContext ctx) { copyFrom(ctx); }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).enterRepeatMinMaxExpression(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).enterRepeatMinMaxExpression(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).exitRepeatMinMaxExpression(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).exitRepeatMinMaxExpression(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof PatExVisitor ) return ((PatExVisitor<? extends T>)visitor).visitRepeatMinMaxExpression(this);
+			if ( visitor instanceof PatExOldVisitor ) return ((PatExOldVisitor<? extends T>)visitor).visitRepeatMinMaxExpression(this);
 			else return visitor.visitChildren(this);
 		}
 	}
@@ -378,19 +378,19 @@ public class PatExParser extends Parser {
 		public RepeatexpContext repeatexp() {
 			return getRuleContext(RepeatexpContext.class,0);
 		}
-		public TerminalNode WORD() { return getToken(PatExParser.WORD, 0); }
+		public TerminalNode WORD() { return getToken(PatExOldParser.WORD, 0); }
 		public RepeatMaxExpressionContext(RepeatexpContext ctx) { copyFrom(ctx); }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).enterRepeatMaxExpression(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).enterRepeatMaxExpression(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).exitRepeatMaxExpression(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).exitRepeatMaxExpression(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof PatExVisitor ) return ((PatExVisitor<? extends T>)visitor).visitRepeatMaxExpression(this);
+			if ( visitor instanceof PatExOldVisitor ) return ((PatExOldVisitor<? extends T>)visitor).visitRepeatMaxExpression(this);
 			else return visitor.visitChildren(this);
 		}
 	}
@@ -398,19 +398,19 @@ public class PatExParser extends Parser {
 		public RepeatexpContext repeatexp() {
 			return getRuleContext(RepeatexpContext.class,0);
 		}
-		public TerminalNode WORD() { return getToken(PatExParser.WORD, 0); }
+		public TerminalNode WORD() { return getToken(PatExOldParser.WORD, 0); }
 		public RepeatMinExpressionContext(RepeatexpContext ctx) { copyFrom(ctx); }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).enterRepeatMinExpression(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).enterRepeatMinExpression(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).exitRepeatMinExpression(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).exitRepeatMinExpression(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof PatExVisitor ) return ((PatExVisitor<? extends T>)visitor).visitRepeatMinExpression(this);
+			if ( visitor instanceof PatExOldVisitor ) return ((PatExOldVisitor<? extends T>)visitor).visitRepeatMinExpression(this);
 			else return visitor.visitChildren(this);
 		}
 	}
@@ -421,15 +421,15 @@ public class PatExParser extends Parser {
 		public SimpleExpressionContext(RepeatexpContext ctx) { copyFrom(ctx); }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).enterSimpleExpression(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).enterSimpleExpression(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).exitSimpleExpression(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).exitSimpleExpression(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof PatExVisitor ) return ((PatExVisitor<? extends T>)visitor).visitSimpleExpression(this);
+			if ( visitor instanceof PatExOldVisitor ) return ((PatExOldVisitor<? extends T>)visitor).visitSimpleExpression(this);
 			else return visitor.visitChildren(this);
 		}
 	}
@@ -440,15 +440,15 @@ public class PatExParser extends Parser {
 		public PlusExpressionContext(RepeatexpContext ctx) { copyFrom(ctx); }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).enterPlusExpression(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).enterPlusExpression(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).exitPlusExpression(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).exitPlusExpression(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof PatExVisitor ) return ((PatExVisitor<? extends T>)visitor).visitPlusExpression(this);
+			if ( visitor instanceof PatExOldVisitor ) return ((PatExOldVisitor<? extends T>)visitor).visitPlusExpression(this);
 			else return visitor.visitChildren(this);
 		}
 	}
@@ -459,15 +459,15 @@ public class PatExParser extends Parser {
 		public StarExpressionContext(RepeatexpContext ctx) { copyFrom(ctx); }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).enterStarExpression(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).enterStarExpression(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).exitStarExpression(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).exitStarExpression(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof PatExVisitor ) return ((PatExVisitor<? extends T>)visitor).visitStarExpression(this);
+			if ( visitor instanceof PatExOldVisitor ) return ((PatExOldVisitor<? extends T>)visitor).visitStarExpression(this);
 			else return visitor.visitChildren(this);
 		}
 	}
@@ -622,15 +622,15 @@ public class PatExParser extends Parser {
 		public ItemExpressionContext(SimpleexpContext ctx) { copyFrom(ctx); }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).enterItemExpression(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).enterItemExpression(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).exitItemExpression(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).exitItemExpression(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof PatExVisitor ) return ((PatExVisitor<? extends T>)visitor).visitItemExpression(this);
+			if ( visitor instanceof PatExOldVisitor ) return ((PatExOldVisitor<? extends T>)visitor).visitItemExpression(this);
 			else return visitor.visitChildren(this);
 		}
 	}
@@ -641,15 +641,15 @@ public class PatExParser extends Parser {
 		public ParensContext(SimpleexpContext ctx) { copyFrom(ctx); }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).enterParens(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).enterParens(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).exitParens(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).exitParens(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof PatExVisitor ) return ((PatExVisitor<? extends T>)visitor).visitParens(this);
+			if ( visitor instanceof PatExOldVisitor ) return ((PatExOldVisitor<? extends T>)visitor).visitParens(this);
 			else return visitor.visitChildren(this);
 		}
 	}
@@ -660,15 +660,15 @@ public class PatExParser extends Parser {
 		public CaptureContext(SimpleexpContext ctx) { copyFrom(ctx); }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).enterCapture(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).enterCapture(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).exitCapture(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).exitCapture(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof PatExVisitor ) return ((PatExVisitor<? extends T>)visitor).visitCapture(this);
+			if ( visitor instanceof PatExOldVisitor ) return ((PatExOldVisitor<? extends T>)visitor).visitCapture(this);
 			else return visitor.visitChildren(this);
 		}
 	}
@@ -739,19 +739,19 @@ public class PatExParser extends Parser {
 		}
 	}
 	public static class ItemContext extends ItemexpContext {
-		public TerminalNode WORD() { return getToken(PatExParser.WORD, 0); }
+		public TerminalNode WORD() { return getToken(PatExOldParser.WORD, 0); }
 		public ItemContext(ItemexpContext ctx) { copyFrom(ctx); }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).enterItem(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).enterItem(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).exitItem(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).exitItem(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof PatExVisitor ) return ((PatExVisitor<? extends T>)visitor).visitItem(this);
+			if ( visitor instanceof PatExOldVisitor ) return ((PatExOldVisitor<? extends T>)visitor).visitItem(this);
 			else return visitor.visitChildren(this);
 		}
 	}
@@ -759,15 +759,15 @@ public class PatExParser extends Parser {
 		public WildCardContext(ItemexpContext ctx) { copyFrom(ctx); }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).enterWildCard(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).enterWildCard(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof PatExListener ) ((PatExListener)listener).exitWildCard(this);
+			if ( listener instanceof PatExOldListener ) ((PatExOldListener)listener).exitWildCard(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof PatExVisitor ) return ((PatExVisitor<? extends T>)visitor).visitWildCard(this);
+			if ( visitor instanceof PatExOldVisitor ) return ((PatExOldVisitor<? extends T>)visitor).visitWildCard(this);
 			else return visitor.visitChildren(this);
 		}
 	}

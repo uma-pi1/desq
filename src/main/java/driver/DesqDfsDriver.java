@@ -10,7 +10,7 @@ import fst.Fst;
 import fst.XFst;
 import mining.DesqDfs;
 import mining.DfsOnePass;
-import patex.PatEx;
+import patex.PatExOld;
 import utils.Dictionary;
 import writer.DelWriter;
 
@@ -56,7 +56,7 @@ public class DesqDfsDriver {
 		logger.log(Level.INFO, "Parsing pattern expression and generating FST");
 		fstTime.start();
 		
-		PatEx ex = new PatEx(patternExpression);
+		PatExOld ex = new PatExOld(patternExpression);
 		
 		// Generate cFST
 		Fst cFst = ex.translateToFst();

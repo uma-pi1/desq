@@ -9,11 +9,10 @@ import com.google.common.base.Stopwatch;
 import driver.DesqConfig.Match;
 import fst.Fst;
 import fst.XFst;
-import patex.PatEx;
+import patex.PatExOld;
 import mining.DesqCount;
 import mining.OnePassIterative;
 //import mining.OnePassIterative;
-import mining.OnePassRecursive;
 //import mining.TwoPass;
 import utils.Dictionary;
 import writer.DelWriter;
@@ -65,7 +64,7 @@ public class DesqCountDriver {
 		logger.log(Level.INFO, "Parsing pattern expression and generating FST");
 		fstTime.start();
 		
-		PatEx ex = new PatEx(patternExpression);
+		PatExOld ex = new PatExOld(patternExpression);
 		// Generate cFST
 		Fst cFst = ex.translateToFst();
 		cFst.minimize();

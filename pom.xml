@@ -100,31 +100,76 @@
 			<artifactId>log4j</artifactId>
 			<version>1.2.17</version>
 		</dependency>
-
+		<dependency>
+			<groupId>org.scala-lang</groupId>
+			<artifactId>scala-library</artifactId>
+			<version>2.11.8</version>
+		</dependency>
 
 	</dependencies>
 
 	<build>
+		<!--
 		<sourceDirectory>src/main/java</sourceDirectory>
+		<sourceDirectory>src/main/scala</sourceDirectory>
+		-->
 		<plugins>
 			<plugin>
 				<groupId>org.antlr</groupId>
 				<artifactId>antlr4-maven-plugin</artifactId>
 				<version>4.5</version>
+				<configuration>
+					<!-- <sourceDirectory>${basedir}/src/main/java/patex</sourceDirectory> -->
+					<sourceDirectory>${basedir}/src/main/antlr4</sourceDirectory>
+					<!-- <outputDirectory>${basedir}/src/main/java/de/uni_mannheim/desq/patex</outputDirectory> -->
+					<visitor>true</visitor>
+					<!-- for some reason handing over the parameter directly does not
+                        work Therefore, the definition is done in the respective .g4 file. <arguments>
+                        <argument>-package patex</argument> </arguments> -->
+				</configuration>
 				<executions>
 					<execution>
-						<id>antlr_patex</id>
+						<id>antlr</id>
 						<goals>
 							<goal>antlr4</goal>
 						</goals>
-						<configuration>
-							<sourceDirectory>${basedir}/src/main/java/de/uni_mannheim/desq/patex</sourceDirectory>
-							<outputDirectory>${basedir}/src/main/java/de/uni_mannheim/desq/patex</outputDirectory>
-							<visitor>true</visitor>
-							<!-- for some reason handing over the parameter directly does not 
-								work Therefore, the definition is done in the respective .g4 file. <arguments> 
-								<argument>-package patex</argument> </arguments> -->
-						</configuration>
+
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>net.alchim31.maven</groupId>
+				<artifactId>scala-maven-plugin</artifactId>
+				<version>3.2.2</version>
+				<configuration>
+					<recompileMode>incremental</recompileMode>
+					<args>
+						<arg>-target:jvm-1.8</arg>
+					</args>
+					<javacArgs>
+						<javacArg>-Xlint:unchecked</javacArg>
+						<javacArg>-Xlint:deprecation</javacArg>
+						<javacArg>-source</javacArg>
+						<javacArg>1.8</javacArg>
+						<javacArg>-target</javacArg>
+						<javacArg>1.8</javacArg>
+					</javacArgs>
+				</configuration>
+				<executions>
+					<execution>
+						<id>scala-compile-first</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>add-source</goal>
+							<goal>compile</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>scala-test-compile</id>
+						<phase>process-test-resources</phase>
+						<goals>
+							<goal>testCompile</goal>
+						</goals>
 					</execution>
 				</executions>
 			</plugin>
@@ -135,6 +180,14 @@
 					<source>1.8</source>
 					<target>1.8</target>
 				</configuration>
+				<executions>
+					<execution>
+						<phase>compile</phase>
+						<goals>
+							<goal>compile</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 

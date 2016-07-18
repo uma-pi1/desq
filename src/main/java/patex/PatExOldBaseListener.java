@@ -1,4 +1,4 @@
-// Generated from PatEx.g4 by ANTLR 4.5
+// Generated from PatExOld.g4 by ANTLR 4.5
 
     package patex;
 
@@ -9,215 +9,215 @@ import org.antlr.v4.runtime.tree.ErrorNode;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
 /**
- * This class provides an empty implementation of {@link PatExListener},
+ * This class provides an empty implementation of {@link PatExOldListener},
  * which can be extended to create a listener which only needs to handle a subset
  * of the available methods.
  */
-public class PatExBaseListener implements PatExListener {
+public class PatExOldBaseListener implements PatExOldListener {
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterUnion(PatExParser.UnionContext ctx) { }
+	@Override public void enterUnion(PatExOldParser.UnionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitUnion(PatExParser.UnionContext ctx) { }
+	@Override public void exitUnion(PatExOldParser.UnionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterUnionExpression(PatExParser.UnionExpressionContext ctx) { }
+	@Override public void enterUnionExpression(PatExOldParser.UnionExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitUnionExpression(PatExParser.UnionExpressionContext ctx) { }
+	@Override public void exitUnionExpression(PatExOldParser.UnionExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterConcat(PatExParser.ConcatContext ctx) { }
+	@Override public void enterConcat(PatExOldParser.ConcatContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitConcat(PatExParser.ConcatContext ctx) { }
+	@Override public void exitConcat(PatExOldParser.ConcatContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterConcatExpression(PatExParser.ConcatExpressionContext ctx) { }
+	@Override public void enterConcatExpression(PatExOldParser.ConcatExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitConcatExpression(PatExParser.ConcatExpressionContext ctx) { }
+	@Override public void exitConcatExpression(PatExOldParser.ConcatExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterRepeatExpression(PatExParser.RepeatExpressionContext ctx) { }
+	@Override public void enterRepeatExpression(PatExOldParser.RepeatExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitRepeatExpression(PatExParser.RepeatExpressionContext ctx) { }
+	@Override public void exitRepeatExpression(PatExOldParser.RepeatExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterOptionalExpression(PatExParser.OptionalExpressionContext ctx) { }
+	@Override public void enterOptionalExpression(PatExOldParser.OptionalExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitOptionalExpression(PatExParser.OptionalExpressionContext ctx) { }
+	@Override public void exitOptionalExpression(PatExOldParser.OptionalExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterRepeatMinMaxExpression(PatExParser.RepeatMinMaxExpressionContext ctx) { }
+	@Override public void enterRepeatMinMaxExpression(PatExOldParser.RepeatMinMaxExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitRepeatMinMaxExpression(PatExParser.RepeatMinMaxExpressionContext ctx) { }
+	@Override public void exitRepeatMinMaxExpression(PatExOldParser.RepeatMinMaxExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterRepeatMaxExpression(PatExParser.RepeatMaxExpressionContext ctx) { }
+	@Override public void enterRepeatMaxExpression(PatExOldParser.RepeatMaxExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitRepeatMaxExpression(PatExParser.RepeatMaxExpressionContext ctx) { }
+	@Override public void exitRepeatMaxExpression(PatExOldParser.RepeatMaxExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterRepeatMinExpression(PatExParser.RepeatMinExpressionContext ctx) { }
+	@Override public void enterRepeatMinExpression(PatExOldParser.RepeatMinExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitRepeatMinExpression(PatExParser.RepeatMinExpressionContext ctx) { }
+	@Override public void exitRepeatMinExpression(PatExOldParser.RepeatMinExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterSimpleExpression(PatExParser.SimpleExpressionContext ctx) { }
+	@Override public void enterSimpleExpression(PatExOldParser.SimpleExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitSimpleExpression(PatExParser.SimpleExpressionContext ctx) { }
+	@Override public void exitSimpleExpression(PatExOldParser.SimpleExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterPlusExpression(PatExParser.PlusExpressionContext ctx) { }
+	@Override public void enterPlusExpression(PatExOldParser.PlusExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitPlusExpression(PatExParser.PlusExpressionContext ctx) { }
+	@Override public void exitPlusExpression(PatExOldParser.PlusExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterStarExpression(PatExParser.StarExpressionContext ctx) { }
+	@Override public void enterStarExpression(PatExOldParser.StarExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitStarExpression(PatExParser.StarExpressionContext ctx) { }
+	@Override public void exitStarExpression(PatExOldParser.StarExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterItemExpression(PatExParser.ItemExpressionContext ctx) { }
+	@Override public void enterItemExpression(PatExOldParser.ItemExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitItemExpression(PatExParser.ItemExpressionContext ctx) { }
+	@Override public void exitItemExpression(PatExOldParser.ItemExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterParens(PatExParser.ParensContext ctx) { }
+	@Override public void enterParens(PatExOldParser.ParensContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitParens(PatExParser.ParensContext ctx) { }
+	@Override public void exitParens(PatExOldParser.ParensContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterCapture(PatExParser.CaptureContext ctx) { }
+	@Override public void enterCapture(PatExOldParser.CaptureContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitCapture(PatExParser.CaptureContext ctx) { }
+	@Override public void exitCapture(PatExOldParser.CaptureContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterWildCard(PatExParser.WildCardContext ctx) { }
+	@Override public void enterWildCard(PatExOldParser.WildCardContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitWildCard(PatExParser.WildCardContext ctx) { }
+	@Override public void exitWildCard(PatExOldParser.WildCardContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterItem(PatExParser.ItemContext ctx) { }
+	@Override public void enterItem(PatExOldParser.ItemContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitItem(PatExParser.ItemContext ctx) { }
+	@Override public void exitItem(PatExOldParser.ItemContext ctx) { }
 
 	/**
 	 * {@inheritDoc}

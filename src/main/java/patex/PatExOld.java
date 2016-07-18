@@ -8,36 +8,36 @@ import fst.BasicFst;
 import fst.Fst;
 import fst.FstOperations;
 import fst.XFst;
-import patex.PatExParser.CaptureContext;
-import patex.PatExParser.ConcatContext;
-import patex.PatExParser.ConcatExpressionContext;
-import patex.PatExParser.ItemContext;
-import patex.PatExParser.ItemExpressionContext;
-import patex.PatExParser.OptionalExpressionContext;
-import patex.PatExParser.ParensContext;
-import patex.PatExParser.PlusExpressionContext;
-import patex.PatExParser.RepeatExpressionContext;
-import patex.PatExParser.RepeatMaxExpressionContext;
-import patex.PatExParser.RepeatMinExpressionContext;
-import patex.PatExParser.RepeatMinMaxExpressionContext;
-import patex.PatExParser.SimpleExpressionContext;
-import patex.PatExParser.StarExpressionContext;
-import patex.PatExParser.UnionContext;
-import patex.PatExParser.UnionExpressionContext;
-import patex.PatExParser.WildCardContext;
+import patex.PatExOldParser.CaptureContext;
+import patex.PatExOldParser.ConcatContext;
+import patex.PatExOldParser.ConcatExpressionContext;
+import patex.PatExOldParser.ItemContext;
+import patex.PatExOldParser.ItemExpressionContext;
+import patex.PatExOldParser.OptionalExpressionContext;
+import patex.PatExOldParser.ParensContext;
+import patex.PatExOldParser.PlusExpressionContext;
+import patex.PatExOldParser.RepeatExpressionContext;
+import patex.PatExOldParser.RepeatMaxExpressionContext;
+import patex.PatExOldParser.RepeatMinExpressionContext;
+import patex.PatExOldParser.RepeatMinMaxExpressionContext;
+import patex.PatExOldParser.SimpleExpressionContext;
+import patex.PatExOldParser.StarExpressionContext;
+import patex.PatExOldParser.UnionContext;
+import patex.PatExOldParser.UnionExpressionContext;
+import patex.PatExOldParser.WildCardContext;
 import utils.Dictionary;
 
 
 /**
- * PatEx.java
+ * PatExOld.java
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
-public class PatEx {
+public class PatExOld {
 
 	String expression;
 	Dictionary dict = Dictionary.getInstance();
 
-	public PatEx(String ex) {
+	public PatExOld(String ex) {
 		this.expression = ex;
 	}
 
@@ -45,13 +45,13 @@ public class PatEx {
 		ANTLRInputStream input = new ANTLRInputStream(expression);
 
 		// Lexer
-		PatExLexer lexer = new PatExLexer(input);
+		PatExOldLexer lexer = new PatExOldLexer(input);
 
 		// Tokens
 		CommonTokenStream tokens = new CommonTokenStream(lexer);
 
 		// Parser
-		PatExParser parser = new PatExParser(tokens);
+		PatExOldParser parser = new PatExOldParser(tokens);
 
 		// Parse tree
 		ParseTree tree = parser.patex();
@@ -65,7 +65,7 @@ public class PatEx {
 		return fst;
 	}
 
-	public class Visitor extends PatExBaseVisitor<Fst> {
+	public class Visitor extends PatExOldBaseVisitor<Fst> {
 		
 		private boolean capture = false;
 

@@ -1,4 +1,4 @@
-grammar PatEx;
+grammar PatExOld;
 
 @header {
     package patex;

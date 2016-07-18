@@ -1,10 +1,5 @@
 grammar PatEx;
 
-@header {
-    package de.uni_mannheim.desq.patex;
-}
-
-
 //Rules
 
 patex

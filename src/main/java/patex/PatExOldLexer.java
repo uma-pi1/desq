@@ -1,4 +1,4 @@
-// Generated from PatEx.g4 by ANTLR 4.5
+// Generated from PatExOld.g4 by ANTLR 4.5
 
     package patex;
 
@@ -12,7 +12,7 @@ import org.antlr.v4.runtime.dfa.DFA;
 import org.antlr.v4.runtime.misc.*;
 
 @SuppressWarnings({"all", "warnings", "unchecked", "unused", "cast"})
-public class PatExLexer extends Lexer {
+public class PatExOldLexer extends Lexer {
 	static { RuntimeMetaData.checkVersion("4.5", RuntimeMetaData.VERSION); }
 
 	protected static final DFA[] _decisionToDFA;
@@ -73,13 +73,13 @@ public class PatExLexer extends Lexer {
 	}
 
 
-	public PatExLexer(CharStream input) {
+	public PatExOldLexer(CharStream input) {
 		super(input);
 		_interp = new LexerATNSimulator(this,_ATN,_decisionToDFA,_sharedContextCache);
 	}
 
 	@Override
-	public String getGrammarFileName() { return "PatEx.g4"; }
+	public String getGrammarFileName() { return "PatExOld.g4"; }
 
 	@Override
 	public String[] getRuleNames() { return ruleNames; }
