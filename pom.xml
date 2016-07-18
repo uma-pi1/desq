@@ -42,54 +42,22 @@
 			<artifactId>antlr4</artifactId>
 			<version>4.5</version>
 		</dependency>
-		<!--dependency> <groupId>org.apache.hadoop</groupId> <artifactId>hadoop-auth</artifactId> 
-			<version>2.6.0</version> </dependency> <dependency> <groupId>org.apache.hadoop</groupId> 
-			<artifactId>hadoop-common</artifactId> <version>2.6.0</version> </dependency> 
-			<dependency> <groupId>org.apache.hadoop</groupId> <artifactId>hadoop-core</artifactId> 
-			<version>1.2.1</version> </dependency -->
+
 		<dependency>
 			<groupId>it.unimi.dsi</groupId>
 			<artifactId>fastutil</artifactId>
 			<version>6.5.2</version>
 		</dependency>
-		<!-- >dependency> <groupId>org.apache.lucene</groupId> <artifactId>lucene-core</artifactId> 
-			<version>4.0.0</version> </dependency -->
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
 			<version>19.0</version>
 		</dependency>
-		<!--dependency> <groupId>org.apache.mahout</groupId> <artifactId>mahout-math</artifactId> 
-			<version>0.7</version> </dependency -->
-		<!--dependency> <groupId>org.apache.mahout</groupId> <artifactId>mahout-core</artifactId> 
-			<version>0.7</version> </dependency -->
-		<!--dependency> <groupId>org.apache.commons</groupId> <artifactId>commons-math</artifactId> 
-			<version>2.2</version> </dependency -->
-		<!-- dependency> <groupId>org.apache.commons</groupId> <artifactId>commons-compress</artifactId> 
-			<version>1.1</version> </dependency -->
-		<!--dependency> <groupId>junit</groupId> <artifactId>junit</artifactId> 
-			<version>3.8.2</version> </dependency -->
-		<!--dependency> <groupId>org.apache.mahout</groupId> <artifactId>mahout-integration</artifactId> 
-			<version>0.7</version> </dependency -->
-
-		<!--dependency> <groupId>org.jgrapht</groupId> <artifactId>jgrapht-core</artifactId> 
-			<version>0.9.1</version> </dependency> <dependency> <groupId>org.jgrapht</groupId> 
-			<artifactId>jgrapht-ext</artifactId> <version>0.9.1</version> </dependency -->
 		<dependency>
 			<groupId>org.apache.lucene</groupId>
 			<artifactId>lucene-core</artifactId>
 			<version>5.5.0</version>
 		</dependency>
-		<!--dependency>
-			<groupId>org.apache.lucene</groupId>
-			<artifactId>lucene-analyzers-common</artifactId>
-			<version>5.5.0</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.lucene</groupId>
-			<artifactId>lucene-queryparser</artifactId>
-			<version>5.5.0</version>
-		</dependency-->
 		<dependency>
 			<groupId>commons-cli</groupId>
 			<artifactId>commons-cli</artifactId>
@@ -105,15 +73,32 @@
 			<artifactId>scala-library</artifactId>
 			<version>2.11.8</version>
 		</dependency>
-
+		<!-- >dependency> <groupId>org.apache.lucene</groupId> <artifactId>lucene-core</artifactId>
+			<version>4.0.0</version> </dependency -->
+		<!--dependency> <groupId>org.apache.hadoop</groupId> <artifactId>hadoop-auth</artifactId>
+			<version>2.6.0</version> </dependency> <dependency> <groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-common</artifactId> <version>2.6.0</version> </dependency>
+			<dependency> <groupId>org.apache.hadoop</groupId> <artifactId>hadoop-core</artifactId>
+			<version>1.2.1</version> </dependency -->		<!--dependency> <groupId>org.apache.mahout</groupId> <artifactId>mahout-math</artifactId>
+			<version>0.7</version> </dependency -->
+		<!--dependency> <groupId>org.apache.mahout</groupId> <artifactId>mahout-core</artifactId> 
+			<version>0.7</version> </dependency -->
+		<!--dependency> <groupId>org.apache.commons</groupId> <artifactId>commons-math</artifactId> 
+			<version>2.2</version> </dependency -->
+		<!-- dependency> <groupId>org.apache.commons</groupId> <artifactId>commons-compress</artifactId> 
+			<version>1.1</version> </dependency -->
+		<!--dependency> <groupId>junit</groupId> <artifactId>junit</artifactId> 
+			<version>3.8.2</version> </dependency -->
+		<!--dependency> <groupId>org.apache.mahout</groupId> <artifactId>mahout-integration</artifactId> 
+			<version>0.7</version> </dependency -->
+		<!--dependency> <groupId>org.jgrapht</groupId> <artifactId>jgrapht-core</artifactId>
+			<version>0.9.1</version> </dependency> <dependency> <groupId>org.jgrapht</groupId> 
+			<artifactId>jgrapht-ext</artifactId> <version>0.9.1</version> </dependency -->
 	</dependencies>
 
 	<build>
-		<!--
-		<sourceDirectory>src/main/java</sourceDirectory>
-		<sourceDirectory>src/main/scala</sourceDirectory>
-		-->
 		<plugins>
+			<!-- antrl4 support -->
 			<plugin>
 				<groupId>org.antlr</groupId>
 				<artifactId>antlr4-maven-plugin</artifactId>
@@ -137,6 +122,8 @@
 					</execution>
 				</executions>
 			</plugin>
+
+			<!-- scala support -->
 			<plugin>
 				<groupId>net.alchim31.maven</groupId>
 				<artifactId>scala-maven-plugin</artifactId>
@@ -173,6 +160,8 @@
 					</execution>
 				</executions>
 			</plugin>
+
+			<!-- compilation -->
 			<plugin>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.1</version>
@@ -191,11 +180,11 @@
 			</plugin>
 		</plugins>
 
+		<!-- custom resource folders -->
 		<resources>
 			<resource>
 				<directory>${basedir}/src/main/resources</directory>
 			</resource>
-
 			<resource>
 				<directory>${basedir}/data</directory>
 			</resource>
