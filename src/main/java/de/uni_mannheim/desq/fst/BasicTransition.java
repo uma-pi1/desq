@@ -146,4 +146,32 @@ public class BasicTransition extends Transition {
 		return new BasicTransition(this);
 	}
 
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		if(inputLabel == 0)
+			sb.append(".");
+		else {
+			sb.append(inputLabel);
+			if(inputLabelType == InputLabelType.SELF) 
+				sb.append("=");
+		}
+		sb.append(":");
+		switch(outputLabelType) {
+		case SELF:
+			sb.append("$");
+			break;
+		case SELF_ASCENDANTS:
+			sb.append("$-" + outputLabel);
+			break;
+		case CONSTANT:
+			sb.append(outputLabel);
+			break;
+		case EPSILON:
+			sb.append("EPS");
+			
+		}
+		return sb.toString();
+	}
+
 }
