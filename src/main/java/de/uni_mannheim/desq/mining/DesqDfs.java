@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.mining;
 
+import de.uni_mannheim.desq.util.PropertiesUtils;
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -17,7 +18,7 @@ public class DesqDfs extends InMemoryDesqMiner {
 	
 	// parameters for mining
 	Fst fst;
-	int sigma;
+	long sigma;
 	
 	// helper variables
 	int[] flist;
@@ -28,7 +29,7 @@ public class DesqDfs extends InMemoryDesqMiner {
 	public DesqDfs(DesqMinerContext ctx) {
 		super(ctx);
 		this.fst = ctx.fst;
-		this.sigma = ctx.sigma;
+		this.sigma = PropertiesUtils.getLong(ctx.properties, "minSupport");
 		this.flist = ctx.dict.getFlist().toIntArray();
 	}
 	

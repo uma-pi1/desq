@@ -1,5 +1,7 @@
 package sandbox;
 
+import de.uni_mannheim.desq.mining.Pattern;
+import de.uni_mannheim.desq.util.PropertiesUtils;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
@@ -56,7 +58,7 @@ public class DesqDfsExample {
 		dataReader = new DelSequenceReader(dataFile.openStream(), false);
 		dataReader.setDictionary(dict);
 		DesqMinerContext ctx = new DesqMinerContext();
-		ctx.sigma = sigma;
+		PropertiesUtils.set(ctx.properties, "minSupport", sigma);
 		ctx.fst = fst;
 		MemoryPatternWriter result = new MemoryPatternWriter();
 		ctx.patternWriter = result;
@@ -67,13 +69,13 @@ public class DesqDfsExample {
 		miner.mine();
 		
 		System.out.println("P-frequent sequences");
-		for (int i=0; i<result.size(); i++) {
-			System.out.print(result.getFrequency(i));
+		for (Pattern pattern : result.getPatterns()) {
+			System.out.print(pattern.getFrequency());
 			System.out.print(": ");
-			System.out.println(dict.getItemsByFids(result.getPattern(i)));
+			System.out.println(dict.getItemsByFids(pattern.getItemFids()));
 		}
 	}
-	
+
 	public static void main(String[] args) throws IOException {
 		new DesqDfsExample().icdm16();
 	}
