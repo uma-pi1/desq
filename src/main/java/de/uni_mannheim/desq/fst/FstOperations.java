@@ -1,13 +1,5 @@
 package de.uni_mannheim.desq.fst;
 
-
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.Set;
-
-
-
 public final class FstOperations {
 
 	private FstOperations() {
@@ -60,61 +52,55 @@ public final class FstOperations {
 		return a;
 	}
 
-	//TODO: 
 	public static Fst repeatMax(Fst a, int max) {
-		/*if (max == 0) {
+		if (max == 0) {
 			System.err.println("ERROR");
 			System.exit(-1);
 		}
 		Fst[] fstList = new Fst[max - 1];
 		for (int i = 0; i < fstList.length; ++i) {
-			fstList[i] = a.clone();
+			fstList[i] = a.shallowCopy();
 		}
 		for (int i = 0; i < fstList.length; ++i) {
-			for (State state : a.getAcceptStates()) {
-				state.accept = false;
-				state.addEpsilon(fstList[i].initialState);
+			for (State state : a.getFinalStates()) {
+				state.isFinal = false;
+				state.addEpsilonTransition(fstList[i].initialState);
 			}
 		}
-		return a;*/
-		return null;
+		return a;
 	}
 	
-	//TODO:
 	public static Fst repeatMin(Fst a, int min) {
-		/*Fst aPlus = plus(a.clone());
-		Fst aMax = repeatMax(a.clone(), min - 1);
-		return concatenate(aMax, aPlus);*/
-		return null;
+		Fst aPlus = plus(a.shallowCopy());
+		Fst aMax = repeatMax(a.shallowCopy(), min - 1);
+		return concatenate(aMax, aPlus);
 	}
 	
-	//TODO:
 	public static Fst repeatMinMax(Fst a, int min, int max) {
-		/*max -= min;
+		max -= min;
 		Fst fst;
 		if (min == 0) {
 			fst = new Fst();
-			fst.initialState.accept = true;
+			fst.initialState.isFinal = true;
 		} else if (min == 1) {
-			fst = a.clone();
+			fst = a.shallowCopy();
 		} else {
-			fst = repeatMax(a.clone(), min);
+			fst = repeatMax(a.shallowCopy(), min);
 		}
 		if (max > 0) {
-			Fst aa = a.clone();
+			Fst aa = a.shallowCopy();
 			while (--max > 0) {
-				Fst ab = a.clone();
-				for (State state : ab.getAcceptStates()) {
-					state.addEpsilon(aa.initialState);
+				Fst ab = a.shallowCopy();
+				for (State state : ab.getFinalStates()) {
+					state.addEpsilonTransition(aa.initialState);
 				}
 				aa = ab;
 			}
-			for (State state : fst.getAcceptStates()) {
-				state.addEpsilon(aa.initialState);
+			for (State state : fst.getFinalStates()) {
+				state.addEpsilonTransition(aa.initialState);
 			}
 		}
-		return fst;*/
-		return null;
+		return fst;
 	}
 	
 	
