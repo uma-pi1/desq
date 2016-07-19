@@ -9,6 +9,5 @@ import java.util.Properties;
 public class DesqMinerContext {
 	public Dictionary dict;
 	public PatternWriter patternWriter;
-	public Fst fst; /** TODO: this does not belong here */
 	public Properties properties = new Properties();
 }
