@@ -46,7 +46,7 @@ public class CSpadeMiner extends DesqMiner {
 	// At any point of time, we store an inverted index that maps subsequences of
 	// length k to their posting lists.
 	//
-	// During data input, we have k=2. Every input transaction is added to the
+	// During data input, we have k=2. Every input sequence is added to the
 	// index (by generating all its (2,gamma)-subsequences and then discarded.
 	//
 	// During frequent sequence mining, we compute repeatedly compute length-(k+1)
@@ -72,52 +72,55 @@ public class CSpadeMiner extends DesqMiner {
 	protected ArrayList<int[]> kSequences = new ArrayList<int[]>();
 
 	/**
-	 * Maps 2-sequence to their position in kSequences (lowest 32 bits) and their
-	 * largest transaction id (highest 32 bits). Only used during data input, k=2.
+	 * Maps 2-sequence to their index entries. Only used during data input, k=2.
 	 */
-	Map<int[], KSequenceIndexEntry> kSequenceIndex = new Object2ObjectOpenCustomHashMap<int[], KSequenceIndexEntry>(
+	Map<int[], KPatternIndexEntry> twoSequenceIndex = new Object2ObjectOpenCustomHashMap<>(
 			new IntArrayStrategy());
 
 	/** Holds information about a posting list. Used only during data input, k=32. */
-	protected class KSequenceIndexEntry {
+	protected class KPatternIndexEntry {
 		int index;
-		int lastSequenceId;
+		int lastInputId;
 		int lastPosition;
 	}
 
 	/** Used as a temporary buffer during data input. */
-	// final int[] twoSequence = new int[2];
 	protected int[] twoSequence = new int[2];
 
 	/**
 	 * Posting list for each sequence in kSequences. A posting list is a set of
-	 * postings, one for each transaction in which the sequence occurs. Every
-	 * posting consists of a transaction identifier and a list of starting
+	 * postings, one for each input sequence in which the sequence occurs. Every
+	 * posting consists of a input sequence identifier and a list of starting
 	 * positions (at which a match of the sequence occurs in the respective
-	 * transactions). Transactions and starting positions within transactions are
+	 * input sequences). Transactions and starting positions within input sequences are
 	 * sorted in ascending order. Each posting is encoded using variable-length
 	 * integer encoding; postings are separated by a 0 byte. To avoid collisions,
-	 * we store transactionId+1 and position+1. (Note that not every 0 byte
+	 * we store inputId+1 and position+1. (Note that not every 0 byte
 	 * separates posting; the byte before the 0 byte must have its
 	 * highest-significant bit set to 0).
 	 */
 	protected ArrayList<ByteArrayList> kPostingLists = new ArrayList<>();
 
 	/**
-	 * Support of each transaction (indexed by transaction id). If an input
-	 * transaction has support larger than one, is it treated as if it had occured
+	 * Support of each input sequence (indexed by inputId). If an input
+	 * sequence has support larger than one, is it treated as if it had occured
 	 * in the data as many times as given by its support value.
 	 */
 	protected IntList inputSupports = new IntArrayList();
 
 	/**
 	 * Total support for each sequence in kSequences. Identical to the sum of the
-	 * supports of each transaction that occurs in the posting list.
+	 * supports of each input sequence that occurs in the posting list.
 	 */
 	protected IntList kTotalSupports = new IntArrayList();
 
     /** Stores frequency of individual items (only needed when generalize = false) */
-    protected Int2IntMap itemDfreq = new Int2IntOpenHashMap();
+    protected Int2IntMap itemDFreqs = new Int2IntOpenHashMap();
+
+    /** IntSets for temporary use */
+    IntSet itemFids = new IntOpenHashSet();
+    IntSet ascendantFids = new IntOpenHashSet();
+    IntSet otherAscendantFids = new IntOpenHashSet();
 
 	public CSpadeMiner(DesqMinerContext ctx) {
 		super(ctx);
@@ -127,8 +130,8 @@ public class CSpadeMiner extends DesqMiner {
 	/** Flushes all internal data structures. */
 	public void clear() {
 		k = 2;
-        itemDfreq.clear();
-		kSequenceIndex.clear();
+        itemDFreqs.clear();
+		twoSequenceIndex.clear();
 		kSequences.clear();
 		kPostingLists.clear();
 		kTotalSupports.clear();
@@ -191,21 +194,19 @@ public class CSpadeMiner extends DesqMiner {
 	    addInputSequence(inputSequence, 1);
     }
 
-	public void addInputSequence(IntList inputSequence, int support) {
+	public void addInputSequence(IntList inputSequence, int inputSupport) {
 		// only valid during data input phase
-		assert k == 2;
-		assert kSequences.size() == kSequenceIndex.size();
+		assert k <= 2;
+		assert kSequences.size() == twoSequenceIndex.size();
 
-		// store the support of the input transaction
-		int sequenceId = inputSupports.size();
-		inputSupports.add(support);
+		// store the support of the input input sequence
+		int inputId = inputSupports.size();
+		inputSupports.add(inputSupport);
 
-		// Add the transaction to the inverted index. Here we construct all
-		// gapped 2-sequences
-		// and update their corresponding posting lists
-		int position = 0; // current position in expanded sequence (i.e.,
-		// without compressed gaps)
-        IntSet itemFids = new IntOpenHashSet(); // TODO reuse
+		// Add the input sequence to the inverted index. Here we construct all
+		// gapped 2-sequences and update their corresponding posting lists
+		int position = 0; // current position in expanded sequence (i.e., without compressed gaps)
+        itemFids.clear(); // TODO reuse
 		for (int pos = 0; pos < inputSequence.size(); pos++) {
 			int itemFid = inputSequence.getInt(pos);
 		    assert itemFid <= endItem; // contract of this class
@@ -216,37 +217,46 @@ public class CSpadeMiner extends DesqMiner {
 				continue;
 			}
 
-			itemFids.add(itemFid);
+			// count individual item frequencies unless we are generalizing
+			if (!generalize) {
+                itemFids.add(itemFid);
+            }
+
+            // no need to do more if we only need 1-items
+            if (lambda < 2) continue;
 
 			// create all 2-subsequences
-			// i points to first item, j to second item
-			for (int otherPos = pos + 1;
-                    otherPos < inputSequence.size() && isWithinGap(inputSequence, pos, otherPos, gamma);
-                    otherPos++) {
+			// pos points to first item, otherPos to second item
+			for (int otherPos = pos + 1, gap=0; gap<=gamma && otherPos < inputSequence.size(); otherPos++) {
                 int otherItemFid = inputSequence.get(otherPos);
+
 				// skip gaps
 				if (otherItemFid < 0) {
+				    gap -= otherItemFid;
 					continue;
 				}
+                gap++;
 
 				// we found a valid 2-sequence; create a posting for the two sequence
 				// and its generalizations
                 if (!generalize) {
                     twoSequence[0] = itemFid;
                     twoSequence[1] = otherItemFid;
-                    addPosting(twoSequence, sequenceId, support, position);
+                    addPosting(twoSequence, inputId, inputSupport, position);
                 } else {
-                    IntSet ascendantsFids = ctx.dict.ascendantsFids(itemFid); // TODO use cache variable
-                    ascendantsFids.add(itemFid);
-                    IntSet otherAscendantsFids = ctx.dict.ascendantsFids(otherItemFid); // TODO use cache variable
-                    otherAscendantsFids.add(otherItemFid);
-                    IntIterator fidIt = ascendantsFids.iterator();
+                    ascendantFids.clear();
+                    ctx.dict.addAscendantFids(ctx.dict.getItemByFid(itemFid), ascendantFids);
+                    ascendantFids.add(itemFid);
+                    otherAscendantFids.clear();
+                    ctx.dict.addAscendantFids(ctx.dict.getItemByFid(otherItemFid), otherAscendantFids);
+                    otherAscendantFids.add(otherItemFid);
+                    IntIterator fidIt = ascendantFids.iterator();
                     while (fidIt.hasNext()) {
                         twoSequence[0] = fidIt.nextInt();
-                        IntIterator otherFidIt = otherAscendantsFids.iterator();
+                        IntIterator otherFidIt = otherAscendantFids.iterator();
                         while (otherFidIt.hasNext()) {
                             twoSequence[1] = otherFidIt.nextInt();
-                            addPosting(twoSequence, sequenceId, support, position);
+                            addPosting(twoSequence, inputId, inputSupport, position);
                         }
                     }
                 }
@@ -254,12 +264,13 @@ public class CSpadeMiner extends DesqMiner {
 			position++;
 		}
 
+		// update 1-item counts
 		for (int itemFid : itemFids) {
-            int count = support;
-            if (itemDfreq.containsKey(itemFid)) {
-                count += itemDfreq.get(itemFid);
+            int count = inputSupport;
+            if (itemDFreqs.containsKey(itemFid)) {
+                count += itemDFreqs.get(itemFid);
             }
-            itemDfreq.put(itemFid, count);
+            itemDFreqs.put(itemFid, count);
         }
 	}
 
@@ -268,22 +279,21 @@ public class CSpadeMiner extends DesqMiner {
 	 * 2-sequences during the input phase. The provided kSequence is not stored,
 	 * i.e., can be reused.
 	 */
-	protected void addPosting(int[] kSequence, int transactionId, int support, int position) {
+	protected void addPosting(int[] kSequence, int inputId, int inputSupport, int position) {
 		// get the posting list for the current sequence
 		// if the sequence has not seen before, create a new posting list
-		KSequenceIndexEntry entry = kSequenceIndex.get(kSequence);
+		KPatternIndexEntry entry = twoSequenceIndex.get(kSequence);
 
 		ByteArrayList postingList;
 
 		if (entry == null) {
 			// we never saw this 2-sequence before
-			entry = new KSequenceIndexEntry();
+			entry = new KPatternIndexEntry();
 			entry.index = kSequences.size();
-			entry.lastSequenceId = -1;
-			kSequence = new int[] { kSequence[0], kSequence[1] }; // copy necessary
-																														// here
+			entry.lastInputId = -1;
+			kSequence = new int[] { kSequence[0], kSequence[1] }; // copy necessary here
 			kSequences.add(kSequence);
-			kSequenceIndex.put(kSequence, entry);
+			twoSequenceIndex.put(kSequence, entry);
 			postingList = new ByteArrayList();
 			kPostingLists.add(postingList);
 			kTotalSupports.add(0);
@@ -293,86 +303,51 @@ public class CSpadeMiner extends DesqMiner {
 		}
 
 		// add the current occurrence to the posting list
-		if (entry.lastSequenceId != transactionId) {
+		if (entry.lastInputId != inputId) {
 			if (postingList.size() > 0) {
 				// add a separator
 				PostingList.addCompressed(0, postingList);
 			}
-			// add transaction id
-			PostingList.addCompressed(transactionId + 1, postingList);
+			// add input sequence id
+			PostingList.addCompressed(inputId + 1, postingList);
 			PostingList.addCompressed(position + 1, postingList);
 
 			// update data structures
-			entry.lastSequenceId = transactionId;
+			entry.lastInputId = inputId;
 			entry.lastPosition = position;
-			kTotalSupports.set(entry.index, kTotalSupports.get(entry.index) + support);
-		} else if (entry.lastPosition != position) { // don't add any position more
-																									// than once
+			kTotalSupports.set(entry.index, kTotalSupports.get(entry.index) + inputSupport);
+		} else if (entry.lastPosition != position) { // don't add any position more than once
 			PostingList.addCompressed(position + 1, postingList);
 			entry.lastPosition = position;
 		}
-	}
-
-	/**
-	 * Checks whether there are less than gamma items in between the items
-	 * indicated by the start and end pointers. Correctly treats gap entries
-	 * (e.g., -3 indicating 3 irrelevant items).
-	 *
-	 * @param transaction
-	 *          input transaction
-	 * @param index1
-	 *          index of first item in transaction
-	 * @param index2
-	 *          index of second item in transaction
-	 * @param gamma
-	 *          maximum gap
-	 * @return
-	 */
-	protected boolean isWithinGap(IntList transaction, int index1, int index2, int gamma) {
-		if (index2 - index1 > gamma + 1)
-			return false; // quick check, for efficiency
-		int gap = 0;
-		for (int i = index1 + 1; i < index2; i++) {
-			if (transaction.get(i) < 0) {
-				gap -= transaction.get(i);
-			} else {
-				gap++;
-			}
-			if (gap > gamma) {
-				return false;
-			}
-		}
-		return true;
 	}
 
 	/**
 	 * Finalizes the input phase by computing the overall support of each
 	 * 2-sequence and pruning all 2-sequences below minimum support.
 	 */
-	public void computeTwoSequences() {
+	public void computeTwoPatterns() {
 		// returning the 2-sequences that have support equal or above minsup and
 		// their posting lists
-		kSequenceIndex.clear(); // not needed anymore
-		// inputSupports.trim(); // will not be changed anymore
+		twoSequenceIndex.clear(); // not needed anymore
+		// does not exist anymore: inputSupports.trim(); // will not be changed anymore
 
 		// compute total support of each sequence and remove sequences with support
 		// less than sigma
 		for (int id = 0; id < kSequences.size();) {
 			if (kTotalSupports.get(id) >= sigma) {
 				// accept sequence
-				// uncomment next line to save some space during 1st phase (but:
-				// increased runtime)
+				// uncomment next line to save some space during 1st phase (but: increased runtime)
 				// postingList.trimToSize();
 				id++; // next id
 			} else {
-				// delete the current sequence (by moving the last sequence to the
-				// current position)
+				// delete the current sequence (by moving the last sequence to the current position)
 				int size1 = kPostingLists.size() - 1;
 				if (id < size1) {
 					kSequences.set(id, kSequences.remove(size1));
 					kPostingLists.set(id, kPostingLists.remove(size1));
 					kTotalSupports.set(id, kTotalSupports.get(size1));
-          kTotalSupports.remove(size1);
+                    kTotalSupports.remove(size1);
 				} else {
 					kSequences.remove(size1);
 					kPostingLists.remove(size1);
@@ -387,12 +362,12 @@ public class CSpadeMiner extends DesqMiner {
 
     @Override
 	public void mine() {
-        // output 1-sequences
-        if (ctx.patternWriter != null) {
-            IntArrayList itemFids = new IntArrayList();
-            itemFids.add(-1);
+        // output 1-patterns
+        if (ctx.patternWriter != null && lambda >= 1) {
+            IntList itemFids = new IntArrayList();
+            itemFids.add(-1); // place holder
             if (!generalize) {
-                for (Int2IntMap.Entry entry : itemDfreq.int2IntEntrySet()) {
+                for (Int2IntMap.Entry entry : itemDFreqs.int2IntEntrySet()) {
                     int dFreq = entry.getIntValue();
                     if (dFreq >= sigma) {
                         itemFids.set(0, entry.getIntKey());
@@ -409,12 +384,13 @@ public class CSpadeMiner extends DesqMiner {
             }
         }
 
+        // compute and output all other patterns
         if (lambda >= 2) {
-            computeTwoSequences();
-            outputKSequences();
+            computeTwoPatterns();
+            outputKPatterns();
             while ((k < lambda) && !kSequences.isEmpty()) {
                 bfsTraversal();
-                outputKSequences();
+                outputKPatterns();
             }
         }
 
@@ -427,7 +403,7 @@ public class CSpadeMiner extends DesqMiner {
 	 * @throws InterruptedException
 	 * @throws IOException
 	 */
-	private void outputKSequences() {
+	private void outputKPatterns() {
 		int[] prefixSequence = null;
 		int[] temp = new int[k];
 
@@ -442,8 +418,7 @@ public class CSpadeMiner extends DesqMiner {
 			} else {
 				// compressed sequence (entries = (prefix pointer, suffix item)
 				// reconstruct whole sequence by taking first k-1 symbols taken from
-				// previous sequence
-				// plus the given suffix
+				// previous sequence plus the given suffix
 				System.arraycopy(prefixSequence, 0, temp, 0, prefixSequence.length - 1);
 				temp[k - 1] = sequence[1]; // suffix item
 				sequence = temp;
@@ -453,21 +428,15 @@ public class CSpadeMiner extends DesqMiner {
 			boolean hasPivot = false;
 			for (int word : sequence) {
 				if (word >= beginItem) {
-					assert word <= endItem; // contract of thisoffse class
+					assert word <= endItem; // contract of this class
 					hasPivot = true;
 					break;
 				}
 			}
 
 			// if contains a pivot, output the sequence and its support
-			if (hasPivot) {
-				if (ctx.patternWriter != null)
-					ctx.patternWriter.write(new IntArrayList(sequence), kTotalSupports.get(i)); // TODO remove new
-				// output here...
-				// System.out.println(Arrays.toString(sequence) + " " +
-				// kTotalSupports.get(i));
-				// System.out.println(Arrays.toString(sequence));
-				// Global.writeToFile(sequence, kTotalSupports.get(i));
+			if (hasPivot && ctx.patternWriter != null) {
+				ctx.patternWriter.write(new IntArrayList(sequence), kTotalSupports.get(i)); // TODO remove new
 			}
 
 		}
@@ -479,7 +448,7 @@ public class CSpadeMiner extends DesqMiner {
 	 * updated).
 	 */
 	protected void bfsTraversal() {
-		// terminology
+		// terminology (example from 5- to 6-sequences)
 		// k : 5
 		// k1 : 6
 		// k- sequence : abcde
@@ -487,33 +456,21 @@ public class CSpadeMiner extends DesqMiner {
 		// suffix : bcde (= left join key)
 
 		// build prefix/suffix indexes (maps prefix/suffix to list of sequences with
-		// this prefix/suffix)
-		// values point to indexes in kSequences
-		Map<IntArrayList, IntArrayList> sequencesWithSuffix = new Object2ObjectOpenHashMap<IntArrayList, IntArrayList>();
-		Map<IntArrayList, IntArrayList> sequencesWithPrefix = new Object2ObjectOpenHashMap<IntArrayList, IntArrayList>();
+		// this prefix/suffix) values point to indexes in kSequences
+		Map<IntArrayList, IntArrayList> sequencesWithSuffix = new Object2ObjectOpenHashMap<>();
+		Map<IntArrayList, IntArrayList> sequencesWithPrefix = new Object2ObjectOpenHashMap<>();
 		buildPrefixSuffixIndex(sequencesWithPrefix, sequencesWithSuffix);
 
 		// variables for the (k+1)-sequences
 		int k1 = k + 1;
-		ArrayList<int[]> k1Sequences = new ArrayList<int[]>();
-		ArrayList<ByteArrayList> k1PostingLists = new ArrayList<ByteArrayList>();
+		ArrayList<int[]> k1Sequences = new ArrayList<>();
+		ArrayList<ByteArrayList> k1PostingLists = new ArrayList<>();
 		IntArrayList k1TotalSupports = new IntArrayList();
 
 		// temporary variables
-		ByteArrayList postingList = new ByteArrayList(); // list of postings for a
-																												// new (k+1) sequence
-		PostingList.Decompressor leftPostingList = new PostingList.Decompressor(); // posting
-																																								// list
-																																								// of
-																																								// the
-																																								// left
-																																								// k-sequence
-		PostingList.Decompressor rightPostingList = new PostingList.Decompressor(); // posting
-																																								// list
-																																								// of
-																																								// the
-																																								// right
-																																								// k-sequence
+		ByteArrayList postingList = new ByteArrayList(); // list of postings for a new (k+1) sequence
+		PostingList.Decompressor leftPostingList = new PostingList.Decompressor(); // posting list of the left k-sequence
+		PostingList.Decompressor rightPostingList = new PostingList.Decompressor(); // posting list of the right k-sequence
 
 		// we now join sequences (e.g., abcde) that end with some suffix with
 		// sequences
@@ -521,17 +478,13 @@ public class CSpadeMiner extends DesqMiner {
 		for (Map.Entry<IntArrayList, IntArrayList> entry : sequencesWithSuffix.entrySet()) {
 			// if there is no right key to join, continue
 			IntArrayList joinKey = entry.getKey();
-			IntArrayList rightSequences = sequencesWithPrefix.get(joinKey); // indexes
-																																				// of
-																																				// right
-																																				// sequences
+			IntArrayList rightSequences = sequencesWithPrefix.get(joinKey); // indexes of right sequences
 			if (rightSequences == null) {
 				continue;
 			}
 
 			// there are right keys for the join, so let's join
-			IntArrayList leftSequences = entry.getValue(); // indexes of left
-																											// sequences
+			IntArrayList leftSequences = entry.getValue(); // indexes of left sequences
 			for (int i = 0; i < leftSequences.size(); i++) {
 				// get the postings of that sequence for joining
 				leftPostingList.postingList = kPostingLists.get(leftSequences.getInt(i));
@@ -543,7 +496,7 @@ public class CSpadeMiner extends DesqMiner {
 
 				// for every right key that matches the current left key, perform
 				// a merge join of the posting lists (match if we find two postings
-				// of the same transactions such that the starting position of the right
+				// of the same input sequence such that the starting position of the right
 				// sequence is close enough to the starting position of the left
 				// sequence (at most gamma items in between)
 				for (int j = 0; j < rightSequences.size(); j++) {
@@ -553,18 +506,17 @@ public class CSpadeMiner extends DesqMiner {
 					leftPostingList.offset = 0;
 					rightPostingList.postingList = kPostingLists.get(rightSequences.getInt(j));
 					rightPostingList.offset = 0;
-					int leftTransactionId = leftPostingList.nextValue();
-					int rightTransactionId = rightPostingList.nextValue();
-					boolean foundMatchWithLeftTransactionId = false;
+					int leftInputId = leftPostingList.nextValue();
+					int rightInputId = rightPostingList.nextValue();
+					boolean foundMatchWithLeftInputId = false;
 
 					while (leftPostingList.hasNextValue() && rightPostingList.hasNextValue()) {
 						// invariant: leftPostingList and rightPostingList point to first
-						// position after
-						// a transaction id
+						// position after a input sequence id
 
-						if (leftTransactionId == rightTransactionId) {
+						if (leftInputId == rightInputId) {
 							// potential match; now check offsets
-							int transactionId = leftTransactionId;
+							int inputId = leftInputId;
 							int rightPosition = -1;
 							while (leftPostingList.hasNextValue()) {
 								int leftPosition = leftPostingList.nextValue();
@@ -579,49 +531,43 @@ public class CSpadeMiner extends DesqMiner {
 								// check whether join condition is met
 								if (rightPosition <= leftPosition + gamma + 1) {
 									// yes, add a posting
-									if (!foundMatchWithLeftTransactionId) {
+									if (!foundMatchWithLeftInputId) {
 										if (postingList.size() > 0) {
-											PostingList.addCompressed(0, postingList); // add
-																																	// separator
-																																	// byte
+											PostingList.addCompressed(0, postingList); // add separator byte
 										}
-										PostingList.addCompressed(transactionId + 1, postingList); // add
-																																								// transaction
-																																								// id
-										foundMatchWithLeftTransactionId = true;
-										totalSupport += inputSupports.get(transactionId);
+										PostingList.addCompressed(inputId + 1, postingList); // add input sequence id
+										foundMatchWithLeftInputId = true;
+										totalSupport += inputSupports.get(inputId);
 									}
-									PostingList.addCompressed(leftPosition + 1, postingList); // add
-																																						// position
+									PostingList.addCompressed(leftPosition + 1, postingList); // add position
 								}
 							}
 
 							// advance both join lists
 							if (rightPostingList.nextPosting()) {
-								rightTransactionId = rightPostingList.nextValue();
+								rightInputId = rightPostingList.nextValue();
 							}
 							if (leftPostingList.nextPosting()) {
-								leftTransactionId = leftPostingList.nextValue();
-								foundMatchWithLeftTransactionId = false;
+								leftInputId = leftPostingList.nextValue();
+								foundMatchWithLeftInputId = false;
 							}
-							// end leftTransactionId == rightTransactionId
-						} else if (leftTransactionId > rightTransactionId) {
+							// end leftInputId == rightTransactionId
+						} else if (leftInputId > rightInputId) {
 							// advance right join list (merge join; lists sorted by
-							// transaction id)
+							// input sequence id)
 							if (rightPostingList.nextPosting()) {
-								rightTransactionId = rightPostingList.nextValue();
+								rightInputId = rightPostingList.nextValue();
 							}
 						} else {
-							// advance left join (merge join; lists sorted by transaction id)
+							// advance left join (merge join; lists sorted by input sequence id)
 							if (leftPostingList.nextPosting()) {
-								leftTransactionId = leftPostingList.nextValue();
-								foundMatchWithLeftTransactionId = false;
+								leftInputId = leftPostingList.nextValue();
+								foundMatchWithLeftInputId = false;
 							}
 						}
 					}
 
-					// if the new (k+1)-sequence has support equal or above minimum
-					// support,
+					// if the new (k+1)-sequence has support equal or above minimum support,
 					// add it to the result of this round
 					if (totalSupport >= sigma) {
 						noK1SequencesForLeftSequence++;
@@ -635,11 +581,9 @@ public class CSpadeMiner extends DesqMiner {
 							// construct whole (k+1)-sequence
 							kSequence = new int[k1];
 							int[] prefix = kSequences.get(leftSequences.getInt(i));
-							if (prefix.length == k1 - 1 || k1 <= 3) { // prefix sequence is
-																												// uncompressed
+							if (prefix.length == k1 - 1 || k1 <= 3) { // prefix sequence is uncompressed
 								System.arraycopy(prefix, 0, kSequence, 0, prefix.length);
-							} else { // prefix sequence is compressed (only suffix item
-												// stored)
+							} else { // prefix sequence is compressed (only suffix item stored)
 								// need to retrieve prefix from initial sequence
 								int prefixPos = prefix[0];
 								int[] tempPrefix = kSequences.get(prefixPos);
@@ -649,8 +593,7 @@ public class CSpadeMiner extends DesqMiner {
 							kSequence[k1 - 1] = suffixItem;
 						} else {
 							// include only the suffix item of (k+1)-sequence (first k items
-							// same as
-							// the ones at index pointerToPrefixSequence)
+							// same as the ones at index pointerToPrefixSequence)
 							kSequence = new int[2];
 							kSequence[0] = pointerToFirstK1Sequence;
 							kSequence[1] = suffixItem;
@@ -658,14 +601,9 @@ public class CSpadeMiner extends DesqMiner {
 
 						// store in results of current round
 						k1Sequences.add(kSequence);
-						ByteArrayList temp = new ByteArrayList(postingList.size()); // copying
-																																					// necessary
-																																					// here;
-																																					// postingList
-																																					// reused
+						ByteArrayList temp = new ByteArrayList(postingList.size()); // copying necessary here; postingList reused
 						for (int k = 0; k < postingList.size(); k++) {
-							temp.add(postingList.getByte(k)); // bad API here; newer Trove
-																						// versions support this directly
+							temp.add(postingList.getByte(k));
 						}
 						k1PostingLists.add(temp);
 						k1TotalSupports.add(totalSupport);

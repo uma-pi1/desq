@@ -21,6 +21,6 @@ public class CSpadeMinerIcdm16Test extends Icdm16TraditionalMiningTest {
 
     @Override
     public Properties createProperties() {
-        return PrefixGrowthMiner.createProperties(sigma, gamma, lambda, generalize);
+        return CSpadeMiner.createProperties(sigma, gamma, lambda, generalize);
     }
 }
