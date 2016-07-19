@@ -174,4 +174,37 @@ public class BasicTransition extends Transition {
 		return sb.toString();
 	}
 
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + inputLabel;
+		result = prime * result + ((inputLabelType == null) ? 0 : inputLabelType.hashCode());
+		result = prime * result + outputLabel;
+		result = prime * result + ((outputLabelType == null) ? 0 : outputLabelType.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		BasicTransition other = (BasicTransition) obj;
+		if (inputLabel != other.inputLabel)
+			return false;
+		if (inputLabelType != other.inputLabelType)
+			return false;
+		if (outputLabel != other.outputLabel)
+			return false;
+		if (outputLabelType != other.outputLabelType)
+			return false;
+		return true;
+	}
+	
+	
+
 }
