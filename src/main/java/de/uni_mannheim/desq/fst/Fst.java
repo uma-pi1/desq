@@ -121,4 +121,8 @@ public class Fst {
 	public List<State> reverse(boolean createNewInitialState) {
 		return FstOperations.reverse(this, createNewInitialState);
 	}
+	
+	public void minimize() {
+		FstOperations.minimize(this);
+	}
 }
