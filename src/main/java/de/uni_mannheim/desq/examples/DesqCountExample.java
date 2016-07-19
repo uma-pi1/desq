@@ -1,24 +1,20 @@
-package sandbox;
+package de.uni_mannheim.desq.examples;
 
 import de.uni_mannheim.desq.mining.Pattern;
-import de.uni_mannheim.desq.util.PropertiesUtils;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URL;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.dictionary.DictionaryIO;
-import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.MemoryPatternWriter;
 import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.mining.DesqCount;
 import de.uni_mannheim.desq.mining.DesqMiner;
 import de.uni_mannheim.desq.mining.DesqMinerContext;
-import de.uni_mannheim.desq.patex.PatEx;
 
 public class DesqCountExample {
 	void icdm16() throws IOException {

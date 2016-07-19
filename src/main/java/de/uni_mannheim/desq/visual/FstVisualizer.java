@@ -6,17 +6,17 @@ import java.io.File;
  * Vdfa.java
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
-public class Vfst {
+public class FstVisualizer {
 	GraphViz gv = new GraphViz();
 	String type = "pdf";
 	String outfile;
 
-	public Vfst(String type, String outfile) {
+	public FstVisualizer(String type, String outfile) {
 		this.type = type;
 		this.outfile = outfile;
 	}
 
-	public Vfst(String outfile) {
+	public FstVisualizer(String outfile) {
 		this.outfile = outfile;
 	}
 

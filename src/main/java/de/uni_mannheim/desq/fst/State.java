@@ -35,7 +35,7 @@ public class State {
 		transitionList.add(t);
 	}
 	
-	public void simulateEpsilonTransition(State to) {
+	public void simulateEpsilonTransitionTo(State to) {
 		if (to.isFinal)
 			isFinal = true;
 		for (Transition t : to.transitionList) {

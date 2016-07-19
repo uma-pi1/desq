@@ -3,7 +3,7 @@ package de.uni_mannheim.desq.fst;
 
 import java.util.*;
 
-import de.uni_mannheim.desq.visual.Vfst;
+import de.uni_mannheim.desq.visual.FstVisualizer;
 
 
  
@@ -101,15 +101,15 @@ public class Fst {
 	
 	// print the fst to a file
 	public void print(String file) {
-		Vfst vfst = new Vfst(file);
-		vfst.beginGraph();
+		FstVisualizer fstVisualizer = new FstVisualizer(file);
+		fstVisualizer.beginGraph();
 		for(State s : states) {
 			for(Transition t : s.transitionList)
-                vfst.add(String.valueOf(s.id), t.toString(), String.valueOf(t.getToState().id));
+                fstVisualizer.add(String.valueOf(s.id), t.toString(), String.valueOf(t.getToState().id));
 			if(s.isFinal)
-				vfst.addAccepted(String.valueOf(s.id));
+				fstVisualizer.addAccepted(String.valueOf(s.id));
 		}
-		vfst.endGraph();
+		fstVisualizer.endGraph();
 	}
 	
 	// reverses the edges of the fst and creates one initial state

@@ -1,4 +1,4 @@
-package sandbox;
+package de.uni_mannheim.desq.examples;
 
 import java.io.File;
 import java.io.FileInputStream;

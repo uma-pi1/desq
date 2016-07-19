@@ -22,7 +22,7 @@ public final class FstOperations {
 	public static Fst concatenate(Fst a, Fst b) {
 		for (State state : a.getFinalStates()) {
 			state.isFinal = false;
-			state.simulateEpsilonTransition(b.initialState);
+			state.simulateEpsilonTransitionTo(b.initialState);
 		}
 		a.updateStates();
         return a;
@@ -31,8 +31,8 @@ public final class FstOperations {
 	/** Returns an FST that is a union of two FSTs */
 	public static Fst union(Fst a, Fst b) {
 		State s = new State();
-		s.simulateEpsilonTransition(a.initialState);
-		s.simulateEpsilonTransition(b.initialState);
+		s.simulateEpsilonTransitionTo(a.initialState);
+		s.simulateEpsilonTransitionTo(b.initialState);
 		a.initialState = s;
 		a.updateStates();
 		return a;
@@ -42,9 +42,9 @@ public final class FstOperations {
 	public static Fst kleene(Fst a) {
 		State s = new State();
 		s.isFinal = true;
-		s.simulateEpsilonTransition(a.initialState);
+		s.simulateEpsilonTransitionTo(a.initialState);
 		for (State p : a.getFinalStates())
-			p.simulateEpsilonTransition(s);
+			p.simulateEpsilonTransitionTo(s);
 		a.initialState = s;
 		a.updateStates();
 		return a;
@@ -54,7 +54,7 @@ public final class FstOperations {
 	public static Fst plus(Fst a) {
 		// return concatenate(n, kleene(n));
 		for (State s : a.getFinalStates()) {
-			s.simulateEpsilonTransition(a.initialState);
+			s.simulateEpsilonTransitionTo(a.initialState);
 		}
 		a.updateStates();
 		return a;
@@ -63,7 +63,7 @@ public final class FstOperations {
 	/** Returns an FST that accepts zero or one of a given NFA */
 	public static Fst optional(Fst a) {
 		State s = new State();
-		s.simulateEpsilonTransition(a.initialState);
+		s.simulateEpsilonTransitionTo(a.initialState);
 		s.isFinal = true;
 		a.initialState = s;
 		a.updateStates();
@@ -81,7 +81,7 @@ public final class FstOperations {
 		for (int i = 0; i < fstList.length; ++i) {
 			for (State state : a.getFinalStates()) {
 				state.isFinal = false;
-				state.simulateEpsilonTransition(fstList[i].initialState);
+				state.simulateEpsilonTransitionTo(fstList[i].initialState);
 			}
 			a.updateStates();
 		}
@@ -111,12 +111,12 @@ public final class FstOperations {
 			while (--max > 0) {
 				Fst ab = a.shallowCopy();
 				for (State state : ab.getFinalStates()) {
-					state.simulateEpsilonTransition(aa.initialState);
+					state.simulateEpsilonTransitionTo(aa.initialState);
 				}
 				aa = ab;
 			}
 			for (State state : fst.getFinalStates()) {
-				state.simulateEpsilonTransition(aa.initialState);
+				state.simulateEpsilonTransitionTo(aa.initialState);
 			}
 		}
 		fst.updateStates();
@@ -125,8 +125,13 @@ public final class FstOperations {
 	
 	// Minimizes a FST along the lines of Brzozowski's algorithm
 	public static void minimize(Fst fst) {
-		partiallyDeterminize(fst, fst.reverse(false));
-		partiallyDeterminize(fst, fst.reverse(false));
+		// reverse and determinize
+		List<State> initialStates = fst.reverse(false);
+		partiallyDeterminize(fst, initialStates);
+
+		// reverse back and determinize
+		initialStates = fst.reverse(false);
+		partiallyDeterminize(fst, initialStates);
 	}
 	
 	public static List<State> reverse(Fst fst) {
@@ -135,28 +140,29 @@ public final class FstOperations {
 	
 	public static List<State> reverse(Fst fst, boolean createNewInitialState) {
 	
-		Int2ObjectMap<List<Transition>> reverseTMap = new Int2ObjectOpenHashMap<>();
-		reverseTMap.put(fst.initialState.id, new ArrayList<Transition>());
+		Int2ObjectMap<List<Transition>> reversedIncomingTransitionsOfState = new Int2ObjectOpenHashMap<>();
+		reversedIncomingTransitionsOfState.put(fst.initialState.id, new ArrayList<Transition>());
 
-		for (State s : fst.states) {
-			for (Transition t : s.transitionList) {
-				List<Transition> tSet = reverseTMap.get(t.toState.id);
-				if (tSet == null) {
-					tSet = new ArrayList<Transition>();
-					reverseTMap.put(t.toState.id, tSet);
+		for (State fromState : fst.states) {
+			for (Transition transition : fromState.transitionList) {
+				List<Transition> reversedIncomingTransitionsOfToState
+						= reversedIncomingTransitionsOfState.get(transition.toState.id);
+				if (reversedIncomingTransitionsOfToState == null) {
+					reversedIncomingTransitionsOfToState = new ArrayList<Transition>();
+					reversedIncomingTransitionsOfState.put(transition.toState.id, reversedIncomingTransitionsOfToState);
 				}
-				Transition r = t.shallowCopy();
-				r.setToState(s);
-				tSet.add(r);
+				Transition reversedTransition = transition.shallowCopy();
+				reversedTransition.setToState(fromState);
+				reversedIncomingTransitionsOfToState.add(reversedTransition);
 			}
 		}
 
 		// Update states with reverse transtitions
-		List<State> initialStates = new ArrayList<>();
+		List<State> newInitialStates = new ArrayList<>(); // will be old final states
 		for (State s : fst.states) {
-			s.transitionList = reverseTMap.get(s.id);
+			s.transitionList = reversedIncomingTransitionsOfState.get(s.id);
 			if(s.isFinal) {
-				initialStates.add(s);
+				newInitialStates.add(s);
 				s.isFinal = false;
 			}
 		}
@@ -164,19 +170,19 @@ public final class FstOperations {
 		fst.initialState.isFinal = true;
 		if (createNewInitialState) {
 			// If we want one initial state
-			if(initialStates.size() > 1) {
+			if(newInitialStates.size() > 1) {
 				fst.initialState = new State();
-				for (State a : initialStates) {
-					fst.initialState.simulateEpsilonTransition(a);
+				for (State state : newInitialStates) {
+					fst.initialState.simulateEpsilonTransitionTo(state);
 				}
 			} else {
-				fst.initialState = initialStates.get(0);
+				fst.initialState = newInitialStates.get(0);
 			}
 			fst.updateStates();
-			initialStates.clear();
-			initialStates.add(fst.initialState);
+			newInitialStates.clear();
+			newInitialStates.add(fst.initialState);
 		}
-		return initialStates;
+		return newInitialStates;
 	}
 	
 	
@@ -189,75 +195,75 @@ public final class FstOperations {
 	public static void partiallyDeterminize(Fst fst, List<State> initialStates) {
 		fst.initialState = new State();
 		
-		IntSet initialStateIdSet = new IntOpenHashSet();
+		IntSet initialStateIds = new IntOpenHashSet();
 		for(State s : initialStates) {
-			initialStateIdSet.add(s.id);
+			initialStateIds.add(s.id);
 		}
-		//Maps cFststatesIds to a pFststate
-		Map<IntSet, State> pFstStates = new HashMap<>();
-		pFstStates.put(initialStateIdSet, fst.initialState);
+
+		// Maps old states to new state
+		Map<IntSet, State> newStateForStateIdSet = new HashMap<>();
+		newStateForStateIdSet.put(initialStateIds, fst.initialState);
 		
 		//Maps transitions(input-output label) to toState ids
-		Map<Transition, IntSet> M = new HashMap<>();
+		Map<Transition, IntSet> toStateIdSetForTransition = new HashMap<>();
 		
 		//Unprocessed pFstStates (cFstStateIds)
-		LinkedList<IntSet> unprocessedStates = new LinkedList<>();
-		unprocessedStates.add(initialStateIdSet);
+		LinkedList<IntSet> unprocessedStateIdSets = new LinkedList<>();
+		unprocessedStateIdSets.add(initialStateIds);
 		
 		//Processed pFstStates (cFstStateIds)
-		Set<IntSet> processedStates = new HashSet<>();
+		Set<IntSet> processedStateIdSets = new HashSet<>();
 		
-		while(unprocessedStates.size() > 0) {
+		while(unprocessedStateIdSets.size() > 0) {
 			//Process a pFststate (cFstStateIds)
-			IntSet fromCFstStates = unprocessedStates.removeFirst();
+			IntSet stateIdSet = unprocessedStateIdSets.removeFirst();
 			boolean isFinal = false;
 			
 			
-			if(!processedStates.contains(fromCFstStates)) {
-				State fromPFstState = pFstStates.get(fromCFstStates);
-				M.clear();
+			if(!processedStateIdSets.contains(stateIdSet)) {
+				State newState = newStateForStateIdSet.get(stateIdSet);
+				toStateIdSetForTransition.clear();
 				
 				//for (input-output label, toStateId) pairs
-				for(int cFstStateId : fromCFstStates) {
-					State cFstState = fst.getState(cFstStateId);
-					if(cFstState.isFinal)
+				for(int stateId : stateIdSet) {
+					State state = fst.getState(stateId);
+					if(state.isFinal)
 						isFinal = true;
-					for(Transition t : cFstState.transitionList) {
-						IntSet reachableStateIds = M.get(t);
+					for(Transition t : state.transitionList) {
+						IntSet reachableStateIds = toStateIdSetForTransition.get(t);
 						if(reachableStateIds == null) {
 							reachableStateIds = new IntOpenHashSet();
-							M.put(t, reachableStateIds);
+							toStateIdSetForTransition.put(t, reachableStateIds);
 						}
 						reachableStateIds.add(t.toState.id);
 					}
 				}
 				
 				// Add pFst transition and new state
-				for(Transition t : M.keySet()) {
-					IntSet reachableCFstStateIds = M.get(t);
-					if(!processedStates.contains(reachableCFstStateIds)) {
-						unprocessedStates.add(reachableCFstStateIds);
+				for(Transition transition : toStateIdSetForTransition.keySet()) {
+					IntSet reachableStateIds = toStateIdSetForTransition.get(transition);
+					if(!processedStateIdSets.contains(reachableStateIds)) {
+						unprocessedStateIdSets.add(reachableStateIds);
 					}
 					
-					State toPFstState = pFstStates.get(reachableCFstStateIds);
-					if(toPFstState == null) {
-						toPFstState = new State();
-						pFstStates.put(reachableCFstStateIds, toPFstState);
+					State newToState = newStateForStateIdSet.get(reachableStateIds);
+					if(newToState == null) {
+						newToState = new State();
+						newStateForStateIdSet.put(reachableStateIds, newToState);
 					}
 					
-					Transition r = t.shallowCopy();
-					r.setToState(toPFstState);
-					fromPFstState.addTransition(r);
-					
+					Transition newTransition = transition.shallowCopy();
+					newTransition.setToState(newToState);
+					newState.addTransition(newTransition);
 				}
 			}
 			
 			// Mark as processed
-			processedStates.add(fromCFstStates);
+			processedStateIdSets.add(stateIdSet);
 			
 			//Final state?
 			if(isFinal)
-				pFstStates.get(fromCFstStates).isFinal = true;
+				newStateForStateIdSet.get(stateIdSet).isFinal = true;
 			
 			
 		}
