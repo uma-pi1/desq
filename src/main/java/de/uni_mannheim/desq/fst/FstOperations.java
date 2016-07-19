@@ -145,19 +145,26 @@ public final class FstOperations {
 		}
 
 		// Update states with reverse transtitions
-		for (State s1 : fst.states) {
-			s1.transitionSet = reverseTMap.get(s1);
+		List<State> initialStates = new ArrayList<>();
+		for (State s : fst.states) {
+			s.transitionSet = reverseTMap.get(s);
+			if(s.isFinal) {
+				initialStates.add(s);
+				s.isFinal = false;
+			}
 		}
+		
+		fst.initialState.isFinal = true;
 
 		if (createNewInitialState) {
 			// If we want one initial state
 			fst.initialState = new State();
-			for (State a : fst.finalStates) {
+			for (State a : initialStates) {
 				fst.initialState.simulateEpsilonTransition(a);
 			}
 			fst.updateStates();
 		}
-		return fst.finalStates;
+		return initialStates;
 	}
 	
 }

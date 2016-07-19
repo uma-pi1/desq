@@ -112,8 +112,10 @@ public class Fst {
 		vfst.endGraph();
 	}
 	
+	// reverses the edges of the fst and creates one initial state
+	// uptates state ids
 	public List<State> reverse() {
-		return FstOperations.reverse(this);
+		return reverse(true);
 	}
 	
 	public List<State> reverse(boolean createNewInitialState) {
