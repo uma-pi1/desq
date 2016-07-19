@@ -10,8 +10,10 @@ public class Item {
 	/** Unique name of this item */
 	public String sid;
 
-	/** Internal "frequency" identifier of this item used to support efficient mining. This identifier is not
-     * necessarily stable; e.g., set {@link Dictionary#recomputeFids()}}. */
+	/** Internal "frequency" identifier of this item used to support efficient mining. The identifier is not
+	 * necessarily stable. Generally, the frequency identifier needs to satisfy certain properties, which depend
+	 * on the actual miner being used. In most cases, these properties match the ones described in
+	 * {@link Dictionary#recomputeFids()}}. */
 	public int fid = -1;
 
 	/** Collection frequency of this item */
