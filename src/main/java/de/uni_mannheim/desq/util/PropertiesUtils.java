@@ -43,4 +43,8 @@ public class PropertiesUtils {
     public static void set(Properties properties, String key, long value) {
         properties.setProperty(key, Long.toString(value));
     }
+    
+    public static void set(Properties properties, String key, String value) {
+    	properties.setProperty(key, value);
+    }
 }
