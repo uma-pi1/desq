@@ -1,7 +1,9 @@
 package de.uni_mannheim.desq.fst;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 
@@ -10,7 +12,8 @@ public class State {
 	
 	int id;
 	// set of transitions
-	Set<Transition> transitionSet;
+	//Set<Transition> transitionSet;
+	List<Transition> transitionSet;
 	boolean isFinal;
 	
 	public State() {
@@ -19,7 +22,7 @@ public class State {
 	
 	
 	public State(boolean isFinal) {
-		this.transitionSet = new HashSet<Transition>();
+		this.transitionSet = new ArrayList<Transition>();
 		this.isFinal = isFinal;
 	}
 	
@@ -40,6 +43,9 @@ public class State {
 		if (to.isFinal)
 			isFinal = true;
 		for (Transition t : to.transitionSet) {
+			if(to == t.toState) {//if self loop
+				t.toState = this;
+			}
 			transitionSet.add(t);
 		}
 	}
