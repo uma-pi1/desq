@@ -51,22 +51,25 @@ public class DesqCountExample {
 		int sigma = 2;
 		boolean useFlist = true;
 		
-		// create fst
-		patternExpression = ".* [" + patternExpression.trim() + "]";
-		PatEx patEx = new PatEx(patternExpression, dict);
-		Fst fst = patEx.translate();
 		
-		System.out.println("\nPattern Expression=" + patternExpression + " sigma=" + sigma + " useFlist=" + useFlist);
+		// create fst
+		//patternExpression = ".* [" + patternExpression.trim() + "]";
+		//PatEx patEx = new PatEx(patternExpression, dict);
+		//Fst fst = patEx.translate();
+		//fst.minimize();
+		
+		//System.out.println("\nPattern Expression=" + patternExpression + " sigma=" + sigma + " useFlist=" + useFlist);
 		dataReader = new DelSequenceReader(dataFile.openStream(), false);
 		dataReader.setDictionary(dict);
 		DesqMinerContext ctx = new DesqMinerContext();
-		PropertiesUtils.set(ctx.properties, "minSupport", sigma);
-		ctx.fst = fst;
+		ctx.properties = DesqCount.createProperties(patternExpression, sigma);
+		//PropertiesUtils.set(ctx.properties, "useFlist", true);
 		MemoryPatternWriter result = new MemoryPatternWriter();
 		ctx.patternWriter = result;
 		ctx.dict = dict;
 		
-		DesqMiner miner = new DesqCount(ctx, useFlist); 
+		
+		DesqMiner miner = new DesqCount(ctx); 
 		miner.addInputSequences(dataReader);
 		miner.mine();
 		
