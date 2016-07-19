@@ -47,4 +47,8 @@ public class PropertiesUtils {
     public static void set(Properties properties, String key, String value) {
     	properties.setProperty(key, value);
     }
+    
+    public static boolean isSet(Properties properties, String key) {
+    	return properties.getProperty(key) == null? false : true;
+    }
 }
