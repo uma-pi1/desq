@@ -60,7 +60,7 @@ public abstract class TraditionalMiningTest {
         Class<? extends DesqMiner> minerClass = getMinerClass();
         String fileName = getBaseFileName() + "-" + sigma + "-" + gamma + "-" + lambda + "-" + generalize + ".del";
         File actualFile = TestUtils.newTemporaryFile(
-                TestUtils.getPackageResourcesPath(getClass()) + "/" + fileName);
+                TestUtils.getPackageResourcesPath(getClass()) + "/" + getClass().getSimpleName() + "/" + fileName);
         mine(actualFile);
         try {
             File expectedFile = TestUtils.getPackageResource(getClass(), fileName);
