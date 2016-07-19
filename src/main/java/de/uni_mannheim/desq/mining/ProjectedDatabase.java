@@ -8,7 +8,7 @@ import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 final class ProjectedDatabase {
     int itemFid;
     long support;
-    int lastTransactionId;
+    int lastInputId;
     int lastPosition;
     ByteArrayList postingList;
 
@@ -20,7 +20,7 @@ final class ProjectedDatabase {
     void clear() {
         itemFid = -1;
         support = 0;
-        lastTransactionId = -1;
+        lastInputId = -1;
         lastPosition = -1;
         postingList = new ByteArrayList();
     }

@@ -1,17 +1,16 @@
 package de.uni_mannheim.desq.mining;
 
-import java.util.ArrayList;
-import java.util.Properties;
-
 import de.uni_mannheim.desq.util.PropertiesUtils;
 import it.unimi.dsi.fastutil.ints.*;
 import mining.PostingList;
+
+import java.util.Properties;
 
 /**
  * @author Kaustubh Beedkar (kbeedkar@uni-mannheim.de)
  * @author Rainer Gemulla (rgemulla@uni-mannheim.de)
  */
-public class PrefixGrowthMiner extends MemoryDesqMiner {
+public class CompressedPrefixGrowthMiner extends CompressedMemoryDesqMiner {
 	// parameters for mining
     private long sigma;
     private int gamma;
@@ -26,7 +25,7 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
     private final IntSet ascendants = new IntOpenHashSet(); // used as a buffer for ascendant items
     PostingList.Decompressor postings = new PostingList.Decompressor(); // used to access posting lists
 
-	public PrefixGrowthMiner(DesqMinerContext ctx) {
+	public CompressedPrefixGrowthMiner(DesqMinerContext ctx) {
 		super(ctx);
 		setParameters(ctx.properties);
 	}
@@ -77,13 +76,13 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
 	}
 
 	public void mine() {
-        if (inputSequences.size() >= sigma) {
-            // first run through all data and create single-item posting lists
-            for (int inputId=0; inputId<inputSequences.size(); inputId++) {
-                int[] inputSequence = inputSequences.get(inputId);
+        if (inputSupports.size() >= sigma) {
+            for (int inputId = 0; inputId < inputSupports.size(); inputId++) {
+                int inputOffset = inputOffsets.get(inputId);
+                offset = inputOffset;
                 int inputSupport = inputSupports.get(inputId);
-                for (int pos = 0; pos < inputSequence.length; pos++) {
-                    int itemFid = inputSequence[pos];
+                while (hasNextFid()) { // iterator over items in the sequence
+                    int itemFid = nextFid();
                     assert itemFid <= endItem;
 
                     // ignore gaps
@@ -92,8 +91,9 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
                     }
 
                     // process item
+                    int nextItemOffset = offset-inputOffset;
                     if (largestFrequentFid >= itemFid) {
-                        root.expandWithItem(itemFid, inputId, inputSupport, pos);
+                        root.expandWithItem(itemFid, inputId, inputSupport, nextItemOffset);
                     }
                     if (generalize) {
                         ascendants.clear();
@@ -102,7 +102,7 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
                         while (itemFidIt.hasNext()) {
                             itemFid = itemFidIt.nextInt();
                             if (largestFrequentFid >= itemFid) {
-                                root.expandWithItem(itemFid, inputId, inputSupport, pos);
+                                root.expandWithItem(itemFid, inputId, inputSupport, nextItemOffset);
                             }
                         }
                     }
@@ -144,18 +144,18 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
             postings.initialize(projectedDatabase.postingList);
             do {
                 int inputId = postings.nextValue();
-                int[] inputSequence = inputSequences.get(inputId);
+                int inputOffset = inputOffsets.get(inputId);
                 int inputSupport = inputSupports.get(inputId);
 
                 // iterator over all positions
                 while (postings.hasNextValue()) {
-                    int position = postings.nextValue();
+                    offset = inputOffset + postings.nextValue();
 
                     // Add items in the right gamma+1 neighborhood
                     int gap = 0;
-                    for (int newPosition = position+1; gap <= gamma && newPosition < inputSequence.length; newPosition++) {
+                    while (gap <= gamma && hasNextFid()) {
                         // process gaps
-                        int itemFid = inputSequence[newPosition];
+                        int itemFid = nextFid();
                         if (itemFid < 0) {
                             gap -= itemFid;
                             continue;
@@ -163,8 +163,9 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
                         gap++;
 
                         // process item
+                        int nextItemOffset = offset-inputOffset;
                         if (largestFrequentFid >= itemFid) {
-                            childNode.expandWithItem(itemFid, inputId, inputSupport, newPosition);
+                            childNode.expandWithItem(itemFid, inputId, inputSupport, nextItemOffset);
                         }
                         if (generalize) {
                             ascendants.clear();
@@ -173,7 +174,7 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
                             while (itemFidIt.hasNext()) {
                                 itemFid = itemFidIt.nextInt();
                                 if(largestFrequentFid >= itemFid) {
-                                    childNode.expandWithItem(itemFid, inputId, inputSupport, newPosition);
+                                    childNode.expandWithItem(itemFid, inputId, inputSupport, nextItemOffset);
                                 }
                             }
                         }

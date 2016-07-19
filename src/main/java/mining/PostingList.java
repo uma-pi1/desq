@@ -37,12 +37,14 @@ public final class PostingList {
 		public int offset;
 
 		public Decompressor() {
-			this.postingList = null;
-			this.offset = 0;
-
+			this(null);
 		}
 
 		public Decompressor(ByteArrayList postingList) {
+			initialize(postingList);
+		}
+
+		public void initialize(ByteArrayList postingList) {
 			this.postingList = postingList;
 			this.offset = 0;
 		}

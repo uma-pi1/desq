@@ -19,7 +19,7 @@ final class PrefixGrowthTreeNode {
         this.projectedDatabase = projectedDatabase;
     }
 
-    void expandWithItem(int itemFid, int inputSequenceId, long inputSequenceSupport, int position) {
+    void expandWithItem(int itemFid, int inputId, long inputSupport, int position) {
         ProjectedDatabase projectedDatabase = expansionsByFid.get(itemFid);
         if (projectedDatabase == null) {
             projectedDatabase = new ProjectedDatabase();
@@ -27,15 +27,15 @@ final class PrefixGrowthTreeNode {
             expansionsByFid.put(itemFid, projectedDatabase);
         }
 
-        if (projectedDatabase.lastTransactionId != inputSequenceId) {
+        if (projectedDatabase.lastInputId != inputId) {
             // Add transaction separator
             if (projectedDatabase.postingList.size() > 0) {
                 mining.PostingList.addCompressed(0, projectedDatabase.postingList);
             }
             projectedDatabase.lastPosition = position;
-            projectedDatabase.lastTransactionId = inputSequenceId;
-            projectedDatabase.support += inputSequenceSupport;
-            mining.PostingList.addCompressed(inputSequenceId + 1, projectedDatabase.postingList);
+            projectedDatabase.lastInputId = inputId;
+            projectedDatabase.support += inputSupport;
+            mining.PostingList.addCompressed(inputId + 1, projectedDatabase.postingList);
             mining.PostingList.addCompressed(position + 1, projectedDatabase.postingList);
         } else if (projectedDatabase.lastPosition != position) {
             mining.PostingList.addCompressed(position + 1, projectedDatabase.postingList);
