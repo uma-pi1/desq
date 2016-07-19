@@ -1,7 +1,5 @@
 package sandbox;
 
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntList;
 
 import java.io.IOException;
 import java.net.URL;
@@ -15,9 +13,8 @@ import de.uni_mannheim.desq.patex.PatEx;
 
 public class FstExample {
 
+	//Requires dot software
 	void icdm16() throws IOException {
-		
-		
 		URL dictFile = getClass().getResource("/icdm16-example/dict.del");
 		URL dataFile = getClass().getResource("/icdm16-example/data.del");
 
@@ -30,7 +27,9 @@ public class FstExample {
 		dict.recomputeFids();
 		
 		String patternExpression = "[c|d]([A^|B=^]+)e";
-		//String patternExpression = "[A|B]c";
+		//String patternExpression = DesqMiner.patternExpressionFor(0, 3, true);
+		//String patternExpression = "([A|B]c*[d|e])";
+		//String patternExpression = "([A|B]c+[d|e])";
 		
 		// create fst
 		patternExpression = ".* [" + patternExpression.trim() + "]";
@@ -40,8 +39,6 @@ public class FstExample {
 		
 		fst.minimize();
 		fst.print("./fst-min");
-		
-		
 	}
 	
 	public static void main(String[] args) throws IOException {

@@ -46,16 +46,8 @@ public class DesqDfsExample {
 
 		// input parameters
 		String patternExpression = "[c|d]([A^|B=^]+)e";
-		//String patternExpression = "(A^{2,})";
 		int sigma = 2;
 
-		// create fst
-		//patternExpression = ".* [" + patternExpression.trim() + "]";
-		//PatEx patEx = new PatEx(patternExpression, dict);
-		//Fst fst = patEx.translate();
-		//fst.minimize();
-
-		//System.out.println("\nPattern Expression=" + patternExpression + " sigma=" + sigma);
 		dataReader = new DelSequenceReader(dataFile.openStream(), false);
 		dataReader.setDictionary(dict);
 		DesqMinerContext ctx = new DesqMinerContext();
@@ -64,8 +56,6 @@ public class DesqDfsExample {
 		ctx.patternWriter = result;
 		ctx.properties = DesqDfs.createProperties(patternExpression, sigma);
 		System.out.println("\nPatterns " + ctx.properties.toString());
-		//PropertiesUtils.set(ctx.properties, "minSupport", sigma);
-		//ctx.fst = fst;
 		
 		DesqMiner miner = new DesqDfs(ctx);
 		miner.addInputSequences(dataReader);

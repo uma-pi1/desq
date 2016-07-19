@@ -125,8 +125,8 @@ public final class FstOperations {
 	
 	// Minimizes a FST along the lines of Brzozowski's algorithm
 	public static void minimize(Fst fst) {
-		partiallyDeterminize(fst, fst.reverse());
-		partiallyDeterminize(fst, fst.reverse());
+		partiallyDeterminize(fst, fst.reverse(false));
+		partiallyDeterminize(fst, fst.reverse(false));
 	}
 	
 	public static List<State> reverse(Fst fst) {
