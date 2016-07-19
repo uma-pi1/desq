@@ -272,7 +272,21 @@ public class Dictionary {
 		}
 		return flist;
 	}
-	
+
+	/** Gets the largest fid of in item with document frequency at least as large as specified. Returns -1 if
+	 * there is no such item.
+     */
+	public int getLargestFidAboveDfreq(long dFreq) {
+		int resultFid = -1;
+		for (Entry<Integer, Item> entry : itemsByFid.entrySet()) {
+			int fid = entry.getKey();
+			Item item = entry.getValue();
+			if (fid>resultFid && item.dFreq >= dFreq)
+				resultFid = fid;
+		}
+		return resultFid;
+	}
+
 	public void idsToFids(IntList ids) {
 		for (int i=0; i<ids.size(); i++) {
 			int id = ids.getInt(i);

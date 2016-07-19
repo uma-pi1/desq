@@ -6,9 +6,7 @@ import java.util.Properties;
 
 import de.uni_mannheim.desq.util.PropertiesUtils;
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.ints.*;
 import mining.PostingList;
 
 /**
@@ -32,12 +30,13 @@ public class PrefixGrowthMiner extends DesqMiner {
 	protected Items globalItems = new Items();
 	private int[] transaction = null;
 	public int itemsCounted = 0;
-	int[] flist;
+	int largestFrequentFid;
+	IntSet ascendants = new IntOpenHashSet();
 
 	public PrefixGrowthMiner(DesqMinerContext ctx) {
 		super(ctx);
 		setParameters(ctx.properties);
-		this.flist = ctx.dict.getFlist().toIntArray();
+		this.largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
 	}
 
 	public void clear() {
@@ -56,18 +55,20 @@ public class PrefixGrowthMiner extends DesqMiner {
 	}
 
 	public void setParameters(Properties properties) {
-		this.sigma = PropertiesUtils.getLong(ctx.properties, "minSupport");
-		this.gamma = PropertiesUtils.getInt(ctx.properties, "maxGap");
-		this.lambda = PropertiesUtils.getInt(ctx.properties, "maxLength");
-		this.generalize = PropertiesUtils.getBoolean(ctx.properties, "generalize");
+		long sigma = PropertiesUtils.getLong(ctx.properties, "minSupport");
+		int gamma = PropertiesUtils.getInt(ctx.properties, "maxGap");
+		int lambda = PropertiesUtils.getInt(ctx.properties, "maxLength");
+		boolean generalize = PropertiesUtils.getBoolean(ctx.properties, "generalize");
+        setParameters(sigma, gamma, lambda, generalize);
 	}
 
 	public void setParameters(long sigma, int gamma, int lambda, boolean generalize) {
+        clear();
 		this.sigma = sigma;
 		this.gamma = gamma;
 		this.lambda = lambda;
 		this.generalize = generalize;
-		clear();
+        clear();
 	}
 	
 	
@@ -98,27 +99,28 @@ public class PrefixGrowthMiner extends DesqMiner {
 		inputTransactions.add(inputTransaction);
 
 		for (int i = fromIndex; i < toIndex; ++i) {
-			int itemId = inputSequence.getInt(i);
-			assert itemId  <= endItem;
-			if (itemId < 0) {
+			int itemFid = inputSequence.getInt(i);
+			assert itemFid  <= endItem;
+			if (itemFid < 0) {
 				continue;
 			}
 
-			if(flist[itemId] >= sigma) {
-				globalItems.addItem(itemId, transactionId, support, i);
-				itemsCounted++;
-			}
-			if (generalize) {
-				de.uni_mannheim.desq.dictionary.Item item = ctx.dict.getItemByFid(itemId);
-				while (!item.parents.isEmpty()) {
-					assert item.parents.size()==1;
-					item = item.parents.get(0);
-					itemId = item.fid;
-					if(flist[itemId] >= sigma) {
-						globalItems.addItem(item.fid, transactionId, support, i);
-						itemsCounted++;
-					}
-				}
+            if(largestFrequentFid >= itemFid) {
+                globalItems.addItem(itemFid, transactionId, support, i);
+                itemsCounted++;
+            }
+
+            if (generalize) {
+                ascendants.clear();
+                ctx.dict.addAscendantFids(ctx.dict.getItemByFid(itemFid), ascendants);
+                IntIterator itemFidIt = ascendants.iterator();
+                while (itemFidIt.hasNext()) {
+                    itemFid = itemFidIt.nextInt();
+                    if(largestFrequentFid >= itemFid) {
+                        globalItems.addItem(itemFid, transactionId, support, i);
+                        itemsCounted++;
+                    }
+                }
 			}
 		}
 	}
@@ -136,7 +138,7 @@ public class PrefixGrowthMiner extends DesqMiner {
 				if (ctx.patternWriter != null) {
 					ctx.patternWriter.write(new IntArrayList(prefix), item.support);
 				}
-				dfs(prefix, item.transactionIds, (prefix[0] >= beginItem));
+				dfs(prefix, item.transactionIds, prefix[0] >= beginItem);
 			}
 		}
 		clear();
@@ -152,6 +154,7 @@ public class PrefixGrowthMiner extends DesqMiner {
 		do {
 			int transactionId = transactions.nextValue();
 			transaction = inputTransactions.get(transactionId);
+            int transactionSupport = transactionSupports.get(transactionId);
 			// for all positions
 			while (transactions.hasNextValue()) {
 				int position = transactions.nextValue();
@@ -159,32 +162,33 @@ public class PrefixGrowthMiner extends DesqMiner {
 				/* Add items in the right gamma+1 neighborhood */
 				int gap = 0;
 				for (int j = 0; gap <= gamma && (position + j + 1 < transaction.length); ++j) {
-					int itemId = transaction[position + j + 1];
-					if (itemId < 0) {
-						gap -= itemId;
+                    int newPosition = position + j + 1;
+                    int itemFid = transaction[newPosition];
+					if (itemFid < 0) {
+						gap -= itemFid;
 						continue;
 					}
 					gap++;
-					//if (globalItems.itemIndex.get(itemId).support >= sigma) {
-					if (flist[itemId] >= sigma) {
-						localItems.addItem(itemId, transactionId, transactionSupports.get(transactionId), (position + j + 1));
-						itemsCounted++;
-					}
+
+                    if (largestFrequentFid >= itemFid) {
+                        localItems.addItem(itemFid, transactionId, transactionSupport, newPosition);
+                        itemsCounted++;
+                    }
+
 					// add parents
 					if (generalize) {
-						de.uni_mannheim.desq.dictionary.Item item = ctx.dict.getItemByFid(itemId);
-						while (!item.parents.isEmpty()) {
-							assert item.parents.size()==1;
-							item = item.parents.get(0);
-							itemId = item.fid;
-							//if (globalItems.itemIndex.get(itemId).support >= sigma) {
-							if (flist[itemId] >= sigma) {
-								localItems.addItem(itemId, transactionId, transactionSupports.get(transactionId),
-										(position + j + 1));
-								itemsCounted++;
-							}
-						}
+                        ascendants.clear();
+                        ctx.dict.addAscendantFids(ctx.dict.getItemByFid(itemFid), ascendants);
+                        IntIterator itemFidIt = ascendants.iterator();
+                        while (itemFidIt.hasNext()) {
+                            itemFid = itemFidIt.nextInt();
+                            if(largestFrequentFid >= itemFid) {
+                                localItems.addItem(itemFid, transactionId, transactionSupport, newPosition);
+                                itemsCounted++;
+                            }
+                        }
 					}
+
 				}
 			}
 
@@ -240,13 +244,13 @@ public class PrefixGrowthMiner extends DesqMiner {
 
 		Int2ObjectOpenHashMap<Item> itemIndex = new Int2ObjectOpenHashMap<>();
 
-		public void addItem(int itemId, int transactionId, int support, int position) {
+		public void addItem(int itemFid, int transactionId, int support, int position) {
 			
-			Item item = itemIndex.get(itemId);
+			Item item = itemIndex.get(itemFid);
 			if (item == null) {
 				item = new Item();
-				itemIndex.put(itemId, item);
-				// baseItems.add(itemId);
+				itemIndex.put(itemFid, item);
+				// baseItems.add(itemFid);
 			}
 
 			if (item.lastTransactionId != transactionId) {
