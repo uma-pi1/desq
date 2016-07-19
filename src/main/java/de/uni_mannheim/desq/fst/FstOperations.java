@@ -162,12 +162,15 @@ public final class FstOperations {
 		}
 		
 		fst.initialState.isFinal = true;
-
 		if (createNewInitialState) {
 			// If we want one initial state
-			fst.initialState = new State();
-			for (State a : initialStates) {
-				fst.initialState.simulateEpsilonTransition(a);
+			if(initialStates.size() > 1) {
+				fst.initialState = new State();
+				for (State a : initialStates) {
+					fst.initialState.simulateEpsilonTransition(a);
+				}
+			} else {
+				fst.initialState = initialStates.get(0);
 			}
 			fst.updateStates();
 			initialStates.clear();
