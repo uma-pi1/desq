@@ -117,7 +117,6 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
 
 	// node must have been processed/output/expanded already, but children not
     // upon return, prefix must be unmodified
-    // updates the  set of siblings to itemFids that do not need to be expanded in siblings of the given node
 	private void expand(IntList prefix, PrefixGrowthTreeNode node, boolean hasPivot) {
         // add a placeholder to prefix
         int lastPrefixIndex = prefix.size();
