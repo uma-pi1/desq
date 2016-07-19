@@ -1,11 +1,13 @@
 package de.uni_mannheim.desq.mining;
 
+import de.uni_mannheim.desq.patex.PatEx;
 import de.uni_mannheim.desq.util.PropertiesUtils;
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 import it.unimi.dsi.fastutil.ints.*;
 
 import java.util.BitSet;
 import java.util.Iterator;
+import java.util.Properties;
 
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.ItemState;
@@ -15,11 +17,14 @@ public class DesqDfs extends MemoryDesqMiner {
 
 	
 	// parameters for mining
-	Fst fst;
+	//Fst fst;
 	long sigma;
+	String patternExpression;
 	
 	// helper variables
-	int[] flist;
+	Fst fst;
+	//int[] flist;
+	int largestFrequentFid;
 	int[] inputSequence;
 	boolean reachedFinalState;
 	int dfsLevel = 0;
@@ -27,9 +32,22 @@ public class DesqDfs extends MemoryDesqMiner {
 
 	public DesqDfs(DesqMinerContext ctx) {
 		super(ctx);
-		this.fst = ctx.fst;
+		this.patternExpression = PropertiesUtils.get(ctx.properties, "patternExpression");
 		this.sigma = PropertiesUtils.getLong(ctx.properties, "minSupport");
-		this.flist = ctx.dict.getFlist().toIntArray();
+		//this.flist = ctx.dict.getFlist().toIntArray();
+		this.largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
+		
+		patternExpression = ".* [" + patternExpression.trim() + "]";
+		PatEx p = new PatEx(patternExpression, ctx.dict);
+		this.fst = p.translate();
+		fst.minimize();//TODO: move to translate
+	}
+	
+	public static Properties createProperties(String patternExpression, int sigma) {
+		Properties properties = new Properties();
+		PropertiesUtils.set(properties, "patternExpression", patternExpression);
+		PropertiesUtils.set(properties, "minSupport", sigma);
+		return properties;
 	}
 	
 	public void clear() {
@@ -136,7 +154,7 @@ public class DesqDfs extends MemoryDesqMiner {
 			if(outputItemFid == 0) { //EPS output
 				incStep(sid, pos + 1, toStateId, node);
 			} else {
-				if(flist[outputItemFid] >= sigma) {
+				if(largestFrequentFid >= outputItemFid) {
 					node.append(outputItemFid, sid, pos + 1, toStateId);
 				}
 			}
