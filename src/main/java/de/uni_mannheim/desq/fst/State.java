@@ -39,9 +39,6 @@ public class State {
 		if (to.isFinal)
 			isFinal = true;
 		for (Transition t : to.transitionList) {
-			if(to == t.toState) {//if self loop
-				t.toState = this;
-			}
 			transitionList.add(t);
 		}
 	}
