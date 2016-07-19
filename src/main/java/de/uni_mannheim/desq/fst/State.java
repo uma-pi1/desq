@@ -1,16 +1,15 @@
 package de.uni_mannheim.desq.fst;
 
-import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.Set;
+import java.util.List;
 
 
- 
 public class State {
 	
 	int id;
-	// set of transitions
-	Set<Transition> transitionSet;
+	// List of transitions
+	List<Transition> transitionList;
 	boolean isFinal;
 	
 	public State() {
@@ -19,7 +18,7 @@ public class State {
 	
 	
 	public State(boolean isFinal) {
-		this.transitionSet = new HashSet<Transition>();
+		this.transitionList = new ArrayList<Transition>();
 		this.isFinal = isFinal;
 	}
 	
@@ -33,14 +32,17 @@ public class State {
 	}
 	
 	public void addTransition(Transition t) {
-		transitionSet.add(t);
+		transitionList.add(t);
 	}
 	
 	public void simulateEpsilonTransition(State to) {
 		if (to.isFinal)
 			isFinal = true;
-		for (Transition t : to.transitionSet) {
-			transitionSet.add(t);
+		for (Transition t : to.transitionList) {
+			if(to == t.toState) {//if self loop
+				t.toState = this;
+			}
+			transitionList.add(t);
 		}
 	}
 	
@@ -92,7 +94,7 @@ public class State {
 		else
 			resultIt = new TransitionIterator();
 		
-		resultIt.transitionsIt = transitionSet.iterator();
+		resultIt.transitionsIt = transitionList.iterator();
 		resultIt.fid = itemFid;
 		resultIt.isNew = true;
 

@@ -28,25 +28,20 @@ public class FstExample {
 		SequenceReader dataReader = new DelSequenceReader(dataFile.openStream(), false);
 		dict.incCounts(dataReader);
 		dict.recomputeFids();
-		//System.out.println("Dictionary with statitics");
-		//DictionaryIO.saveToDel(System.out, dict, true, true);
-
-		// print sequences
-		//System.out.println("Input sequences:");
-		//dataReader = new DelSequenceReader(dataFile.openStream(), false);
-		//dataReader.setDictionary(dict);
-		//IntList inputSequence = new IntArrayList();
-		//while (dataReader.readAsFids(inputSequence)) {
-		//	System.out.println(dict.getItemsByFids(inputSequence));
-		//}
 		
 		String patternExpression = "[c|d]([A^|B=^]+)e";
+		//String patternExpression = "[A|B]c";
 		
 		// create fst
 		patternExpression = ".* [" + patternExpression.trim() + "]";
 		PatEx patEx = new PatEx(patternExpression, dict);
 		Fst fst = patEx.translate();
 		fst.print("./fst");
+		
+		fst.minimize();
+		fst.print("./fst-min");
+		
+		
 	}
 	
 	public static void main(String[] args) throws IOException {
