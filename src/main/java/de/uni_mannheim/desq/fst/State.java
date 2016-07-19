@@ -1,18 +1,14 @@
 package de.uni_mannheim.desq.fst;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 
 
- 
 public class State {
 	
 	int id;
-	// set of transitions
-	//Set<Transition> transitionSet;
+	// List of transitions
 	List<Transition> transitionSet;
 	boolean isFinal;
 	
