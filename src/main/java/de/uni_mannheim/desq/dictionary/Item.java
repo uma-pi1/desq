@@ -16,10 +16,10 @@ public class Item {
 	 * {@link Dictionary#recomputeFids()}}. */
 	public int fid = -1;
 
-	/** Collection frequency of this item */
+	/** Collection frequency of this item and its ascendants */
 	public int cFreq = -1;
 
-    /** Document frequency of this ite, */
+    /** Document frequency of this item and its ascendants */
     public int dFreq = -1;
 
     /** Children of this item */

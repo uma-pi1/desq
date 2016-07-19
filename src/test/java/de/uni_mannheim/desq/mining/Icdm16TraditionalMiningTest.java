@@ -14,7 +14,7 @@ import java.util.*;
  * Created by rgemulla on 18.07.2016.
  */
 public abstract class Icdm16TraditionalMiningTest extends TraditionalMiningTest {
-    @Parameterized.Parameters
+    @Parameterized.Parameters(name = "icdm16-traditional-patterns-ids-{0}-{1}-{2}-{3}")
     public static Collection<Object[]> data() {
         List<Object[]> parameters = new ArrayList<Object[]>();
         for (Long sigma : new Long[] {1L,3L,5L,7L})
