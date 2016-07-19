@@ -41,7 +41,7 @@ simpleexp
 itemexp 
 :
 	'.' '^'?                        #wildCard
-	| WORD '='? '^'?                 #projectedDatabase
+	| WORD '='? '^'?                 #item
 ;
 
 WORD :
