@@ -53,7 +53,7 @@ public class Fst {
 				s.setId(number++);
 				states.add(s);
 				if (s.isFinal) finalStates.add(s);
-				for (Transition t : s.transitionSet) {
+				for (Transition t : s.transitionList) {
 					worklist.add(t.toState);
 				}
 				visited.add(s);
@@ -89,7 +89,7 @@ public class Fst {
 			if(state == initialState) {
 				fstCopy.initialState = stateCopy;
 			}
-			for (Transition t : state.transitionSet) {
+			for (Transition t : state.transitionList) {
 				Transition tCopy = t.shallowCopy();
 				tCopy.setToState(stateMap.get(t.toState));
 				stateCopy.addTransition(tCopy);
@@ -104,7 +104,7 @@ public class Fst {
 		Vfst vfst = new Vfst(file);
 		vfst.beginGraph();
 		for(State s : states) {
-			for(Transition t : s.transitionSet)
+			for(Transition t : s.transitionList)
                 vfst.add(String.valueOf(s.id), t.toString(), String.valueOf(t.getToState().id));
 			if(s.isFinal)
 				vfst.addAccepted(String.valueOf(s.id));

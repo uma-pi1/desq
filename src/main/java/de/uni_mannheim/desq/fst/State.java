@@ -9,7 +9,7 @@ public class State {
 	
 	int id;
 	// List of transitions
-	List<Transition> transitionSet;
+	List<Transition> transitionList;
 	boolean isFinal;
 	
 	public State() {
@@ -18,7 +18,7 @@ public class State {
 	
 	
 	public State(boolean isFinal) {
-		this.transitionSet = new ArrayList<Transition>();
+		this.transitionList = new ArrayList<Transition>();
 		this.isFinal = isFinal;
 	}
 	
@@ -32,17 +32,17 @@ public class State {
 	}
 	
 	public void addTransition(Transition t) {
-		transitionSet.add(t);
+		transitionList.add(t);
 	}
 	
 	public void simulateEpsilonTransition(State to) {
 		if (to.isFinal)
 			isFinal = true;
-		for (Transition t : to.transitionSet) {
+		for (Transition t : to.transitionList) {
 			if(to == t.toState) {//if self loop
 				t.toState = this;
 			}
-			transitionSet.add(t);
+			transitionList.add(t);
 		}
 	}
 	
@@ -94,7 +94,7 @@ public class State {
 		else
 			resultIt = new TransitionIterator();
 		
-		resultIt.transitionsIt = transitionSet.iterator();
+		resultIt.transitionsIt = transitionList.iterator();
 		resultIt.fid = itemFid;
 		resultIt.isNew = true;
 

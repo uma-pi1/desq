@@ -139,7 +139,7 @@ public final class FstOperations {
 		reverseTMap.put(fst.initialState.id, new ArrayList<Transition>());
 
 		for (State s : fst.states) {
-			for (Transition t : s.transitionSet) {
+			for (Transition t : s.transitionList) {
 				List<Transition> tSet = reverseTMap.get(t.toState.id);
 				if (tSet == null) {
 					tSet = new ArrayList<Transition>();
@@ -154,7 +154,7 @@ public final class FstOperations {
 		// Update states with reverse transtitions
 		List<State> initialStates = new ArrayList<>();
 		for (State s : fst.states) {
-			s.transitionSet = reverseTMap.get(s.id);
+			s.transitionList = reverseTMap.get(s.id);
 			if(s.isFinal) {
 				initialStates.add(s);
 				s.isFinal = false;
@@ -219,7 +219,7 @@ public final class FstOperations {
 					State cFstState = fst.getState(cFstStateId);
 					if(cFstState.isFinal)
 						isFinal = true;
-					for(Transition t : cFstState.transitionSet) {
+					for(Transition t : cFstState.transitionList) {
 						IntSet reachableStateIds = M.get(t);
 						if(reachableStateIds == null) {
 							reachableStateIds = new IntOpenHashSet();
