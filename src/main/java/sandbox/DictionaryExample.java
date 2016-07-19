@@ -24,7 +24,8 @@ public class DictionaryExample {
 		IntSet fids;
 
 		// compute ascendants
-		item = dict.getItemBySid("was@be@VB@");
+		//item = dict.getItemBySid("was@be@VB@");
+		item = dict.getItemBySid("vice@NN@");
 		System.out.println(item);
 		fids = dict.ascendantsFids(item.fid);
 		System.out.println("Asc: " + dict.getItemsByFids(fids));
@@ -92,7 +93,7 @@ public class DictionaryExample {
 	
 	
 	public static void main(String[] args) throws IOException {
-		//new DictionaryExample().nyt();
-		new DictionaryExample().icdm16();
+		new DictionaryExample().nyt();
+		//new DictionaryExample().icdm16();
 	}
 }
