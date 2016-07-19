@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -47,6 +48,7 @@ final class PrefixGrowthTreeNode {
             if (projectedDatabase.support >= minSupport)
                 children.add(new PrefixGrowthTreeNode(projectedDatabase));
         }
+        Collections.sort(children, (c1, c2) -> c1.projectedDatabase.itemFid - c2.projectedDatabase.itemFid); // smallest fids first
         expansionsByFid = null;
     }
 

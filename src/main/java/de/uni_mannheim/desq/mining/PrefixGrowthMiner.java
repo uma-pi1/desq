@@ -117,10 +117,12 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
 
 	// node must have been processed/output/expanded already, but children not
     // upon return, prefix must be unmodified
+    // updates the  set of siblings to itemFids that do not need to be expanded in siblings of the given node
 	private void expand(IntList prefix, PrefixGrowthTreeNode node, boolean hasPivot) {
         // add a placeholder to prefix
         int lastPrefixIndex = prefix.size();
         prefix.add(-1);
+        IntSet childrenToNotExpand = new IntOpenHashSet();
 
         // iterate over children
         for (PrefixGrowthTreeNode childNode : node.children) {
@@ -133,7 +135,7 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
             }
 
             // check if we need to expand
-            if (prefix.size() >= lambda) {
+            if (prefix.size() >= lambda || childrenToNotExpand.contains(projectedDatabase.itemFid)) {
                 childNode.clear();
                 continue;
             }
@@ -180,9 +182,15 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
                 }
             } while (postings.nextPosting());
 
+            // if this expansion did not produce any frequent children, then all siblings with descendant items
+            // also can't produce frequent children; remember this
+            childNode.expansionsToChildren(sigma);
+            if (generalize && childNode.children.isEmpty()) {
+                ctx.dict.addDescendantFids(ctx.dict.getItemByFid(projectedDatabase.itemFid), childrenToNotExpand);
+            }
+
             // process just created expansions
             childNode.projectedDatabase.clear(); // not needed anymore
-            childNode.expansionsToChildren(sigma);
             boolean containsPivot = hasPivot || (projectedDatabase.itemFid >= beginItem);
             expand(prefix, childNode, containsPivot);
             childNode.clear(); // not needed anymore
