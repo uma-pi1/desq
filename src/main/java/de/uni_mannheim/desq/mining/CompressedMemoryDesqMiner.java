@@ -44,7 +44,7 @@ public abstract class CompressedMemoryDesqMiner extends DesqMiner {
 
 	/** Is there another item fid for the current input sequence (uses {@link #offset}) */
 	protected final boolean hasNextFid() {
-		return offset < inputSequences.size() && inputSequences.get(offset) != 0;
+		return offset < inputSequences.size() && inputSequences.getByte(offset) != 0;
 	}
 
 	/** Get the next item fid for the current input sequence (uses {@link #offset}) */
@@ -52,7 +52,7 @@ public abstract class CompressedMemoryDesqMiner extends DesqMiner {
 		int result = 0;
 		int shift = 0;
 		do {
-			byte b = inputSequences.get(offset);
+			byte b = inputSequences.getByte(offset);
 			offset++;
 			result += (b & 127) << shift;
 			if (b < 0) {
@@ -72,7 +72,7 @@ public abstract class CompressedMemoryDesqMiner extends DesqMiner {
 			offset++;
 			if (offset >= inputSequences.size())
 				return false;
-		} while (inputSequences.get(offset - 1) != 0); // previous byte is not a separator byte
+		} while (inputSequences.getByte(offset - 1) != 0); // previous byte is not a separator byte
 		return true;
 	}
 }

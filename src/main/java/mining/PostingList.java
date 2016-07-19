@@ -51,7 +51,7 @@ public final class PostingList {
 
 		/** Is there another value in the posting? */
 		public boolean hasNextValue() {
-			return offset < postingList.size() && postingList.get(offset) != 0;
+			return offset < postingList.size() && postingList.getByte(offset) != 0;
 		}
 
 		/**
@@ -63,7 +63,7 @@ public final class PostingList {
 			int result = 0;
 			int shift = 0;
 			do {
-				byte b = postingList.get(offset);
+				byte b = postingList.getByte(offset);
 				offset++;
 				result += (b & 127) << shift;
 				if (b < 0) {
@@ -85,7 +85,7 @@ public final class PostingList {
 				offset++;
 				if (offset >= postingList.size())
 					return false;
-			} while (postingList.get(offset - 1) != 0); // previous byte is not a
+			} while (postingList.getByte(offset - 1) != 0); // previous byte is not a
 																									// separator byte
 			return true;
 		}

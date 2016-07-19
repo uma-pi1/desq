@@ -57,7 +57,7 @@ public class OnePassRecursive extends DesqCount {
 						if (!useFlist || flist[outputItemId] >= sigma) {
 							buffer.add(outputItemId);
 							step(pos + 1, toState);
-							buffer.remove(buffer.size() - 1);
+							buffer.popInt();
 						}
 						break;
 					
@@ -65,7 +65,7 @@ public class OnePassRecursive extends DesqCount {
 						if (!useFlist || flist[itemId] >= sigma) {
 							buffer.add(itemId);
 							step(pos + 1, toState);
-							buffer.remove(buffer.size() - 1);
+							buffer.popInt();
 						}
 						break;
 					
@@ -88,7 +88,7 @@ public class OnePassRecursive extends DesqCount {
 							if (!useFlist || flist[id] >= sigma) {
 								buffer.add(id);
 								step(pos + 1, toState);
-								buffer.remove(buffer.size() - 1);
+								buffer.popInt();
 							}
 						}
 						

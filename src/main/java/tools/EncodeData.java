@@ -229,10 +229,10 @@ public class EncodeData {
 			public int compare(Integer t, Integer u) {
 				int ret = 0;
 				try{
-					ret = dfs.get(u) - dfs.get(t); 
+					ret = dfs.get(u.intValue()) - dfs.get(t.intValue());
 				} catch(Exception e){
 					logger.log(Level.SEVERE, "Item in the hierarchy or its descendants do not appear in input sequences");
-					logger.log(Level.INFO, "caused by " + names.get(u) + " or " + names.get(t));
+					logger.log(Level.INFO, "caused by " + names.get(u.intValue()) + " or " + names.get(t.intValue()));
 					logger.log(Level.SEVERE, "Aborting");
 					System.exit(-1);
 				}

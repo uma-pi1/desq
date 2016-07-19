@@ -120,7 +120,7 @@ public abstract class DesqCount {
 	
 	protected void countSequence(int[] sequence) {
 		gpt++;
-		Long supSid = outputSequences.get(sequence);
+		Long supSid = outputSequences.getLong(sequence);
 		if (supSid == null) {
 			outputSequences.put(sequence, PrimitiveUtils.combine(1, sid));
 			gptUnique++;

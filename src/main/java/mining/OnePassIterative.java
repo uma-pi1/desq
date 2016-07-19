@@ -205,7 +205,7 @@ public class OnePassIterative extends DesqCount {
 		for (Node n : node.prefixes) {
 			computeOutput(n);
 		}
-		buffer.remove(buffer.size() - 1);
+		buffer.popInt();
 	}
 
 	private int[] reverse(int[] a) {
