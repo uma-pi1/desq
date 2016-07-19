@@ -6,15 +6,12 @@ import java.util.Properties;
 
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.ItemState;
-import de.uni_mannheim.desq.fst.Transition;
 import de.uni_mannheim.desq.patex.PatEx;
-import de.uni_mannheim.desq.util.IntArrayStrategy;
 import de.uni_mannheim.desq.util.PrimitiveUtils;
 import de.uni_mannheim.desq.util.PropertiesUtils;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
-import it.unimi.dsi.fastutil.objects.Object2LongOpenCustomHashMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 
 public class DesqCount extends DesqMiner {
@@ -39,18 +36,17 @@ public class DesqCount extends DesqMiner {
 		this.sigma = PropertiesUtils.getLong(ctx.properties, "minSupport");
 		if(PropertiesUtils.isSet(ctx.properties, "useFlist"))
 			this.useFlist = PropertiesUtils.getBoolean(ctx.properties, "useFlist");
-		buffer = new IntArrayList();
 		this.largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
 		this.sid = 0;
+		
 		this.patternExpression = PropertiesUtils.get(ctx.properties, "patternExpression");
 		patternExpression = ".* [" + patternExpression.trim() + "]";
 		PatEx p = new PatEx(patternExpression, ctx.dict);
 		this.fst = p.translate();
 		fst.minimize();//TODO: move to translate
-		
-		
-		
 		this.initialStateId = fst.getInitialState().getId();
+		
+		buffer = new IntArrayList();
 		
 	}
 	

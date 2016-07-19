@@ -11,19 +11,16 @@ import java.util.Properties;
 
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.ItemState;
-import de.uni_mannheim.desq.fst.Transition;
 
 public class DesqDfs extends MemoryDesqMiner {
 
 	
 	// parameters for mining
-	//Fst fst;
 	long sigma;
 	String patternExpression;
 	
 	// helper variables
 	Fst fst;
-	//int[] flist;
 	int largestFrequentFid;
 	int[] inputSequence;
 	boolean reachedFinalState;
@@ -34,7 +31,6 @@ public class DesqDfs extends MemoryDesqMiner {
 		super(ctx);
 		this.patternExpression = PropertiesUtils.get(ctx.properties, "patternExpression");
 		this.sigma = PropertiesUtils.getLong(ctx.properties, "minSupport");
-		//this.flist = ctx.dict.getFlist().toIntArray();
 		this.largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
 		
 		patternExpression = ".* [" + patternExpression.trim() + "]";
