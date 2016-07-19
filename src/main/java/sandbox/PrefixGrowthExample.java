@@ -15,7 +15,7 @@ import de.uni_mannheim.desq.mining.Pattern;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
-public class DfsMiningExample {
+public class PrefixGrowthExample {
 	void icdm16() throws IOException {
 		URL dictFile = getClass().getResource("/icdm16-example/dict.del");
 		URL dataFile = getClass().getResource("/icdm16-example/data.del");
@@ -39,10 +39,10 @@ public class DfsMiningExample {
 		}
 		
 		// Perform mining 
-		int sigma = 4;
+		int sigma = 1;
 		int gamma = 0;
-		int lambda = 2;
-		boolean generalize = true;
+		int lambda = 1;
+		boolean generalize = false;
 		
 		dataReader = new DelSequenceReader(dataFile.openStream(), false);
 		dataReader.setDictionary(dict);
@@ -65,6 +65,6 @@ public class DfsMiningExample {
 
 	public static void main(String[] args) throws IOException {
 		//nyt();
-		new DfsMiningExample().icdm16();
+		new PrefixGrowthExample().icdm16();
 	}
 }
