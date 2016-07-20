@@ -2,7 +2,6 @@ package de.uni_mannheim.desq.mining;
 
 import de.uni_mannheim.desq.util.PropertiesUtils;
 import it.unimi.dsi.fastutil.ints.*;
-import mining.PostingList;
 
 import java.util.Properties;
 
@@ -23,17 +22,20 @@ public class CompressedPrefixGrowthMiner extends CompressedMemoryDesqMiner {
     private final PrefixGrowthTreeNode root = new PrefixGrowthTreeNode(new ProjectedDatabase());
     private int largestFrequentFid; // used to quickly determine whether an item is frequent
     private final IntSet ascendants = new IntOpenHashSet(); // used as a buffer for ascendant items
-    PostingList.Decompressor postings = new PostingList.Decompressor(); // used to access posting lists
+    NewPostingList.Iterator postingsIt = new NewPostingList.Iterator(); // used to access posting lists
+    NewPostingList.Iterator inputIt;
 
 	public CompressedPrefixGrowthMiner(DesqMinerContext ctx) {
 		super(ctx);
-		setParameters(ctx.properties);
+        inputOffsets = new IntArrayList(); // we need those
+		inputIt = inputSequences.iterator();
+        setParameters(ctx.properties);
 	}
 
 	// TODO: move up to DesqMiner
-	public void clear() {
-		inputSequences.clear();
-		inputSupports.clear();
+	@Override
+    public void clear() {
+	    super.clear();
 		root.clear();
 	}
 
@@ -79,10 +81,10 @@ public class CompressedPrefixGrowthMiner extends CompressedMemoryDesqMiner {
         if (inputSupports.size() >= sigma) {
             for (int inputId = 0; inputId < inputSupports.size(); inputId++) {
                 int inputOffset = inputOffsets.get(inputId);
-                offset = inputOffset;
+                inputIt.offset = inputOffset;
                 int inputSupport = inputSupports.get(inputId);
-                while (hasNextFid()) { // iterator over items in the sequence
-                    int itemFid = nextFid();
+                while (inputIt.hasNext()) { // iterator over items in the sequence
+                    int itemFid = inputIt.nextInt();
                     assert itemFid <= endItem;
 
                     // ignore gaps
@@ -91,7 +93,7 @@ public class CompressedPrefixGrowthMiner extends CompressedMemoryDesqMiner {
                     }
 
                     // process item
-                    int nextItemOffset = offset-inputOffset;
+                    int nextItemOffset = inputIt.offset-inputOffset;
                     if (largestFrequentFid >= itemFid) {
                         root.expandWithItem(itemFid, inputId, inputSupport, nextItemOffset);
                     }
@@ -141,21 +143,21 @@ public class CompressedPrefixGrowthMiner extends CompressedMemoryDesqMiner {
             }
 
             // ok, do the expansion
-            postings.initialize(projectedDatabase.postingList);
+            postingsIt.reset(projectedDatabase.postingList);
             do {
-                int inputId = postings.nextValue();
+                int inputId = postingsIt.nextNonNegativeInt();
                 int inputOffset = inputOffsets.get(inputId);
                 int inputSupport = inputSupports.get(inputId);
 
                 // iterator over all positions
-                while (postings.hasNextValue()) {
-                    offset = inputOffset + postings.nextValue();
+                while (postingsIt.hasNext()) {
+                    inputIt.offset = inputOffset + postingsIt.nextNonNegativeInt();
 
                     // Add items in the right gamma+1 neighborhood
                     int gap = 0;
-                    while (gap <= gamma && hasNextFid()) {
+                    while (gap <= gamma && inputIt.hasNext()) {
                         // process gaps
-                        int itemFid = nextFid();
+                        int itemFid = inputIt.nextInt();
                         if (itemFid < 0) {
                             gap -= itemFid;
                             continue;
@@ -163,7 +165,7 @@ public class CompressedPrefixGrowthMiner extends CompressedMemoryDesqMiner {
                         gap++;
 
                         // process item
-                        int nextItemOffset = offset-inputOffset;
+                        int nextItemOffset = inputIt.offset-inputOffset;
                         if (largestFrequentFid >= itemFid) {
                             childNode.expandWithItem(itemFid, inputId, inputSupport, nextItemOffset);
                         }
@@ -181,7 +183,7 @@ public class CompressedPrefixGrowthMiner extends CompressedMemoryDesqMiner {
 
                     }
                 }
-            } while (postings.nextPosting());
+            } while (postingsIt.nextPosting());
 
             // if this expansion did not produce any frequent children, then all siblings with descendant items
             // also can't produce frequent children; remember this

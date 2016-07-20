@@ -10,10 +10,10 @@ final class ProjectedDatabase {
     long support;
     int lastInputId;
     int lastPosition;
-    ByteArrayList postingList;
+    NewPostingList postingList;
 
     ProjectedDatabase() {
-        this.postingList = new ByteArrayList();
+        this.postingList = new NewPostingList();
         clear();
     }
 
@@ -22,6 +22,6 @@ final class ProjectedDatabase {
         support = 0;
         lastInputId = -1;
         lastPosition = -1;
-        postingList = new ByteArrayList();
+        postingList = new NewPostingList();
     }
 }

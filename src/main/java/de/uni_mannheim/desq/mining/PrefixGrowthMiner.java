@@ -1,11 +1,9 @@
 package de.uni_mannheim.desq.mining;
 
-import java.util.ArrayList;
 import java.util.Properties;
 
 import de.uni_mannheim.desq.util.PropertiesUtils;
 import it.unimi.dsi.fastutil.ints.*;
-import mining.PostingList;
 
 /**
  * @author Kaustubh Beedkar (kbeedkar@uni-mannheim.de)
@@ -24,7 +22,7 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
     private final PrefixGrowthTreeNode root = new PrefixGrowthTreeNode(new ProjectedDatabase());
     private int largestFrequentFid; // used to quickly determine whether an item is frequent
     private final IntSet ascendants = new IntOpenHashSet(); // used as a buffer for ascendant items
-    PostingList.Decompressor postings = new PostingList.Decompressor(); // used to access posting lists
+    NewPostingList.Iterator postingsIt = new NewPostingList.Iterator(); // used to access posting lists
 
 	public PrefixGrowthMiner(DesqMinerContext ctx) {
 		super(ctx);
@@ -141,15 +139,15 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
             }
 
             // ok, do the expansion
-            postings.initialize(projectedDatabase.postingList);
+            postingsIt.reset(projectedDatabase.postingList);
             do {
-                int inputId = postings.nextValue();
+                int inputId = postingsIt.nextNonNegativeInt();
                 int[] inputSequence = inputSequences.get(inputId);
                 int inputSupport = inputSupports.get(inputId);
 
                 // iterator over all positions
-                while (postings.hasNextValue()) {
-                    int position = postings.nextValue();
+                while (postingsIt.hasNext()) {
+                    int position = postingsIt.nextNonNegativeInt();
 
                     // Add items in the right gamma+1 neighborhood
                     int gap = 0;
@@ -180,7 +178,7 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
 
                     }
                 }
-            } while (postings.nextPosting());
+            } while (postingsIt.nextPosting());
 
             // if this expansion did not produce any frequent children, then all siblings with descendant items
             // also can't produce frequent children; remember this

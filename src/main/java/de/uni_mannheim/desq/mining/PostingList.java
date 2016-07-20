@@ -3,10 +3,9 @@ package de.uni_mannheim.desq.mining;
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 
 /**
- * Utility methods for (de)compressing posting lists.
- * 
- * @see BfsMiner#kPostingLists
+ * Utility methods for (de)compressing posting lists. To be removed; use {@link NewPostingList} instead.
  */
+@Deprecated
 public final class PostingList {
 
 	/**

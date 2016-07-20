@@ -28,17 +28,15 @@ final class PrefixGrowthTreeNode {
         }
 
         if (projectedDatabase.lastInputId != inputId) {
-            // Add transaction separator
-            if (projectedDatabase.postingList.size() > 0) {
-                mining.PostingList.addCompressed(0, projectedDatabase.postingList);
-            }
+            // start a new posting
+            projectedDatabase.postingList.newPosting();
             projectedDatabase.lastPosition = position;
             projectedDatabase.lastInputId = inputId;
             projectedDatabase.support += inputSupport;
-            mining.PostingList.addCompressed(inputId + 1, projectedDatabase.postingList);
-            mining.PostingList.addCompressed(position + 1, projectedDatabase.postingList);
+            projectedDatabase.postingList.addNonNegativeInt(inputId);
+            projectedDatabase.postingList.addNonNegativeInt(position);
         } else if (projectedDatabase.lastPosition != position) {
-            mining.PostingList.addCompressed(position + 1, projectedDatabase.postingList);
+            projectedDatabase.postingList.addNonNegativeInt(position);
             projectedDatabase.lastPosition = position;
         }
     }

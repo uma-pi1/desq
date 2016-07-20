@@ -1,23 +1,25 @@
 package de.uni_mannheim.desq.mining;
 
-import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 public abstract class CompressedMemoryDesqMiner extends DesqMiner {
 	/** Stores all input sequences in compressed form */
-	protected ByteArrayList inputSequences = new ByteArrayList();
+	protected NewPostingList inputSequences = new NewPostingList();
 
-	/** Support for each input sequence */
+	/** Support for each input sequence.  */
 	protected IntList inputSupports = new IntArrayList();
 
-	/** Starting offset in {@link #inputSequences} for each input sequence  */
-	protected IntList inputOffsets = new IntArrayList();
+	/** Starting offset in {@link #inputSequences} for each input sequence. Only maintained when non-null.  */
+	protected IntList inputOffsets = null;
 
-	/** Current offset used by the various methods to read from {@link #inputSequences}. Needs to be set correctly
-	 * by implementing classes. */
-	protected int offset;
+    public void clear() {
+        inputSequences.clear();
+        inputSupports.clear();
+        if (inputOffsets != null)
+            inputOffsets.clear();
+    }
 
 	protected CompressedMemoryDesqMiner(DesqMinerContext ctx) {
 		super(ctx);
@@ -30,49 +32,15 @@ public abstract class CompressedMemoryDesqMiner extends DesqMiner {
 
 	// TODO: Move up to DesqMiner
 	public void addInputSequence(IntList inputSequence, int inputSupport) {
-		assert inputSequence.size() > 0;
-		inputOffsets.add(inputSequences.size());
+        inputSequences.newPosting();
+		if (inputOffsets != null)
+			inputOffsets.add(inputSequences.noBytes());
 		IntIterator it = inputSequence.iterator();
 		while (it.hasNext()) {
 			int itemFid = it.nextInt();
 			assert itemFid != 0;
-			PostingList.addCompressed(itemFid, inputSequences);
+            inputSequences.addInt(itemFid);
 		}
-		PostingList.addCompressed(0, inputSequences); // separator
 		inputSupports.add( inputSupport );
-	}
-
-	/** Is there another item fid for the current input sequence (uses {@link #offset}) */
-	protected final boolean hasNextFid() {
-		return offset < inputSequences.size() && inputSequences.getByte(offset) != 0;
-	}
-
-	/** Get the next item fid for the current input sequence (uses {@link #offset}) */
-	protected final int nextFid() {
-		int result = 0;
-		int shift = 0;
-		do {
-			byte b = inputSequences.getByte(offset);
-			offset++;
-			result += (b & 127) << shift;
-			if (b < 0) {
-				shift += 7;
-			} else {
-				break;
-			}
-		} while (true);
-		return result;
-	}
-
-	/**
-	 * Moves to the next input sequence and returns true if such a sequence exists (uses {@link #offset}).
-	 */
-	protected final boolean nextInputSequence() {
-		do {
-			offset++;
-			if (offset >= inputSequences.size())
-				return false;
-		} while (inputSequences.getByte(offset - 1) != 0); // previous byte is not a separator byte
-		return true;
 	}
 }
