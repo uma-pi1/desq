@@ -1,7 +1,6 @@
 package de.uni_mannheim.desq.mining;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.io.PatternWriter;
 
 import java.util.Properties;

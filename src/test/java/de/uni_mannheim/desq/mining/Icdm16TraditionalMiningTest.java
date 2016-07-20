@@ -16,7 +16,7 @@ import java.util.*;
 public abstract class Icdm16TraditionalMiningTest extends TraditionalMiningTest {
     @Parameterized.Parameters(name = "icdm16-traditional-patterns-ids-{0}-{1}-{2}-{3}")
     public static Collection<Object[]> data() {
-        List<Object[]> parameters = new ArrayList<Object[]>();
+        List<Object[]> parameters = new ArrayList<>();
         for (Long sigma : new Long[] {1L,3L,5L,7L})
             for (Integer gamma : new Integer[] {0,1,2})
                 for (Integer lambda : new Integer[] {1,3,5,7})
@@ -32,15 +32,13 @@ public abstract class Icdm16TraditionalMiningTest extends TraditionalMiningTest 
     @Override
     public Dictionary getDictionary() throws IOException {
         URL dictFile = TraditionalMiningTest.class.getResource("/icdm16-example/dict.del");
-        Dictionary dict = DictionaryIO.loadFromDel(dictFile.openStream(), false);
-        return dict;
+        return DictionaryIO.loadFromDel(dictFile.openStream(), false);
     }
 
     @Override
     public SequenceReader getSequenceReader() throws IOException {
         URL dataFile = TraditionalMiningTest.class.getResource("/icdm16-example/data.del");
-        SequenceReader sequenceReader = new DelSequenceReader(dataFile.openStream(), false);
-        return sequenceReader;
+        return new DelSequenceReader(dataFile.openStream(), false);
     }
 
     @Override

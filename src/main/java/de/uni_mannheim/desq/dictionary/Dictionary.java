@@ -16,9 +16,9 @@ import it.unimi.dsi.fastutil.ints.*;
 /** A set of items arranged in a hierarchy */ 
 public class Dictionary {
 	// indexes
-	Int2ObjectMap<Item> itemsById = new Int2ObjectOpenHashMap<>();
-	Int2ObjectMap<Item> itemsByFid = new Int2ObjectOpenHashMap<>();
-	Map<String, Item> itemsBySid = new HashMap<>();
+    final Int2ObjectMap<Item> itemsById = new Int2ObjectOpenHashMap<>();
+	final Int2ObjectMap<Item> itemsByFid = new Int2ObjectOpenHashMap<>();
+	final Map<String, Item> itemsBySid = new HashMap<>();
 	
 	// -- updating the hierarchy ------------------------------------------------------------------
 	
@@ -261,8 +261,12 @@ public class Dictionary {
 	// -- utility methods -------------------------------------------------------------------------
 	
 	/** Returns array a where a[i] is document frequency of item with fid i. Be careful when fids
-	 * are sparse; the resulting array might then get big */
-	public IntList getFlist() {
+	 * are sparse; the resulting array might then get big.
+     *
+     * Deprecated. Use {@link #getLargestFidAboveDfreq(long)} instead.
+     */
+    @Deprecated
+    public IntList getFlist() {
 		IntList flist = new IntArrayList();
 		flist.size(itemsByFid.size()+1);
 		for(Entry<Integer, Item> entry : itemsByFid.entrySet()) {

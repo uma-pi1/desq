@@ -6,10 +6,10 @@ import it.unimi.dsi.fastutil.ints.IntList;
 
 public abstract class CompressedMemoryDesqMiner extends DesqMiner {
 	/** Stores all input sequences in compressed form */
-	protected NewPostingList inputSequences = new NewPostingList();
+	protected final NewPostingList inputSequences = new NewPostingList();
 
 	/** Support for each input sequence.  */
-	protected IntList inputSupports = new IntArrayList();
+	protected final IntList inputSupports = new IntArrayList();
 
 	/** Starting offset in {@link #inputSequences} for each input sequence. Only maintained when non-null.  */
 	protected IntList inputOffsets = null;

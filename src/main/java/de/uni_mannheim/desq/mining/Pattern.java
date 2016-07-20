@@ -7,7 +7,7 @@ import it.unimi.dsi.fastutil.ints.IntList;
  * Created by rgemulla on 18.07.2016.
  */
 public class Pattern implements Comparable<Pattern> {
-    private IntList itemFids;
+    private final IntList itemFids;
     private long frequency;
 
    public Pattern() {

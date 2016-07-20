@@ -62,10 +62,10 @@ public class BasicTransition extends Transition {
 	}	
 
 	
-	private static class ItemStateIterator implements Iterator<ItemState> {
+	private static final class ItemStateIterator implements Iterator<ItemState> {
 		BasicTransition transition;
 	    int fid;
-		ItemState itemState = new ItemState();
+		final ItemState itemState = new ItemState();
 		IntIterator fidIterator;
 		
 		@Override

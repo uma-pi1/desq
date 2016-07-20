@@ -9,7 +9,7 @@ import it.unimi.dsi.fastutil.ints.IntList;
 
 /** Keeps all output in memory */
 public class MemoryPatternWriter extends PatternWriter {
-	private List<Pattern> patterns = new ArrayList<>();
+	private final List<Pattern> patterns = new ArrayList<>();
 	
 	@Override
 	public void write(IntList itemFids, long frequency) {

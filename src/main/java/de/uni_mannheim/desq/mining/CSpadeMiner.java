@@ -73,7 +73,7 @@ public class CSpadeMiner extends DesqMiner {
 	/**
 	 * Maps 2-sequence to their index entries. Only used during data input, k=2.
 	 */
-	Map<int[], KPatternIndexEntry> twoSequenceIndex = new Object2ObjectOpenCustomHashMap<>(
+    final Map<int[], KPatternIndexEntry> twoSequenceIndex = new Object2ObjectOpenCustomHashMap<>(
 			new IntArrayStrategy());
 
 	/** Holds information about a posting list. Used only during data input, k=32. */
@@ -84,7 +84,7 @@ public class CSpadeMiner extends DesqMiner {
 	}
 
 	/** Used as a temporary buffer during data input. */
-	protected int[] twoSequence = new int[2];
+	protected final int[] twoSequence = new int[2];
 
 	/**
 	 * Posting list for each sequence in kSequences.
@@ -96,7 +96,7 @@ public class CSpadeMiner extends DesqMiner {
 	 * sequence has support larger than one, is it treated as if it had occured
 	 * in the data as many times as given by its support value.
 	 */
-	protected IntList inputSupports = new IntArrayList();
+	protected final IntList inputSupports = new IntArrayList();
 
 	/**
 	 * Total support for each sequence in kSequences. Identical to the sum of the
@@ -105,12 +105,12 @@ public class CSpadeMiner extends DesqMiner {
 	protected IntList kTotalSupports = new IntArrayList();
 
     /** Stores frequency of individual items (only needed when generalize = false) */
-    protected Int2IntMap itemDFreqs = new Int2IntOpenHashMap();
+    protected final Int2IntMap itemDFreqs = new Int2IntOpenHashMap();
 
     /** IntSets for temporary use */
-    IntSet itemFids = new IntOpenHashSet();
-    IntSet ascendantFids = new IntOpenHashSet();
-    IntSet otherAscendantFids = new IntOpenHashSet();
+    final IntSet itemFids = new IntOpenHashSet();
+    final IntSet ascendantFids = new IntOpenHashSet();
+    final IntSet otherAscendantFids = new IntOpenHashSet();
 
     private int largestFrequentFid; // used to quickly determine whether an item is frequent
 

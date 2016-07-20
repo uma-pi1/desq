@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @RunWith(Parameterized.class)
 public abstract class TraditionalMiningTest {
-    private static Logger logger = Logger.getLogger(TraditionalMiningTest.class);
+    private static final Logger logger = Logger.getLogger(TraditionalMiningTest.class);
 
     long sigma;
     int gamma, lambda;
@@ -57,7 +57,6 @@ public abstract class TraditionalMiningTest {
     @Test
     public void test() throws IOException,
             InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
-        Class<? extends DesqMiner> minerClass = getMinerClass();
         String fileName = getBaseFileName() + "-" + sigma + "-" + gamma + "-" + lambda + "-" + generalize + ".del";
         File actualFile = TestUtils.newTemporaryFile(
                 TestUtils.getPackageResourcesPath(getClass()) + "/" + getClass().getSimpleName() + "/" + fileName);

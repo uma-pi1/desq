@@ -2,8 +2,6 @@ package mining;
 
 //import java.util.Arrays;
 
-import java.util.Arrays;
-
 import driver.DesqConfig.Match;
 import fst.OutputLabel;
 import fst.XFst;

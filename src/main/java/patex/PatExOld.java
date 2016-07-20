@@ -7,7 +7,6 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import fst.BasicFst;
 import fst.Fst;
 import fst.FstOperations;
-import fst.XFst;
 import patex.PatExOldParser.CaptureContext;
 import patex.PatExOldParser.ConcatContext;
 import patex.PatExOldParser.ConcatExpressionContext;

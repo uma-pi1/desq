@@ -1,7 +1,6 @@
 package de.uni_mannheim.desq.util;
 
 import it.unimi.dsi.fastutil.ints.AbstractIntList;
-import it.unimi.dsi.fastutil.ints.IntList;
 
 /** Wraps an integer array into the {@IntList} API without copying data. Update operations are unsupported in the
  * wrapper.

@@ -5,10 +5,10 @@ import java.util.*;
 /** A single item in a dictionary.  */
 public class Item {
 	/** Stable global identifier of this item */
-	public int gid;
+	public final int gid;
 
 	/** Unique name of this item */
-	public String sid;
+	public final String sid;
 
 	/** Internal "frequency" identifier of this item used to support efficient mining. The identifier is not
 	 * necessarily stable. Generally, the frequency identifier needs to satisfy certain properties, which depend
@@ -23,10 +23,10 @@ public class Item {
     public int dFreq = -1;
 
     /** Children of this item */
-	public List<Item> children = new ArrayList<>();
+	public final List<Item> children = new ArrayList<>();
 
     /** Parents of this item. */
-    public List<Item> parents = new ArrayList<>();
+    public final List<Item> parents = new ArrayList<>();
 
     /** Other properties associated with this item */
     public Properties properties;

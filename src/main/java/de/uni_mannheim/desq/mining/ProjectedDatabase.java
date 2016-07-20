@@ -1,7 +1,5 @@
 package de.uni_mannheim.desq.mining;
 
-import it.unimi.dsi.fastutil.bytes.ByteArrayList;
-
 /**
  * Created by rgemulla on 19.07.2016.
  */

@@ -49,6 +49,6 @@ public class PropertiesUtils {
     }
     
     public static boolean isSet(Properties properties, String key) {
-    	return properties.getProperty(key) == null? false : true;
+    	return properties.getProperty(key) != null;
     }
 }

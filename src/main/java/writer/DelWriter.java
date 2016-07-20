@@ -12,7 +12,7 @@ public class DelWriter implements Writer {
 
 	private static DelWriter instance = null;
 
-	private Int2ObjectOpenHashMap<String> itemIdToItemMap = new Int2ObjectOpenHashMap<String>();
+	private Int2ObjectOpenHashMap<String> itemIdToItemMap = new Int2ObjectOpenHashMap<>();
 
 	private String outputPath;
 

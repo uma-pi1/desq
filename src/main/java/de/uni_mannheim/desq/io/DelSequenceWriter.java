@@ -7,8 +7,8 @@ import java.io.Writer;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 public class DelSequenceWriter extends SequenceWriter {
-	private PrintWriter writer;
-	private boolean convertToIds;
+	private final PrintWriter writer;
+	private final boolean convertToIds;
 
 	public DelSequenceWriter(PrintWriter writer, boolean convertToIds) {
 		this.writer = writer;

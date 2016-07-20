@@ -11,8 +11,8 @@ import java.io.InputStreamReader;
  * Created by rgemulla on 18.07.2016.
  */
 public class DelPatternReader extends PatternReader {
-    private BufferedReader reader;
-    private boolean usesFids;
+    private final BufferedReader reader;
+    private final boolean usesFids;
 
     public DelPatternReader(InputStream in, boolean usesFids) {
         this.reader = new BufferedReader(new InputStreamReader(in));
