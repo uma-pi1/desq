@@ -8,7 +8,7 @@ import it.unimi.dsi.fastutil.bytes.ByteArrayList;
  * Created by rgemulla on 20.07.2016.
  */
 public final class NewPostingList {
-    private ByteArrayList data;
+    private final ByteArrayList data;
     private int noPostings;
 
     /** Constructs a new empty posting list */

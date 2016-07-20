@@ -1,6 +1,7 @@
 package de.uni_mannheim.desq.io;
 
 import de.uni_mannheim.desq.mining.Pattern;
+import de.uni_mannheim.desq.util.IntListWrapper;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 import java.util.Collection;
@@ -8,6 +9,10 @@ import java.util.Collection;
 public abstract class PatternWriter extends WithDictionary {
 	/** Writes a pattern given in terms of fids. The provided IntList must not be buffered. */
 	public abstract void write(IntList itemFids, long frequency);
+
+    public void write(int[] itemFids, long frequency) {
+        write(new IntListWrapper(itemFids), frequency);
+    }
 
 	public abstract void close();
 

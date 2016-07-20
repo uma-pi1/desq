@@ -5,7 +5,6 @@ import de.uni_mannheim.desq.dictionary.Item;
 import de.uni_mannheim.desq.util.IntArrayStrategy;
 import de.uni_mannheim.desq.util.PropertiesUtils;
 import it.unimi.dsi.fastutil.ints.*;
-import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenCustomHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 
@@ -69,7 +68,7 @@ public class CSpadeMiner extends DesqMiner {
 	 * k-th item to w (suffix item). When k>2, an entry is compressed when it has
 	 * two elements and uncompressed when it has k elements.
 	 */
-	protected ArrayList<int[]> kSequences = new ArrayList<int[]>();
+	protected ArrayList<int[]> kSequences = new ArrayList<>();
 
 	/**
 	 * Maps 2-sequence to their index entries. Only used during data input, k=2.
@@ -113,7 +112,9 @@ public class CSpadeMiner extends DesqMiner {
     IntSet ascendantFids = new IntOpenHashSet();
     IntSet otherAscendantFids = new IntOpenHashSet();
 
-	public CSpadeMiner(DesqMinerContext ctx) {
+    private int largestFrequentFid; // used to quickly determine whether an item is frequent
+
+    public CSpadeMiner(DesqMinerContext ctx) {
 		super(ctx);
         setParameters(ctx.properties);
 	}
@@ -151,7 +152,7 @@ public class CSpadeMiner extends DesqMiner {
         this.gamma = gamma;
         this.lambda = lambda;
         this.generalize = generalize;
-        //this.largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
+        this.largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
         clear();
     }
 
@@ -197,7 +198,7 @@ public class CSpadeMiner extends DesqMiner {
 		// Add the input sequence to the inverted index. Here we construct all
 		// gapped 2-sequences and update their corresponding posting lists
 		int position = 0; // current position in expanded sequence (i.e., without compressed gaps)
-        itemFids.clear(); // TODO reuse
+        itemFids.clear();
 		for (int pos = 0; pos < inputSequence.size(); pos++) {
 			int itemFid = inputSequence.getInt(pos);
 		    assert itemFid <= endItem; // contract of this class
@@ -207,6 +208,12 @@ public class CSpadeMiner extends DesqMiner {
 				position -= itemFid;
 				continue;
 			}
+
+			// skip infrequent items
+			if (!generalize && itemFid > largestFrequentFid) {
+			    position++;
+                continue;
+            }
 
 			// count individual item frequencies unless we are generalizing
 			if (!generalize) {
@@ -228,6 +235,11 @@ public class CSpadeMiner extends DesqMiner {
 				}
                 gap++;
 
+                // skip infrequent items
+                if (!generalize && otherItemFid > largestFrequentFid) {
+                    continue;
+                }
+
 				// we found a valid 2-sequence; create a posting for the two sequence
 				// and its generalizations
                 if (!generalize) {
@@ -235,23 +247,34 @@ public class CSpadeMiner extends DesqMiner {
                     twoSequence[1] = otherItemFid;
                     addPosting(twoSequence, inputId, inputSupport, position);
                 } else {
+                    // generate all ascendants
                     ascendantFids.clear();
                     ctx.dict.addAscendantFids(ctx.dict.getItemByFid(itemFid), ascendantFids);
                     ascendantFids.add(itemFid);
                     otherAscendantFids.clear();
                     ctx.dict.addAscendantFids(ctx.dict.getItemByFid(otherItemFid), otherAscendantFids);
                     otherAscendantFids.add(otherItemFid);
+
+                    // generate all pairs of frequent items
                     IntIterator fidIt = ascendantFids.iterator();
                     while (fidIt.hasNext()) {
-                        twoSequence[0] = fidIt.nextInt();
+                        int fid = fidIt.nextInt();
+                        if (fid > largestFrequentFid)
+                            continue;
+                        twoSequence[0] = fid;
                         IntIterator otherFidIt = otherAscendantFids.iterator();
                         while (otherFidIt.hasNext()) {
-                            twoSequence[1] = otherFidIt.nextInt();
+                            int otherFid = otherFidIt.nextInt();
+                            if (otherFid > largestFrequentFid) {
+                                otherFidIt.remove();
+                                continue;
+                            }
+                            twoSequence[1] = otherFid;
                             addPosting(twoSequence, inputId, inputSupport, position);
                         }
                     }
                 }
-			}
+            }
 			position++;
 		}
 
@@ -425,7 +448,7 @@ public class CSpadeMiner extends DesqMiner {
 
 			// if contains a pivot, output the sequence and its support
 			if (hasPivot && ctx.patternWriter != null) {
-				ctx.patternWriter.write(new IntArrayList(sequence), kTotalSupports.get(i)); // TODO remove new
+				ctx.patternWriter.write(sequence, kTotalSupports.get(i));
 			}
 
 		}
@@ -608,30 +631,29 @@ public class CSpadeMiner extends DesqMiner {
 		int k1 = k + 1;
 
 		// scan over all k-sequences and build prefix/suffix index
-		IntArrayList suffix = null;
-		IntArrayList prefix = null;
+		IntArrayList suffix = new IntArrayList();
+		IntArrayList prefix = new IntArrayList();
 		for (int index = 0; index < kSequences.size(); index++) {
 			int[] sequence = kSequences.get(index);
 
-			// construct prefix (last item of sequence omitted) and suffix (first item
-			// omitted)
+			// construct prefix (last item of sequence omitted) and suffix (first item omitted)
 			if (sequence.length == 2 && k1 > 3) {
 				// compressed sequence
 				// only suffix in sequence, need to construct left key
-				suffix = new IntArrayList(k - 1); // TODO: inefficient
-				for (int j = 1; j < prefix.size(); j++) {
+                suffix.clear();
+                for (int j = 1; j < prefix.size(); j++) {
 					suffix.add(prefix.getInt(j));
 				}
 				suffix.add(sequence[1]);
 				// right key remains unchanged
 			} else {
 				// uncompressed sequence
-				prefix = new IntArrayList(k - 1);
+				prefix.clear();
 				for (int j = 0; j < k - 1; j++) {
 					prefix.add(sequence[j]);
 				}
 
-				suffix = new IntArrayList(k - 1);
+				suffix.clear();
 				for (int j = 1; j < k; j++) {
 					suffix.add(sequence[j]);
 				}
@@ -641,7 +663,7 @@ public class CSpadeMiner extends DesqMiner {
 			IntArrayList sequences = sequencesWithPrefix.get(prefix);
 			if (sequences == null) {
 				sequences = new IntArrayList();
-				sequencesWithPrefix.put(prefix, sequences);
+				sequencesWithPrefix.put(new IntArrayList(prefix), sequences);
 			}
 			sequences.add(index);
 
@@ -649,7 +671,7 @@ public class CSpadeMiner extends DesqMiner {
 			sequences = sequencesWithSuffix.get(suffix);
 			if (sequences == null) {
 				sequences = new IntArrayList();
-				sequencesWithSuffix.put(suffix, sequences);
+				sequencesWithSuffix.put(new IntArrayList(suffix), sequences);
 			}
 			sequences.add(index);
 		}
