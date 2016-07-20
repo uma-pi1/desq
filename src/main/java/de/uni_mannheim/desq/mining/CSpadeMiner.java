@@ -88,18 +88,9 @@ public class CSpadeMiner extends DesqMiner {
 	protected int[] twoSequence = new int[2];
 
 	/**
-	 * Posting list for each sequence in kSequences. A posting list is a set of
-	 * postings, one for each input sequence in which the sequence occurs. Every
-	 * posting consists of a input sequence identifier and a list of starting
-	 * positions (at which a match of the sequence occurs in the respective
-	 * input sequences). Transactions and starting positions within input sequences are
-	 * sorted in ascending order. Each posting is encoded using variable-length
-	 * integer encoding; postings are separated by a 0 byte. To avoid collisions,
-	 * we store inputId+1 and position+1. (Note that not every 0 byte
-	 * separates posting; the byte before the 0 byte must have its
-	 * highest-significant bit set to 0).
+	 * Posting list for each sequence in kSequences.
 	 */
-	protected ArrayList<ByteArrayList> kPostingLists = new ArrayList<>();
+	protected ArrayList<NewPostingList> kPostingLists = new ArrayList<>();
 
 	/**
 	 * Support of each input sequence (indexed by inputId). If an input
@@ -284,7 +275,7 @@ public class CSpadeMiner extends DesqMiner {
 		// if the sequence has not seen before, create a new posting list
 		KPatternIndexEntry entry = twoSequenceIndex.get(kSequence);
 
-		ByteArrayList postingList;
+		NewPostingList postingList;
 
 		if (entry == null) {
 			// we never saw this 2-sequence before
@@ -294,7 +285,7 @@ public class CSpadeMiner extends DesqMiner {
 			kSequence = new int[] { kSequence[0], kSequence[1] }; // copy necessary here
 			kSequences.add(kSequence);
 			twoSequenceIndex.put(kSequence, entry);
-			postingList = new ByteArrayList();
+			postingList = new NewPostingList();
 			kPostingLists.add(postingList);
 			kTotalSupports.add(0);
 		} else {
@@ -304,20 +295,18 @@ public class CSpadeMiner extends DesqMiner {
 
 		// add the current occurrence to the posting list
 		if (entry.lastInputId != inputId) {
-			if (postingList.size() > 0) {
-				// add a separator
-				PostingList.addCompressed(0, postingList);
-			}
+			postingList.newPosting();
+
 			// add input sequence id
-			PostingList.addCompressed(inputId + 1, postingList);
-			PostingList.addCompressed(position + 1, postingList);
+			postingList.addNonNegativeInt(inputId);
+			postingList.addNonNegativeInt(position);
 
 			// update data structures
 			entry.lastInputId = inputId;
 			entry.lastPosition = position;
 			kTotalSupports.set(entry.index, kTotalSupports.get(entry.index) + inputSupport);
 		} else if (entry.lastPosition != position) { // don't add any position more than once
-			PostingList.addCompressed(position + 1, postingList);
+			postingList.addNonNegativeInt(position);
 			entry.lastPosition = position;
 		}
 	}
@@ -464,13 +453,13 @@ public class CSpadeMiner extends DesqMiner {
 		// variables for the (k+1)-sequences
 		int k1 = k + 1;
 		ArrayList<int[]> k1Sequences = new ArrayList<>();
-		ArrayList<ByteArrayList> k1PostingLists = new ArrayList<>();
+		ArrayList<NewPostingList> k1PostingLists = new ArrayList<>();
 		IntArrayList k1TotalSupports = new IntArrayList();
 
 		// temporary variables
-		ByteArrayList postingList = new ByteArrayList(); // list of postings for a new (k+1) sequence
-		PostingList.Decompressor leftPostingList = new PostingList.Decompressor(); // posting list of the left k-sequence
-		PostingList.Decompressor rightPostingList = new PostingList.Decompressor(); // posting list of the right k-sequence
+		NewPostingList postingList = new NewPostingList(); // list of postings for a new (k+1) sequence
+		NewPostingList.Iterator leftPostingList = new NewPostingList.Iterator(); // posting list of the left k-sequence
+		NewPostingList.Iterator rightPostingList = new NewPostingList.Iterator(); // posting list of the right k-sequence
 
 		// we now join sequences (e.g., abcde) that end with some suffix with
 		// sequences
@@ -487,7 +476,7 @@ public class CSpadeMiner extends DesqMiner {
 			IntArrayList leftSequences = entry.getValue(); // indexes of left sequences
 			for (int i = 0; i < leftSequences.size(); i++) {
 				// get the postings of that sequence for joining
-				leftPostingList.postingList = kPostingLists.get(leftSequences.getInt(i));
+				leftPostingList.reset( kPostingLists.get(leftSequences.getInt(i)) );
 
 				// compression
 				// total number of successful joins for the current left sequence
@@ -504,13 +493,13 @@ public class CSpadeMiner extends DesqMiner {
 					postingList.clear();
 					int totalSupport = 0; // of the current posting list
 					leftPostingList.offset = 0;
-					rightPostingList.postingList = kPostingLists.get(rightSequences.getInt(j));
+					rightPostingList.reset( kPostingLists.get(rightSequences.getInt(j)) );
 					rightPostingList.offset = 0;
-					int leftInputId = leftPostingList.nextValue();
-					int rightInputId = rightPostingList.nextValue();
+					int leftInputId = leftPostingList.nextNonNegativeInt();
+					int rightInputId = rightPostingList.nextNonNegativeInt();
 					boolean foundMatchWithLeftInputId = false;
 
-					while (leftPostingList.hasNextValue() && rightPostingList.hasNextValue()) {
+					while (leftPostingList.hasNext() && rightPostingList.hasNext()) {
 						// invariant: leftPostingList and rightPostingList point to first
 						// position after a input sequence id
 
@@ -518,12 +507,12 @@ public class CSpadeMiner extends DesqMiner {
 							// potential match; now check offsets
 							int inputId = leftInputId;
 							int rightPosition = -1;
-							while (leftPostingList.hasNextValue()) {
-								int leftPosition = leftPostingList.nextValue();
+							while (leftPostingList.hasNext()) {
+								int leftPosition = leftPostingList.nextNonNegativeInt();
 
 								// fast forward right cursor (merge join; positions are sorted)
-								while (rightPosition <= leftPosition && rightPostingList.hasNextValue()) {
-									rightPosition = rightPostingList.nextValue();
+								while (rightPosition <= leftPosition && rightPostingList.hasNext()) {
+									rightPosition = rightPostingList.nextNonNegativeInt();
 								}
 								if (rightPosition <= leftPosition)
 									break;
@@ -532,23 +521,21 @@ public class CSpadeMiner extends DesqMiner {
 								if (rightPosition <= leftPosition + gamma + 1) {
 									// yes, add a posting
 									if (!foundMatchWithLeftInputId) {
-										if (postingList.size() > 0) {
-											PostingList.addCompressed(0, postingList); // add separator byte
-										}
-										PostingList.addCompressed(inputId + 1, postingList); // add input sequence id
+									    postingList.newPosting();
+										postingList.addNonNegativeInt(inputId);
 										foundMatchWithLeftInputId = true;
 										totalSupport += inputSupports.get(inputId);
 									}
-									PostingList.addCompressed(leftPosition + 1, postingList); // add position
+									postingList.addNonNegativeInt(leftPosition);
 								}
 							}
 
 							// advance both join lists
 							if (rightPostingList.nextPosting()) {
-								rightInputId = rightPostingList.nextValue();
+								rightInputId = rightPostingList.nextNonNegativeInt();
 							}
 							if (leftPostingList.nextPosting()) {
-								leftInputId = leftPostingList.nextValue();
+								leftInputId = leftPostingList.nextNonNegativeInt();
 								foundMatchWithLeftInputId = false;
 							}
 							// end leftInputId == rightTransactionId
@@ -556,12 +543,12 @@ public class CSpadeMiner extends DesqMiner {
 							// advance right join list (merge join; lists sorted by
 							// input sequence id)
 							if (rightPostingList.nextPosting()) {
-								rightInputId = rightPostingList.nextValue();
+								rightInputId = rightPostingList.nextNonNegativeInt();
 							}
 						} else {
 							// advance left join (merge join; lists sorted by input sequence id)
 							if (leftPostingList.nextPosting()) {
-								leftInputId = leftPostingList.nextValue();
+								leftInputId = leftPostingList.nextNonNegativeInt();
 								foundMatchWithLeftInputId = false;
 							}
 						}
@@ -601,11 +588,7 @@ public class CSpadeMiner extends DesqMiner {
 
 						// store in results of current round
 						k1Sequences.add(kSequence);
-						ByteArrayList temp = new ByteArrayList(postingList.size()); // copying necessary here; postingList reused
-						for (int k = 0; k < postingList.size(); k++) {
-							temp.add(postingList.getByte(k));
-						}
-						k1PostingLists.add(temp);
+						k1PostingLists.add(new NewPostingList(postingList)); // copying necessary here; postingList reused
 						k1TotalSupports.add(totalSupport);
 					}
 				} // for all right sequences of the same key

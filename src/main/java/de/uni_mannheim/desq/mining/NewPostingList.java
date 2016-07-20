@@ -17,6 +17,12 @@ public final class NewPostingList {
         this.noPostings = 0;
     }
 
+    /** Creates a new posting list with the (copied) data from the given posting list. */
+    public NewPostingList(NewPostingList postingList) {
+        this.data = new ByteArrayList(postingList.data);
+        this.noPostings = postingList.noPostings;
+    }
+
     /** Clears this posting list. */
     public void clear() {
         data.clear();
