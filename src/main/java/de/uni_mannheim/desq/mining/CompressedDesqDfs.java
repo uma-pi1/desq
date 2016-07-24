@@ -107,6 +107,14 @@ public class CompressedDesqDfs extends CompressedMemoryDesqMiner {
         		continue;
         	}*/
         	
+        	// TODO:
+        	// In general, if A is P-infreqent, we can not determine
+        	// if a is also P-infrequent
+        	// Example: input sequences = {a11b, a12b, Ab, Ac}
+        	// sigma = 2
+        	// PE = ([a1=^b|A=c])
+        	
+        	
         	// do the expansion
         	postingsIt.reset(projectedDatabase.postingList);
         	do{
