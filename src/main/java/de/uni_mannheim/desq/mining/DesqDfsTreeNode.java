@@ -1,7 +1,7 @@
 package de.uni_mannheim.desq.mining;
 
 import java.util.ArrayList;
-import java.util.Collections;
+//import java.util.Collections;
 import java.util.List;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -53,8 +53,10 @@ public class DesqDfsTreeNode {
 				children.add(new DesqDfsTreeNode(projectedDatabase));
 			}
 		}
-		 Collections.sort(children, (c1, c2) -> c1.projectedDatabase.itemFid - c2.projectedDatabase.itemFid); // smallest fids first
-	     expansionsByFid = null;
+		// TODO: This probably does not work with DESQ DFS
+		// See CompressedDesqDfs
+		// Collections.sort(children, (c1, c2) -> c1.projectedDatabase.itemFid - c2.projectedDatabase.itemFid); // smallest fids first
+	    expansionsByFid = null;
 	}
 	
 

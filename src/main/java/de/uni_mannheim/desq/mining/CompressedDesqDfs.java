@@ -2,8 +2,8 @@ package de.uni_mannheim.desq.mining;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import it.unimi.dsi.fastutil.ints.IntSet;
+//import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+//import it.unimi.dsi.fastutil.ints.IntSet;
 
 import java.util.Iterator;
 import java.util.Properties;
@@ -31,8 +31,9 @@ public class CompressedDesqDfs extends CompressedMemoryDesqMiner {
 	final NewPostingList.Iterator postingsIt = new NewPostingList.Iterator();
 	final NewPostingList.Iterator inputIt = inputSequences.iterator();
 	
-	protected CompressedDesqDfs(DesqMinerContext ctx) {
+	public CompressedDesqDfs(DesqMinerContext ctx) {
 		super(ctx);
+		inputOffsets = new IntArrayList();
 		this.patternExpression = PropertiesUtils.get(ctx.properties, "patternExpression");
 		this.sigma = PropertiesUtils.getLong(ctx.properties, "minSupport");
 		
@@ -73,6 +74,7 @@ public class CompressedDesqDfs extends CompressedMemoryDesqMiner {
 			
 			root.expansionsToChildren(sigma);
 			expand(new IntArrayList(), root);
+			root.clear();
 		}
 	}
 	
@@ -81,8 +83,9 @@ public class CompressedDesqDfs extends CompressedMemoryDesqMiner {
 		// add a placeholder to prefix
         int lastPrefixIndex = prefix.size();
         prefix.add(-1);
-        IntSet childrenToNotExpand = new IntOpenHashSet();
         
+        // We do not need this in DESQ DFS (see below)
+        //IntSet childrenToNotExpand = new IntOpenHashSet();
         
         // iterate over children
         for(DesqDfsTreeNode childNode : node.children )  {
@@ -96,10 +99,13 @@ public class CompressedDesqDfs extends CompressedMemoryDesqMiner {
         	prefix.set(lastPrefixIndex, projectedDatabase.itemFid);
         	
         	
-        	if(childrenToNotExpand.contains(projectedDatabase.itemFid)) {
+        	// This pruning does not work with DESQ DFS
+        	// TODO: double check
+        	// Ex; input sequence=ab, PE=([a=b|A=^c])
+        	/*if(childrenToNotExpand.contains(projectedDatabase.itemFid)) {
         		childNode.clear();
         		continue;
-        	}
+        	}*/
         	
         	// do the expansion
         	postingsIt.reset(projectedDatabase.postingList);
@@ -132,9 +138,10 @@ public class CompressedDesqDfs extends CompressedMemoryDesqMiner {
         	
         	
         	childNode.expansionsToChildren(sigma);
-        	if(childNode.children.isEmpty()) {
+        	// This pruning does not work with DESQ DFS (see above)
+        	/*if(childNode.children.isEmpty()) {
                 ctx.dict.addDescendantFids(ctx.dict.getItemByFid(projectedDatabase.itemFid), childrenToNotExpand);
-        	}
+        	}*/
         	
         	childNode.projectedDatabase.clear();
         	expand(prefix, childNode);
