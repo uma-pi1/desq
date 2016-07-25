@@ -187,6 +187,8 @@ public class ExtendedDfa {
 		ExtendedDfaState state = eDfaStateIdForFstStateId[fstStateId];
 		while(position < inputSequence.size()) {
 			state = state.consume(inputSequence.getInt(position++));
+			if(state == null)
+				return false;
 			if(state.isFinal)
 				return true;
 		}
