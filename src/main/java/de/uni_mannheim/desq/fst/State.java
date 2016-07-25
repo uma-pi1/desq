@@ -101,4 +101,8 @@ public class State {
 	public boolean isFinal() { 
 		return isFinal; 
 	}
+	
+	public List<Transition> getTransitions() {
+		return transitionList;
+	}
 }
