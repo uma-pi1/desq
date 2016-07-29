@@ -26,6 +26,7 @@ public class DesqDfs extends MemoryDesqMiner {
 	boolean reachedFinalState;
 	int dfsLevel = 0;
     IntList outputSequence = new IntArrayList();
+    Node currentNode;
 
 	public DesqDfs(DesqMinerContext ctx) {
 		super(ctx);
@@ -53,9 +54,10 @@ public class DesqDfs extends MemoryDesqMiner {
 	@Override
 	public void mine() {
 		Node root = new Node(null, 0);
+		currentNode = root;
 		for(int sid = 0; sid < inputSequences.size(); ++sid) {
 			inputSequence = inputSequences.get(sid);
-			incStep(sid, 0, fst.getInitialState().getId(), root);
+			incStep(sid, 0, fst.getInitialState().getId());
 		}
 		
 		final IntIterator it = root.children.keySet().iterator();
@@ -73,6 +75,7 @@ public class DesqDfs extends MemoryDesqMiner {
 	}
 	
 	private void expand(Node node) {
+		currentNode = node;
 		dfsLevel++;
 		int support = 0;
 		PostingList.Decompressor projectedDatabase = new PostingList.Decompressor(node.projectedDatabase);
@@ -89,7 +92,7 @@ public class DesqDfs extends MemoryDesqMiner {
 				int pos = projectedDatabase.nextValue();
 				
 				// for each T[pos@state]
-				incStep(sid, pos, stateId, node);
+				incStep(sid, pos, stateId);
 
 			} while (projectedDatabase.hasNextValue());
 
@@ -134,7 +137,7 @@ public class DesqDfs extends MemoryDesqMiner {
 		dfsLevel--;
 	}
 	
-	private void incStep(int sid, int pos, int stateId, Node node) {
+	private void incStep(int sid, int pos, int stateId) {
 		reachedFinalState |= fst.getState(stateId).isFinal();
 		if(pos == inputSequence.length)
 			return;
@@ -148,10 +151,10 @@ public class DesqDfs extends MemoryDesqMiner {
 					
 			int toStateId = itemState.state.getId();
 			if(outputItemFid == 0) { //EPS output
-				incStep(sid, pos + 1, toStateId, node);
+				incStep(sid, pos + 1, toStateId);
 			} else {
 				if(largestFrequentFid >= outputItemFid) {
-					node.append(outputItemFid, sid, pos + 1, toStateId);
+					currentNode.append(outputItemFid, sid, pos + 1, toStateId);
 				}
 			}
 		}
