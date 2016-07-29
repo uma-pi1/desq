@@ -13,6 +13,7 @@ import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.MemoryPatternWriter;
 import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.mining.DesqCount;
+import de.uni_mannheim.desq.mining.DesqCountIterative;
 import de.uni_mannheim.desq.mining.DesqMiner;
 import de.uni_mannheim.desq.mining.DesqMinerContext;
 
@@ -44,6 +45,7 @@ public class DesqCountExample {
 		
 		// input parameters
 		String patternExpression = "[c|d]([A^|B=^]+)e";
+		//String patternExpression = "(A^ B)";
 		int sigma = 2;
 		boolean useFlist = true;
 		
@@ -57,7 +59,8 @@ public class DesqCountExample {
 		ctx.dict = dict;
 		
 		System.out.println("\nPatterns " + ctx.properties.toString());
-		DesqMiner miner = new DesqCount(ctx); 
+		//DesqMiner miner = new DesqCount(ctx);
+		DesqMiner miner = new DesqCountIterative(ctx);
 		miner.addInputSequences(dataReader);
 		miner.mine();
 		
