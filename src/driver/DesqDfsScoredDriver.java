@@ -8,7 +8,9 @@ import java.util.logging.Logger;
 import mining.interestingness.DfsOnePassScored;
 import mining.scores.DesqDfsScore;
 import mining.scores.FrequencyScore;
-import mining.scores.InformationGainScore;
+import mining.scores.InformationGainScoreDesqCount;
+import mining.scores.InformationGainScoreDesqDFS;
+import mining.scores.InformationGainScoreDesqDFSNoPruning;
 import mining.scores.LocalInformationGainScore;
 import mining.scores.NotImplementedExcepetion;
 import mining.scores.RankedScoreList;
@@ -95,7 +97,7 @@ public class DesqDfsScoredDriver {
 //		SPMScore score = new InformationGainScore(xFst.convertToFstGraph(), globalInformationGainStatistic, Dictionary.getInstance(), xFst);
 
 //		DesqDfsScore score = new LocalInformationGainScore(xFst);
-		DesqDfsScore score = new InformationGainScore(xFst);
+		DesqDfsScore score = new LocalInformationGainScore(xFst);
 		
 		try {
 			globalDataCollectors = score.getGlobalDataCollectors();

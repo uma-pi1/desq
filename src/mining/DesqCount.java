@@ -80,10 +80,14 @@ public abstract class DesqCount {
 		String line;
 		while ((line = br.readLine()) != null) {
 			if (!line.isEmpty()) {
-				String[] str = line.split("\\s* \\s*");
+				String[] str = line.split(" ");
 				sequence = new int[str.length];
 				for (int i = 0; i < str.length; ++i) {
-					sequence[i] = Integer.parseInt(str[i]);
+					try {
+						sequence[i] = Integer.parseInt(str[i]);
+					} catch (NumberFormatException e) {
+				        System.out.println(sequence + " " + sequence.length); 
+				    }
 				}
 				
 				sid = sid + 1;

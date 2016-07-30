@@ -19,4 +19,12 @@ public interface DesqScore {
 	
 	public double getMaxScoreByItem(int item, 
 			HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollectors);
+	
+	public double getMaxScoreByPrefix(int[] prefix,  
+			HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollector,
+			int[] transaction,
+			int transactionId,
+			int position,
+			int fstState,
+			int[] transCount);
 }

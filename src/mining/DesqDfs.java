@@ -61,7 +61,7 @@ public abstract class DesqDfs {
 		
 		while((line = br.readLine()) != null) {
 			if(!line.isEmpty()) {
-				String[] rawSequence = line.split("\\s* \\s*");
+				String[] rawSequence = line.split(" ");
 				int[] inputSequence = new int[rawSequence.length];
 				int i = 0;
 				for (String s : rawSequence) {

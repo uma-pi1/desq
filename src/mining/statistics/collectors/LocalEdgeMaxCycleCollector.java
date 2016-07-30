@@ -1,6 +1,7 @@
 package mining.statistics.collectors;
 
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -14,6 +15,8 @@ import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import com.sun.org.apache.bcel.internal.generic.NEW;
+
 import fst.XFst;
 import mining.statistics.data.DesqTransactionData;
 import mining.statistics.data.ProjDbStatData;
@@ -26,7 +29,7 @@ public class LocalEdgeMaxCycleCollector implements DesqProjDbDataCollector<Local
 												BiConsumer<LocalEdgeMaxCycleCollector, ProjDbStatData> {
 	// Data of the accumulator, BiConsumer
 	
-	ArrayList<int[]> globalMaxEdgeCycles;
+	public static Int2ObjectOpenHashMap<int[]> globalMaxEdgeCycles;
 	int[] localMaxCycle;
 	public static final String ID = "LOCAL_EDGE_MAX_REP";
 	
@@ -88,12 +91,20 @@ public class LocalEdgeMaxCycleCollector implements DesqProjDbDataCollector<Local
 	// BiConsumer Method
 	@Override
 	public void accept(LocalEdgeMaxCycleCollector t, ProjDbStatData u) {
-		if(u.getPosition() >= 0) {
+		if(u.getPosition() >= 0 && u.getTransactionId() != previousTransactionId) {
+			previousTransactionId  = u.getTransactionId();
+			
 			if(globalMaxEdgeCycles == null) {
 				GlobalEdgeMaxCycleCollector maxEdgeCycleCollector = (GlobalEdgeMaxCycleCollector) u.getGlobalDataCollectors().get(GlobalEdgeMaxCycleCollector.ID);
 				@SuppressWarnings("unchecked")
 				Function<GlobalEdgeMaxCycleCollector, ArrayList<int[]>> maxEdgeCycleFunc = (Function<GlobalEdgeMaxCycleCollector, ArrayList<int[]>>) u.getGlobalDataCollectors().get(GlobalEdgeMaxCycleCollector.ID).finisher();
-				globalMaxEdgeCycles = maxEdgeCycleFunc.apply(maxEdgeCycleCollector);
+				ArrayList<int[]> globalCycleStructure = maxEdgeCycleFunc.apply(maxEdgeCycleCollector);
+				globalMaxEdgeCycles = new Int2ObjectOpenHashMap<int[]>(globalCycleStructure.size());
+				for (int i = 0; i < globalCycleStructure.size(); i++) {
+					globalMaxEdgeCycles.put(i, globalCycleStructure.get(i));
+					
+				}
+				
 			}
 			
 			if(localMaxCycle == null) {

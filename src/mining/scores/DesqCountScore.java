@@ -7,14 +7,6 @@ import mining.statistics.collectors.DesqProjDbDataCollector;
 import mining.statistics.collectors.DesqResultDataCollector;
 
 public interface DesqCountScore extends DesqScore {
-
-	public double getMaxScoreByPrefix(int[] prefix,  
-			HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollector,
-			int[] transaction,
-			int transactionId,
-			int position,
-			int fstState,
-			int[] transCount);
 	
 	public double getScoreByProjDb(int[] sequence, 
 			HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollectors,

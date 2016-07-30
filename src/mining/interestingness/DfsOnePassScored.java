@@ -253,6 +253,18 @@ public class DfsOnePassScored extends DesqDfsScored {
 		boolean eps = true;
 		Arrays.fill(currentStateSet, false);
 		currentStateSet[state] = true;
+		int[] prefix;
+		int[] newPrefix;
+		
+		if(dfsLevel != 0) {
+			prefix = getCurrentSequence(node, dfsLevel);
+			newPrefix = new int[prefix.length+1];
+			System.arraycopy(prefix, 0, newPrefix, 0, prefix.length);
+		} else {
+			newPrefix = new int[1];
+		}
+		
+		
 		
 		
 		
@@ -280,14 +292,16 @@ public class DfsOnePassScored extends DesqDfsScored {
 
 							case CONSTANT:
 								int outputItemId = olabel.item;
-								if (score.getMaxScoreByItem(outputItemId, globalDataCollectors) >= sigma) {
+								newPrefix[newPrefix.length - 1] = olabel.item;
+								if (score.getMaxScoreByItem(outputItemId, globalDataCollectors) >= sigma && score.getMaxScoreByPrefix(newPrefix, globalDataCollectors, sequenceBuffer, sId, pos, toState, null) >= sigma) {
 									node.append(outputItemId, sId, pos + 1, toState);
 									node.updateStatistics(outputItemId, sId, sequenceBuffer, pos, toState);
 								}
 								break;
 
 							case SELF:
-								if (score.getMaxScoreByItem(itemId, globalDataCollectors) >= sigma) {
+								newPrefix[newPrefix.length - 1] = itemId;
+								if (score.getMaxScoreByItem(itemId, globalDataCollectors) >= sigma && score.getMaxScoreByPrefix(newPrefix, globalDataCollectors, sequenceBuffer, sId, pos, toState, null) >= sigma){
 									node.append(itemId, sId, pos + 1, toState);
 									node.updateStatistics(itemId, sId, sequenceBuffer, pos, toState);
 								}
@@ -295,7 +309,8 @@ public class DfsOnePassScored extends DesqDfsScored {
 
 							case SELFGENERALIZE:
 								for (int id : getParents(itemId, olabel.item)) {
-									if (score.getMaxScoreByItem(id, globalDataCollectors) >= sigma) {
+									newPrefix[newPrefix.length - 1] = id;
+									if (score.getMaxScoreByItem(id, globalDataCollectors) >= sigma && score.getMaxScoreByPrefix(newPrefix, globalDataCollectors, sequenceBuffer, sId, pos, toState, null) >= sigma){
 										node.append(id, sId, pos + 1, toState);
 										node.updateStatistics(id, sId, sequenceBuffer, pos, toState);
 									}
@@ -360,9 +375,11 @@ public class DfsOnePassScored extends DesqDfsScored {
 		int size = level;
 		outputSequence[--size] = currentNode.suffixItemId;
 		Node parent = currentNode.parent;
-		while(parent.parent != null) {
-			outputSequence[--size] = parent.suffixItemId;
-			parent = parent.parent;
+		if(parent != null) {
+			while(parent.parent != null) {
+				outputSequence[--size] = parent.suffixItemId;
+				parent = parent.parent;
+			}
 		}
 		return outputSequence;
 	}

@@ -1,8 +1,11 @@
 package mining.statistics.collectors;
 
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
 import java.util.Collections;
+import java.util.Iterator;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BinaryOperator;
@@ -14,7 +17,8 @@ import mining.statistics.data.ProjDbStatData;
 public class ProjDatabaseFrequencyCollector implements DesqProjDbDataCollector<ProjDatabaseFrequencyCollector, Int2IntOpenHashMap>, 
 												Supplier<ProjDatabaseFrequencyCollector>,
 												BiConsumer<ProjDatabaseFrequencyCollector, ProjDbStatData> {
-	// Data of the accumulator, BiConsumer 
+	// Data of the accumulator, BiConsumer
+	private static Int2IntOpenHashMap[] transactionItemFrequencies;
 	Int2IntOpenHashMap localItemFrequencies = new Int2IntOpenHashMap();
 	int previousTransactionId;
 	
@@ -72,12 +76,38 @@ public class ProjDatabaseFrequencyCollector implements DesqProjDbDataCollector<P
 	// BiConsumer Method
 	@Override
 	public void accept(ProjDatabaseFrequencyCollector t, ProjDbStatData u) {
+		
+		
+		
+		
 		if(u.getTransactionId() != this.previousTransactionId) {
+
+//			if(transactionItemFrequencies == null) {
+//				@SuppressWarnings("unchecked")
+//				Function<GlobalTransactionsCounter, Integer> eventsCountFunction = (Function<GlobalTransactionsCounter, Integer>) u.getGlobalDataCollectors().get(GlobalTransactionsCounter.ID).finisher();
+//				
+//				Integer transactions = eventsCountFunction.apply((GlobalTransactionsCounter) u.getGlobalDataCollectors().get(GlobalTransactionsCounter.ID));
+//				
+//				transactionItemFrequencies = new Int2IntOpenHashMap[transactions];
+//			}
+//			
+//			if(transactionItemFrequencies[u.getTransactionId()] == null) {
 			int currentItem;
+//			transactionItemFrequencies[u.getTransactionId()] = new Int2IntOpenHashMap();
 			for (int i = 0; i < u.getTransaction().length; i++) {
 				currentItem = u.getTransaction()[i];
-				localItemFrequencies.put(currentItem, localItemFrequencies.get(currentItem) + 1);
+				localItemFrequencies.addTo(currentItem, 1);
+//				transactionItemFrequencies[u.getTransactionId()].addTo(currentItem, 1);
 			}
+				
+//			} else {
+//				System.out.println("CACHE");
+//				for (ObjectIterator<Entry<Integer, Integer>> iterator = transactionItemFrequencies[u.getTransactionId()].entrySet().iterator(); iterator.hasNext();) {
+//					Entry<Integer, Integer> entry = (Entry<Integer, Integer>) iterator.next();
+//					localItemFrequencies.addTo(entry.getKey(), entry.getValue());
+//				}
+//				
+//			}
 			t.previousTransactionId = u.getTransactionId();
 		} else {
 			// do nothing

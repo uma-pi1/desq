@@ -262,6 +262,18 @@ public class FstGraph {
 					}
 				} else {
 					// cycle that should not be followed!
+					if(edge.getToState() == toState && path.length == 1) {
+
+//						System.out.println(Arrays.toString(sub));
+						FstEdge[] finalPath = invert(path);
+						
+						for (int i = 0; i < finalPath.length; i++) {
+							if(i==0) System.out.print(finalPath[i].fromState);
+							System.out.print(" -> " +finalPath[i].toState);
+						}
+						System.out.println("");
+						paths.add(finalPath);
+					}
 				}
 			}
 		}

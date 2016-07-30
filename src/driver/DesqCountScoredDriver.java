@@ -13,7 +13,9 @@ import mining.scores.FrequencyScore;
 import mining.scores.RankedScoreList;
 import mining.scores.RankedScoreListAll;
 import mining.statistics.collectors.DesqGlobalDataCollector;
-import mining.scores.InformationGainScore;
+import mining.scores.InformationGainScoreDesqCount;
+import mining.scores.InformationGainScoreDesqCountMinSup;
+import mining.scores.InformationGainScoreDesqCountNoPruning;
 import patex.PatEx;
 //import mining.TwoPass;
 import utils.Dictionary;
@@ -97,7 +99,7 @@ public class DesqCountScoredDriver {
 		
 		
 //		DesqCountScore score = new FrequencyScore(xFst);
-		DesqCountScore score = new InformationGainScore(xFst);
+		DesqCountScore score = new FrequencyScore(xFst);
 		HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?,?>, ?>> globalDataCollectors = score.getGlobalDataCollectors();
 		
 		

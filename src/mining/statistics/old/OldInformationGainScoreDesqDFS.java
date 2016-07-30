@@ -1,4 +1,4 @@
-package mining.scores;
+package mining.statistics.old;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,27 +16,25 @@ import org.apache.lucene.util.FixedBitSet;
 import com.zaxxer.sparsebits.SparseBitSet;
 
 import fst.OutputLabel;
-import fst.OutputLabel.Type;
 import fst.XFst;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import mining.scores.DesqBaseScore;
 import mining.statistics.collectors.DesqGlobalDataCollector;
 import mining.statistics.collectors.DesqProjDbDataCollector;
 import mining.statistics.collectors.FstStateItemCollector;
 import mining.statistics.collectors.GlobalEdgeMaxCycleCollector;
 import mining.statistics.collectors.GlobalEventsCountCollector;
 import mining.statistics.collectors.GlobalItemMaxRepetitionCollector;
-import mining.statistics.collectors.GlobalItemOccurrenceCollector;
 import mining.statistics.collectors.GlobalMaxTransactionLengthCollector;
 import mining.statistics.collectors.ItemSupportCollector;
 import mining.statistics.collectors.LocalEdgeMaxCycleCollector;
-import mining.statistics.collectors.LocalItemOccurranceIndicator;
 import mining.statistics.collectors.MaxRemainingTransactionLengthCollector;
 import tools.FstEdge;
 import tools.FstGraph;
 import utils.Dictionary;
 
-public class InformationGainScore extends DesqBaseScore {
+public class OldInformationGainScoreDesqDFS extends DesqBaseScore {
 	FstGraph fstGraph;
 	XFst xFst;
 	HashMap<Integer, SortedSet<Double>> fstStateList;
@@ -49,41 +47,20 @@ public class InformationGainScore extends DesqBaseScore {
 	int previousTransactionId = -1;
 	double maxUpToNow = 0;
 	
-	public InformationGainScore(XFst xFst) {
+	public OldInformationGainScoreDesqDFS(XFst xFst) {
 		super(xFst);
 		this.xFst = xFst;
 		this.fstGraph = xFst.convertToFstGraph();
 		this.stateItems = new Object[xFst.numStates()];
 	}
-	
-//	@Override
-//	public double getMaxScoreByItem(
-//			int item,
-//			HashMap<String, ? extends DesqGlobalDataCollector<?, ?>> globalDataCollectors) {
-//		
-//		ItemSupportCollector sup = (ItemSupportCollector) globalDataCollectors.get(ItemSupportCollector.ID);
-//		
-//		@SuppressWarnings("unchecked")
-//		Function<ItemSupportCollector, int[]> func = (Function<ItemSupportCollector, int[]>) globalDataCollectors.get(ItemSupportCollector.ID).finisher();		
-//		
-//		if(func.apply(sup)[item] > 1) {
-//			return Double.MAX_VALUE;
-//		} else {
-//			return 0;
-//		}
-////		return  ; 
-//	}
 
 	@Override
 	public HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?,?>, ?>> getProjDbCollectors() {
 		HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>> collectors = new HashMap<String, DesqProjDbDataCollector<? extends DesqProjDbDataCollector<?, ?>, ?>>();
-//		collectors.put("LOCAL_ITEM_FREQUENCIES", new LocalItemFrequencyCollector());
-//		collectors.put(LocalItemOccurranceIndicator.ID, new LocalItemOccurranceIndicator());
-//		collectors.put("PREFIXSUPPORT", new PrefixSupportCollector());
 		
-//		collectors.put("FST_STATES", new FstStateItemCollector());
-//		collectors.put(LocalEdgeMaxCycleCollector.ID, new LocalEdgeMaxCycleCollector());
-//		collectors.put("MAX_REMAIN_TRANSACTION_LENGTH", new MaxRemainingTransactionLengthCollector());
+		collectors.put("FST_STATES", new FstStateItemCollector());
+		collectors.put(LocalEdgeMaxCycleCollector.ID, new LocalEdgeMaxCycleCollector());
+		collectors.put("MAX_REMAIN_TRANSACTION_LENGTH", new MaxRemainingTransactionLengthCollector());
 
 		return collectors;
 	}
@@ -95,7 +72,6 @@ public class InformationGainScore extends DesqBaseScore {
 		collectors.put(ItemSupportCollector.ID, new ItemSupportCollector());
 		collectors.put(GlobalItemMaxRepetitionCollector.ID, new GlobalItemMaxRepetitionCollector());
 		collectors.put(GlobalMaxTransactionLengthCollector.ID, new GlobalMaxTransactionLengthCollector());
-//		collectors.put(GlobalItemOccurrenceCollector.ID, new GlobalItemOccurrenceCollector());
 		collectors.put(GlobalEdgeMaxCycleCollector.ID, new GlobalEdgeMaxCycleCollector());
 		
 		return collectors;
@@ -114,11 +90,7 @@ public class InformationGainScore extends DesqBaseScore {
 			for (int i = 0; i < sequence.length; i++) {
 				totalInformationGain = totalInformationGain + gainList[sequence[i]];
 			}
-//			System.out.println(totalInformationGain);
-//			if(maxUpToNow < totalInformationGain) {
-//				System.out.println(maxUpToNow);
-//				maxUpToNow = totalInformationGain;
-//			}
+
 			return totalInformationGain;
 		} else {
 			return 0;
@@ -139,6 +111,77 @@ public class InformationGainScore extends DesqBaseScore {
  * this function works based on global data for DESQ-DFS
  */
 
+	public double getMaxScoreByPrefix(int[] prefix,  
+			HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollectors,
+			HashMap<String,? extends DesqProjDbDataCollector<?,?>>[] prefixProjDbCollectors) {
+		
+		FstStateItemCollector sup = (FstStateItemCollector) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(FstStateItemCollector.ID);
+		@SuppressWarnings("unchecked")
+		Function<FstStateItemCollector, HashSet<Integer>> func = (Function<FstStateItemCollector, HashSet<Integer>>) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(FstStateItemCollector.ID).finisher();
+		
+		HashSet<Integer> fstStates = func.apply(sup);
+		
+		GlobalItemMaxRepetitionCollector maxRepCollector = (GlobalItemMaxRepetitionCollector) globalDataCollectors.get(GlobalItemMaxRepetitionCollector.ID);
+		@SuppressWarnings("unchecked")
+		Function<GlobalItemMaxRepetitionCollector, int[]> maxRepFunc = (Function<GlobalItemMaxRepetitionCollector, int[]>) globalDataCollectors.get(GlobalItemMaxRepetitionCollector.ID).finisher();
+		int[] maxRepetitionList = maxRepFunc.apply(maxRepCollector);
+		
+		LocalEdgeMaxCycleCollector maxEdgeCycleCollector = (LocalEdgeMaxCycleCollector) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(LocalEdgeMaxCycleCollector.ID);
+		@SuppressWarnings("unchecked")
+		Function<LocalEdgeMaxCycleCollector, int[]> maxEdgeCycleFunc = (Function<LocalEdgeMaxCycleCollector, int[]>) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(LocalEdgeMaxCycleCollector.ID).finisher();
+		int[] maxEdgeCycles = maxEdgeCycleFunc.apply(maxEdgeCycleCollector);
+
+		MaxRemainingTransactionLengthCollector maxRemainLenghtCollector = (MaxRemainingTransactionLengthCollector) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(MaxRemainingTransactionLengthCollector.ID);
+		@SuppressWarnings("unchecked")
+		Function<MaxRemainingTransactionLengthCollector, Integer> maxRemainLenghtFunc = (Function<MaxRemainingTransactionLengthCollector, Integer>) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(MaxRemainingTransactionLengthCollector.ID).finisher();		
+		int maxTransactionLenght = maxRemainLenghtFunc.apply(maxRemainLenghtCollector); 
+
+		if(fstStateList == null) {
+			createStateItems(globalDataCollectors);
+		}
+		
+		if(maxExtensionValuesPerState == null) {
+			GlobalMaxTransactionLengthCollector maxTransLengthCollector = (GlobalMaxTransactionLengthCollector) globalDataCollectors.get(GlobalMaxTransactionLengthCollector.ID);
+			@SuppressWarnings("unchecked")
+			Function<GlobalMaxTransactionLengthCollector, Integer> maxTransLengthFunc = (Function<GlobalMaxTransactionLengthCollector, Integer>) globalDataCollectors.get(GlobalMaxTransactionLengthCollector.ID).finisher();
+			int globalMaxTransLength = maxTransLengthFunc.apply(maxTransLengthCollector);
+			
+			maxExtensionValuesPerState = new double[xFst.numStates()][globalMaxTransLength];
+			double initValue = -1;
+			for(int i = 0; i<xFst.numStates(); i++) {
+				Arrays.fill(maxExtensionValuesPerState[i], initValue);
+			}
+		}
+		
+		
+		double maxInformationGain = getScoreBySequence(prefix, globalDataCollectors);
+		double initValue = -1;
+		double maxScore = 0;
+		for (Iterator<Integer> iterator = fstStates.iterator(); iterator.hasNext();) {
+			Integer fstState = (Integer) iterator.next();
+			int maxLength = maxEdgeCycles[fstState];
+			
+			maxLength = Integer.min(maxLength, maxTransactionLenght);
+			
+			if(maxExtensionValuesPerState[fstState][maxLength] == initValue) {
+				double maxAdditionalInformationGain = getMaxInformationGain(prefix, maxLength, fstState, maxRepetitionList, globalDataCollectors);
+				maxScore = Double.max(maxInformationGain + maxAdditionalInformationGain, maxScore);
+				maxExtensionValuesPerState[fstState][maxLength] = maxAdditionalInformationGain;
+			} else {
+				maxScore = Double.max(maxInformationGain + getMaxInformationGain(prefix, maxLength, fstState, maxRepetitionList, globalDataCollectors), maxScore);
+			}
+		}
+		
+		return maxScore;
+	}
+	
+	
+
+	
+	/*
+	 * (non-Javadoc)
+	 * this function works based on local data for DESQ-DFS
+	 */
 //	public double getMaxScoreByPrefix(int[] prefix,  
 //			HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollectors,
 //			HashMap<String,? extends DesqProjDbDataCollector<?,?>>[] prefixProjDbCollectors) {
@@ -146,120 +189,54 @@ public class InformationGainScore extends DesqBaseScore {
 //		FstStateItemCollector sup = (FstStateItemCollector) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(FstStateItemCollector.ID);
 //		@SuppressWarnings("unchecked")
 //		Function<FstStateItemCollector, HashSet<Integer>> func = (Function<FstStateItemCollector, HashSet<Integer>>) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(FstStateItemCollector.ID).finisher();
-//		
 //		HashSet<Integer> fstStates = func.apply(sup);
 //		
-//		GlobalItemMaxRepetitionCollector maxRepCollector = (GlobalItemMaxRepetitionCollector) globalDataCollectors.get(GlobalItemMaxRepetitionCollector.ID);
+////		GlobalItemMaxRepetitionCollector maxRepCollector = (GlobalItemMaxRepetitionCollector) globalDataCollectors.get(GlobalItemMaxRepetitionCollector.ID);
+////		@SuppressWarnings("unchecked")
+////		Function<GlobalItemMaxRepetitionCollector, int[]> maxRepFunc = (Function<GlobalItemMaxRepetitionCollector, int[]>) globalDataCollectors.get(GlobalItemMaxRepetitionCollector.ID).finisher();
+////		int[] maxRepetitionList = maxRepFunc.apply(maxRepCollector);
+//
+//		MaxRemainingTransactionLengthCollector maxRemainLenghtCollector = (MaxRemainingTransactionLengthCollector) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(MaxRemainingTransactionLengthCollector.ID);
 //		@SuppressWarnings("unchecked")
-//		Function<GlobalItemMaxRepetitionCollector, int[]> maxRepFunc = (Function<GlobalItemMaxRepetitionCollector, int[]>) globalDataCollectors.get(GlobalItemMaxRepetitionCollector.ID).finisher();
-//		int[] maxRepetitionList = maxRepFunc.apply(maxRepCollector);
+//		Function<MaxRemainingTransactionLengthCollector, Integer> maxRemainLenghtFunc = (Function<MaxRemainingTransactionLengthCollector, Integer>) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(MaxRemainingTransactionLengthCollector.ID).finisher();		
+//		int maxTransactionLenght = maxRemainLenghtFunc.apply(maxRemainLenghtCollector); 
+//
+//		LocalItemOccurranceIndicator localItemOccIndicator = (LocalItemOccurranceIndicator) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(LocalItemOccurranceIndicator.ID);
+//		@SuppressWarnings("unchecked")
+//		Function<LocalItemOccurranceIndicator, SparseBitSet> localItemOccFunc = (Function<LocalItemOccurranceIndicator, SparseBitSet>) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(LocalItemOccurranceIndicator.ID).finisher();		
+//		SparseBitSet localItemOcc = localItemOccFunc.apply(localItemOccIndicator); 	
 //		
 //		LocalEdgeMaxCycleCollector maxEdgeCycleCollector = (LocalEdgeMaxCycleCollector) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(LocalEdgeMaxCycleCollector.ID);
 //		@SuppressWarnings("unchecked")
 //		Function<LocalEdgeMaxCycleCollector, int[]> maxEdgeCycleFunc = (Function<LocalEdgeMaxCycleCollector, int[]>) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(LocalEdgeMaxCycleCollector.ID).finisher();
 //		int[] maxEdgeCycles = maxEdgeCycleFunc.apply(maxEdgeCycleCollector);
 //
-////		MaxRemainingTransactionLengthCollector maxRemainLenghtCollector = (MaxRemainingTransactionLengthCollector) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(MaxRemainingTransactionLengthCollector.ID);
-////		@SuppressWarnings("unchecked")
-////		Function<MaxRemainingTransactionLengthCollector, Integer> maxRemainLenghtFunc = (Function<MaxRemainingTransactionLengthCollector, Integer>) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(MaxRemainingTransactionLengthCollector.ID).finisher();		
-////		int maxTransactionLenght = maxRemainLenghtFunc.apply(maxRemainLenghtCollector); 
-//
-//		if(fstStateList == null) {
-//			createStateItems(globalDataCollectors);
-//		}
-//		
-//		if(maxExtensionValuesPerState == null) {
-//			GlobalMaxTransactionLengthCollector maxTransLengthCollector = (GlobalMaxTransactionLengthCollector) globalDataCollectors.get(GlobalMaxTransactionLengthCollector.ID);
-//			@SuppressWarnings("unchecked")
-//			Function<GlobalMaxTransactionLengthCollector, Integer> maxTransLengthFunc = (Function<GlobalMaxTransactionLengthCollector, Integer>) globalDataCollectors.get(GlobalMaxTransactionLengthCollector.ID).finisher();
-//			int globalMaxTransLength = maxTransLengthFunc.apply(maxTransLengthCollector);
-//			
-//			maxExtensionValuesPerState = new double[xFst.numStates()][globalMaxTransLength];
-//			double initValue = -1;
-//			for(int i = 0; i<xFst.numStates(); i++) {
-//				Arrays.fill(maxExtensionValuesPerState[i], initValue);
-//			}
+//		if(sparseStateBitSets == null) {
+////			createStateItems(globalDataCollectors);
+//			createStateItemSparseBitSets(globalDataCollectors);
 //		}
 //		
 //		
-//		double maxInformationGain = getScoreBySequence(prefix, globalDataCollectors);
-//		double initValue = -1;
+//		
 //		double maxScore = 0;
 //		for (Iterator<Integer> iterator = fstStates.iterator(); iterator.hasNext();) {
 //			Integer fstState = (Integer) iterator.next();
+//			
 //			int maxLength = maxEdgeCycles[fstState];
 //			
-//			if(maxExtensionValuesPerState[fstState][maxLength] == initValue) {
-//				double maxAdditionalInformationGain = getMaxInformationGain(prefix, maxLength, fstState, maxRepetitionList, globalDataCollectors);
-//				maxScore = Double.max(maxInformationGain + maxAdditionalInformationGain, maxScore);
-//				maxExtensionValuesPerState[fstState][maxLength] = maxAdditionalInformationGain;
-//			} else {
-//				maxScore = Double.max(maxInformationGain + getMaxInformationGain(prefix, maxLength, fstState, maxRepetitionList, globalDataCollectors), maxScore);
-//			}
+//			maxLength = Integer.min(maxTransactionLenght, maxLength);
+//			
+//			SparseBitSet stateItemOcc = localItemOcc.clone();
+//			stateItemOcc.and(sparseStateBitSets[fstState]);
+//			
+//			maxScore = Double.max(maxScore, getMaxInformationGain(prefix, maxLength, fstState, stateItemOcc));
 //		}
 //		
-////		System.out.println(maxScore);
+//		maxScore = maxScore + getScoreBySequence(prefix, globalDataCollectors);
+//		
+//		localItemOccIndicator.clear();
 //		return maxScore;
 //	}
-
-	
-	/*
-	 * (non-Javadoc)
-	 * this function works based on local data for DESQ-DFS
-	 */
-	public double getMaxScoreByPrefix(int[] prefix,  
-			HashMap<String,? extends DesqGlobalDataCollector<?,?>> globalDataCollectors,
-			HashMap<String,? extends DesqProjDbDataCollector<?,?>>[] prefixProjDbCollectors) {
-//		return Double.MAX_VALUE;
-		FstStateItemCollector sup = (FstStateItemCollector) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(FstStateItemCollector.ID);
-		@SuppressWarnings("unchecked")
-		Function<FstStateItemCollector, HashSet<Integer>> func = (Function<FstStateItemCollector, HashSet<Integer>>) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(FstStateItemCollector.ID).finisher();
-		HashSet<Integer> fstStates = func.apply(sup);
-		
-//		GlobalItemMaxRepetitionCollector maxRepCollector = (GlobalItemMaxRepetitionCollector) globalDataCollectors.get(GlobalItemMaxRepetitionCollector.ID);
-//		@SuppressWarnings("unchecked")
-//		Function<GlobalItemMaxRepetitionCollector, int[]> maxRepFunc = (Function<GlobalItemMaxRepetitionCollector, int[]>) globalDataCollectors.get(GlobalItemMaxRepetitionCollector.ID).finisher();
-//		int[] maxRepetitionList = maxRepFunc.apply(maxRepCollector);
-
-//		MaxRemainingTransactionLengthCollector maxRemainLenghtCollector = (MaxRemainingTransactionLengthCollector) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(MaxRemainingTransactionLengthCollector.ID);
-//		@SuppressWarnings("unchecked")
-//		Function<MaxRemainingTransactionLengthCollector, Integer> maxRemainLenghtFunc = (Function<MaxRemainingTransactionLengthCollector, Integer>) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(MaxRemainingTransactionLengthCollector.ID).finisher();		
-//		int maxTransactionLenght = maxRemainLenghtFunc.apply(maxRemainLenghtCollector); 
-
-		LocalItemOccurranceIndicator localItemOccIndicator = (LocalItemOccurranceIndicator) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(LocalItemOccurranceIndicator.ID);
-		@SuppressWarnings("unchecked")
-		Function<LocalItemOccurranceIndicator, SparseBitSet> localItemOccFunc = (Function<LocalItemOccurranceIndicator, SparseBitSet>) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(LocalItemOccurranceIndicator.ID).finisher();		
-		SparseBitSet localItemOcc = localItemOccFunc.apply(localItemOccIndicator); 	
-		
-		LocalEdgeMaxCycleCollector maxEdgeCycleCollector = (LocalEdgeMaxCycleCollector) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(LocalEdgeMaxCycleCollector.ID);
-		@SuppressWarnings("unchecked")
-		Function<LocalEdgeMaxCycleCollector, int[]> maxEdgeCycleFunc = (Function<LocalEdgeMaxCycleCollector, int[]>) prefixProjDbCollectors[prefixProjDbCollectors.length-1].get(LocalEdgeMaxCycleCollector.ID).finisher();
-		int[] maxEdgeCycles = maxEdgeCycleFunc.apply(maxEdgeCycleCollector);
-
-		if(sparseStateBitSets == null) {
-//			createStateItems(globalDataCollectors);
-			createStateItemSparseBitSets(globalDataCollectors);
-		}
-		
-		
-		
-		double maxScore = 0;
-		for (Iterator<Integer> iterator = fstStates.iterator(); iterator.hasNext();) {
-			Integer fstState = (Integer) iterator.next();
-			
-			int maxLength = maxEdgeCycles[fstState];
-			
-			SparseBitSet stateItemOcc = localItemOcc.clone();
-			stateItemOcc.and(sparseStateBitSets[fstState]);
-			
-			maxScore = Double.max(maxScore, getMaxInformationGain(prefix, maxLength, fstState, stateItemOcc));
-		}
-		
-		maxScore = maxScore + getScoreBySequence(prefix, globalDataCollectors);
-		
-		localItemOccIndicator.clear();
-		return maxScore;
-	}
 
 	
 	/*
