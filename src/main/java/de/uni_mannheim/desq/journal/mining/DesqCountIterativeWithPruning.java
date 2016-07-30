@@ -1,4 +1,4 @@
-package de.uni_mannheim.desq.mining;
+package de.uni_mannheim.desq.journal.mining;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -10,11 +10,14 @@ import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.ItemState;
+import de.uni_mannheim.desq.journal.edfa.ExtendedDfa;
+import de.uni_mannheim.desq.mining.DesqMiner;
+import de.uni_mannheim.desq.mining.DesqMinerContext;
 import de.uni_mannheim.desq.patex.PatEx;
 import de.uni_mannheim.desq.util.PrimitiveUtils;
 import de.uni_mannheim.desq.util.PropertiesUtils;
 
-public class DesqCountIterative extends DesqMiner {
+public class DesqCountIterativeWithPruning extends DesqMiner {
 
 	// parameters for mining
 	String patternExpression;
@@ -30,6 +33,7 @@ public class DesqCountIterative extends DesqMiner {
 	IntList inputSequence;
 	Object2LongMap<IntList> outputSequences = new Object2LongOpenHashMap<>();
 	Iterator<ItemState> itemStateIt = null;
+	ExtendedDfa eDfa;
 
 	// parallel arrays for iteratively simulating fst using a stack
 	IntList stateIdList;
@@ -39,7 +43,7 @@ public class DesqCountIterative extends DesqMiner {
 
 	// int currentStackIndex = 0;
 
-	public DesqCountIterative(DesqMinerContext ctx) {
+	public DesqCountIterativeWithPruning(DesqMinerContext ctx) {
 		super(ctx);
 		this.sigma = PropertiesUtils.getLong(ctx.properties, "minSupport");
 		if (PropertiesUtils.isSet(ctx.properties, "useFlist"))
@@ -60,6 +64,8 @@ public class DesqCountIterative extends DesqMiner {
 		posList = new IntArrayList();
 		suffixIdList = new IntArrayList();
 		prefixPointerList = new IntArrayList();
+		
+		this.eDfa = new ExtendedDfa(fst, ctx.dict);
 	}
 
 	public static Properties createProperties(String patternExpression, int sigma) {
@@ -78,7 +84,7 @@ public class DesqCountIterative extends DesqMiner {
 
 	@Override
 	protected void addInputSequence(IntList inputSequence) {
-		if (!inputSequence.isEmpty()) {
+		if (eDfa.isRelevant(inputSequence, 0, 0)) {
 			this.inputSequence = inputSequence;
 			stateIdList.add(initialStateId);
 			posList.add(0);
