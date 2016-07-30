@@ -13,6 +13,7 @@ import org.apache.commons.cli.ParseException;
 import tools.EncodeData;
 import driver.DesqConfig.Match;
 import driver.DesqConfig.Method;
+import driver.DesqConfig.Score;
 
 public class Driver {
 
@@ -39,8 +40,9 @@ public class Driver {
 		
 		options.addOption("mine", false, "Mine sequences");
 		options.addOption("o", true, "Path/to/output/sequences/");
-		options.addOption("s", true, "Minimum support threshold");
+		options.addOption("s", true, "Minimum threshold");
 		options.addOption("p", true, "Pattern expression");
+		options.addOption("score", true, "Interestingness score");
 		options.addOption("match", true, "Type of match (p)artial, (s)trict, (ls)trict, (rs)trict");
 		
 		options.addOption("method", true, null);
@@ -110,7 +112,23 @@ public class Driver {
 				} else {
 					logger.log(Level.INFO, "Missing minimum support, using defaul" + conf.getSigma());
 				}
-				
+
+				if(cmd.hasOption("score")) {
+					if(cmd.getOptionValue("score").equals("support")) {
+						conf.setScore(Score.SUPPORT);
+					} else if(cmd.getOptionValue("score").equals("information-gain")) {
+						conf.setScore(Score.INFGAIN);
+					} else if(cmd.getOptionValue("score").equals("information-gain-without-pruning")) {
+						conf.setScore(Score.INFGAINNOPRUNE);
+					} else if(cmd.getOptionValue("score").equals("information-gain-with-support")) {
+						conf.setScore(Score.INFGAINWSUPP);
+					} else if(cmd.getOptionValue("score").equals("variable-information-gain")) {
+						conf.setScore(Score.VARINFGAIN);
+					} else {
+						logger.log(Level.SEVERE, "Incorrect method");
+						help();
+					}
+				}
 				
 				if(cmd.hasOption("method")) {
 					if(cmd.getOptionValue("method").equals("desq-count")) {

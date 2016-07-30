@@ -5,6 +5,10 @@ public class DesqConfig {
 		DESQCOUNT, DESQDFS, DESQDFSSCORED, DESQCOUNTSCORED
 	};
 	
+	public static enum Score {
+		SUPPORT, INFGAIN, INFGAINNOPRUNE, INFGAINWSUPP, VARINFGAIN
+	};
+	
 	public static enum Match {
 		PARTIAL, STRICT, LSTRICT, RSTRICT
 	};
@@ -21,6 +25,9 @@ public class DesqConfig {
 	
 	// Method
 	private Method method;
+	
+	// Score
+	private Score score;
 	
 	
 	// Match type
@@ -191,6 +198,14 @@ public class DesqConfig {
 	 */
 	public void setMatch(Match match) {
 		this.match = match;
+	}
+
+	public Score getScore() {
+		return score;
+	}
+
+	public void setScore(Score score) {
+		this.score = score;
 	}
 	
 }

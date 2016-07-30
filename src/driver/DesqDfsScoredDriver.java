@@ -9,6 +9,8 @@ import mining.interestingness.DfsOnePassScored;
 import mining.scores.DesqDfsScore;
 import mining.scores.FrequencyScore;
 import mining.scores.InformationGainScoreDesqCount;
+import mining.scores.InformationGainScoreDesqCountMinSup;
+import mining.scores.InformationGainScoreDesqCountNoPruning;
 import mining.scores.InformationGainScoreDesqDFS;
 import mining.scores.InformationGainScoreDesqDFSNoPruning;
 import mining.scores.LocalInformationGainScore;
@@ -91,13 +93,26 @@ public class DesqDfsScoredDriver {
 		
 		HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?, ?>, ?>> globalDataCollectors = new HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?, ?>, ?>>();
 		
-//		DesqDfsScore score = new FrequencyScore(xFst);
+		DesqDfsScore score = null;
 		
-//		GlobalInformationGainStatistic globalInformationGainStatistic = new GlobalInformationGainStatistic(sequenceFile);
-//		SPMScore score = new InformationGainScore(xFst.convertToFstGraph(), globalInformationGainStatistic, Dictionary.getInstance(), xFst);
-
-//		DesqDfsScore score = new LocalInformationGainScore(xFst);
-		DesqDfsScore score = new LocalInformationGainScore(xFst);
+		switch (conf.getScore()) {
+		case SUPPORT:
+			score = new FrequencyScore(xFst); 
+			break;
+		case VARINFGAIN:
+			score = new LocalInformationGainScore(xFst); 
+			break;
+		case INFGAIN:
+			score = new InformationGainScoreDesqDFS(xFst); 
+			break;
+		case INFGAINNOPRUNE:
+			score = new InformationGainScoreDesqDFSNoPruning(xFst); 
+			break;
+		default:
+			logger.severe("Interestingness measure is not supported for this mining method.");
+			System.exit(0);
+			break;
+		}
 		
 		try {
 			globalDataCollectors = score.getGlobalDataCollectors();

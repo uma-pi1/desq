@@ -16,6 +16,7 @@ import mining.statistics.collectors.DesqGlobalDataCollector;
 import mining.scores.InformationGainScoreDesqCount;
 import mining.scores.InformationGainScoreDesqCountMinSup;
 import mining.scores.InformationGainScoreDesqCountNoPruning;
+import mining.scores.LocalInformationGainScore;
 import patex.PatEx;
 //import mining.TwoPass;
 import utils.Dictionary;
@@ -98,21 +99,34 @@ public class DesqCountScoredDriver {
 		RankedScoreList rankedScoreList = new RankedScoreListAll(true);
 		
 		
-//		DesqCountScore score = new FrequencyScore(xFst);
-		DesqCountScore score = new FrequencyScore(xFst);
-		HashMap<String, DesqGlobalDataCollector<? extends DesqGlobalDataCollector<?,?>, ?>> globalDataCollectors = score.getGlobalDataCollectors();
+		DesqCountScore score = null;
 		
-		
-		//DesqCount dc = new OnePassRecursive(support, xFst, writeOutput, useFlist);
-//		DesqCountScored dc = new OnePassIterativeScored(support, 
-//															xFst, 
-//															score, 
-//															globalDataCollectors, rankedScoreList, writeOutput, match);
+		switch (conf.getScore()) {
+		case SUPPORT:
+			score = new FrequencyScore(xFst); 
+			break;
+		case VARINFGAIN:
+			score = new LocalInformationGainScore(xFst); 
+			break;
+		case INFGAIN:
+			score = new InformationGainScoreDesqCount(xFst); 
+			break;
+		case INFGAINNOPRUNE:
+			score = new InformationGainScoreDesqCountNoPruning(xFst); 
+			break;
+		case INFGAINWSUPP:
+			score = new InformationGainScoreDesqCountMinSup(xFst); 
+			break;
+		default:
+			logger.severe("Interestingness measure is not supported for this mining method.");
+			System.exit(0);
+			break;
+		}
 		
 		DesqCountScored dc = new OnePassRecursiveScored(support, 
 				xFst, 
 				score, 
-				globalDataCollectors, rankedScoreList, writeOutput, match);
+				score.getGlobalDataCollectors(), rankedScoreList, writeOutput, match);
 		
 		totalTime.start();
 		
