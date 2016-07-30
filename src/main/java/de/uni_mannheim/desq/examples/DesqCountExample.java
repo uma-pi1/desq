@@ -45,7 +45,7 @@ public class DesqCountExample {
 		
 		// input parameters
 		String patternExpression = "[c|d]([A^|B=^]+)e";
-		//String patternExpression = "(A^ B)";
+		//String patternExpression = "(A B)";
 		int sigma = 2;
 		boolean useFlist = true;
 		
