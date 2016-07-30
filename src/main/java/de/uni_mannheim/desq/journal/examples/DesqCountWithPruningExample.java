@@ -11,6 +11,7 @@ import de.uni_mannheim.desq.dictionary.DictionaryIO;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.MemoryPatternWriter;
 import de.uni_mannheim.desq.io.SequenceReader;
+import de.uni_mannheim.desq.journal.mining.DesqCountIterativeWithPruning;
 import de.uni_mannheim.desq.journal.mining.DesqCountWithPruning;
 import de.uni_mannheim.desq.mining.DesqMiner;
 import de.uni_mannheim.desq.mining.DesqMinerContext;
@@ -57,7 +58,9 @@ void icdm16() throws IOException {
 		ctx.dict = dict;
 		
 		System.out.println("\nPatterns " + ctx.properties.toString());
-		DesqMiner miner = new DesqCountWithPruning(ctx); 
+		//DesqMiner miner = new DesqCountWithPruning(ctx);
+		DesqMiner miner = new DesqCountIterativeWithPruning(ctx);
+		
 		miner.addInputSequences(dataReader);
 		miner.mine();
 		
