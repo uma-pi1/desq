@@ -198,10 +198,10 @@ public class ExtendedDfa {
 		ExtendedDfaState state = eDfaStateIdForFstStateId[initialFstStateId];
 		int pos = 0;
 		while(pos < inputSequence.size()) {
-			state = state.consume(pos);
+			state = state.consume(inputSequence.getInt(pos));
 			if(state == null)
 				break; // we cannot return false here, as we might have reached a final state before
-			posStateIndex[pos] = state.getFstStates();
+			posStateIndex[pos+1] = state.getFstStates();
 			if(state.isFinal)
 				finalPos.add(pos);
 			pos++;
