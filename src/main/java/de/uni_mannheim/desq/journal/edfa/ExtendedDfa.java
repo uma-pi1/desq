@@ -21,6 +21,7 @@ import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.Transition;
 
 
+
 /**
  * ExtendedDfa.java
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
@@ -73,7 +74,7 @@ public class ExtendedDfa {
 			//ExtendedDfaState eDfaState = new ExtendedDfaState();
 			IntSet initialStateIdSet = createIntSet(fstStateId); 
 			newStateForStateIdSet.put(initialStateIdSet, eDfaStateIdForFstStateId[fstStateId]);
-			//states.add(eDfaState);
+			eDfaStateIdForFstStateId[fstStateId].setFstStates(initialStateIdSet, fst.numStates());
 			
 			// add to unprocessed states
 			unprocessedStateIdSets.push(initialStateIdSet);
@@ -137,7 +138,7 @@ public class ExtendedDfa {
 					if(toEDfaState == null) {
 						toEDfaState = new ExtendedDfaState();
 						newStateForStateIdSet.put(reachableStateIds, toEDfaState);
-						//states.add(toEDfaState);
+						toEDfaState.setFstStates(reachableStateIds, fst.numStates());
 					}
 					
 					ExtendedDfaTransition eDfaTransition = 
@@ -157,19 +158,6 @@ public class ExtendedDfa {
 		//finalizeEDfa();
 	}
 	
-	/*private void finalizeEDfa() {
-		for(ExtendedDfaState state : states) {
-			state.id = states.size();
-		}
-	}*/
-	
-	/*private List<Transition> getTransitions(IntSet stateIdSet) {
-		List<Transition> transitionList = new ArrayList<>();
-		for(int stateId : stateIdSet) {
-			transitionList.addAll(fst.getState(stateId).getTransitions());
-		}
-		return transitionList;
-	}*/
 	
 	
 	private IntSet createIntSet(int id) {
@@ -187,6 +175,9 @@ public class ExtendedDfa {
 		ExtendedDfaState state = eDfaStateIdForFstStateId[fstStateId];
 		while(position < inputSequence.size()) {
 			state = state.consume(inputSequence.getInt(position++));
+			// In this case is ok to return false, if there was a final state before
+			// we already retured true, final state can not be reached if state 
+			// was null
 			if(state == null)
 				return false;
 			if(state.isFinal)
@@ -196,8 +187,26 @@ public class ExtendedDfa {
 	}
 	
 	
-	public static void main(String[] args) {
-		//ExtendedDfa eDfa = new ExtendedDfa();
+	/**
+	 * @param inputSequence
+	 * @param initialFstStateId
+	 * @param posStateIndex An array of bitsets; posStateIndex[pos].get(stateId) is true then stateId is reachable after cosuming intputSequence[pos]
+	 * @param finalPos List of positions for which fst reached a final state
+	 * @return true is the input sequence has an accepting run 
+	 */
+	public boolean computeReachability(IntList inputSequence, int initialFstStateId, BitSet[] posStateIndex, IntList finalPos) {
+		ExtendedDfaState state = eDfaStateIdForFstStateId[initialFstStateId];
+		int pos = 0;
+		while(pos < inputSequence.size()) {
+			state = state.consume(pos);
+			if(state == null)
+				break; // we cannot return false here, as we might have reached a final state before
+			posStateIndex[pos] = state.getFstStates();
+			if(state.isFinal)
+				finalPos.add(pos);
+			pos++;
+		}
+		return (!finalPos.isEmpty());
 	}
 
 }

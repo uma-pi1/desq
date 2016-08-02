@@ -1,6 +1,9 @@
 package de.uni_mannheim.desq.journal.edfa;
 
+import it.unimi.dsi.fastutil.ints.IntSet;
+
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.List;
 
 /**
@@ -14,8 +17,12 @@ public class ExtendedDfaState {
 	List<ExtendedDfaTransition> transitionList;
 	boolean isFinal;
 	
+	//
+	BitSet fstStates;
+	
 	public ExtendedDfaState() {
-		this(false);
+		this.transitionList = new ArrayList<ExtendedDfaTransition>();
+		this.isFinal = false;
 	}
 	
 	public ExtendedDfaState(boolean isFinal) {
@@ -41,5 +48,23 @@ public class ExtendedDfaState {
 				return t.getToState();
 		}
 		return null;
+	}
+	
+	
+	public void setFstStates(int stateId, int numFstStates) {
+		this.fstStates = new BitSet(numFstStates);
+		fstStates.set(stateId);
+	}
+	
+	public void setFstStates(IntSet stateIdSet, int numFstStates) {
+		this.fstStates = new BitSet(numFstStates);
+		for(int stateId : stateIdSet) {
+			fstStates.set(stateId);
+		}
+	}
+	
+
+	public BitSet getFstStates() {
+		return fstStates;
 	}
 }
