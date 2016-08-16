@@ -266,7 +266,10 @@ public class Dictionary {
 				}
 			}
 		}
-		
+
+		// compute fid index for restricted dictionary
+        dict.indexFids();
+
 		return dict;
 	}
 	
