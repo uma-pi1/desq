@@ -1,12 +1,7 @@
 package de.uni_mannheim.desq.dictionary;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
 
 import de.uni_mannheim.desq.io.SequenceReader;
@@ -19,7 +14,15 @@ public class Dictionary {
     final Int2ObjectMap<Item> itemsById = new Int2ObjectOpenHashMap<>();
 	final Int2ObjectMap<Item> itemsByFid = new Int2ObjectOpenHashMap<>();
 	final Map<String, Item> itemsBySid = new HashMap<>();
-	
+
+    /** Index for quickly accessing the fids of the parents of a given item. The parents are stored in range
+     * <code>parentFidsOffsets[itemFid]</code> (inclusive) to <code>parentFidsOffsets[itemFid+1]</code> (exclusive).
+     */
+    private int[] parentFids;
+
+    /** Determines where the parents fids for each item are stored in {@link #parentFids} */
+    private int[] parentFidsOffsets;
+
 	// -- updating the hierarchy ------------------------------------------------------------------
 	
 	/** Adds a new item to the hierarchy. If the fid equals 0, it won't be indexed */
@@ -199,9 +202,8 @@ public class Dictionary {
 		IntIterator it = itemFids.iterator();
 		while (it.hasNext()) {
 			int itemFid = it.nextInt();
-			if (!ascendants.contains(itemFid)) {
-				ascendants.add(itemFid);
-				addAscendantFids(getItemByFid(itemFid), ascendants);
+			if (ascendants.add(itemFid)) {
+				addAscendantFids(itemFid, ascendants);
 			}
 		}
 		return ascendants;
@@ -209,21 +211,34 @@ public class Dictionary {
 	
 	/** Adds all ascendants of the specified item to itemFids, excluding the given item and all 
 	 * ascendants of items already present in itemFids. */	
+/*
 	public void addAscendantFids(Item item, IntSet itemFids) {
-		for (Item parent : item.parents) {
-			if (!itemFids.contains(parent.fid)) {
-				itemFids.add(parent.fid);
-				addAscendantFids(getItemByFid(parent.fid), itemFids);
-			}
-		}
-	}
-	
+        for (Item parent : item.parents) {
+            if (!itemFids.contains(parent.fid)) {
+                itemFids.add(parent.fid);
+                addAscendantFids(getItemByFid(parent.fid), itemFids);
+            }
+        }
+*/
+
+    /** Adds all ascendants of the specified item to itemFids, excluding the given item and all
+     * ascendants of items already present in itemFids. */
+    public final void addAscendantFids(int itemFid, IntCollection itemFids) {
+        int from = parentFidsOffsets[itemFid];
+        int to = parentFidsOffsets[itemFid+1];
+        for (int i=from; i<to; i++) {
+            int parentFid = parentFids[i];
+            if (itemFids.add(parentFid)) {
+                addAscendantFids(parentFid, itemFids);
+            }
+        }
+    }
+
 	/** Adds all ascendants of the specified item to itemFids, excluding the given item and all 
 	 * ascendants of items already present in itemFids. */	
 	public void addAscendantIds(Item item, IntSet itemIds) {
 		for (Item parent : item.parents) {
-			if (!itemIds.contains(parent.gid)) {
-				itemIds.add(parent.gid);
+			if (itemIds.add(parent.gid)) {
 				addAscendantIds(getItemById(parent.gid), itemIds);
 			}
 		}
@@ -326,6 +341,8 @@ public class Dictionary {
 			item.fid = fid;
 			itemsByFid.put(fid, item);
 		}
+
+		indexParentsFids();
 	}
 	
 	/** Performs a topological sort of the items in this dictionary, respecting document 
@@ -406,5 +423,24 @@ public class Dictionary {
 
         /* Similarly, mark that this node is done being expanded. */
         expandedIds.add(item.gid);
+    }
+
+    /** Indexes the parents of each item. Needs to be called before using
+     * {@link #addAscendantFids(int, IntCollection)}. Note that this method is implicitly called when recomputing fids
+     * via {@link #recomputeFids()} and when loading a dictionary with fids from some file. */
+    public void indexParentsFids() {
+        IntArrayList fids = new IntArrayList(itemsByFid.keySet());
+        Collections.sort(fids);
+        IntList tempParentFids = new IntArrayList();
+        parentFidsOffsets = new int[fids.getInt(fids.size()-1)+2];
+        int offset = 0;
+        for (int fid : fids) {
+            parentFidsOffsets[fid] = offset;
+            for (Item parent : getItemByFid(fid).parents) {
+                tempParentFids.add(parent.fid);
+                offset++;
+            }
+        }
+        parentFids = tempParentFids.toIntArray();
     }
 }

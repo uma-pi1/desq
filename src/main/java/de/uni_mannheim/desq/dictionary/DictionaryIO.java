@@ -64,6 +64,8 @@ public class DictionaryIO {
 			addItemFromDelLine(dict, line, withStatistics);
 		}
 		br.close();
+		if (withStatistics)
+			dict.indexParentsFids();
 		return dict;
 	}
 	

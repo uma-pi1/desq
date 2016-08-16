@@ -249,10 +249,10 @@ public class CSpadeMiner extends DesqMiner {
                 } else {
                     // generate all ascendants
                     ascendantFids.clear();
-                    ctx.dict.addAscendantFids(ctx.dict.getItemByFid(itemFid), ascendantFids);
+                    ctx.dict.addAscendantFids(itemFid, ascendantFids);
                     ascendantFids.add(itemFid);
                     otherAscendantFids.clear();
-                    ctx.dict.addAscendantFids(ctx.dict.getItemByFid(otherItemFid), otherAscendantFids);
+                    ctx.dict.addAscendantFids(otherItemFid, otherAscendantFids);
                     otherAscendantFids.add(otherItemFid);
 
                     // generate all pairs of frequent items

@@ -98,7 +98,7 @@ public class CompressedPrefixGrowthMiner extends CompressedMemoryDesqMiner {
                     }
                     if (generalize) {
                         ascendants.clear();
-                        ctx.dict.addAscendantFids(ctx.dict.getItemByFid(itemFid), ascendants);
+                        ctx.dict.addAscendantFids(itemFid, ascendants);
                         IntIterator itemFidIt = ascendants.iterator();
                         while (itemFidIt.hasNext()) {
                             itemFid = itemFidIt.nextInt();
@@ -170,7 +170,7 @@ public class CompressedPrefixGrowthMiner extends CompressedMemoryDesqMiner {
                         }
                         if (generalize) {
                             ascendants.clear();
-                            ctx.dict.addAscendantFids(ctx.dict.getItemByFid(itemFid), ascendants);
+                            ctx.dict.addAscendantFids(itemFid, ascendants);
                             IntIterator itemFidIt = ascendants.iterator();
                             while (itemFidIt.hasNext()) {
                                 itemFid = itemFidIt.nextInt();

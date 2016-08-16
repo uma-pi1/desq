@@ -30,19 +30,19 @@ public final class NewPostingList {
     }
 
     /** Returns the number of postings in this posting list. */
-    public int size() {
+    public final int size() {
         return noPostings;
     }
 
     /** Returns the number of bytes using by this posting list. If an additional element is appended to this posting
      * list, it starts at the offset given by this method. */
-    public int noBytes() { return data.size(); }
+    public final int noBytes() { return data.size(); }
 
     // more space efficient if values knwon to be non-negative
 
     /** Appends a non-negative integer value to the current posting. Encoded slightly more efficiently than
      * appending general integers (see {@link #addNonNegativeInt(int)}). */
-    public void addNonNegativeInt(int nonNegativeValue) {
+    public final void addNonNegativeInt(int nonNegativeValue) {
         assert nonNegativeValue >= 0;
         assert size() > 0;
         nonNegativeValue += 1; // we add the integer increased by one to distinguish it from separators
@@ -60,7 +60,7 @@ public final class NewPostingList {
     }
 
     /** Appends an integer value to the current posting. */
-    public void addInt(int value) {
+    public final void addInt(int value) {
         // sign bit moved to lowest order bit
         if (value >= 0) {
             addNonNegativeInt(value<<1);
@@ -71,19 +71,19 @@ public final class NewPostingList {
 
     /** Ends the current posting and appends a new one. This method must also be called for the first posting
      * to be added. */
-    public void newPosting() {
+    public final void newPosting() {
         noPostings++;
         if (noPostings>1) // first posting does not need separator
             data.add((byte)0);
     }
 
     /** Returns an iterator that can be used to read the postings in this posting list. */
-    public Iterator iterator() {
+    public final Iterator iterator() {
         return new Iterator(this);
     }
 
     /** Iterator to read the postings in a posting list. Designed to be efficient. */
-    public static class Iterator {
+    public static final class Iterator {
         private ByteArrayList data;
 
         /** The offset at which to read. Intentionally public; use with care. */
@@ -110,26 +110,26 @@ public final class NewPostingList {
         }
 
         /** Resets this iterator to the beginning of the first posting. */
-        public void reset() {
+        public final void reset() {
             this.offset = 0;
         }
 
 
         /** Resets this iterator to the beginning of the first posting in the given posting list. */
-        public void reset(NewPostingList postingList) {
+        public final void reset(NewPostingList postingList) {
             this.data = postingList.data;
             this.offset = 0;
         }
 
         /** Is there another value in the current posting? */
-        public boolean hasNext() {
+        public final boolean hasNext() {
             return offset < data.size() && data.getByte(offset) != 0;
         }
 
         /** Reads a non-negative integer value from the current posting. Throws an exception if the end of the posting
          * has been reached (so be sure to use hasNext()).
          */
-        public int nextNonNegativeInt() {
+        public final int nextNonNegativeInt() {
             int result = 0;
             int shift = 0;
             do {
@@ -149,7 +149,7 @@ public final class NewPostingList {
         /** Reads an integer value from the current posting. Throws an exception if the end of the posting
          * has been reached (so be sure to use hasNext()).
          */
-        public int nextInt() {
+        public final int nextInt() {
             int v = nextNonNegativeInt();
             int sign = v & 1;
             v = (v>>1) & 0x7FFFFFFF;
@@ -158,7 +158,7 @@ public final class NewPostingList {
 
         /** Moves to the next posting in the posting list and returns true if such a posting exists. Do not use
          * for the first posting. */
-        public boolean nextPosting() {
+        public final boolean nextPosting() {
             if (offset >= data.size())
                 return false;
 

@@ -43,11 +43,14 @@ public class ComparePrefixGrowth {
 	}
 	
 	public void oldPrefixGrowth() throws Exception {
-		DfsDriver.run(dataFile, dictFile, outFile, sigma, gamma, lambda, generalize);
+        System.out.println("Starting PrefixGrowth-OLD");
+        DfsDriver.run(dataFile, dictFile, outFile, sigma, gamma, lambda, generalize);
 	}
 	
 	public void newPrefixGrowth() throws IOException {
-		Stopwatch ioTime = Stopwatch.createUnstarted();
+        System.out.println("Starting PrefixGrowth-NEW");
+
+	    Stopwatch ioTime = Stopwatch.createUnstarted();
 		Stopwatch miningTime = Stopwatch.createUnstarted();
 		//Create output file
 		File out = new File(outFile + "/new");
@@ -65,12 +68,13 @@ public class ComparePrefixGrowth {
 		ctx.dict = dict;
 		DelPatternWriter patternWriter = new DelPatternWriter(new FileOutputStream(out), true);
 		patternWriter.setDictionary(dict);
-		ctx.patternWriter = patternWriter;
+		ctx.patternWriter = null;
 		ctx.properties = PrefixGrowthMiner.createProperties(sigma, gamma, lambda, generalize);
 		
 		DesqMiner miner =  new PrefixGrowthMiner(ctx);
 		
-		
+		//System.out.println("Hit ENTER");
+        //System.in.read();
 		ioTime.start();
 		miner.addInputSequences(dataReader);
 		ioTime.stop();
@@ -87,10 +91,11 @@ public class ComparePrefixGrowth {
 		sb.append(gamma + "\t");
 		sb.append(lambda + "\t");
 		sb.append(generalize + "\t");
-		sb.append(ioTime.elapsed(TimeUnit.SECONDS));
+		sb.append(ioTime.elapsed(TimeUnit.MILLISECONDS));
 		sb.append("\t");
-		sb.append(miningTime.elapsed(TimeUnit.SECONDS));
-		
+		sb.append(miningTime.elapsed(TimeUnit.MILLISECONDS));
+        sb.append("\t");
+        sb.append(ioTime.elapsed(TimeUnit.MILLISECONDS) + miningTime.elapsed(TimeUnit.MILLISECONDS));
 		System.out.println(sb.toString());
 	
 	}
@@ -99,7 +104,7 @@ public class ComparePrefixGrowth {
 		
 		int sigma = 100000;
 		int gamma = 0;
-		int lambda = 2;
+		int lambda = 3;
 		boolean generalize = true;
 		
 		String dataFile = "data-local/nyt-1991-data.del";

@@ -15,7 +15,7 @@ public class DfsDriver {
 	/** <input> <dict> <output> <sigma> <gamma> <lambda> <0/1?> <0?> 
 	 * @throws Exception */
 	public static void run(String sequenceFile, String dictionaryFile, String outputFile, int sigma, int gamma, int lambda, boolean generalize) throws Exception {
-		boolean writeOutput = true;
+		boolean writeOutput = false;
 		
 		/** load dictionary */
 		Dictionary dict = Dictionary.getInstance();
@@ -53,10 +53,11 @@ public class DfsDriver {
 		+ "\t" + gamma 
 		+ "\t" + lambda
 		+ "\t" + generalize
-		+ "\t" + ioTime.elapsed(TimeUnit.SECONDS)
-		+ "\t" + miningTime.elapsed(TimeUnit.SECONDS);
-		
-		
+		+ "\t" + ioTime.elapsed(TimeUnit.MILLISECONDS)
+		+ "\t" + miningTime.elapsed(TimeUnit.MILLISECONDS)
+		+ "\t" + (ioTime.elapsed(TimeUnit.MILLISECONDS) + miningTime.elapsed(TimeUnit.MILLISECONDS));
+
+
 		System.out.println(s);
 	}
 
