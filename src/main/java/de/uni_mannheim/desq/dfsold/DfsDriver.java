@@ -35,7 +35,8 @@ public class DfsDriver {
 		}
 		
 		Dfs dfs = new Dfs(sigma, gamma,lambda, generalize, writeOutput);
-		
+		dfs.flist = dict.fList;
+
 		ioTime.start();
 		dfs.scanDatabase(sequenceFile);
 		ioTime.stop();

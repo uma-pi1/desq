@@ -50,11 +50,11 @@ public class ComparePrefixGrowth {
 		Stopwatch ioTime = Stopwatch.createUnstarted();
 		Stopwatch miningTime = Stopwatch.createUnstarted();
 		//Create output file
-		File out = new File(outFile);
+		File out = new File(outFile + "/new");
 		File parentOut = out.getParentFile();
-		if(!parentOut.exists()) {
-			parentOut.mkdirs();
-		}
+		//if(!parentOut.exists()) {
+//			parentOut.mkdirs();
+		//}
 		out.delete();
 		
 		
@@ -97,20 +97,20 @@ public class ComparePrefixGrowth {
 	
 	public static void main(String[] args) throws Exception {
 		
-		int sigma = 1000;
+		int sigma = 100000;
 		int gamma = 0;
-		int lambda = 3;
+		int lambda = 2;
 		boolean generalize = true;
 		
 		String dataFile = "data-local/nyt-1991-data.del";
 		String dictFile = "data-local/nyt-1991-dict.del";
-		String outFile = "tmp";
+		String outFile = "./tmp";
 		
 		ComparePrefixGrowth cpg = new ComparePrefixGrowth(sigma, gamma, lambda, generalize);
 		cpg.setIO(dataFile, dictFile, outFile);
 		
 		cpg.oldPrefixGrowth();
-		//cpg.newPrefixGrowth();
+		cpg.newPrefixGrowth();
 	}
 
 }
