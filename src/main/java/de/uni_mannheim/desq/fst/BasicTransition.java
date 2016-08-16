@@ -3,6 +3,7 @@ package de.uni_mannheim.desq.fst;
 import java.util.Iterator;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
+import it.unimi.dsi.fastutil.ints.IntAVLTreeSet;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.ints.IntSets;
@@ -64,38 +65,39 @@ public class BasicTransition extends Transition {
 	
 	private static final class ItemStateIterator implements Iterator<ItemState> {
 		BasicTransition transition;
-	    int fid;
+	    int nextFid;
 		final ItemState itemState = new ItemState();
 		IntIterator fidIterator;
+		IntSet ascendants = new IntAVLTreeSet(); // reusable; fidIterator goes over this set
 		
 		@Override
 		public boolean hasNext() {
-            return fid>=0;
+            return nextFid >=0;
 		}
 
 		@Override
 		public ItemState next() {
-			assert fid>=0;
+			assert nextFid >=0;
 
 			switch (transition.outputLabelType) {
 			case EPSILON:
 				itemState.itemFid = 0;
-				fid = -1;
+				nextFid = -1;
 				break;
 			case CONSTANT:
 				itemState.itemFid = transition.outputLabel;
-				fid = -1;
+				nextFid = -1;
 				break;
 			case SELF:
-				itemState.itemFid = fid;
-				fid = -1;
+				itemState.itemFid = nextFid;
+				nextFid = -1;
 				break;
 			case SELF_ASCENDANTS:
-				itemState.itemFid = fid;
+				itemState.itemFid = nextFid;
 				if (fidIterator.hasNext())
-					fid = fidIterator.nextInt();
+					nextFid = fidIterator.nextInt();
 				else
-					fid = -1;
+					nextFid = -1;
 			}
 
 			return itemState;
@@ -128,14 +130,15 @@ public class BasicTransition extends Transition {
 		
 		if (inputLabel==0 || inputFids.contains(itemFid)) {
 			resultIt.transition = this;
-		    resultIt.fid = itemFid;
+		    resultIt.nextFid = itemFid;
 			resultIt.itemState.state = toState;
 			if (outputLabelType == OutputLabelType.SELF_ASCENDANTS) {
-				resultIt.fidIterator = outputDict.ascendantsFids(itemFid).iterator();
-				resultIt.fid = resultIt.fidIterator.nextInt();
+				resultIt.ascendants.clear();
+				outputDict.addAscendantFids(itemFid, resultIt.ascendants);
+				resultIt.fidIterator = resultIt.ascendants.iterator();
 			}
 		} else {
-			resultIt.fid = -1;
+			resultIt.nextFid = -1;
 		}
 
 		return resultIt;
