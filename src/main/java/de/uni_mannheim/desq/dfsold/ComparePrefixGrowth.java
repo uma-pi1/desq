@@ -1,4 +1,4 @@
-package de.uni_mannheim.desq.examples;
+package de.uni_mannheim.desq.dfsold;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -8,7 +8,6 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Stopwatch;
 
-import de.uni_mannheim.desq.dfsold.DfsDriver;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.dictionary.DictionaryIO;
 import de.uni_mannheim.desq.io.DelPatternWriter;
@@ -18,6 +17,7 @@ import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.mining.DesqMiner;
 import de.uni_mannheim.desq.mining.DesqMinerContext;
 import de.uni_mannheim.desq.mining.PrefixGrowthMiner;
+import de.uni_mannheim.desq.mining.PrefixGrowthMinerTemp;
 
 public class ComparePrefixGrowth {
 
@@ -71,7 +71,7 @@ public class ComparePrefixGrowth {
 		ctx.patternWriter = null;
 		ctx.properties = PrefixGrowthMiner.createProperties(sigma, gamma, lambda, generalize);
 		
-		DesqMiner miner =  new PrefixGrowthMiner(ctx);
+		DesqMiner miner =  new PrefixGrowthMinerTemp(ctx);
 		
 		//System.out.println("Hit ENTER");
         //System.in.read();

@@ -18,10 +18,10 @@ public class Dictionary {
     /** Index for quickly accessing the fids of the parents of a given item. The parents are stored in range
      * <code>parentFidsOffsets[itemFid]</code> (inclusive) to <code>parentFidsOffsets[itemFid+1]</code> (exclusive).
      */
-    private int[] parentFids;
+    public int[] parentFids;
 
     /** Determines where the parents fids for each item are stored in {@link #parentFids} */
-    private int[] parentFidsOffsets;
+    public int[] parentFidsOffsets;
 
 	// -- updating the hierarchy ------------------------------------------------------------------
 	
