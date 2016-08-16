@@ -409,7 +409,7 @@ public class Dictionary {
     }
 
     /** Indexes the parents of each item. Needs to be called before using
-     * {@link #addAscendantFids(int, IntCollection)}. Note that this method is implicitly called when recomputing fids
+     * {@link #addAscendantFids(int, IntSet)}. Note that this method is implicitly called when recomputing fids
      * via {@link #recomputeFids()} and when loading a dictionary with fids from some file. */
     public void indexFids() {
         IntArrayList fids = new IntArrayList(itemsByFid.keySet());
@@ -417,14 +417,27 @@ public class Dictionary {
         IntList tempParentFids = new IntArrayList();
         parentFidsOffsets = new int[fids.getInt(fids.size()-1)+2];
         int offset = 0;
+        int prevFid = 0;
         for (int fid : fids) {
-            parentFidsOffsets[fid] = offset;
+            // update left out fids (no parents)
+            for (prevFid++; prevFid < fid; prevFid++) {
+                parentFidsOffsets[prevFid+1] = parentFidsOffsets[prevFid];
+            }
+            assert prevFid == fid;
+
+            // update next fid
             for (Item parent : getItemByFid(fid).parents) {
                 tempParentFids.add(parent.fid);
                 offset++;
             }
             parentFidsOffsets[fid+1] = offset;
         }
+
+        // update remaining fids (no parents)
+        for (prevFid++; prevFid < parentFidsOffsets.length-1; prevFid++) {
+            parentFidsOffsets[prevFid+1] = parentFidsOffsets[prevFid];
+        }
+
         parentFids = tempParentFids.toIntArray();
     }
 }
