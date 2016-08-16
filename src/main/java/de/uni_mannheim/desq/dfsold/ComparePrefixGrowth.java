@@ -73,7 +73,7 @@ public class ComparePrefixGrowth {
 		ctx.patternWriter = cpw;
 		ctx.properties = PrefixGrowthMiner.createProperties(sigma, gamma, lambda, generalize);
 		
-		DesqMiner miner =  new PrefixGrowthMinerTemp(ctx);
+		DesqMiner miner =  new PrefixGrowthMiner(ctx);
 		
 		//System.out.println("Hit ENTER");
         //System.in.read();
@@ -102,7 +102,62 @@ public class ComparePrefixGrowth {
 		System.out.println(sb.toString());
 	
 	}
-	
+
+    public void newPrefixGrowthTemp() throws IOException {
+        System.out.println("Starting PrefixGrowth-NEW-TEMP");
+
+        Stopwatch ioTime = Stopwatch.createUnstarted();
+        Stopwatch miningTime = Stopwatch.createUnstarted();
+        //Create output file
+        File out = new File(outFile + "/new");
+        File parentOut = out.getParentFile();
+        //if(!parentOut.exists()) {
+//			parentOut.mkdirs();
+        //}
+        out.delete();
+
+
+        Dictionary dict = DictionaryIO.loadFromDel(new FileInputStream(dictFile), true);
+        SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), true);
+        dataReader.setDictionary(dict);
+        DesqMinerContext ctx = new DesqMinerContext();
+        ctx.dict = dict;
+        DelPatternWriter patternWriter = new DelPatternWriter(new FileOutputStream(out), true);
+        patternWriter.setDictionary(dict);
+        CountPatternWriter cpw = new CountPatternWriter();
+        ctx.patternWriter = cpw;
+        ctx.properties = PrefixGrowthMiner.createProperties(sigma, gamma, lambda, generalize);
+
+        DesqMiner miner =  new PrefixGrowthMinerTemp(ctx);
+
+        //System.out.println("Hit ENTER");
+        //System.in.read();
+        ioTime.start();
+        miner.addInputSequences(dataReader);
+        ioTime.stop();
+
+        miningTime.start();
+        miner.mine();
+        miningTime.stop();
+
+        patternWriter.close();
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("PrefixGrowth-NEW-TEMP\t");
+        sb.append(sigma + "\t");
+        sb.append(gamma + "\t");
+        sb.append(lambda + "\t");
+        sb.append(generalize + "\t");
+        sb.append(cpw.getCount() + "\t");
+        sb.append(ioTime.elapsed(TimeUnit.MILLISECONDS));
+        sb.append("\t");
+        sb.append(miningTime.elapsed(TimeUnit.MILLISECONDS));
+        sb.append("\t");
+        sb.append(ioTime.elapsed(TimeUnit.MILLISECONDS) + miningTime.elapsed(TimeUnit.MILLISECONDS));
+        System.out.println(sb.toString());
+
+    }
+
 	public static void main(String[] args) throws Exception {
 		
 		int sigma = 100000;
@@ -119,6 +174,7 @@ public class ComparePrefixGrowth {
 		
 		cpg.oldPrefixGrowth();
 		cpg.newPrefixGrowth();
+        cpg.newPrefixGrowthTemp();
 	}
 
 }
