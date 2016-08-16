@@ -46,25 +46,14 @@ public final class NewPostingList {
         assert value >= 0;
         assert size() > 0;
         value += 1; // we add the integer increased by one to distinguish it from separators
-        /*
-        do {
-            byte b = (byte) (nonNegativeValue & 127);
-            nonNegativeValue >>= 7;
-            if (nonNegativeValue == 0) {
-                data.add(b);
-                break;
-            } else {
-                b += 128;
-                data.add(b);
-            }
-        } while (true);
-*/
+
         while (true) {
-            if ((value & ~0x7F) == 0) {
-                data.add((byte)value);
+            final int b = value & 0x7F;
+            if (value == b) {
+                data.add((byte)b);
                 return;
             } else {
-                data.add((byte)((value & 0x7F) | 0x80));
+                data.add((byte)(b | 0x80));
                 value >>>= 7;
             }
         }
@@ -141,34 +130,19 @@ public final class NewPostingList {
          * has been reached (so be sure to use hasNext()).
          */
         public final int nextNonNegativeInt() {
-/*
             int result = 0;
             int shift = 0;
             do {
-                byte b = data.getByte(offset);
+                final int b = data.getByte(offset);
                 offset++;
-                result += (b & 127) << shift;
+                result += (b & 0x7F) << shift;
                 if (b < 0) {
                     shift += 7;
+                    assert shift<32;
                 } else {
                     break;
                 }
             } while (true);
-            */
-            int result = data.getByte(offset);
-            offset++;
-            if (result < 0) {
-                result &= 0x7f;
-                int shift = 7;
-                for (; shift < 32; shift += 7) {
-                    final int b = data.getByte(offset);
-                    offset++;
-                    result |= (b & 0x7f) << shift;
-                    if (b >= 0) {
-                        break;
-                    }
-                }
-            }
 
             assert result >= 1;
             return result - 1; // since we stored ints incremented by 1
