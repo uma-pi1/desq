@@ -7,3 +7,4 @@ target/
 /.classpath
 /desq.log
 /desq-test.log
+/tmp
