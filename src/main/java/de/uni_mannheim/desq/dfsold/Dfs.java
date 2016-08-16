@@ -174,6 +174,7 @@ public class Dfs {
 			Item item = entry.getValue();
 			if (item.support >= sigma) {
 				prefix[0] = entry.getKey();
+				noOutputPatterns++;
 				if (writeOutput) {
 					writer.write(prefix, item.support);
 				}

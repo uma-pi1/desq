@@ -10,6 +10,7 @@ import com.google.common.base.Stopwatch;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.dictionary.DictionaryIO;
+import de.uni_mannheim.desq.io.CountPatternWriter;
 import de.uni_mannheim.desq.io.DelPatternWriter;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.SequenceReader;
@@ -68,7 +69,8 @@ public class ComparePrefixGrowth {
 		ctx.dict = dict;
 		DelPatternWriter patternWriter = new DelPatternWriter(new FileOutputStream(out), true);
 		patternWriter.setDictionary(dict);
-		ctx.patternWriter = null;
+        CountPatternWriter cpw = new CountPatternWriter();
+		ctx.patternWriter = cpw;
 		ctx.properties = PrefixGrowthMiner.createProperties(sigma, gamma, lambda, generalize);
 		
 		DesqMiner miner =  new PrefixGrowthMinerTemp(ctx);
@@ -91,7 +93,8 @@ public class ComparePrefixGrowth {
 		sb.append(gamma + "\t");
 		sb.append(lambda + "\t");
 		sb.append(generalize + "\t");
-		sb.append(ioTime.elapsed(TimeUnit.MILLISECONDS));
+        sb.append(cpw.getCount() + "\t");
+        sb.append(ioTime.elapsed(TimeUnit.MILLISECONDS));
 		sb.append("\t");
 		sb.append(miningTime.elapsed(TimeUnit.MILLISECONDS));
         sb.append("\t");

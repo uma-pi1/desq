@@ -53,6 +53,7 @@ public class DfsDriver {
 		+ "\t" + gamma 
 		+ "\t" + lambda
 		+ "\t" + generalize
+		+ "\t" + dfs.noOutputPatterns()
 		+ "\t" + ioTime.elapsed(TimeUnit.MILLISECONDS)
 		+ "\t" + miningTime.elapsed(TimeUnit.MILLISECONDS)
 		+ "\t" + (ioTime.elapsed(TimeUnit.MILLISECONDS) + miningTime.elapsed(TimeUnit.MILLISECONDS));
