@@ -172,8 +172,7 @@ public class Dictionary {
 		IntIterator it = itemFids.iterator();
 		while (it.hasNext()) {
 			int itemFid = it.nextInt();
-			if (!descendants.contains(itemFid)) {
-				descendants.add(itemFid);
+			if (descendants.add(itemFid)) {
 				addDescendantFids(getItemByFid(itemFid), descendants);
 			}
 		}
@@ -184,8 +183,7 @@ public class Dictionary {
 	 * descendants of items already present in itemFids. */	
 	public void addDescendantFids(Item item, IntSet itemFids) {
 		for (Item child : item.children) {
-			if (!itemFids.contains(child.fid)) {
-				itemFids.add(child.fid);
+			if (itemFids.add(child.fid)) {
 				addDescendantFids(getItemByFid(child.fid), itemFids);
 			}
 		}
@@ -210,20 +208,19 @@ public class Dictionary {
 	}
 	
 	/** Adds all ascendants of the specified item to itemFids, excluding the given item and all 
-	 * ascendants of items already present in itemFids. */	
-/*
-	public void addAscendantFids(Item item, IntSet itemFids) {
+	 * ascendants of items already present in itemFids. */
+	public void addAscendantFids(Item item, IntCollection itemFids) {
         for (Item parent : item.parents) {
-            if (!itemFids.contains(parent.fid)) {
-                itemFids.add(parent.fid);
+            if (itemFids.add(parent.fid)) {
                 addAscendantFids(getItemByFid(parent.fid), itemFids);
             }
         }
-*/
+    }
 
     /** Adds all ascendants of the specified item to itemFids, excluding the given item and all
      * ascendants of items already present in itemFids. */
     public final void addAscendantFids(int itemFid, IntCollection itemFids) {
+        //addAscendantFids(getItemByFid(itemFid), itemFids);
         int from = parentFidsOffsets[itemFid];
         int to = parentFidsOffsets[itemFid+1];
         for (int i=from; i<to; i++) {
@@ -275,23 +272,6 @@ public class Dictionary {
 	
 	// -- utility methods -------------------------------------------------------------------------
 	
-	/** Returns array a where a[i] is document frequency of item with fid i. Be careful when fids
-	 * are sparse; the resulting array might then get big.
-     *
-     * Deprecated. Use {@link #getLargestFidAboveDfreq(long)} instead.
-     */
-    @Deprecated
-    public IntList getFlist() {
-		IntList flist = new IntArrayList();
-		flist.size(itemsByFid.size()+1);
-		for(Entry<Integer, Item> entry : itemsByFid.entrySet()) {
-			int fid = entry.getKey();
-			if (fid>flist.size()) flist.size(fid+1);
-			flist.set(fid, entry.getValue().dFreq);
-		}
-		return flist;
-	}
-
 	/** Gets the largest fid of in item with document frequency at least as large as specified. Returns -1 if
 	 * there is no such item.
      */
@@ -342,7 +322,7 @@ public class Dictionary {
 			itemsByFid.put(fid, item);
 		}
 
-		indexParentsFids();
+		indexFids();
 	}
 	
 	/** Performs a topological sort of the items in this dictionary, respecting document 
@@ -428,7 +408,7 @@ public class Dictionary {
     /** Indexes the parents of each item. Needs to be called before using
      * {@link #addAscendantFids(int, IntCollection)}. Note that this method is implicitly called when recomputing fids
      * via {@link #recomputeFids()} and when loading a dictionary with fids from some file. */
-    public void indexParentsFids() {
+    public void indexFids() {
         IntArrayList fids = new IntArrayList(itemsByFid.keySet());
         Collections.sort(fids);
         IntList tempParentFids = new IntArrayList();
@@ -440,6 +420,7 @@ public class Dictionary {
                 tempParentFids.add(parent.fid);
                 offset++;
             }
+            parentFidsOffsets[fid+1] = offset;
         }
         parentFids = tempParentFids.toIntArray();
     }

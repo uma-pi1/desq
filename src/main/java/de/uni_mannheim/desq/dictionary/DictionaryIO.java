@@ -65,7 +65,7 @@ public class DictionaryIO {
 		}
 		br.close();
 		if (withStatistics)
-			dict.indexParentsFids();
+			dict.indexFids();
 		return dict;
 	}
 	
