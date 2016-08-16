@@ -42,10 +42,11 @@ public final class NewPostingList {
 
     /** Appends a non-negative integer value to the current posting. Encoded slightly more efficiently than
      * appending general integers (see {@link #addNonNegativeInt(int)}). */
-    public final void addNonNegativeInt(int nonNegativeValue) {
-        assert nonNegativeValue >= 0;
+    public final void addNonNegativeInt(int value) {
+        assert value >= 0;
         assert size() > 0;
-        nonNegativeValue += 1; // we add the integer increased by one to distinguish it from separators
+        value += 1; // we add the integer increased by one to distinguish it from separators
+        /*
         do {
             byte b = (byte) (nonNegativeValue & 127);
             nonNegativeValue >>= 7;
@@ -57,6 +58,16 @@ public final class NewPostingList {
                 data.add(b);
             }
         } while (true);
+*/
+        while (true) {
+            if ((value & ~0x7F) == 0) {
+                data.add((byte)value);
+                return;
+            } else {
+                data.add((byte)((value & 0x7F) | 0x80));
+                value >>>= 7;
+            }
+        }
     }
 
     /** Appends an integer value to the current posting. */
@@ -65,7 +76,7 @@ public final class NewPostingList {
         if (value >= 0) {
             addNonNegativeInt(value<<1);
         } else {
-            addNonNegativeInt(((-value)<<1) + 1);
+            addNonNegativeInt(((-value)<<1) | 1);
         }
     }
 
@@ -130,6 +141,7 @@ public final class NewPostingList {
          * has been reached (so be sure to use hasNext()).
          */
         public final int nextNonNegativeInt() {
+/*
             int result = 0;
             int shift = 0;
             do {
@@ -142,6 +154,22 @@ public final class NewPostingList {
                     break;
                 }
             } while (true);
+            */
+            int result = data.getByte(offset);
+            offset++;
+            if (result < 0) {
+                result &= 0x7f;
+                int shift = 7;
+                for (; shift < 32; shift += 7) {
+                    final int b = data.getByte(offset);
+                    offset++;
+                    result |= (b & 0x7f) << shift;
+                    if (b >= 0) {
+                        break;
+                    }
+                }
+            }
+
             assert result >= 1;
             return result - 1; // since we stored ints incremented by 1
         }
@@ -152,7 +180,7 @@ public final class NewPostingList {
         public final int nextInt() {
             int v = nextNonNegativeInt();
             int sign = v & 1;
-            v = (v>>1) & 0x7FFFFFFF;
+            v >>>= 1;
             return sign==0 ? v : -v;
         }
 

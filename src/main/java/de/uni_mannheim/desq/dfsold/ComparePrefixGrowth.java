@@ -172,9 +172,9 @@ public class ComparePrefixGrowth {
 		ComparePrefixGrowth cpg = new ComparePrefixGrowth(sigma, gamma, lambda, generalize);
 		cpg.setIO(dataFile, dictFile, outFile);
 		
-		cpg.oldPrefixGrowth();
+		//cpg.oldPrefixGrowth();
 		cpg.newPrefixGrowth();
-        cpg.newPrefixGrowthTemp();
+        //cpg.newPrefixGrowthTemp();
 	}
 
 }
