@@ -209,7 +209,7 @@ public class Dictionary {
 	
 	/** Adds all ascendants of the specified item to itemFids, excluding the given item and all 
 	 * ascendants of items already present in itemFids. */
-	public void addAscendantFids(Item item, IntCollection itemFids) {
+	public void addAscendantFids(Item item, IntSet itemFids) {
         for (Item parent : item.parents) {
             if (itemFids.add(parent.fid)) {
                 addAscendantFids(getItemByFid(parent.fid), itemFids);
@@ -219,7 +219,7 @@ public class Dictionary {
 
     /** Adds all ascendants of the specified item to itemFids, excluding the given item and all
      * ascendants of items already present in itemFids. */
-    public final void addAscendantFids(int itemFid, IntCollection itemFids) {
+    public final void addAscendantFids(int itemFid, IntSet itemFids) {
         //addAscendantFids(getItemByFid(itemFid), itemFids);
         int from = parentFidsOffsets[itemFid];
         int to = parentFidsOffsets[itemFid+1];
