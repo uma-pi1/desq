@@ -120,7 +120,7 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
         // add a placeholder to prefix
         int lastPrefixIndex = prefix.size();
         prefix.add(-1);
-        IntSet childrenToNotExpand = new IntOpenHashSet();
+        IntSet itemsWithoutFrequentChildren = new IntOpenHashSet();
 
         // iterate over children
         for (PrefixGrowthTreeNode childNode : node.children) {
@@ -133,7 +133,14 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
             }
 
             // check if we need to expand
-            if (prefix.size() >= lambda || childrenToNotExpand.contains(projectedDatabase.itemFid)) {
+            boolean expand = prefix.size() < lambda;
+            if (expand) {
+                ascendants.clear();
+                ctx.dict.addAscendantFids(projectedDatabase.itemFid, ascendants);
+                ascendants.retainAll(itemsWithoutFrequentChildren);
+                expand = ascendants.isEmpty();
+            }
+            if (!expand) {
                 childNode.clear();
                 continue;
             }
@@ -181,10 +188,10 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
             } while (postingsIt.nextPosting());
 
             // if this expansion did not produce any frequent children, then all siblings with descendant items
-            // also can't produce frequent children; remember this
+            // also can't produce frequent children; remember this item
             childNode.expansionsToChildren(sigma);
             if (generalize && childNode.children.isEmpty()) {
-                ctx.dict.addDescendantFids(ctx.dict.getItemByFid(projectedDatabase.itemFid), childrenToNotExpand);
+                itemsWithoutFrequentChildren.add(projectedDatabase.itemFid);
             }
 
             // process just created expansions

@@ -22,7 +22,7 @@ public class PrefixGrowthMinerTemp extends MemoryDesqMiner {
     private int endItem = Integer.MAX_VALUE;
     private final PrefixGrowthTreeNode root = new PrefixGrowthTreeNode(new ProjectedDatabase());
     private int largestFrequentFid; // used to quickly determine whether an item is frequent
-    private final IntCollection ascendants = new IntOpenHashSet(); // used as a buffer for ascendant items
+    private final IntSet ascendants = new IntAVLTreeSet(); // used as a buffer for ascendant items
     final NewPostingList.Iterator postingsIt = new NewPostingList.Iterator(); // used to access posting lists
 
 	public PrefixGrowthMinerTemp(DesqMinerContext ctx) {
@@ -117,11 +117,11 @@ public class PrefixGrowthMinerTemp extends MemoryDesqMiner {
 
 	// node must have been processed/output/expanded already, but children not
     // upon return, prefix must be unmodified
-	private void expand(IntList prefix, PrefixGrowthTreeNode node, boolean hasPivot) {
+    private void expand(IntList prefix, PrefixGrowthTreeNode node, boolean hasPivot) {
         // add a placeholder to prefix
         int lastPrefixIndex = prefix.size();
         prefix.add(-1);
-        IntSet childrenToNotExpand = new IntOpenHashSet();
+        IntSet itemsWithoutFrequentChildren = new IntOpenHashSet();
 
         // iterate over children
         for (PrefixGrowthTreeNode childNode : node.children) {
@@ -134,7 +134,14 @@ public class PrefixGrowthMinerTemp extends MemoryDesqMiner {
             }
 
             // check if we need to expand
-            if (prefix.size() >= lambda || childrenToNotExpand.contains(projectedDatabase.itemFid)) {
+            boolean expand = prefix.size() < lambda;
+            if (expand) {
+                ascendants.clear();
+                ctx.dict.addAscendantFids(projectedDatabase.itemFid, ascendants);
+                ascendants.retainAll(itemsWithoutFrequentChildren);
+                expand = ascendants.isEmpty();
+            }
+            if (!expand) {
                 childNode.clear();
                 continue;
             }
@@ -172,7 +179,7 @@ public class PrefixGrowthMinerTemp extends MemoryDesqMiner {
                                 if (from == to) break;
                                 itemFid = ctx.dict.parentFids[from];
                                 if (largestFrequentFid >= itemFid) {
-                                    childNode.expandWithItem(itemFid, inputId, inputSupport, newPosition);
+                                    root.expandWithItem(itemFid, inputId, inputSupport, newPosition);
                                 }
                             }
                         }
@@ -182,10 +189,10 @@ public class PrefixGrowthMinerTemp extends MemoryDesqMiner {
             } while (postingsIt.nextPosting());
 
             // if this expansion did not produce any frequent children, then all siblings with descendant items
-            // also can't produce frequent children; remember this
+            // also can't produce frequent children; remember this item
             childNode.expansionsToChildren(sigma);
             if (generalize && childNode.children.isEmpty()) {
-                ctx.dict.addDescendantFids(ctx.dict.getItemByFid(projectedDatabase.itemFid), childrenToNotExpand);
+                itemsWithoutFrequentChildren.add(projectedDatabase.itemFid);
             }
 
             // process just created expansions
@@ -197,5 +204,5 @@ public class PrefixGrowthMinerTemp extends MemoryDesqMiner {
 
         // remove placeholder from prefix
         prefix.removeInt(lastPrefixIndex);
-	}
+    }
 }
