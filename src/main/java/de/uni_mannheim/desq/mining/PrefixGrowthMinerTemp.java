@@ -179,7 +179,7 @@ public class PrefixGrowthMinerTemp extends MemoryDesqMiner {
                                 if (from == to) break;
                                 itemFid = ctx.dict.parentFids[from];
                                 if (largestFrequentFid >= itemFid) {
-                                    root.expandWithItem(itemFid, inputId, inputSupport, newPosition);
+                                    childNode.expandWithItem(itemFid, inputId, inputSupport, newPosition);
                                 }
                             }
                         }
