@@ -47,7 +47,7 @@ public class StateExample {
 				OutputLabelType.SELF_ASCENDANTS, toState2, dict);
 		fromState.addTransition(t4);
 
-		Item inputItem = dict.getItemBySid("said@say@VB@");
+		Item inputItem = dict.getItemBySid("NN@");
 
 		Iterator<ItemState> it = fromState.consume(inputItem.fid);
 		while (it.hasNext()) {
@@ -57,6 +57,12 @@ public class StateExample {
 					+ itemState.state.getId());
 		}
 		
+		Iterator<State> stateIt = null;
+		stateIt = fromState.toStateIterator(inputItem.fid, stateIt);
+		while(stateIt.hasNext()) {
+			State state = stateIt.next();
+			System.out.println(state.getId());
+		}
 	}
 	
 	public static void main(String[] args) throws IOException {

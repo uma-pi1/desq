@@ -1,5 +1,8 @@
 package de.uni_mannheim.desq.fst;
 
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -104,5 +107,54 @@ public class State {
 	
 	public List<Transition> getTransitions() {
 		return transitionList;
+	}
+	
+	private static class StateIterator implements Iterator<State> {
+		Iterator<Transition> transitionsIt;
+		Transition transition;
+		int fid;
+		State toState;
+		IntSet toStatesSet = new IntOpenHashSet();
+		@Override
+		public boolean hasNext() {
+			while(transitionsIt.hasNext()) {
+				transition = transitionsIt.next();
+				if(transition.matches(fid) &&  !toStatesSet.contains(transition.toState.id)) {
+					toState = transition.toState; 
+					toStatesSet.add(toState.id);
+					return true;
+				}
+			}
+			toState = null;
+			return false;
+		}
+
+		@Override
+		public State next() {
+			return toState;
+		}
+		
+		@Override
+		public void remove() {
+			throw new UnsupportedOperationException();
+		}
+	}
+	
+	public Iterator<State> toStateIterator(int itemFid) {
+		return toStateIterator(itemFid, null);
+	}
+	
+	public Iterator<State> toStateIterator(int itemFid, Iterator<State> it) {
+		StateIterator resultIt = null;
+		if(it != null && it instanceof StateIterator) 
+			resultIt = (StateIterator) it;
+		else
+			resultIt = new StateIterator();
+		
+		resultIt.transitionsIt = transitionList.iterator();
+		resultIt.fid = itemFid;
+		resultIt.toStatesSet.clear();
+		resultIt.toState = null;
+		return resultIt;
 	}
 }
