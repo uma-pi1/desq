@@ -69,7 +69,7 @@ public class State {
 					return false;
 				}
 			}
-			return currentIt.hasNext();
+			return true;
 		}
 
 		@Override

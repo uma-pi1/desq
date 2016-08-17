@@ -21,7 +21,7 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
     private int endItem = Integer.MAX_VALUE;
     private final PrefixGrowthTreeNode root = new PrefixGrowthTreeNode(new ProjectedDatabase());
     private int largestFrequentFid; // used to quickly determine whether an item is frequent
-    private final IntSet ascendants = new IntOpenHashSet(); // used as a buffer for ascendant items
+    private final IntSet ascendants = new IntAVLTreeSet(); // used as a buffer for ascendant items
     final NewPostingList.Iterator postingsIt = new NewPostingList.Iterator(); // used to access posting lists
 
 	public PrefixGrowthMiner(DesqMinerContext ctx) {
@@ -95,7 +95,7 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
                     }
                     if (generalize) {
                         ascendants.clear();
-                        ctx.dict.addAscendantFids(ctx.dict.getItemByFid(itemFid), ascendants);
+                        ctx.dict.addAscendantFids(itemFid, ascendants);
                         IntIterator itemFidIt = ascendants.iterator();
                         while (itemFidIt.hasNext()) {
                             itemFid = itemFidIt.nextInt();
@@ -166,7 +166,7 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
                         }
                         if (generalize) {
                             ascendants.clear();
-                            ctx.dict.addAscendantFids(ctx.dict.getItemByFid(itemFid), ascendants);
+                            ctx.dict.addAscendantFids(itemFid, ascendants);
                             IntIterator itemFidIt = ascendants.iterator();
                             while (itemFidIt.hasNext()) {
                                 itemFid = itemFidIt.nextInt();

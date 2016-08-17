@@ -108,9 +108,9 @@ public class CSpadeMiner extends DesqMiner {
     protected final Int2IntMap itemDFreqs = new Int2IntOpenHashMap();
 
     /** IntSets for temporary use */
-    final IntSet itemFids = new IntOpenHashSet();
-    final IntSet ascendantFids = new IntOpenHashSet();
-    final IntSet otherAscendantFids = new IntOpenHashSet();
+    final IntSet itemFids = new IntAVLTreeSet();
+    final IntSet ascendantFids = new IntAVLTreeSet();
+    final IntSet otherAscendantFids = new IntAVLTreeSet();
 
     private int largestFrequentFid; // used to quickly determine whether an item is frequent
 
@@ -249,10 +249,10 @@ public class CSpadeMiner extends DesqMiner {
                 } else {
                     // generate all ascendants
                     ascendantFids.clear();
-                    ctx.dict.addAscendantFids(ctx.dict.getItemByFid(itemFid), ascendantFids);
+                    ctx.dict.addAscendantFids(itemFid, ascendantFids);
                     ascendantFids.add(itemFid);
                     otherAscendantFids.clear();
-                    ctx.dict.addAscendantFids(ctx.dict.getItemByFid(otherItemFid), otherAscendantFids);
+                    ctx.dict.addAscendantFids(otherItemFid, otherAscendantFids);
                     otherAscendantFids.add(otherItemFid);
 
                     // generate all pairs of frequent items
