@@ -5,6 +5,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.ints.IntSets;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -37,11 +38,16 @@ public class ExtendedDfa {
 	// an index of eDfa stateIds for fst stateIds
 	ExtendedDfaState[] eDfaStateIdForFstStateId;
 	
+	
 	public ExtendedDfa(Fst fst, Dictionary dict) {
+		this(fst, dict, 1);
+	}
+	
+	public ExtendedDfa(Fst fst, Dictionary dict, int numFstStates) {
 		this.fst = fst;
 		this.dict = dict;
-		this.eDfaStateIdForFstStateId = new ExtendedDfaState[fst.numStates()];
-		for(int fstStateId = 0; fstStateId < fst.numStates(); fstStateId++) {
+		this.eDfaStateIdForFstStateId = new ExtendedDfaState[numFstStates];
+		for(int fstStateId = 0; fstStateId < numFstStates; fstStateId++) {
 			this.eDfaStateIdForFstStateId[fstStateId] = new ExtendedDfaState();
 		}
 		this.constructExtendedDfa(fst);
@@ -70,9 +76,9 @@ public class ExtendedDfa {
 		
 		// Initialize newStateForStateIdSet
 		// Initially old states contain all fst state as potential initial states
-		for(int fstStateId = 0; fstStateId < fst.numStates(); fstStateId++) {
+		for(int fstStateId = 0; fstStateId < eDfaStateIdForFstStateId.length; fstStateId++) {
 			//ExtendedDfaState eDfaState = new ExtendedDfaState();
-			IntSet initialStateIdSet = createIntSet(fstStateId); 
+			IntSet initialStateIdSet = IntSets.singleton(fstStateId); 
 			newStateForStateIdSet.put(initialStateIdSet, eDfaStateIdForFstStateId[fstStateId]);
 			eDfaStateIdForFstStateId[fstStateId].setFstStates(initialStateIdSet, fst.numStates());
 			
@@ -160,11 +166,11 @@ public class ExtendedDfa {
 	
 	
 	
-	private IntSet createIntSet(int id) {
+	/*private IntSet createIntSet(int id) {
 		IntSet initialStateIds = new IntOpenHashSet(1);
 		initialStateIds.add(id);
 		return initialStateIds;
-	}
+	}*/
 
 	
 	/**

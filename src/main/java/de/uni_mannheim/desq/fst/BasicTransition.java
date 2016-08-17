@@ -208,6 +208,13 @@ public class BasicTransition extends Transition {
 		return true;
 	}
 	
+	public void getInputFids(IntSet inputFids) {
+		if(this.inputFids == null) 
+			inputFids.add(0);
+		else
+			inputFids.addAll(this.inputFids);
+	}
+	
 	
 
 }
