@@ -160,7 +160,7 @@ public class ComparePrefixGrowth {
 
 	public static void main(String[] args) throws Exception {
 		
-		int sigma = 100000;
+		int sigma = 100;
 		int gamma = 0;
 		int lambda = 3;
 		boolean generalize = true;
@@ -172,8 +172,8 @@ public class ComparePrefixGrowth {
 		ComparePrefixGrowth cpg = new ComparePrefixGrowth(sigma, gamma, lambda, generalize);
 		cpg.setIO(dataFile, dictFile, outFile);
 		
-		//cpg.oldPrefixGrowth();
-		cpg.newPrefixGrowth();
+		cpg.oldPrefixGrowth(); System.gc(); Thread.sleep(1000);
+		cpg.newPrefixGrowth(); System.gc(); Thread.sleep(1000);
         //cpg.newPrefixGrowthTemp();
 	}
 

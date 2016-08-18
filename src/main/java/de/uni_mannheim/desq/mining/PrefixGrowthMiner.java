@@ -21,8 +21,12 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
     private int endItem = Integer.MAX_VALUE;
     private final PrefixGrowthTreeNode root = new PrefixGrowthTreeNode(new ProjectedDatabase());
     private int largestFrequentFid; // used to quickly determine whether an item is frequent
-    private final IntSet ascendants = new IntAVLTreeSet(); // used as a buffer for ascendant items
+    private IntSet ascendants; // used as a buffer for ascendant items
+    private boolean isForest;
     final NewPostingList.Iterator postingsIt = new NewPostingList.Iterator(); // used to access posting lists
+
+    // if set to true, won't expand an items which have a parent that did not lead to a frequent expansion
+    private final boolean USE_PRUNING = true;
 
 	public PrefixGrowthMiner(DesqMinerContext ctx) {
 		super(ctx);
@@ -59,6 +63,8 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
 		this.lambda = lambda;
 		this.generalize = generalize;
         this.largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
+        this.isForest = ctx.dict.isForest();
+        this.ascendants = this.isForest ? new IntArraySet() : new IntAVLTreeSet();
         clear();
 	}
 
@@ -120,7 +126,7 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
         // add a placeholder to prefix
         int lastPrefixIndex = prefix.size();
         prefix.add(-1);
-        IntSet itemsWithoutFrequentChildren = new IntOpenHashSet();
+        IntSet leftSiblingItemsWithoutFrequentChildNodes = new IntOpenHashSet();
 
         // iterate over children
         for (PrefixGrowthTreeNode childNode : node.children) {
@@ -134,11 +140,16 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
 
             // check if we need to expand
             boolean expand = prefix.size() < lambda;
-            if (expand) {
+            if (USE_PRUNING && expand) {
                 ascendants.clear();
                 ctx.dict.addAscendantFids(projectedDatabase.itemFid, ascendants);
-                ascendants.retainAll(itemsWithoutFrequentChildren);
-                expand = ascendants.isEmpty();
+                IntIterator itemFidIt = ascendants.iterator();
+                while (itemFidIt.hasNext()) {
+                    if (leftSiblingItemsWithoutFrequentChildNodes.contains(itemFidIt.next())) {
+                        expand = false;
+                        break;
+                    }
+                }
             }
             if (!expand) {
                 childNode.clear();
@@ -190,8 +201,8 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
             // if this expansion did not produce any frequent children, then all siblings with descendant items
             // also can't produce frequent children; remember this item
             childNode.expansionsToChildren(sigma);
-            if (generalize && childNode.children.isEmpty()) {
-                itemsWithoutFrequentChildren.add(projectedDatabase.itemFid);
+            if (USE_PRUNING && generalize && childNode.children.isEmpty()) {
+                leftSiblingItemsWithoutFrequentChildNodes.add(projectedDatabase.itemFid);
             }
 
             // process just created expansions

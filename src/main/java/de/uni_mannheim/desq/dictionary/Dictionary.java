@@ -23,6 +23,9 @@ public class Dictionary {
     /** Determines where the parents fids for each item are stored in {@link #parentFids} */
     public int[] parentFidsOffsets;
 
+    /** Whether this dictionary is a forest. See {@link #isForest()}. */
+    private boolean isForest = false;
+
 	// -- updating the hierarchy ------------------------------------------------------------------
 	
 	/** Adds a new item to the hierarchy. If the fid equals 0, it won't be indexed */
@@ -218,17 +221,34 @@ public class Dictionary {
     }
 
     /** Adds all ascendants of the specified item to itemFids, excluding the given item and all
-     * ascendants of items already present in itemFids. */
+     * ascendants of items already present in itemFids. This method is performance-critical in many mining methods.
+     * For best performance, pass an {@link IntArraySet} if {@link #isForest()} and <code>itemFids</code> is
+     * initially empty. Otherwise, use a set that allows for fast look-ups (such as {@link IntOpenHashSet} or
+     * {@link IntAVLTreeSet}).
+     */
     public final void addAscendantFids(int itemFid, IntSet itemFids) {
-        //addAscendantFids(getItemByFid(itemFid), itemFids);
+        if (itemFids.isEmpty())
+            addAscendantFids(itemFid, itemFids, Integer.MAX_VALUE);
+        else
+            addAscendantFids(itemFid, itemFids, Integer.MIN_VALUE);
+    }
+
+    // minFidInItemFids is a lowerbound of the smallest fid currently in the set. This method makes use of the
+    // fact that parents have smaller fids than their children.
+    private final int addAscendantFids(int itemFid, IntSet itemFids, int minFidInItemFids) {
         int from = parentFidsOffsets[itemFid];
         int to = parentFidsOffsets[itemFid+1];
         for (int i=from; i<to; i++) {
             int parentFid = parentFids[i];
-            if (itemFids.add(parentFid)) {
-                addAscendantFids(parentFid, itemFids);
+            if (parentFid < minFidInItemFids) { // must be new
+                itemFids.add(parentFid);
+                minFidInItemFids = parentFid;
+                minFidInItemFids = addAscendantFids(parentFid, itemFids, minFidInItemFids);
+            } else if (itemFids.add(parentFid)) { // else look-up and ignore if present
+                minFidInItemFids = addAscendantFids(parentFid, itemFids, minFidInItemFids);
             }
         }
+        return minFidInItemFids;
     }
 
 	/** Adds all ascendants of the specified item to itemFids, excluding the given item and all 
@@ -287,6 +307,12 @@ public class Dictionary {
 				resultFid = fid;
 		}
 		return resultFid;
+	}
+
+	/** Determines whether the items in this dictionary form a forest. The result of this method is undefined unless
+     * {@link #indexFids()} has been called. */
+	public boolean isForest() {
+		return isForest;
 	}
 
 	public void idsToFids(IntList ids) {
@@ -412,6 +438,7 @@ public class Dictionary {
      * {@link #addAscendantFids(int, IntSet)}. Note that this method is implicitly called when recomputing fids
      * via {@link #recomputeFids()} and when loading a dictionary with fids from some file. */
     public void indexFids() {
+        isForest = true;
         IntArrayList fids = new IntArrayList(itemsByFid.keySet());
         Collections.sort(fids);
         IntList tempParentFids = new IntArrayList();
@@ -425,8 +452,12 @@ public class Dictionary {
             }
             assert prevFid == fid;
 
+            // check whether we still have a forest (assuming a valid DAG)
+            Item item = getItemByFid(fid);
+            if (item.parents.size()>1) isForest = false;
+
             // update next fid
-            for (Item parent : getItemByFid(fid).parents) {
+            for (Item parent : item.parents) {
                 tempParentFids.add(parent.fid);
                 offset++;
             }
