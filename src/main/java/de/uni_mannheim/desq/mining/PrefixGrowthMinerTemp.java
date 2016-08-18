@@ -1,6 +1,5 @@
 package de.uni_mannheim.desq.mining;
 
-import de.uni_mannheim.desq.mining.*;
 import de.uni_mannheim.desq.util.PropertiesUtils;
 import it.unimi.dsi.fastutil.ints.*;
 
@@ -23,7 +22,7 @@ public class PrefixGrowthMinerTemp extends MemoryDesqMiner {
     private final PrefixGrowthTreeNode root = new PrefixGrowthTreeNode(new ProjectedDatabase());
     private int largestFrequentFid; // used to quickly determine whether an item is frequent
     private final IntSet ascendants = new IntAVLTreeSet(); // used as a buffer for ascendant items
-    final NewPostingList.Iterator postingsIt = new NewPostingList.Iterator(); // used to access posting lists
+    final PostingList.Iterator postingsIt = new PostingList.Iterator(); // used to access posting lists
 
 	public PrefixGrowthMinerTemp(DesqMinerContext ctx) {
 		super(ctx);

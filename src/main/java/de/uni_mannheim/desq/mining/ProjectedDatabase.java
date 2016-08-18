@@ -8,10 +8,10 @@ final class ProjectedDatabase {
     long support;
     int lastInputId;
     int lastPosition;
-    NewPostingList postingList;
+    PostingList postingList;
 
     ProjectedDatabase() {
-        this.postingList = new NewPostingList();
+        this.postingList = new PostingList();
         clear();
     }
 
@@ -20,6 +20,6 @@ final class ProjectedDatabase {
         support = 0;
         lastInputId = -1;
         lastPosition = -1;
-        postingList = new NewPostingList();
+        postingList = new PostingList();
     }
 }

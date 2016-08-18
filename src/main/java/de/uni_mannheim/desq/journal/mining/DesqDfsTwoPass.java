@@ -22,7 +22,7 @@ import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.journal.edfa.ExtendedDfa;
 import de.uni_mannheim.desq.mining.DesqMinerContext;
 import de.uni_mannheim.desq.mining.MemoryDesqMiner;
-import de.uni_mannheim.desq.mining.PostingList;
+import de.uni_mannheim.desq.mining.OldPostingList;
 import de.uni_mannheim.desq.patex.PatEx;
 import de.uni_mannheim.desq.util.PropertiesUtils;
 
@@ -155,7 +155,7 @@ public class DesqDfsTwoPass extends MemoryDesqMiner {
 		currentNode = node;
 		int support = 0;
 		
-		PostingList.Decompressor projectedDatabase = new PostingList.Decompressor(node.projectedDatabase);
+		OldPostingList.Decompressor projectedDatabase = new OldPostingList.Decompressor(node.projectedDatabase);
 		// For all sequences in projected database
 		do {
 			int sid = projectedDatabase.nextValue();
@@ -281,21 +281,21 @@ public class DesqDfsTwoPass extends MemoryDesqMiner {
 
 				/** Add transaction separator */
 				if (node.projectedDatabase.size() > 0) {
-					PostingList.addCompressed(0, node.projectedDatabase);
+					OldPostingList.addCompressed(0, node.projectedDatabase);
 				}
 
 				node.lastSequenceId = sequenceId;
 				node.prefixSupport++;
 
-				PostingList.addCompressed(sequenceId + 1, node.projectedDatabase);
-				PostingList.addCompressed(state + 1, node.projectedDatabase);
-				PostingList.addCompressed(position + 1, node.projectedDatabase);
+				OldPostingList.addCompressed(sequenceId + 1, node.projectedDatabase);
+				OldPostingList.addCompressed(state + 1, node.projectedDatabase);
+				OldPostingList.addCompressed(position + 1, node.projectedDatabase);
 
 				node.statePosSet[state].set(position);
 			} else if (!node.statePosSet[state].get(position)) {
 				node.statePosSet[state].set(position);
-				PostingList.addCompressed(state + 1, node.projectedDatabase);
-				PostingList.addCompressed(position + 1, node.projectedDatabase);
+				OldPostingList.addCompressed(state + 1, node.projectedDatabase);
+				OldPostingList.addCompressed(position + 1, node.projectedDatabase);
 			}
 		}
 

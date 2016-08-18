@@ -21,9 +21,8 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
     private int endItem = Integer.MAX_VALUE;
     private final PrefixGrowthTreeNode root = new PrefixGrowthTreeNode(new ProjectedDatabase());
     private int largestFrequentFid; // used to quickly determine whether an item is frequent
-    private IntSet ascendants; // used as a buffer for ascendant items
-    private boolean isForest;
-    final NewPostingList.Iterator postingsIt = new NewPostingList.Iterator(); // used to access posting lists
+    private IntCollection ascendants; // used as a buffer for ascendant items
+    final PostingList.Iterator postingsIt = new PostingList.Iterator(); // used to access posting lists
 
     // if set to true, won't expand an items which have a parent that did not lead to a frequent expansion
     private final boolean USE_PRUNING = true;
@@ -63,8 +62,7 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
 		this.lambda = lambda;
 		this.generalize = generalize;
         this.largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
-        this.isForest = ctx.dict.isForest();
-        this.ascendants = this.isForest ? new IntArraySet() : new IntAVLTreeSet();
+        this.ascendants = ctx.dict.isForest() ? new IntArrayList() : new IntAVLTreeSet();
         clear();
 	}
 

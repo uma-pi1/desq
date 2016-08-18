@@ -10,7 +10,7 @@ final class DesqDfsProjectedDatabase {
 	int itemFid;
 	long prefixSupport;
 	int lastInputId;
-	NewPostingList postingList;
+	PostingList postingList;
 	BitSet[] snapshotSet;
 	
 	DesqDfsProjectedDatabase(int numFstStates) {
@@ -31,7 +31,7 @@ final class DesqDfsProjectedDatabase {
 		itemFid = -1;
 		prefixSupport = 0;
 		lastInputId = -1;
-		postingList = new NewPostingList();
+		postingList = new PostingList();
 		for(int i = 0; i < snapshotSet.length; i++) {
 			snapshotSet[i].clear();
 		}

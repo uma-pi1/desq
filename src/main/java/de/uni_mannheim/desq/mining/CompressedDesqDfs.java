@@ -28,8 +28,8 @@ public class CompressedDesqDfs extends CompressedMemoryDesqMiner {
 	int initialStateId;
 	int largestFrequentFid;
 	boolean reachedFinalState;
-	final NewPostingList.Iterator postingsIt = new NewPostingList.Iterator();
-	final NewPostingList.Iterator inputIt = inputSequences.iterator();
+	final PostingList.Iterator postingsIt = new PostingList.Iterator();
+	final PostingList.Iterator inputIt = inputSequences.iterator();
 	
 	public CompressedDesqDfs(DesqMinerContext ctx) {
 		super(ctx);

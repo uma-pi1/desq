@@ -89,7 +89,7 @@ public class CSpadeMiner extends DesqMiner {
 	/**
 	 * Posting list for each sequence in kSequences.
 	 */
-	protected ArrayList<NewPostingList> kPostingLists = new ArrayList<>();
+	protected ArrayList<PostingList> kPostingLists = new ArrayList<>();
 
 	/**
 	 * Support of each input sequence (indexed by inputId). If an input
@@ -298,7 +298,7 @@ public class CSpadeMiner extends DesqMiner {
 		// if the sequence has not seen before, create a new posting list
 		KPatternIndexEntry entry = twoSequenceIndex.get(kSequence);
 
-		NewPostingList postingList;
+		PostingList postingList;
 
 		if (entry == null) {
 			// we never saw this 2-sequence before
@@ -308,7 +308,7 @@ public class CSpadeMiner extends DesqMiner {
 			kSequence = new int[] { kSequence[0], kSequence[1] }; // copy necessary here
 			kSequences.add(kSequence);
 			twoSequenceIndex.put(kSequence, entry);
-			postingList = new NewPostingList();
+			postingList = new PostingList();
 			kPostingLists.add(postingList);
 			kTotalSupports.add(0);
 		} else {
@@ -476,13 +476,13 @@ public class CSpadeMiner extends DesqMiner {
 		// variables for the (k+1)-sequences
 		int k1 = k + 1;
 		ArrayList<int[]> k1Sequences = new ArrayList<>();
-		ArrayList<NewPostingList> k1PostingLists = new ArrayList<>();
+		ArrayList<PostingList> k1PostingLists = new ArrayList<>();
 		IntArrayList k1TotalSupports = new IntArrayList();
 
 		// temporary variables
-		NewPostingList postingList = new NewPostingList(); // list of postings for a new (k+1) sequence
-		NewPostingList.Iterator leftPostingList = new NewPostingList.Iterator(); // posting list of the left k-sequence
-		NewPostingList.Iterator rightPostingList = new NewPostingList.Iterator(); // posting list of the right k-sequence
+		PostingList postingList = new PostingList(); // list of postings for a new (k+1) sequence
+		PostingList.Iterator leftPostingList = new PostingList.Iterator(); // posting list of the left k-sequence
+		PostingList.Iterator rightPostingList = new PostingList.Iterator(); // posting list of the right k-sequence
 
 		// we now join sequences (e.g., abcde) that end with some suffix with
 		// sequences
@@ -611,7 +611,7 @@ public class CSpadeMiner extends DesqMiner {
 
 						// store in results of current round
 						k1Sequences.add(kSequence);
-						k1PostingLists.add(new NewPostingList(postingList)); // copying necessary here; postingList reused
+						k1PostingLists.add(new PostingList(postingList)); // copying necessary here; postingList reused
 						k1TotalSupports.add(totalSupport);
 					}
 				} // for all right sequences of the same key

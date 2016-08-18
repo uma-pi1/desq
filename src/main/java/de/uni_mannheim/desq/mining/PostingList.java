@@ -2,280 +2,176 @@ package de.uni_mannheim.desq.mining;
 
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 
-/**
- * Utility methods for (de)compressing posting lists. To be removed; use {@link NewPostingList} instead.
+/** A posting list is a (possibly empty) sequence of postings, each containing a (possibly empty) sequence
+ * of integer elements. Posting lists are stored in memory using variable-byte encoding.
+ *
+ * Created by rgemulla on 20.07.2016.
  */
-@Deprecated
 public final class PostingList {
+    private final ByteArrayList data;
+    private int noPostings;
 
-	/**
-	 * Appends compressed value v to the given posting list. Set v=0 for a
-	 * separator, v=transactionId+1 for a transaction gid, and v=position+1 for a
-	 * position.
-	 */
-	public static final void addCompressed(int v, ByteArrayList postingList) {
-		assert v >= 0;
-		do {
-			byte b = (byte) (v & 127);
-			v >>= 7;
-			if (v == 0) {
-				postingList.add(b);
-				break;
-			} else {
-				b += 128;
-				postingList.add(b);
-			}
-		} while (true);
-	}
+    /** Constructs a new empty posting list */
+    public PostingList() {
+        this.data = new ByteArrayList();
+        this.noPostings = 0;
+    }
 
-	/** Iterator-like decompression of posting lists. */
-	public static final class Decompressor {
+    /** Creates a new posting list with the (copied) data from the given posting list. */
+    public PostingList(PostingList postingList) {
+        this.data = new ByteArrayList(postingList.data);
+        this.noPostings = postingList.noPostings;
+    }
 
-		public ByteArrayList postingList;
+    /** Clears this posting list. */
+    public void clear() {
+        data.clear();
+        noPostings = 0;
+    }
 
-		public int offset;
+    /** Returns the number of postings in this posting list. */
+    public final int size() {
+        return noPostings;
+    }
 
-		public Decompressor() {
-			this.postingList = null;
-			this.offset = 0;
+    /** Returns the number of bytes using by this posting list. If an additional element is appended to this posting
+     * list, it starts at the offset given by this method. */
+    public final int noBytes() { return data.size(); }
 
-		}
+    // more space efficient if values knwon to be non-negative
 
-		public Decompressor(ByteArrayList postingList) {
-			this.postingList = postingList;
-			this.offset = 0;
-		}
+    /** Appends a non-negative integer value to the current posting. Encoded slightly more efficiently than
+     * appending general integers (see {@link #addNonNegativeInt(int)}). */
+    public final void addNonNegativeInt(int value) {
+        assert value >= 0;
+        assert size() > 0;
+        value += 1; // we add the integer increased by one to distinguish it from separators
 
-		/** Is there another value in the posting? */
-		public boolean hasNextValue() {
-			return offset < postingList.size() && postingList.getByte(offset) != 0;
-		}
+        while (true) {
+            final int b = value & 0x7F;
+            if (value == b) {
+                data.add((byte)b);
+                return;
+            } else {
+                data.add((byte)(b | 0x80));
+                value >>>= 7;
+            }
+        }
+    }
 
-		/**
-		 * Returns the next transactionId/positopm in the posting. Throws an
-		 * exception if the end of the posting has been reached (so be sure to use
-		 * hasNextValue()).
-		 */
-		public int nextValue() {
-			int result = 0;
-			int shift = 0;
-			do {
-				byte b = postingList.getByte(offset);
-				offset++;
-				result += (b & 127) << shift;
-				if (b < 0) {
-					shift += 7;
-				} else {
-					break;
-				}
-			} while (true);
-			return result - 1; // since we stored transactionId/positions incremented
-													// by 1
-		}
+    /** Appends an integer value to the current posting. */
+    public final void addInt(int value) {
+        // sign bit moved to lowest order bit
+        if (value >= 0) {
+            addNonNegativeInt(value<<1);
+        } else {
+            addNonNegativeInt(((-value)<<1) | 1);
+        }
+    }
 
-		/**
-		 * Moves to the next posting in the posting list and returns true if such a
-		 * posting exists.
-		 */
-		public boolean nextPosting() {
-			do {
-				offset++;
-				if (offset >= postingList.size())
-					return false;
-			} while (postingList.getByte(offset - 1) != 0); // previous byte is not a
-																									// separator byte
-			return true;
-		}
-	}
+    /** Ends the current posting and appends a new one. This method must also be called for the first posting
+     * to be added. */
+    public final void newPosting() {
+        noPostings++;
+        if (noPostings>1) // first posting does not need separator
+            data.add((byte)0);
+    }
 
-	public static int merge(ByteArrayList listA, ByteArrayList listB, ByteArrayList postingList) {
-		int support = 0;
+    /** Returns an iterator that can be used to read the postings in this posting list. */
+    public final Iterator iterator() {
+        return new Iterator(this);
+    }
 
-		PostingList.Decompressor postingListA = new PostingList.Decompressor();
-		PostingList.Decompressor postingListB = new PostingList.Decompressor();
-		postingListA.postingList = listA;
-		postingListA.offset = 0;
-		postingListB.postingList = listB;
-		postingListB.offset = 0;
+    /** Iterator to read the postings in a posting list. Designed to be efficient. */
+    public static final class Iterator {
+        private ByteArrayList data;
 
-		int aTransactionId = postingListA.nextValue();
-		int bTransactionId = postingListB.nextValue();
+        /** The offset at which to read. Intentionally public; use with care. */
+        public int offset;
 
-		while (true) {
+        /** Creates an iterator without any data. This iterator must not be used before a posting list is set using
+         * {@link #reset(PostingList)}.
+         */
+        public Iterator() {
+            this.data = null;
+            this.offset = 0;
+        }
 
-			/** Merge positions if same transaction gid */
-			if (aTransactionId == bTransactionId) {
-				if (postingList.size() > 0)
-					PostingList.addCompressed(0, postingList);
-				/** Add transaction gid */
-				PostingList.addCompressed(aTransactionId + 1, postingList);
-				support++;
+        /** Creates an iterator backed by the given data */
+        public Iterator(ByteArrayList data) {
+            this.data = data;
+            this.offset = 0;
+        }
 
-				/** Merge positions and add */
+        /** Creates an iterator backed by the given posting list */
+        public Iterator(PostingList postingList) {
+            this.data = postingList.data;
+            this.offset = 0;
+        }
 
-				int bPosition = postingListB.nextValue();
-				int aPosition = postingListA.nextValue();
+        /** Resets this iterator to the beginning of the first posting. */
+        public final void reset() {
+            this.offset = 0;
+        }
 
-				while (true) {
 
-					if (aPosition < bPosition) {
-						PostingList.addCompressed(aPosition + 1, postingList);
-						if (postingListA.hasNextValue())
-							aPosition = postingListA.nextValue();
-						else
-							break;
-					} else if (aPosition > bPosition) {
-						PostingList.addCompressed(bPosition + 1, postingList);
-						if (postingListB.hasNextValue())
-							bPosition = postingListB.nextValue();
-						else
-							break;
-					} else {
-						PostingList.addCompressed(aPosition + 1, postingList);
+        /** Resets this iterator to the beginning of the first posting in the given posting list. */
+        public final void reset(PostingList postingList) {
+            this.data = postingList.data;
+            this.offset = 0;
+        }
 
-						if (postingListA.hasNextValue()) {
-							aPosition = postingListA.nextValue();
-							if (postingListB.hasNextValue()) {
-								bPosition = postingListB.nextValue();
-							} else {
-								break;
-							}
-						} else if (postingListB.hasNextValue()) {
-							bPosition = postingListB.nextValue();
-							break;
-						} else
-							break;
+        /** Is there another value in the current posting? */
+        public final boolean hasNext() {
+            return offset < data.size() && data.getByte(offset) != 0;
+        }
 
-					}
-				}
-				/** add left over positions to postingList */
-				if (aPosition > bPosition) {
-					do {
-						PostingList.addCompressed(aPosition + 1, postingList);
-						if (postingListA.hasNextValue()) {
-							aPosition = postingListA.nextValue();
-						} else
-							break;
+        /** Reads a non-negative integer value from the current posting. Throws an exception if the end of the posting
+         * has been reached (so be sure to use hasNext()).
+         */
+        public final int nextNonNegativeInt() {
+            int result = 0;
+            int shift = 0;
+            do {
+                final int b = data.getByte(offset);
+                offset++;
+                result += (b & 0x7F) << shift;
+                if (b < 0) {
+                    shift += 7;
+                    assert shift<32;
+                } else {
+                    break;
+                }
+            } while (true);
 
-					} while (true);
-				} else if (aPosition < bPosition) {
-					do {
-						PostingList.addCompressed(bPosition + 1, postingList);
-						if (postingListB.hasNextValue()) {
-							bPosition = postingListB.nextValue();
-						} else
-							break;
-					} while (true);
-				}
+            assert result >= 1;
+            return result - 1; // since we stored ints incremented by 1
+        }
 
-				/** Advance the postings as necessary */
+        /** Reads an integer value from the current posting. Throws an exception if the end of the posting
+         * has been reached (so be sure to use hasNext()).
+         */
+        public final int nextInt() {
+            int v = nextNonNegativeInt();
+            int sign = v & 1;
+            v >>>= 1;
+            return sign==0 ? v : -v;
+        }
 
-				if (postingListA.nextPosting()) {
-					aTransactionId = postingListA.nextValue();
-					if (postingListB.nextPosting()) {
-						bTransactionId = postingListB.nextValue();
-					} else {
-						break;
-					}
-				} else if (postingListB.nextPosting()) {
-					bTransactionId = postingListB.nextValue();
-					break;
-				} else
-					break;
+        /** Moves to the next posting in the posting list and returns true if such a posting exists. Do not use
+         * for the first posting. */
+        public final boolean nextPosting() {
+            if (offset >= data.size())
+                return false;
 
-			} else if (aTransactionId < bTransactionId) {
-
-				/** Add transaction */
-				if (postingList.size() > 0)
-					PostingList.addCompressed(0, postingList);
-
-				PostingList.addCompressed(aTransactionId + 1, postingList);
-				support++;
-
-				/** Add positions */
-				while (postingListA.hasNextValue()) {
-					int position = postingListA.nextValue();
-					PostingList.addCompressed(position + 1, postingList);
-				}
-				/** Advance to next posting */
-				if (postingListA.nextPosting()) {
-					aTransactionId = postingListA.nextValue();
-				} else
-					break;
-			} else if (aTransactionId > bTransactionId) {
-
-				/** Add transaction */
-				if (postingList.size() > 0)
-					PostingList.addCompressed(0, postingList);
-
-				PostingList.addCompressed(bTransactionId + 1, postingList);
-				support++;
-
-				/** Add positions */
-				while (postingListB.hasNextValue()) {
-					int position = postingListB.nextValue();
-					PostingList.addCompressed(position + 1, postingList);
-				}
-
-				/** Advance to next posting */
-				if (postingListB.nextPosting()) {
-					bTransactionId = postingListB.nextValue();
-				} else
-					break;
-			}
-		}
-		// Add leftover posting list
-		if (aTransactionId > bTransactionId) {
-			/** Add the current transaction and positions */
-			PostingList.addCompressed(0, postingList);
-			PostingList.addCompressed(aTransactionId + 1, postingList);
-			support++;
-
-			while (postingListA.hasNextValue()) {
-				int position = postingListA.nextValue();
-				PostingList.addCompressed(position + 1, postingList);
-			}
-
-			/** Add remaining transactions in this posting list */
-			while (postingListA.nextPosting()) {
-				aTransactionId = postingListA.nextValue();
-				PostingList.addCompressed(0, postingList);
-				PostingList.addCompressed(aTransactionId + 1, postingList);
-				support++;
-
-				while (postingListA.hasNextValue()) {
-					int position = postingListA.nextValue();
-					PostingList.addCompressed(position + 1, postingList);
-				}
-			}
-		} else if (aTransactionId < bTransactionId) {
-			/** Add the current transaction and positions */
-			PostingList.addCompressed(0, postingList);
-			PostingList.addCompressed(bTransactionId + 1, postingList);
-			support++;
-
-			while (postingListB.hasNextValue()) {
-				int position = postingListB.nextValue();
-				PostingList.addCompressed(position + 1, postingList);
-			}
-
-			/** Add remaining transactions in this posting list */
-			while (postingListB.nextPosting()) {
-				bTransactionId = postingListB.nextValue();
-				PostingList.addCompressed(0, postingList);
-				PostingList.addCompressed(bTransactionId + 1, postingList);
-				support++;
-
-				while (postingListB.hasNextValue()) {
-					int position = postingListB.nextValue();
-					PostingList.addCompressed(position + 1, postingList);
-				}
-			}
-
-		}
-
-		return support;
-
-	}
-
+            byte b;
+            do {
+                b = data.getByte(offset);
+                offset++;
+                if (offset >= data.size())
+                    return false;
+            } while (b!=0);
+            return true;
+        }
+    }
 }

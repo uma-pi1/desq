@@ -221,12 +221,14 @@ public class Dictionary {
     }
 
     /** Adds all ascendants of the specified item to itemFids, excluding the given item and all
-     * ascendants of items already present in itemFids. This method is performance-critical in many mining methods.
-     * For best performance, pass an {@link IntArraySet} if {@link #isForest()} and <code>itemFids</code> is
-     * initially empty. Otherwise, use a set that allows for fast look-ups (such as {@link IntOpenHashSet} or
-     * {@link IntAVLTreeSet}).
+     * ascendants of items already present in itemFids. This method is performance-critical for many mining methods.
+     * If the dictionary does not form a forest (see {@link #isForest()}) or if <code>itemFids</code> is not initially
+     * empty, <code>itemFids</code> *must* be an {@link IntSet}, ideally one that allows for fast look-ups
+     * (such as {@link IntOpenHashSet} or{@link IntAVLTreeSet}). Otherwise, for best performance, pass an
+     * {@link IntArrayList}.
      */
-    public final void addAscendantFids(int itemFid, IntSet itemFids) {
+    public final void addAscendantFids(int itemFid, IntCollection itemFids) {
+        assert itemFids instanceof IntSet || (isForest() && itemFids.isEmpty());
         if (itemFids.isEmpty())
             addAscendantFids(itemFid, itemFids, Integer.MAX_VALUE);
         else
@@ -235,7 +237,7 @@ public class Dictionary {
 
     // minFidInItemFids is a lowerbound of the smallest fid currently in the set. This method makes use of the
     // fact that parents have smaller fids than their children.
-    private final int addAscendantFids(int itemFid, IntSet itemFids, int minFidInItemFids) {
+    private final int addAscendantFids(int itemFid, IntCollection itemFids, int minFidInItemFids) {
         int from = parentFidsOffsets[itemFid];
         int to = parentFidsOffsets[itemFid+1];
         for (int i=from; i<to; i++) {
@@ -245,6 +247,7 @@ public class Dictionary {
                 minFidInItemFids = parentFid;
                 minFidInItemFids = addAscendantFids(parentFid, itemFids, minFidInItemFids);
             } else if (itemFids.add(parentFid)) { // else look-up and ignore if present
+                assert itemFids instanceof IntSet;
                 minFidInItemFids = addAscendantFids(parentFid, itemFids, minFidInItemFids);
             }
         }

@@ -22,8 +22,8 @@ public class CompressedPrefixGrowthMiner extends CompressedMemoryDesqMiner {
     private final PrefixGrowthTreeNode root = new PrefixGrowthTreeNode(new ProjectedDatabase());
     private int largestFrequentFid; // used to quickly determine whether an item is frequent
     private final IntSet ascendants = new IntAVLTreeSet(); // used as a buffer for ascendant items
-    final NewPostingList.Iterator postingsIt = new NewPostingList.Iterator(); // used to access posting lists
-    final NewPostingList.Iterator inputIt = inputSequences.iterator();
+    final PostingList.Iterator postingsIt = new PostingList.Iterator(); // used to access posting lists
+    final PostingList.Iterator inputIt = inputSequences.iterator();
 
 	public CompressedPrefixGrowthMiner(DesqMinerContext ctx) {
 		super(ctx);
