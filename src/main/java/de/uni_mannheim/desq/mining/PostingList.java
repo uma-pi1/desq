@@ -1,6 +1,9 @@
 package de.uni_mannheim.desq.mining;
 
+import com.google.common.base.Stopwatch;
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
+
+import java.util.concurrent.TimeUnit;
 
 /** A posting list is a (possibly empty) sequence of postings, each containing a (possibly empty) sequence
  * of integer elements. Posting lists are stored in memory using variable-byte encoding.
@@ -38,7 +41,12 @@ public final class PostingList {
      * list, it starts at the offset given by this method. */
     public final int noBytes() { return data.size(); }
 
-    // more space efficient if values knwon to be non-negative
+    /** Trims this posting list (so that the capacity of the underlying byte array equals the number of bytes
+     * in this posting list.
+     */
+    public void trim() {
+        data.trim();
+    }
 
     /** Appends a non-negative integer value to the current posting. Encoded slightly more efficiently than
      * appending general integers (see {@link #addNonNegativeInt(int)}). */
@@ -113,7 +121,6 @@ public final class PostingList {
         public final void reset() {
             this.offset = 0;
         }
-
 
         /** Resets this iterator to the beginning of the first posting in the given posting list. */
         public final void reset(PostingList postingList) {

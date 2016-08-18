@@ -25,9 +25,15 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
     final PostingList.Iterator postingsIt = new PostingList.Iterator(); // used to access posting lists
 
     // if set to true, won't expand an items which have a parent that did not lead to a frequent expansion
-    private final boolean USE_PRUNING = true;
+    // there shouldn't be any reason to set this to false
+    private static final boolean USE_PRUNING = true; // default: true
 
-	public PrefixGrowthMiner(DesqMinerContext ctx) {
+    // if set to true, posting lists are trimmed once computed. Saves up to 1/2 of memory for increased computational
+    // cost
+    // TODO: expose this as an option?
+    static final boolean USE_TRIMMING = false; // default: false
+
+    public PrefixGrowthMiner(DesqMinerContext ctx) {
 		super(ctx);
 		setParameters(ctx.properties);
 	}
@@ -82,8 +88,8 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
         if (inputSequences.size() >= sigma) {
             // first run through all data and create single-item posting lists
             for (int inputId=0; inputId<inputSequences.size(); inputId++) {
-                int[] inputSequence = inputSequences.get(inputId);
-                int inputSupport = inputSupports.get(inputId);
+                final int[] inputSequence = inputSequences.get(inputId);
+                final int inputSupport = inputSupports.get(inputId);
                 for (int pos = 0; pos < inputSequence.length; pos++) {
                     int itemFid = inputSequence[pos];
                     assert itemFid <= endItem;
@@ -100,7 +106,7 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
                     if (generalize) {
                         ascendants.clear();
                         ctx.dict.addAscendantFids(itemFid, ascendants);
-                        IntIterator itemFidIt = ascendants.iterator();
+                        final IntIterator itemFidIt = ascendants.iterator();
                         while (itemFidIt.hasNext()) {
                             itemFid = itemFidIt.nextInt();
                             if (largestFrequentFid >= itemFid) {
@@ -122,17 +128,17 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
     // upon return, prefix must be unmodified
 	private void expand(IntList prefix, PrefixGrowthTreeNode node, boolean hasPivot) {
         // add a placeholder to prefix
-        int lastPrefixIndex = prefix.size();
+        final int lastPrefixIndex = prefix.size();
         prefix.add(-1);
         IntSet leftSiblingItemsWithoutFrequentChildNodes = new IntOpenHashSet();
 
         // iterate over children
         for (PrefixGrowthTreeNode childNode : node.children) {
             // output patterns (we know it's frequent by construction)
-            ProjectedDatabase projectedDatabase = childNode.projectedDatabase;
+            final ProjectedDatabase projectedDatabase = childNode.projectedDatabase;
             assert projectedDatabase.support >= sigma;
-            prefix.set(lastPrefixIndex, projectedDatabase.itemFid);
             if (ctx.patternWriter != null) {
+                prefix.set(lastPrefixIndex, projectedDatabase.itemFid);
                 ctx.patternWriter.write(prefix, projectedDatabase.support);
             }
 
@@ -150,20 +156,20 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
                 }
             }
             if (!expand) {
-                childNode.clear();
+                childNode.invalidate();
                 continue;
             }
 
             // ok, do the expansion
             postingsIt.reset(projectedDatabase.postingList);
             do {
-                int inputId = postingsIt.nextNonNegativeInt();
-                int[] inputSequence = inputSequences.get(inputId);
-                int inputSupport = inputSupports.get(inputId);
+                final int inputId = postingsIt.nextNonNegativeInt();
+                final int[] inputSequence = inputSequences.get(inputId);
+                final int inputSupport = inputSupports.get(inputId);
 
                 // iterator over all positions
                 while (postingsIt.hasNext()) {
-                    int position = postingsIt.nextNonNegativeInt();
+                    final int position = postingsIt.nextNonNegativeInt();
 
                     // Add items in the right gamma+1 neighborhood
                     int gap = 0;
@@ -183,7 +189,7 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
                         if (generalize) {
                             ascendants.clear();
                             ctx.dict.addAscendantFids(itemFid, ascendants);
-                            IntIterator itemFidIt = ascendants.iterator();
+                            final IntIterator itemFidIt = ascendants.iterator();
                             while (itemFidIt.hasNext()) {
                                 itemFid = itemFidIt.nextInt();
                                 if(largestFrequentFid >= itemFid) {
@@ -204,10 +210,10 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
             }
 
             // process just created expansions
-            childNode.projectedDatabase.clear(); // not needed anymore
-            boolean containsPivot = hasPivot || (projectedDatabase.itemFid >= beginItem);
+            childNode.projectedDatabase = null; // not needed anymore
+            final boolean containsPivot = hasPivot || (projectedDatabase.itemFid >= beginItem);
             expand(prefix, childNode, containsPivot);
-            childNode.clear(); // not needed anymore
+            childNode.invalidate(); // not needed anymore
         }
 
         // remove placeholder from prefix

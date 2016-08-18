@@ -11,9 +11,9 @@ import java.util.List;
  * Created by rgemulla on 19.07.2016.
  */
 final class PrefixGrowthTreeNode {
-    final ProjectedDatabase projectedDatabase;
+    ProjectedDatabase projectedDatabase;
     Int2ObjectMap<ProjectedDatabase> expansionsByFid = new Int2ObjectOpenHashMap<>();
-    final List<PrefixGrowthTreeNode> children = new ArrayList<>();
+    List<PrefixGrowthTreeNode> children = new ArrayList<>();
 
     PrefixGrowthTreeNode(ProjectedDatabase projectedDatabase) {
         this.projectedDatabase = projectedDatabase;
@@ -43,8 +43,10 @@ final class PrefixGrowthTreeNode {
 
     void expansionsToChildren(long minSupport) {
         for (ProjectedDatabase projectedDatabase : expansionsByFid.values()) {
-            if (projectedDatabase.support >= minSupport)
+            if (projectedDatabase.support >= minSupport) {
+                if (PrefixGrowthMiner.USE_TRIMMING) projectedDatabase.postingList.trim();
                 children.add(new PrefixGrowthTreeNode(projectedDatabase));
+            }
         }
         Collections.sort(children, (c1, c2) -> c1.projectedDatabase.itemFid - c2.projectedDatabase.itemFid); // smallest fids first
         expansionsByFid = null;
@@ -58,5 +60,12 @@ final class PrefixGrowthTreeNode {
             expansionsByFid.clear();
         }
         children.clear();
+    }
+
+    /** Call this when node not needed anymore. */
+    public void invalidate() {
+        projectedDatabase = null;
+        expansionsByFid = null;
+        children = null;
     }
 }
