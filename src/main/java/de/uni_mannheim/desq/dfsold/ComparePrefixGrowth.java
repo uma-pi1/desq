@@ -168,11 +168,11 @@ public class ComparePrefixGrowth {
 		String dataFile = "data-local/nyt-1991-data.del";
 		String dictFile = "data-local/nyt-1991-dict.del";
 		String outFile = "./tmp";
-		
+
 		ComparePrefixGrowth cpg = new ComparePrefixGrowth(sigma, gamma, lambda, generalize);
 		cpg.setIO(dataFile, dictFile, outFile);
 		
-		//cpg.oldPrefixGrowth(); System.gc(); Thread.sleep(1000);
+		cpg.oldPrefixGrowth(); System.gc(); Thread.sleep(1000);
 		cpg.newPrefixGrowth(); System.gc(); Thread.sleep(1000);
         //cpg.newPrefixGrowthTemp();
 	}

@@ -3,10 +3,7 @@ package de.uni_mannheim.desq.fst;
 import java.util.Iterator;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import it.unimi.dsi.fastutil.ints.IntAVLTreeSet;
-import it.unimi.dsi.fastutil.ints.IntIterator;
-import it.unimi.dsi.fastutil.ints.IntSet;
-import it.unimi.dsi.fastutil.ints.IntSets;
+import it.unimi.dsi.fastutil.ints.*;
 
 public class BasicTransition extends Transition {
 	public enum InputLabelType { SELF, SELF_DESCENDANTS };
@@ -21,6 +18,7 @@ public class BasicTransition extends Transition {
 	// internal indexes
 	final IntSet inputFids;
 	final Dictionary outputDict;
+	final boolean isForest;
 
 	private BasicTransition(BasicTransition other) {
 		this.inputLabel = other.inputLabel;
@@ -29,6 +27,7 @@ public class BasicTransition extends Transition {
 		this.outputLabelType = other.outputLabelType;
 		this.inputFids = other.inputFids;
 		this.outputDict = other.outputDict;
+		this.isForest = other.isForest;
 	}
 	
 	// */* (no dots)
@@ -53,7 +52,8 @@ public class BasicTransition extends Transition {
 		default:
 			 inputFids = null;
 		}
-		
+
+		isForest = dict.isForest();
 		if (outputLabelType == OutputLabelType.SELF_ASCENDANTS) {
 			if (outputLabel == 0) 
 				outputDict = dict;
@@ -68,8 +68,12 @@ public class BasicTransition extends Transition {
 	    int nextFid;
 		final ItemState itemState = new ItemState();
 		IntIterator fidIterator;
-		IntSet ascendants = new IntAVLTreeSet(); // reusable; fidIterator goes over this set
-		
+		final IntCollection ascendants; // reusable; fidIterator goes over this set
+
+		ItemStateIterator(boolean isForest) {
+			ascendants = isForest ? new IntArrayList() : new IntAVLTreeSet();
+		}
+
 		@Override
 		public boolean hasNext() {
             return nextFid >=0;
@@ -123,10 +127,10 @@ public class BasicTransition extends Transition {
 	@Override
 	public Iterator<ItemState> consume(int itemFid, Iterator<ItemState> it) {
 		ItemStateIterator resultIt = null;
-		if (it != null && it instanceof ItemStateIterator) 
-			resultIt = (ItemStateIterator)it;
+		if (it != null && it instanceof ItemStateIterator)
+            resultIt = (ItemStateIterator) it;
 		else
-			resultIt = new ItemStateIterator();
+			resultIt = new ItemStateIterator(isForest);
 		
 		if (inputLabel==0 || inputFids.contains(itemFid)) {
 			resultIt.transition = this;

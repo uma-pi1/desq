@@ -5,6 +5,7 @@ import de.uni_mannheim.desq.util.PropertiesUtils;
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 import it.unimi.dsi.fastutil.ints.*;
 
+import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Iterator;
 import java.util.Properties;
@@ -27,6 +28,7 @@ public class DesqDfs extends MemoryDesqMiner {
 	int dfsLevel = 0;
     IntList outputSequence = new IntArrayList();
     Node currentNode;
+	ArrayList<Iterator<ItemState>> itemStateIterators = new ArrayList<>();
 
 	public DesqDfs(DesqMinerContext ctx) {
 		super(ctx);
@@ -57,7 +59,7 @@ public class DesqDfs extends MemoryDesqMiner {
 		currentNode = root;
 		for(int sid = 0; sid < inputSequences.size(); ++sid) {
 			inputSequence = inputSequences.get(sid);
-			incStep(sid, 0, fst.getInitialState().getId());
+			incStep(sid, 0, fst.getInitialState().getId(), 0);
 		}
 		
 		final IntIterator it = root.children.keySet().iterator();
@@ -92,7 +94,7 @@ public class DesqDfs extends MemoryDesqMiner {
 				int pos = projectedDatabase.nextValue();
 				
 				// for each T[pos@state]
-				incStep(sid, pos, stateId);
+				incStep(sid, pos, stateId, 0);
 
 			} while (projectedDatabase.hasNextValue());
 
@@ -136,22 +138,30 @@ public class DesqDfs extends MemoryDesqMiner {
 
 		dfsLevel--;
 	}
-	
-	private void incStep(int sid, int pos, int stateId) {
+
+	// level is depth of recursion (used to reuse iterators correctly)
+	private void incStep(int sid, int pos, int stateId, int level) {
 		reachedFinalState |= fst.getState(stateId).isFinal();
 		if(pos == inputSequence.length)
 			return;
 		int itemFid = inputSequence[pos];
-		
-		//TODO: reuse iterators!
-        Iterator<ItemState> itemStateIt = fst.getState(stateId).consume(itemFid);
-        while(itemStateIt.hasNext()) {
+
+		// get new iterator or reuse existing one
+		Iterator<ItemState> itemStateIt;
+		if (level>=itemStateIterators.size()) {
+			itemStateIt = fst.getState(stateId).consume(itemFid);
+			itemStateIterators.add(itemStateIt);
+		} else {
+			itemStateIt = fst.getState(stateId).consume(itemFid, itemStateIterators.get(level));
+		}
+
+		while(itemStateIt.hasNext()) {
 			ItemState itemState = itemStateIt.next();
 			int outputItemFid = itemState.itemFid;
 					
 			int toStateId = itemState.state.getId();
 			if(outputItemFid == 0) { //EPS output
-				incStep(sid, pos + 1, toStateId);
+				incStep(sid, pos + 1, toStateId, level+1);
 			} else {
 				if(largestFrequentFid >= outputItemFid) {
 					currentNode.append(outputItemFid, sid, pos + 1, toStateId);

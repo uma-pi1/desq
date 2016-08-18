@@ -46,7 +46,7 @@ public class State {
 		}
 	}
 	
-	private static class TransitionIterator implements Iterator<ItemState> {
+	private static final class TransitionIterator implements Iterator<ItemState> {
 		Iterator<Transition> transitionsIt;
 		Iterator<ItemState> currentIt;
 		int fid;
