@@ -172,7 +172,7 @@ public class ComparePrefixGrowth {
 		ComparePrefixGrowth cpg = new ComparePrefixGrowth(sigma, gamma, lambda, generalize);
 		cpg.setIO(dataFile, dictFile, outFile);
 		
-		cpg.oldPrefixGrowth(); System.gc(); Thread.sleep(1000);
+		//cpg.oldPrefixGrowth(); System.gc(); Thread.sleep(1000);
 		cpg.newPrefixGrowth(); System.gc(); Thread.sleep(1000);
         //cpg.newPrefixGrowthTemp();
 	}

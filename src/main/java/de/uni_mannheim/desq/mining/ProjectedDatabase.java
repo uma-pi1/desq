@@ -6,7 +6,7 @@ package de.uni_mannheim.desq.mining;
 final class ProjectedDatabase {
     int itemFid;
     long support;
-    int lastInputId;
+    int lastInputId = -1;
     int lastPosition;
     PostingList postingList;
 

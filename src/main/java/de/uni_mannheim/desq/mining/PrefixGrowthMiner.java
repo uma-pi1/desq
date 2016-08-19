@@ -161,15 +161,17 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
             }
 
             // ok, do the expansion
+            int inputId = -1;
             postingsIt.reset(projectedDatabase.postingList);
             do {
-                final int inputId = postingsIt.nextNonNegativeInt();
+                inputId += postingsIt.nextNonNegativeInt();
                 final int[] inputSequence = inputSequences.get(inputId);
                 final int inputSupport = inputSupports.get(inputId);
 
                 // iterator over all positions
+                int position = 0;
                 while (postingsIt.hasNext()) {
-                    final int position = postingsIt.nextNonNegativeInt();
+                    position += postingsIt.nextNonNegativeInt();
 
                     // Add items in the right gamma+1 neighborhood
                     int gap = 0;

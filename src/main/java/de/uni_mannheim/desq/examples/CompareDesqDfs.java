@@ -25,8 +25,8 @@ public class CompareDesqDfs {
 
 	// Input parameters 
 	//String patternExpression = "([.^ . .]|[. .^ .]|[. . .^])";
-	//String patternExpression = "(.^){3} NN@";
-	String patternExpression = "NN@ .";
+	String patternExpression = "(.^){0,3}";
+	//String patternExpression = "NN@ .";
 	int sigma = 1000;
 	
 	
@@ -63,7 +63,7 @@ public class CompareDesqDfs {
 		}
 	
 	
-		System.out.println("Translating pattern expr.");
+		System.out.println("Translating pattern expr. " + patternExpression);
 		
 		automatonTime.start();
 		String pe = ".*[" + patternExpression + "]";
@@ -99,12 +99,12 @@ public class CompareDesqDfs {
 		dataReader.setDictionary(dict);
 		DesqMinerContext ctx = new DesqMinerContext();
 		ctx.dict = dict;
-		DelPatternWriter patternWriter = new DelPatternWriter(new FileOutputStream(outputFile), true);
+		DelPatternWriter patternWriter = new DelPatternWriter(new FileOutputStream(outputFile+"NEW"), true);
 		patternWriter.setDictionary(dict);
 		ctx.patternWriter = patternWriter;
 		ctx.properties = DesqDfs.createProperties(patternExpression, sigma);
 		
-		System.out.println("Translating pattern expr.");
+		System.out.println("Translating pattern expr." + patternExpression);
 		
 		automatonTime.start();
 		DesqMiner miner = new DesqDfs(ctx);

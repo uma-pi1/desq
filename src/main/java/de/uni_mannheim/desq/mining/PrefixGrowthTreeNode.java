@@ -7,7 +7,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
+/** Posting has form: <delta-inputId> <delta-position>+, where inputId is initially -1 and position is initially 0
+ * Assumes that inputIds and positions are non-decreasing (which is the case for prefixgrowth)
  * Created by rgemulla on 19.07.2016.
  */
 final class PrefixGrowthTreeNode {
@@ -31,12 +32,13 @@ final class PrefixGrowthTreeNode {
             // start a new posting
             projectedDatabase.postingList.newPosting();
             projectedDatabase.lastPosition = position;
-            projectedDatabase.lastInputId = inputId;
             projectedDatabase.support += inputSupport;
-            projectedDatabase.postingList.addNonNegativeInt(inputId);
+            assert inputId > projectedDatabase.lastInputId;
+            projectedDatabase.postingList.addNonNegativeInt(inputId-projectedDatabase.lastInputId);
+            projectedDatabase.lastInputId = inputId;
             projectedDatabase.postingList.addNonNegativeInt(position);
         } else if (projectedDatabase.lastPosition != position) {
-            projectedDatabase.postingList.addNonNegativeInt(position);
+            projectedDatabase.postingList.addNonNegativeInt(position-projectedDatabase.lastPosition);
             projectedDatabase.lastPosition = position;
         }
     }
