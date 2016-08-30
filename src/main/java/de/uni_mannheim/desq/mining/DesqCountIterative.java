@@ -80,11 +80,11 @@ public class DesqCountIterative extends DesqMiner {
 	protected void addInputSequence(IntList inputSequence) {
 		if (!inputSequence.isEmpty()) {
 			this.inputSequence = inputSequence;
-			stateIdList.add(initialStateId);
+			/*stateIdList.add(initialStateId);
 			posList.add(0);
 			suffixIdList.add(0);
-			prefixPointerList.add(-1);
-
+			prefixPointerList.add(-1);*/
+			addToStack(0, 0, initialStateId, false, -1);
 			stepIteratively();
 			sid++;
 			clear();

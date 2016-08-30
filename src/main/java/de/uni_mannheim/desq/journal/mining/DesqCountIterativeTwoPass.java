@@ -98,11 +98,14 @@ public class DesqCountIterativeTwoPass extends DesqMiner {
 	}
 	
 	private void clear() {
+		finalPos.clear();
+	}
+	
+	private void clearStack() {
 		stateIdList.clear();
 		posList.clear();
 		suffixIdList.clear();
-		prefixPointerList.clear();
-		finalPos.clear();
+		prefixPointerList.clear();		
 	}
 	
 	
@@ -116,16 +119,16 @@ public class DesqCountIterativeTwoPass extends DesqMiner {
 			for(int pos : finalPos) {
 				for(int stateId : finalStateIds) {
 					if(posStateIndex[pos+1].get(stateId)) {
-						stateIdList.add(stateId);
+						/*stateIdList.add(stateId);
 						posList.add(pos);
 						suffixIdList.add(0);
-						prefixPointerList.add(-1);
+						prefixPointerList.add(-1);*/
+						addToStack(pos, 0, stateId, -1);
+						stepIteratively();
+						clearStack();
 					}
 				}
 			}
-			
-			// Make backward pass
-			stepIteratively();
 			sid++;
 			clear();
 		}
