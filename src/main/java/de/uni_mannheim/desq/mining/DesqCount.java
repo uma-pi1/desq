@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.mining;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
@@ -30,6 +31,7 @@ public class DesqCount extends DesqMiner {
 	IntList buffer;
 	IntList inputSequence;
 	Object2LongMap<IntList> outputSequences = new Object2LongOpenHashMap<>();
+	ArrayList<Iterator<ItemState>> itemStateIterators = new ArrayList<>();
 
 	public DesqCount(DesqMinerContext ctx) {
 		super(ctx);
@@ -87,9 +89,17 @@ public class DesqCount extends DesqMiner {
 		
 		int itemFid = inputSequence.getInt(pos); // current input item in the sequence
 
-        //TODO: reuse iterators!
-        Iterator<ItemState> itemStateIt = fst.getState(stateId).consume(itemFid);
-		while(itemStateIt.hasNext()) {
+		
+		// reuse iterators or create a new one
+		Iterator<ItemState> itemStateIt;
+		if(pos >= itemStateIterators.size()) {
+			itemStateIt = fst.getState(stateId).consume(itemFid);
+			itemStateIterators.add(itemStateIt);
+		} else {
+			itemStateIt = fst.getState(stateId).consume(itemFid, itemStateIterators.get(pos));
+		}
+		
+        while(itemStateIt.hasNext()) {
             ItemState itemState = itemStateIt.next();
             int outputItemFid = itemState.itemFid;
 					

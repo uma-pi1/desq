@@ -1,6 +1,5 @@
 package de.uni_mannheim.desq.journal.mining;
 
-import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -21,13 +20,13 @@ import de.uni_mannheim.desq.patex.PatEx;
 import de.uni_mannheim.desq.util.PrimitiveUtils;
 import de.uni_mannheim.desq.util.PropertiesUtils;
 
-
 /**
  * DesqCountTwoPass.java
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
-public class DesqCountTwoPass extends DesqMiner {
+public class DesqCountIterativeTwoPass extends DesqMiner {
 
+	
 	// parameters for mining
 	String patternExpression;
 	long sigma;
@@ -36,24 +35,31 @@ public class DesqCountTwoPass extends DesqMiner {
 	// helper variables
 	int largestFrequentFid;
 	Fst fst;
-	int initialStateId;
 	int sid;
 	IntList buffer;
 	IntList inputSequence;
 	Object2LongMap<IntList> outputSequences = new Object2LongOpenHashMap<>();
+	Iterator<ItemState> itemStateIt = null;
 	ExtendedDfa eDfa;
-	ArrayList<Iterator<ItemState>> itemStateIterators = new ArrayList<>();
-
+	
+	
+	// parallel arrays for iteratively simulating fst using a stack
+	IntList stateIdList;
+	IntList posList;
+	IntList suffixIdList;
+	IntList prefixPointerList;	
+	
+	
 	// variables for two pass
 	BitSet[] posStateIndex;
 	IntList finalPos;
 	IntList finalStateIds;
 	BitSet initBitSet = new BitSet(1);
 	
-	public DesqCountTwoPass(DesqMinerContext ctx) {
+	public DesqCountIterativeTwoPass(DesqMinerContext ctx) {
 		super(ctx);
 		this.sigma = PropertiesUtils.getLong(ctx.properties, "minSupport");
-		if(PropertiesUtils.isSet(ctx.properties, "useFlist"))
+		if (PropertiesUtils.isSet(ctx.properties, "useFlist"))
 			this.useFlist = PropertiesUtils.getBoolean(ctx.properties, "useFlist");
 		this.largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
 		this.sid = 0;
@@ -62,10 +68,13 @@ public class DesqCountTwoPass extends DesqMiner {
 		patternExpression = ".* [" + patternExpression.trim() + "]";
 		PatEx p = new PatEx(patternExpression, ctx.dict);
 		this.fst = p.translate();
-		fst.minimize();//TODO: move to translate
-		this.initialStateId = fst.getInitialState().getId();
+		fst.minimize();// TODO: move to translate
 		
 		buffer = new IntArrayList();
+		stateIdList = new IntArrayList();
+		posList = new IntArrayList();
+		suffixIdList = new IntArrayList();
+		prefixPointerList = new IntArrayList();
 		
 		this.eDfa = new ExtendedDfa(fst, ctx.dict);
 		finalPos = new IntArrayList();
@@ -80,11 +89,7 @@ public class DesqCountTwoPass extends DesqMiner {
 		//TODO: this always assumes that initialStateId is 0!
 		initBitSet.set(0);
 	}
-	
-	private void clear() {
-		finalPos.clear();
-	}
-	
+
 	public static Properties createProperties(String patternExpression, int sigma) {
 		Properties properties = new Properties();
 		PropertiesUtils.set(properties, "patternExpression", patternExpression);
@@ -92,9 +97,18 @@ public class DesqCountTwoPass extends DesqMiner {
 		return properties;
 	}
 	
+	private void clear() {
+		stateIdList.clear();
+		posList.clear();
+		suffixIdList.clear();
+		prefixPointerList.clear();
+		finalPos.clear();
+	}
+	
+	
 	@Override
 	protected void addInputSequence(IntList inputSequence) {
-		// Make forward pass to compute reachability
+		// Make the forward pass to compute reachability
 		posStateIndex = new BitSet[inputSequence.size() + 1];
 		posStateIndex[0] = initBitSet;
 		if(eDfa.computeReachability(inputSequence, 0, posStateIndex, finalPos)) {
@@ -102,10 +116,16 @@ public class DesqCountTwoPass extends DesqMiner {
 			for(int pos : finalPos) {
 				for(int stateId : finalStateIds) {
 					if(posStateIndex[pos+1].get(stateId)) {
-						stepBack(pos, stateId, 0);
+						stateIdList.add(stateId);
+						posList.add(pos);
+						suffixIdList.add(0);
+						prefixPointerList.add(-1);
 					}
 				}
 			}
+			
+			// Make backward pass
+			stepIteratively();
 			sid++;
 			clear();
 		}
@@ -113,62 +133,89 @@ public class DesqCountTwoPass extends DesqMiner {
 
 	@Override
 	public void mine() {
-		for(Map.Entry<IntList, Long> entry : outputSequences.entrySet()) {
+		for (Map.Entry<IntList, Long> entry : outputSequences.entrySet()) {
 			long value = entry.getValue();
 			int support = PrimitiveUtils.getLeft(value);
-			if(support >= sigma) {
-				if (ctx.patternWriter != null) 
+			if (support >= sigma) {
+				if (ctx.patternWriter != null)
 					ctx.patternWriter.write(entry.getKey(), support);
 			}
 		}
 	}
 	
-	private void stepBack(int pos, int stateId, int level) {
-		if(pos < 0) {
-			if(!buffer.isEmpty())
-				countSequence(buffer);
-			return;
-		}
-		int itemFid = inputSequence.getInt(pos);
+	private void stepIteratively() {
+		int pos;// position of next input item
+		int itemFid; // next input item
+		int fromStateId; // current state
+		int toStateId; // next state
+		int outputItemFid; // output item
+		int currentStackIndex = 0;
 		
-		for(Transition transition : fst.getState(stateId).getTransitions()) {
-			int toStateId = transition.getToState().getId();
-			if(transition.matches(itemFid) && posStateIndex[pos].get(toStateId)) {
-				// create a new iterator or reuse existing one
-				Iterator<ItemState> itemStateIt;
-				if(level >= itemStateIterators.size()) {
-					itemStateIt = transition.consume(itemFid);
-					itemStateIterators.add(itemStateIt);
-				} else {
-					itemStateIt = transition.consume(itemFid, itemStateIterators.get(level));
-				}
-				while(itemStateIt.hasNext()) {
-					int outputItemFid = itemStateIt.next().itemFid;
-					if(outputItemFid == 0)
-						stepBack(pos-1, toStateId, level + 1);
-					else {
-						if(!useFlist || largestFrequentFid >= outputItemFid) {
-							buffer.add(outputItemFid);
-							stepBack(pos -1, toStateId, level + 1);
-							buffer.remove(buffer.size() - 1);
+		while (currentStackIndex < stateIdList.size()) {
+			pos = posList.getInt(currentStackIndex);
+			itemFid = inputSequence.getInt(pos);
+			fromStateId = stateIdList.getInt(currentStackIndex);
+			
+			for(Transition transition : fst.getState(fromStateId).getTransitions()) {
+				toStateId = transition.getToState().getId();
+				if(transition.matches(itemFid) && posStateIndex[pos].get(toStateId)) {
+					itemStateIt = transition.consume(itemFid, itemStateIt);
+					while(itemStateIt.hasNext()) {
+						outputItemFid = itemStateIt.next().itemFid;
+						if(largestFrequentFid >= outputItemFid) {
+							addToStack(pos-1, outputItemFid, toStateId, currentStackIndex);
 						}
 					}
 				}
 			}
+			currentStackIndex++;
+		}
+	}
+	
+	private void addToStack(int pos, int outputItemFid, int toStateId, int prefixPointerIndex) {
+		if(pos < 0) {
+			// We will always reach inital state after consuming the input (two pass correctness)
+			//We assume that toStateId is zero
+			//TODO: better to check posStateIndex[pos+1].get(toStateId)
+			computeOutput(outputItemFid, prefixPointerIndex);
+			return;
+		}
+		stateIdList.add(toStateId);
+		posList.add(pos);
+		suffixIdList.add(outputItemFid);
+		prefixPointerList.add(prefixPointerIndex);
+	}
+	
+	private void computeOutput(int outputItemFid, int prefixPointerIndex) {
+		if (outputItemFid > 0)
+			buffer.add(outputItemFid);
+		while (prefixPointerIndex > 0) {
+			if (suffixIdList.getInt(prefixPointerIndex) > 0) {
+				buffer.add(suffixIdList.getInt(prefixPointerIndex));
+			}
+			prefixPointerIndex = prefixPointerList.getInt(prefixPointerIndex);
+		}
+		if(!buffer.isEmpty()) {
+			countSequence(buffer);
+			buffer.clear();
 		}
 	}
 	
 	private void countSequence(IntList sequence) {
 		Long supSid = outputSequences.get(sequence);
 		if (supSid == null) {
-			outputSequences.put(new IntArrayList(sequence), PrimitiveUtils.combine(1, sid)); // need to copy here
+			outputSequences.put(new IntArrayList(sequence), PrimitiveUtils.combine(1, sid)); // need
+																								// to
+																								// copy
+																								// here
 			return;
 		}
 		if (PrimitiveUtils.getRight(supSid) != sid) {
-		    // TODO: can overflow
-		    // if chang order: newCount = count + 1 // no combine
+			// TODO: can overflow
+			// if chang order: newCount = count + 1 // no combine
 			int newCount = PrimitiveUtils.getLeft(supSid) + 1;
 			outputSequences.put(sequence, PrimitiveUtils.combine(newCount, sid));
 		}
 	}
+
 }

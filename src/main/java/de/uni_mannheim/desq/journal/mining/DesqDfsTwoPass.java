@@ -55,7 +55,7 @@ public class DesqDfsTwoPass extends MemoryDesqMiner {
 	IntList finalPos;
 	IntList finalStateIds;
 	BitSet initBitSet = new BitSet(1);
-	
+	ArrayList<Iterator<ItemState>> itemStateIterators = new ArrayList<>();
 	
 	public DesqDfsTwoPass(DesqMinerContext ctx) {
 		super(ctx);
@@ -130,7 +130,7 @@ public class DesqDfsTwoPass extends MemoryDesqMiner {
 						// We increment position here
 						// to avoid adding 0 when reaching
 						// initial state
-						incStep(sid, pos+1, stateId);
+						incStep(sid, pos+1, stateId, 0);
 					}
 				}
 			}
@@ -168,7 +168,7 @@ public class DesqDfsTwoPass extends MemoryDesqMiner {
 				int pos = projectedDatabase.nextValue();
 
 				// for each T[pos@state]
-				incStep(sid, pos, stateId);
+				incStep(sid, pos, stateId, 0);
 
 			} while (projectedDatabase.hasNextValue());
 
@@ -208,7 +208,7 @@ public class DesqDfsTwoPass extends MemoryDesqMiner {
 		node.clear();
 	}
 	
-	private void incStep(int sid, int pos, int stateId) {
+	private void incStep(int sid, int pos, int stateId, int level) {
 		if(pos == 0) {
 			// We consumed entire input in reverse
 			// we must have reached inital state
@@ -221,15 +221,27 @@ public class DesqDfsTwoPass extends MemoryDesqMiner {
 		// see when incStep is called for the first time
 		int itemFid = inputSequence[pos-1];
 		
+		
+		
+		
+		
 		BitSet[] posStateIndex = posStateIndexList.get(sid);
 		for(Transition transition : fst.getState(stateId).getTransitions()) {
 			int toStateId = transition.getToState().getId();
 			if(transition.matches(itemFid) && posStateIndex[pos-1].get(toStateId)) {
-				Iterator<ItemState> itemStateIt = transition.consume(itemFid);
+				
+				// create a new iterator or reuse existing one
+				Iterator<ItemState> itemStateIt;
+				if(level>=itemStateIterators.size()) {
+					itemStateIt = transition.consume(itemFid);
+					itemStateIterators.add(itemStateIt);
+				} else {
+					itemStateIt = transition.consume(itemFid, itemStateIterators.get(level));
+				}
 				while(itemStateIt.hasNext()) {
 					int outputItemFid = itemStateIt.next().itemFid;
 					if(outputItemFid == 0) { //EPS output
-						incStep(sid, pos-1, toStateId);
+						incStep(sid, pos-1, toStateId, level + 1);
 					} else {
 						if(largestFrequentFid >= outputItemFid) {
 							currentNode.append(outputItemFid, sid, pos-1, toStateId);
