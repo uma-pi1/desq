@@ -10,8 +10,8 @@ import java.util.Properties;
  * Created by rgemulla on 16.7.2016.
  */
 @RunWith(Parameterized.class)
-public class DesqDfsIcdm16Test extends Icdm16TraditionalMiningTest {
-    public DesqDfsIcdm16Test(long sigma, int gamma, int lambda, boolean generalize) {
+public class DesqDfsWithPruningIcdm16Test extends Icdm16TraditionalMiningTest {
+    public DesqDfsWithPruningIcdm16Test(long sigma, int gamma, int lambda, boolean generalize) {
         super(sigma, gamma, lambda, generalize);
     }
 
@@ -24,6 +24,7 @@ public class DesqDfsIcdm16Test extends Icdm16TraditionalMiningTest {
     public Properties createProperties() {
         String patternExpression = DesqMiner.patternExpressionFor(gamma, lambda, generalize);
         Properties properties = DesqDfs.createProperties(patternExpression, sigma);
+        PropertiesUtils.set(properties, "pruneIrrelevantInputs", true);
         return properties;
     }
 }

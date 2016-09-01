@@ -9,7 +9,8 @@ import it.unimi.dsi.fastutil.ints.IntList;
 public abstract class MemoryDesqMiner extends DesqMiner {
 	protected final List<int[]> inputSequences = new ArrayList<>();
 	protected final IntList inputSupports = new IntArrayList();
-	
+	long sumInputSupports = 0;
+
 	protected MemoryDesqMiner(DesqMinerContext ctx) {
 		super(ctx);
 	}
@@ -23,5 +24,6 @@ public abstract class MemoryDesqMiner extends DesqMiner {
 	public void addInputSequence(IntList inputSequence, int inputSupport) {
 		inputSequences.add( inputSequence.toIntArray() );
 		inputSupports.add( inputSupport );
+		sumInputSupports += inputSupport;
 	}
 }

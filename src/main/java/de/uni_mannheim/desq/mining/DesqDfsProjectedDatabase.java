@@ -9,31 +9,33 @@ import java.util.BitSet;
 final class DesqDfsProjectedDatabase {
 	int itemFid;
 	long prefixSupport;
-	int lastInputId;
 	PostingList postingList;
-	BitSet[] snapshotSet;
-	
+
+	int currentInputId; // input sequence id of the current posting
+	BitSet[] currentSnapshots; // buffers all the snapshots for the current input sequence
+                               // (used to avoid storing duplicate snapshots)
+	                           // index = state id; one bit per position in each Bitset
 	DesqDfsProjectedDatabase(int numFstStates) {
-		snapshotSet = new BitSet[numFstStates];
+		currentSnapshots = new BitSet[numFstStates];
 		for(int i = 0; i < numFstStates; i++) {
-			snapshotSet[i] = new BitSet();
+			currentSnapshots[i] = new BitSet();
 		}
 		clear();
 	}
 	
-	void flushSnapshotSet() {
-		for(int i = 0; i < snapshotSet.length; i++) {
-			snapshotSet[i].clear();
+	void clearSnapshots() {
+		for (int i = 0; i < currentSnapshots.length; i++) {
+			currentSnapshots[i].clear();
 		}
 	}
 	
 	void clear() {
 		itemFid = -1;
 		prefixSupport = 0;
-		lastInputId = -1;
+		currentInputId = -1;
 		postingList = new PostingList();
-		for(int i = 0; i < snapshotSet.length; i++) {
-			snapshotSet[i].clear();
+		for(int i = 0; i < currentSnapshots.length; i++) {
+			currentSnapshots[i].clear();
 		}
 	}
 	

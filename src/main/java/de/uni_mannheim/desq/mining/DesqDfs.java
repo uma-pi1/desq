@@ -1,52 +1,58 @@
 package de.uni_mannheim.desq.mining;
 
+import de.uni_mannheim.desq.fst.Fst;
+import de.uni_mannheim.desq.fst.ItemState;
+import de.uni_mannheim.desq.fst.State;
+import de.uni_mannheim.desq.io.SequenceReader;
+import de.uni_mannheim.desq.journal.edfa.ExtendedDfa;
 import de.uni_mannheim.desq.patex.PatEx;
 import de.uni_mannheim.desq.util.PropertiesUtils;
-import it.unimi.dsi.fastutil.bytes.ByteArrayList;
-import it.unimi.dsi.fastutil.ints.*;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
 
+import java.io.IOException;
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.Iterator;
 import java.util.Properties;
 
-import de.uni_mannheim.desq.fst.Fst;
-import de.uni_mannheim.desq.fst.ItemState;
-
 public class DesqDfs extends MemoryDesqMiner {
+    // parameters for mining
+	final long sigma;
+	final String patternExpression;
+	final boolean pruneIrrelevantInputs;
 
-	
-	// parameters for mining
-	long sigma;
-	String patternExpression;
-	
 	// helper variables
-	Fst fst;
-	int largestFrequentFid;
-	int[] inputSequence;
-	boolean reachedFinalState;
-	int dfsLevel = 0;
-    IntList outputSequence = new IntArrayList();
-    Node currentNode;
-	ArrayList<Iterator<ItemState>> itemStateIterators = new ArrayList<>();
+	final Fst fst;
+	final ExtendedDfa edfa;
+	final int largestFrequentFid; // used to quickly determine whether an item is frequent
+	final ArrayList<Iterator<ItemState>> itemStateIterators = new ArrayList<>();
+	final PostingList.Iterator postingsIt = new PostingList.Iterator();
+
 
 	public DesqDfs(DesqMinerContext ctx) {
 		super(ctx);
-		this.patternExpression = PropertiesUtils.get(ctx.properties, "patternExpression");
 		this.sigma = PropertiesUtils.getLong(ctx.properties, "minSupport");
 		this.largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
 		
-		patternExpression = ".* [" + patternExpression.trim() + "]";
+		patternExpression = ".* [" + PropertiesUtils.get(ctx.properties, "patternExpression").trim() + "]";
 		PatEx p = new PatEx(patternExpression, ctx.dict);
 		this.fst = p.translate();
-		fst.minimize();//TODO: move to translate
+		fst.minimize(); //TODO: move to translate
+
+		pruneIrrelevantInputs = PropertiesUtils.getBoolean(ctx.properties, "pruneIrrelevantInputs");
+		if (pruneIrrelevantInputs) {
+			this.edfa = new ExtendedDfa(fst, ctx.dict);
+		} else {
+			this.edfa = null; // don't need it
+		}
 	}
 	
-	public static Properties createProperties(String patternExpression, int sigma) {
+	public static Properties createProperties(String patternExpression, long sigma) {
 		Properties properties = new Properties();
 		PropertiesUtils.set(properties, "patternExpression", patternExpression);
 		PropertiesUtils.set(properties, "minSupport", sigma);
 		PropertiesUtils.set(properties, "minerClass", DesqDfs.class.getCanonicalName());
+		PropertiesUtils.set(properties, "pruneIrrelevantInputs", false);
 		return properties;
 	}
 	
@@ -54,185 +60,114 @@ public class DesqDfs extends MemoryDesqMiner {
 		inputSequences.clear();
 	}
 
+
+	@Override
+	public void addInputSequence(IntList inputSequence, int inputSupport) {
+		if (!pruneIrrelevantInputs || edfa.isRelevant(inputSequence, 0, 0)) {
+			super.addInputSequence(inputSequence, inputSupport);
+		}
+	}
+
 	@Override
 	public void mine() {
-		Node root = new Node(null, 0);
-		currentNode = root;
-		for(int sid = 0; sid < inputSequences.size(); ++sid) {
-			inputSequence = inputSequences.get(sid);
-			incStep(sid, 0, fst.getInitialState().getId(), 0);
-		}
-		
-		final IntIterator it = root.children.keySet().iterator();
-		while(it.hasNext()) {
-			int itemId = it.nextInt();
-			Node child = root.children.get(itemId);
-			if(child.prefixSupport >= sigma) {
-				expand(child);
-			}
-			child.clear();
-		}
-		root.clear();
-		
-		clear();
-	}
-	
-	private void expand(Node node) {
-		currentNode = node;
-		dfsLevel++;
-		int support = 0;
-		OldPostingList.Decompressor projectedDatabase = new OldPostingList.Decompressor(node.projectedDatabase);
-	
-		// For all sequences in projected database
-		do {
-			int sid = projectedDatabase.nextValue();
-			inputSequence = inputSequences.get(sid);
-			reachedFinalState = false;
+		if (sumInputSupports >= sigma) {
+			DesqDfsTreeNode root = new DesqDfsTreeNode(new DesqDfsProjectedDatabase(fst.numStates()));
 
-			// For all state@pos for a sequence
-			do {
-				int stateId = projectedDatabase.nextValue();
-				int pos = projectedDatabase.nextValue();
-				
-				// for each T[pos@state]
-				incStep(sid, pos, stateId, 0);
-
-			} while (projectedDatabase.hasNextValue());
-
-			// increment support if atleast one snapshop corresponds to final state
-			if (reachedFinalState) {
-				support++;
+			for (int inputId = 0; inputId < inputSupports.size(); inputId++) {
+				int[] inputSequence = inputSequences.get(inputId);
+				int inputSupport = inputSupports.get(inputId);
+				incStep(inputId, inputSequence, 0, inputSupport, fst.getInitialState(), root, 0);
 			}
 
-		} while (projectedDatabase.nextPosting());
-		
-		// Output if P-frequent
-		if (support >= sigma) {
-			
-			if (ctx.patternWriter != null) {
-				// compute output sequence
-                outputSequence.size(dfsLevel);
-				int size = dfsLevel;
-				
-				outputSequence.set(--size, node.suffixItemId);
-				Node parent = node.parent;
-				while(parent.parent != null) {
-					outputSequence.set(--size, parent.suffixItemId);
-					parent = parent.parent;
-				}
-				ctx.patternWriter.write(outputSequence, support);
-				//System.out.println(outputSequence + " : " + support);
-			}
+			root.expansionsToChildren(sigma);
+			expand(new IntArrayList(), root);
 		}
-		
-		// Expand children with sufficient prefix support
-		final IntIterator it = node.children.keySet().iterator();
-		while (it.hasNext()) {
-			int itemId = it.nextInt();
-			Node child = node.children.get(itemId);
-			if (child.prefixSupport >= sigma) {
-				expand(child);
-			}
-			child.clear();
-		}
-		node.clear();
-
-		dfsLevel--;
 	}
 
-	// level is depth of recursion (used to reuse iterators correctly)
-	private void incStep(int sid, int pos, int stateId, int level) {
-		reachedFinalState |= fst.getState(stateId).isFinal();
-		if(pos == inputSequence.length)
-			return;
-		int itemFid = inputSequence[pos];
+	private boolean incStep(final int inputId, final int[] inputSequence, final int pos, final int inputSupport,
+						 final State state, final DesqDfsTreeNode node, final int level) {
+		if (pos >= inputSequence.length)
+			return state.isFinal();
 
-		// get new iterator or reuse existing one
+		// get iterator over output item/state pairs; reuse existing ones if possible
+		final int itemFid = inputSequence[pos];
 		Iterator<ItemState> itemStateIt;
 		if (level>=itemStateIterators.size()) {
-			itemStateIt = fst.getState(stateId).consume(itemFid);
+			itemStateIt = state.consume(itemFid);
 			itemStateIterators.add(itemStateIt);
 		} else {
-			itemStateIt = fst.getState(stateId).consume(itemFid, itemStateIterators.get(level));
+			itemStateIt = state.consume(itemFid, itemStateIterators.get(level));
 		}
 
-		while(itemStateIt.hasNext()) {
-			ItemState itemState = itemStateIt.next();
-			int outputItemFid = itemState.itemFid;
-					
-			int toStateId = itemState.state.getId();
-			if(outputItemFid == 0) { //EPS output
-				incStep(sid, pos + 1, toStateId, level+1);
-			} else {
-				if(largestFrequentFid >= outputItemFid) {
-					currentNode.append(outputItemFid, sid, pos + 1, toStateId);
-				}
+		// iterator over output item/state pairs
+		boolean reachedFinalStateWithoutOutput = state.isFinal();
+		while (itemStateIt.hasNext()) {
+			final ItemState itemState = itemStateIt.next();
+			final int outputItemFid = itemState.itemFid;
+			final State toState = itemState.state;
+
+			if (outputItemFid == 0) { // EPS output
+				reachedFinalStateWithoutOutput |= incStep(inputId, inputSequence, pos+1, inputSupport, toState, node, level+1);
+			} else if (largestFrequentFid >= outputItemFid) {
+				node.expandWithItem(outputItemFid, inputId, inputSupport, pos+1, toState.getId());
 			}
 		}
+
+		return reachedFinalStateWithoutOutput;
 	}
-	
-	// Dfs tree
-		private final class Node {
-			int prefixSupport = 0;
-			int lastSequenceId = -1;
-			int suffixItemId;
-			Node parent;
-			ByteArrayList projectedDatabase = new ByteArrayList();
-			BitSet[] statePosSet = new BitSet[fst.numStates()];
-			Int2ObjectMap<Node> children = new Int2ObjectOpenHashMap<>();
 
-			Node(Node parent, int suffixItemId) {
-				this.parent = parent;
-				this.suffixItemId = suffixItemId;
+	// node must have been processed/output/expanded already, but children not
+	// upon return, prefix must be unmodified
+	private void expand(IntList prefix, DesqDfsTreeNode node) {
+		// add a placeholder to prefix
+		final int lastPrefixIndex = prefix.size();
+		prefix.add(-1);
 
-				for (int i = 0; i < fst.numStates(); ++i) {
-					statePosSet[i] = new BitSet();
+		// iterate over children
+		for (final DesqDfsTreeNode childNode : node.children )  {
+			// while we expand the child node, we also compute its actual support to determine whether or not
+			// to output it
+			long support = 0;
+
+			// we first expand
+			final DesqDfsProjectedDatabase projectedDatabase = childNode.projectedDatabase;
+			assert projectedDatabase.prefixSupport >= sigma;
+			prefix.set(lastPrefixIndex, projectedDatabase.itemFid);
+			postingsIt.reset(projectedDatabase.postingList);
+			do {
+				// process next input sequence
+				final int inputId = postingsIt.nextNonNegativeInt();
+				final int[] inputSequence = inputSequences.get(inputId);
+				final int inputSupport = inputSupports.getInt(inputId);
+				boolean reachedFinalStateWithoutOutput = false;
+
+				// iterate over state@pos snapshots for this input sequence
+				do {
+					final int stateId = postingsIt.nextNonNegativeInt();
+					final int pos = postingsIt.nextNonNegativeInt(); // position of next input item
+					reachedFinalStateWithoutOutput |= incStep(inputId, inputSequence, pos, inputSupport,
+							fst.getState(stateId), childNode, 0);
+				} while (postingsIt.hasNext());
+
+				if (reachedFinalStateWithoutOutput) {
+					support += inputSupport;
+				}
+			} while (postingsIt.nextPosting());
+
+			// and output if p-frequent
+			if (support >= sigma) {
+				if (ctx.patternWriter != null) {
+					ctx.patternWriter.write(prefix, support);
 				}
 			}
 
-			void flush() {
-				for (int i = 0; i < fst.numStates(); ++i) {
-					statePosSet[i].clear();
-				}
-			}
-
-			void append(int itemId, int sequenceId, int position, int state) {
-				Node node = children.get(itemId);
-
-				if (node == null) {
-					node = new Node(this, itemId);
-					children.put(itemId, node);
-				}
-
-				if (node.lastSequenceId != sequenceId) {
-
-					if (node.lastSequenceId != -1)
-						node.flush();
-
-					/** Add transaction separator */
-					if (node.projectedDatabase.size() > 0) {
-						OldPostingList.addCompressed(0, node.projectedDatabase);
-					}
-
-					node.lastSequenceId = sequenceId;
-					node.prefixSupport++;
-
-					OldPostingList.addCompressed(sequenceId + 1, node.projectedDatabase);
-					OldPostingList.addCompressed(state + 1, node.projectedDatabase);
-					OldPostingList.addCompressed(position + 1, node.projectedDatabase);
-
-					node.statePosSet[state].set(position);
-				} else if (!node.statePosSet[state].get(position)) {
-					node.statePosSet[state].set(position);
-					OldPostingList.addCompressed(state + 1, node.projectedDatabase);
-					OldPostingList.addCompressed(position + 1, node.projectedDatabase);
-				}
-			}
-
-			void clear() {
-				projectedDatabase = null;
-				statePosSet = null;
-				children = null;
-			}
+			// expand the just created node
+			childNode.expansionsToChildren(sigma);
+			childNode.projectedDatabase = null; // not needed anymore
+			expand(prefix, childNode);
+			childNode.invalidate(); // not needed anymore
 		}
+
+		prefix.removeInt(lastPrefixIndex);
+	}
 }

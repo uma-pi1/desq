@@ -12,36 +12,37 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
 public class DesqDfsTreeNode {
-	final DesqDfsProjectedDatabase projectedDatabase;
+	DesqDfsProjectedDatabase projectedDatabase;
 	Int2ObjectMap<DesqDfsProjectedDatabase>  expansionsByFid = new Int2ObjectOpenHashMap<>();
-	final List<DesqDfsTreeNode> children = new ArrayList<>();
-	int numFstStates; //TODO: not a clean way
+	List<DesqDfsTreeNode> children = new ArrayList<>();
+	final int numFstStates; //TODO: not a clean way
 	
 	DesqDfsTreeNode(DesqDfsProjectedDatabase projectedDatabase) {
 		this.projectedDatabase = projectedDatabase;
-		this.numFstStates = projectedDatabase.snapshotSet.length;
+		this.numFstStates = projectedDatabase.currentSnapshots.length;
 	}
 	
 	void expandWithItem(int itemFid, int inputId, long inputSupport, int position, int stateId) {
 		DesqDfsProjectedDatabase projectedDatabase = expansionsByFid.get(itemFid);
-		if(projectedDatabase == null) {
+		if (projectedDatabase == null) {
 			projectedDatabase = new DesqDfsProjectedDatabase(numFstStates);
 			projectedDatabase.itemFid = itemFid;
 			expansionsByFid.put(itemFid, projectedDatabase);
 		}
 		
-		if(projectedDatabase.lastInputId != inputId) {
+		// TODO: add delta encoding as for prefix growth
+		if (projectedDatabase.currentInputId != inputId) {
 			// start a new posting
-			projectedDatabase.flushSnapshotSet();
 			projectedDatabase.postingList.newPosting();
-			projectedDatabase.lastInputId = inputId;
+			projectedDatabase.currentInputId = inputId;
+			projectedDatabase.clearSnapshots();
 			projectedDatabase.prefixSupport += inputSupport;
-			projectedDatabase.snapshotSet[stateId].set(position);
+			projectedDatabase.currentSnapshots[stateId].set(position);
 			projectedDatabase.postingList.addNonNegativeInt(inputId);
 			projectedDatabase.postingList.addNonNegativeInt(stateId);
             projectedDatabase.postingList.addNonNegativeInt(position);
-		} else if(!projectedDatabase.snapshotSet[stateId].get(position)) {
-			projectedDatabase.snapshotSet[stateId].set(position);
+		} else if (!projectedDatabase.currentSnapshots[stateId].get(position)) {
+			projectedDatabase.currentSnapshots[stateId].set(position);
 			projectedDatabase.postingList.addNonNegativeInt(stateId);
 			projectedDatabase.postingList.addNonNegativeInt(position);
 		}
@@ -49,13 +50,10 @@ public class DesqDfsTreeNode {
 	
 	void expansionsToChildren(long minSupport) {
 		for(DesqDfsProjectedDatabase projectedDatabase : expansionsByFid.values()) {
-			if(projectedDatabase.prefixSupport >= minSupport) {
+			if (projectedDatabase.prefixSupport >= minSupport) {
 				children.add(new DesqDfsTreeNode(projectedDatabase));
 			}
 		}
-		// TODO: This probably does not work with DESQ DFS
-		// See CompressedDesqDfs
-		// Collections.sort(children, (c1, c2) -> c1.projectedDatabase.itemFid - c2.projectedDatabase.itemFid); // smallest fids first
 	    expansionsByFid = null;
 	}
 	
@@ -70,4 +68,10 @@ public class DesqDfsTreeNode {
         children.clear();
     }
 
+	/** Call this when node not needed anymore. */
+	public void invalidate() {
+		projectedDatabase = null;
+		expansionsByFid = null;
+		children = null;
+	}
 }
