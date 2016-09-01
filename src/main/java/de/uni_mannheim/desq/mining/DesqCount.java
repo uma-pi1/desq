@@ -56,6 +56,7 @@ public class DesqCount extends DesqMiner {
 		Properties properties = new Properties();
 		PropertiesUtils.set(properties, "patternExpression", patternExpression);
 		PropertiesUtils.set(properties, "minSupport", sigma);
+		PropertiesUtils.set(properties, "minerClass", DesqCount.class.getCanonicalName());
 		return properties;
 	}
 	

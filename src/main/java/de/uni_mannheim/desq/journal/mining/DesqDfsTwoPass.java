@@ -32,6 +32,8 @@ import de.uni_mannheim.desq.util.PropertiesUtils;
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
 @SuppressWarnings("deprecation")
+
+// TODO: integrate into DesqDfs
 public class DesqDfsTwoPass extends MemoryDesqMiner {
 
 	// parameters for mining

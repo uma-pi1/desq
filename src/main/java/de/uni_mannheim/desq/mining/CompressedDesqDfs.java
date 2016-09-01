@@ -17,6 +17,7 @@ import de.uni_mannheim.desq.util.PropertiesUtils;
  * CompressedDesqDfs.java
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
+@Deprecated // should be integrated via an improved posting list to avoid code duplicaton
 public class CompressedDesqDfs extends CompressedMemoryDesqMiner {
 
 	// parameters for mining

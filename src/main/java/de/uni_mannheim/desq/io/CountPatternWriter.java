@@ -10,32 +10,31 @@ import java.util.Collection;
  */
 public class CountPatternWriter extends PatternWriter {
     long count = 0;
+    long totalFrequency = 0;
 
     @Override
     public void write(IntList itemFids, long frequency) {
         count++;
+        totalFrequency += frequency;
     }
 
     @Override
     public void write(int[] itemFids, long frequency) {
         count++;
+        totalFrequency += frequency;
     }
 
     @Override
     public void write(Pattern pattern) {
         count++;
-    }
-
-    @Override
-    public void writeAll(Collection<Pattern> patterns) {
-        count += patterns.size();
-    }
-
-    @Override
-    public void close() {
+        totalFrequency += pattern.getFrequency();
     }
 
     public long getCount() {
         return count;
+    }
+
+    public long getTotalFrequency() {
+        return totalFrequency;
     }
 }

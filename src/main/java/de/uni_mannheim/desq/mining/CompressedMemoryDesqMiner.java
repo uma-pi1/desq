@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntList;
 
+@Deprecated // should be integrated via an improved posting list to avoid code duplicaton
 public abstract class CompressedMemoryDesqMiner extends DesqMiner {
 	/** Stores all input sequences in compressed form */
 	protected final PostingList inputSequences = new PostingList();

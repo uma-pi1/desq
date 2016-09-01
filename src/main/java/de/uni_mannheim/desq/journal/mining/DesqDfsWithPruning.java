@@ -23,6 +23,8 @@ import de.uni_mannheim.desq.patex.PatEx;
 import de.uni_mannheim.desq.util.PropertiesUtils;
 
 @SuppressWarnings("deprecation")
+
+// TODO: integrate into DesqDfs
 public class DesqDfsWithPruning extends MemoryDesqMiner {
 
 	// parameters for mining

@@ -26,6 +26,8 @@ import de.uni_mannheim.desq.util.PropertiesUtils;
  * DesqCountTwoPass.java
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
+
+// TODO: integrate into DesqCount
 public class DesqCountTwoPass extends DesqMiner {
 
 	// parameters for mining

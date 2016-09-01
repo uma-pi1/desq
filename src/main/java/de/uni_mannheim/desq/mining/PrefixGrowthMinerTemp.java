@@ -76,7 +76,7 @@ public class PrefixGrowthMinerTemp extends MemoryDesqMiner {
 
 	public void mine() {
         if (inputSequences.size() >= sigma) {
-            // first run through all data and create single-item posting lists
+            // first runMiner through all data and create single-item posting lists
             for (int inputId=0; inputId<inputSequences.size(); inputId++) {
                 int[] inputSequence = inputSequences.get(inputId);
                 int inputSupport = inputSupports.get(inputId);

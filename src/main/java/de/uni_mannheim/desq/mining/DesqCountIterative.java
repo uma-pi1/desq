@@ -14,6 +14,7 @@ import de.uni_mannheim.desq.patex.PatEx;
 import de.uni_mannheim.desq.util.PrimitiveUtils;
 import de.uni_mannheim.desq.util.PropertiesUtils;
 
+// TODO: integrate into DesqCount
 public class DesqCountIterative extends DesqMiner {
 
 	// parameters for mining

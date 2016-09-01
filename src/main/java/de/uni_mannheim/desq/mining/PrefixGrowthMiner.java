@@ -51,7 +51,8 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
 		PropertiesUtils.set(properties, "maxGap", gamma);
 		PropertiesUtils.set(properties, "maxLength", lambda);
 		PropertiesUtils.set(properties, "generalize", generalize);
-		return properties;
+        PropertiesUtils.set(properties, "minerClass", PrefixGrowthMiner.class.getCanonicalName());
+        return properties;
 	}
 
 	public void setParameters(Properties properties) {
@@ -86,7 +87,7 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
 
 	public void mine() {
         if (inputSequences.size() >= sigma) {
-            // first run through all data and create single-item posting lists
+            // first runMiner through all data and create single-item posting lists
             for (int inputId=0; inputId<inputSequences.size(); inputId++) {
                 final int[] inputSequence = inputSequences.get(inputId);
                 final int inputSupport = inputSupports.get(inputId);

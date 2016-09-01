@@ -9,6 +9,7 @@ import java.util.Properties;
  * @author Kaustubh Beedkar (kbeedkar@uni-mannheim.de)
  * @author Rainer Gemulla (rgemulla@uni-mannheim.de)
  */
+@Deprecated // should be integrated via an improved posting list to avoid code duplicaton
 public class CompressedPrefixGrowthMiner extends CompressedMemoryDesqMiner {
 	// parameters for mining
     private long sigma;

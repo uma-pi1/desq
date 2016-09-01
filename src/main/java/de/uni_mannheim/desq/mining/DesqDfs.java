@@ -46,6 +46,7 @@ public class DesqDfs extends MemoryDesqMiner {
 		Properties properties = new Properties();
 		PropertiesUtils.set(properties, "patternExpression", patternExpression);
 		PropertiesUtils.set(properties, "minSupport", sigma);
+		PropertiesUtils.set(properties, "minerClass", DesqDfs.class.getCanonicalName());
 		return properties;
 	}
 	
