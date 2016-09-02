@@ -1,5 +1,8 @@
 package de.uni_mannheim.desq.journal.edfa;
 
+import de.uni_mannheim.desq.fst.Fst;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
 import java.util.ArrayList;
@@ -15,21 +18,21 @@ public class ExtendedDfaState {
 	// parameters
 	//int id;
 	List<ExtendedDfaTransition> transitionList;
-	boolean isFinal;
-	
+
 	//
 	BitSet fstStates;
+	IntList fstFinalStates;
 	
-	public ExtendedDfaState() {
+	public ExtendedDfaState(IntSet stateIdSet, Fst fst) {
 		this.transitionList = new ArrayList<ExtendedDfaTransition>();
-		this.isFinal = false;
+		setFstStates(stateIdSet, fst);
 	}
-	
-	public ExtendedDfaState(boolean isFinal) {
+
+	public ExtendedDfaState(int stateId, Fst fst) {
 		this.transitionList = new ArrayList<ExtendedDfaTransition>();
-		this.isFinal = isFinal;
+		setFstStates(stateId, fst);
 	}
-	
+
 	public void addTransition(ExtendedDfaTransition t) {
 		transitionList.add(t);
 	}
@@ -50,19 +53,31 @@ public class ExtendedDfaState {
 		return null;
 	}
 	
-	
-	public void setFstStates(int stateId, int numFstStates) {
-		this.fstStates = new BitSet(numFstStates);
+	private void setFstStates(int stateId, Fst fst) {
+		this.fstStates = new BitSet(fst.numStates());
 		fstStates.set(stateId);
-	}
-	
-	public void setFstStates(IntSet stateIdSet, int numFstStates) {
-		this.fstStates = new BitSet(numFstStates);
-		for(int stateId : stateIdSet) {
-			fstStates.set(stateId);
+		if (fst.getState(stateId).isFinal()) {
+			fstFinalStates = new IntArrayList(1);
+			fstFinalStates.add(stateId);
+		} else {
+			fstFinalStates = new IntArrayList(0);
 		}
 	}
 	
+	private void setFstStates(IntSet stateIdSet, Fst fst) {
+		fstFinalStates = new IntArrayList(fst.numStates());
+		this.fstStates = new BitSet(fst.numStates());
+		for(int stateId : stateIdSet) {
+			fstStates.set(stateId);
+			if (fst.getState(stateId).isFinal()) {
+				fstFinalStates.add(stateId);
+			}
+		}
+	}
+
+	public boolean isFinal() {
+		return !fstFinalStates.isEmpty();
+	}
 
 	public BitSet getFstStates() {
 		return fstStates;

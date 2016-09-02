@@ -48,12 +48,13 @@ public class ExtendedDfa {
 		this.dict = dict;
 		this.eDfaStateIdForFstStateId = new ExtendedDfaState[numFstStates];
 		for(int fstStateId = 0; fstStateId < numFstStates; fstStateId++) {
-			this.eDfaStateIdForFstStateId[fstStateId] = new ExtendedDfaState();
+			this.eDfaStateIdForFstStateId[fstStateId] = new ExtendedDfaState(fstStateId, fst);
 		}
 		this.constructExtendedDfa(fst);
 	}
 	
 	/** Construct an extended-DFA from a given FST */
+	// TODO: needs clean up
 	private void constructExtendedDfa(Fst fst) {
 		// Map old states to new state
 		Map<IntSet, ExtendedDfaState> newStateForStateIdSet = new HashMap<>();
@@ -78,9 +79,9 @@ public class ExtendedDfa {
 		// Initially old states contain all fst state as potential initial states
 		for(int fstStateId = 0; fstStateId < eDfaStateIdForFstStateId.length; fstStateId++) {
 			//ExtendedDfaState eDfaState = new ExtendedDfaState();
-			IntSet initialStateIdSet = IntSets.singleton(fstStateId); 
+			IntSet initialStateIdSet = IntSets.singleton(fstStateId);
 			newStateForStateIdSet.put(initialStateIdSet, eDfaStateIdForFstStateId[fstStateId]);
-			eDfaStateIdForFstStateId[fstStateId].setFstStates(initialStateIdSet, fst.numStates());
+			//eDfaStateIdForFstStateId[fstStateId].setFstStates(initialStateIdSet, fst);
 			
 			// add to unprocessed states
 			unprocessedStateIdSets.push(initialStateIdSet);
@@ -142,9 +143,9 @@ public class ExtendedDfa {
 					
 					ExtendedDfaState toEDfaState = newStateForStateIdSet.get(reachableStateIds); 
 					if(toEDfaState == null) {
-						toEDfaState = new ExtendedDfaState();
+						toEDfaState = new ExtendedDfaState(reachableStateIds, fst);
 						newStateForStateIdSet.put(reachableStateIds, toEDfaState);
-						toEDfaState.setFstStates(reachableStateIds, fst.numStates());
+						//toEDfaState.setFstStates(reachableStateIds, fst);
 					}
 					
 					ExtendedDfaTransition eDfaTransition = 
@@ -155,7 +156,7 @@ public class ExtendedDfa {
 			processedStateIdSets.add(stateIdSet);
 			
 			if(isFinal) {
-				newStateForStateIdSet.get(stateIdSet).isFinal = true;
+				//newStateForStateIdSet.get(stateIdSet).isFinal = true;
 			}
 		}
 		reachableStatesFromItemId.clear();
@@ -186,10 +187,33 @@ public class ExtendedDfa {
 			// was null
 			if(state == null)
 				return false;
-			if(state.isFinal)
+			if(state.isFinal())
 				return true;
 		}
 		return false;
+	}
+
+	/**
+	 * Returns true if the fst snapshot is relevant, i.e., leads to a final state
+	 * otherwise returns false
+	 *
+	 * Also adds to the given list with the sequence of states being visited, excluding the initial state
+	 * And if
+	 */
+	public boolean isRelevant(IntList inputSequence, int initialFstStateId, List<ExtendedDfaState> stateSeq,
+							  IntList finalPos) {
+		ExtendedDfaState state = eDfaStateIdForFstStateId[initialFstStateId];
+		int pos = 0;
+		while(pos < inputSequence.size()) {
+			state = state.consume(inputSequence.getInt(pos));
+			if(state == null)
+				break; // we may return true or false, as we might have reached a final state before
+			stateSeq.add(state);
+			if(state.isFinal())
+				finalPos.add(pos);
+			pos++;
+		}
+		return (!finalPos.isEmpty());
 	}
 	
 	
@@ -208,7 +232,7 @@ public class ExtendedDfa {
 			if(state == null)
 				break; // we cannot return false here, as we might have reached a final state before
 			posStateIndex[pos+1] = state.getFstStates();
-			if(state.isFinal)
+			if(state.isFinal())
 				finalPos.add(pos);
 			pos++;
 		}
