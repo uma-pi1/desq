@@ -34,11 +34,11 @@ public class DesqDfsTreeNode {
 		if (projectedDatabase.currentInputId != inputId) {
 			// start a new posting
 			projectedDatabase.postingList.newPosting();
-			projectedDatabase.currentInputId = inputId;
 			projectedDatabase.clearSnapshots();
 			projectedDatabase.prefixSupport += inputSupport;
 			projectedDatabase.currentSnapshots[stateId].set(position);
-			projectedDatabase.postingList.addNonNegativeInt(inputId);
+			projectedDatabase.postingList.addNonNegativeInt(inputId-projectedDatabase.currentInputId);
+			projectedDatabase.currentInputId = inputId;
 			projectedDatabase.postingList.addNonNegativeInt(stateId);
             projectedDatabase.postingList.addNonNegativeInt(position);
 		} else if (!projectedDatabase.currentSnapshots[stateId].get(position)) {

@@ -118,8 +118,9 @@ public class CompressedDesqDfs extends CompressedMemoryDesqMiner {
         	
         	// do the expansion
         	postingsIt.reset(projectedDatabase.postingList);
-        	do{
-        		int inputId = postingsIt.nextNonNegativeInt();
+        	int inputId = -1;
+			do{
+        		inputId += postingsIt.nextNonNegativeInt();
         		int inputOffset = inputOffsets.getInt(inputId);
         		int inputSupport = inputSupports.getInt(inputId);
         		

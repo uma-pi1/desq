@@ -10,6 +10,12 @@ public abstract class PatternWriter extends WithDictionary {
 	/** Writes a pattern given in terms of fids. The provided IntList must not be buffered. */
 	public abstract void write(IntList itemFids, long frequency);
 
+    public void writeReverse(IntList reverseItemFids, long frequency) {
+        java.util.Collections.reverse(reverseItemFids);
+        write(reverseItemFids, frequency);
+        java.util.Collections.reverse(reverseItemFids);
+    }
+
     public void write(int[] itemFids, long frequency) {
         write(new IntListWrapper(itemFids), frequency);
     }

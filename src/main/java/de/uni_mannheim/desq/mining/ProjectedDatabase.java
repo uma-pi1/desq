@@ -6,8 +6,8 @@ package de.uni_mannheim.desq.mining;
 final class ProjectedDatabase {
     int itemFid;
     long support;
-    int lastInputId = -1;
-    int lastPosition;
+    int currentInputId = -1;
+    int currentPosition;
     PostingList postingList;
 
     ProjectedDatabase() {
@@ -18,8 +18,8 @@ final class ProjectedDatabase {
     void clear() {
         itemFid = -1;
         support = 0;
-        lastInputId = -1;
-        lastPosition = -1;
+        currentInputId = -1;
+        currentPosition = -1;
         postingList = new PostingList();
     }
 }

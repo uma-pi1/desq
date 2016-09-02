@@ -28,18 +28,18 @@ final class PrefixGrowthTreeNode {
             expansionsByFid.put(itemFid, projectedDatabase);
         }
 
-        if (projectedDatabase.lastInputId != inputId) {
+        if (projectedDatabase.currentInputId != inputId) {
             // start a new posting
             projectedDatabase.postingList.newPosting();
-            projectedDatabase.lastPosition = position;
+            projectedDatabase.currentPosition = position;
             projectedDatabase.support += inputSupport;
-            assert inputId > projectedDatabase.lastInputId;
-            projectedDatabase.postingList.addNonNegativeInt(inputId-projectedDatabase.lastInputId);
-            projectedDatabase.lastInputId = inputId;
+            assert inputId > projectedDatabase.currentInputId;
+            projectedDatabase.postingList.addNonNegativeInt(inputId-projectedDatabase.currentInputId);
+            projectedDatabase.currentInputId = inputId;
             projectedDatabase.postingList.addNonNegativeInt(position);
-        } else if (projectedDatabase.lastPosition != position) {
-            projectedDatabase.postingList.addNonNegativeInt(position-projectedDatabase.lastPosition);
-            projectedDatabase.lastPosition = position;
+        } else if (projectedDatabase.currentPosition != position) {
+            projectedDatabase.postingList.addNonNegativeInt(position-projectedDatabase.currentPosition);
+            projectedDatabase.currentPosition = position;
         }
     }
 

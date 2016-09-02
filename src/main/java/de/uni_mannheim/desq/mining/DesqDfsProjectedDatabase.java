@@ -11,7 +11,7 @@ final class DesqDfsProjectedDatabase {
 	long prefixSupport;
 	PostingList postingList;
 
-	int currentInputId; // input sequence id of the current posting
+	int currentInputId = -1; // input sequence id of the current posting
 	BitSet[] currentSnapshots; // buffers all the snapshots for the current input sequence
                                // (used to avoid storing duplicate snapshots)
 	                           // index = state id; one bit per position in each Bitset

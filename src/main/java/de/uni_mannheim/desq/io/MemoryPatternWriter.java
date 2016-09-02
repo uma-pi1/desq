@@ -17,6 +17,15 @@ public class MemoryPatternWriter extends PatternWriter {
 	}
 
 	@Override
+	public void writeReverse(IntList reverseItemFids, long frequency) {
+		IntList itemFids = new IntArrayList(reverseItemFids.size());
+		for (int i=reverseItemFids.size()-1; i>=0; i--) {
+			itemFids.add(reverseItemFids.get(i));
+		}
+		patterns.add(new Pattern(itemFids, frequency));
+	}
+
+	@Override
 	public void close() {
 	}
 

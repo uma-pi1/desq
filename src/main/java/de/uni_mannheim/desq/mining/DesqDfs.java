@@ -23,7 +23,8 @@ public class DesqDfs extends MemoryDesqMiner {
 	final boolean useTwoPass;
 
 	// helper variables
-	final Fst fst;
+	final Fst fst; // for one-pass
+	final Fst reverseFst; // for two-pass
 	final int largestFrequentFid; // used to quickly determine whether an item is frequent
 	final ArrayList<Iterator<ItemState>> itemStateIterators = new ArrayList<>();
 	final PostingList.Iterator postingsIt = new PostingList.Iterator();
@@ -44,8 +45,8 @@ public class DesqDfs extends MemoryDesqMiner {
 		
 		patternExpression = ".* [" + PropertiesUtils.get(ctx.properties, "patternExpression").trim() + "]";
 		PatEx p = new PatEx(patternExpression, ctx.dict);
-		this.fst = p.translate();
-		fst.minimize(); //TODO: move to translate
+		Fst tempFst = p.translate();
+		tempFst.minimize(); //TODO: move to translate
 
 		useTwoPass = PropertiesUtils.getBoolean(ctx.properties, "useTwoPass");
 		pruneIrrelevantInputs = PropertiesUtils.getBoolean(ctx.properties, "pruneIrrelevantInputs");
@@ -55,13 +56,17 @@ public class DesqDfs extends MemoryDesqMiner {
 				logger.warn("setting of pruneIrrelevantInputs=false will be ignored because useTwoPass=true");
 			}
 
-			this.edfa = new ExtendedDfa(fst, ctx.dict);
-			fst.reverse(false); // here we need the reverse fst
+			this.edfa = new ExtendedDfa(tempFst, ctx.dict);
+			tempFst.reverse(false); // here we need the reverse fst
+			fst = null;
+			reverseFst = tempFst;
 			edfaStateSequences = new ArrayList<>();
 			edfaFinalStatePositions = new ArrayList<>();
 			edfaStateSequence = new ArrayList<>();
 			finalPos = new IntArrayList();
 		} else {
+			fst = tempFst;
+			reverseFst = null;
 			edfaStateSequences = null;
 			edfaFinalStatePositions = null;
 			edfaStateSequence = null;
@@ -116,15 +121,17 @@ public class DesqDfs extends MemoryDesqMiner {
 	@Override
 	public void mine() {
 		if (sumInputSupports >= sigma) {
-			DesqDfsTreeNode root = new DesqDfsTreeNode(new DesqDfsProjectedDatabase(fst.numStates()));
+			DesqDfsTreeNode root;
 
 			if (!useTwoPass) {
+				root = new DesqDfsTreeNode(new DesqDfsProjectedDatabase(fst.numStates()));
 				for (int inputId = 0; inputId < inputSupports.size(); inputId++) {
 					final int[] inputSequence = inputSequences.get(inputId);
 					final int inputSupport = inputSupports.get(inputId);
 					incStep(inputId, inputSequence, 0, inputSupport, fst.getInitialState(), root, 0);
 				}
 			} else { // twopass
+				root = new DesqDfsTreeNode(new DesqDfsProjectedDatabase(reverseFst.numStates()));
 				for (int inputId = 0; inputId < inputSupports.size(); inputId++) {
 					final int[] inputSequence = inputSequences.get(inputId);
 					final int inputSupport = inputSupports.get(inputId);
@@ -224,7 +231,7 @@ public class DesqDfs extends MemoryDesqMiner {
 
 		// node must have been processed/output/expanded already, but children not
 	// upon return, prefix must be unmodified
-	private void expand(IntArrayList prefix, DesqDfsTreeNode node) {
+	private void expand(IntList prefix, DesqDfsTreeNode node) {
 		// add a placeholder to prefix
 		final int lastPrefixIndex = prefix.size();
 		prefix.add(-1);
@@ -240,11 +247,12 @@ public class DesqDfs extends MemoryDesqMiner {
 			assert projectedDatabase.prefixSupport >= sigma;
 			prefix.set(lastPrefixIndex, projectedDatabase.itemFid);
 			postingsIt.reset(projectedDatabase.postingList);
+			int inputId = -1;
 
 			if (!useTwoPass) {
 				do {
 					// process next input sequence
-					final int inputId = postingsIt.nextNonNegativeInt();
+					inputId += postingsIt.nextNonNegativeInt();
 					final int[] inputSequence = inputSequences.get(inputId);
 					final int inputSupport = inputSupports.getInt(inputId);
 					boolean reachedFinalStateWithoutOutput = false;
@@ -264,7 +272,7 @@ public class DesqDfs extends MemoryDesqMiner {
 			} else {
 				do {
 					// process next input sequence
-					final int inputId = postingsIt.nextNonNegativeInt();
+					inputId += postingsIt.nextNonNegativeInt();
 					final int[] inputSequence = inputSequences.get(inputId);
 					final int inputSupport = inputSupports.getInt(inputId);
 					final ExtendedDfaState[] edfaStateSequence = edfaStateSequences.get(inputId);
@@ -275,7 +283,7 @@ public class DesqDfs extends MemoryDesqMiner {
 						final int stateId = postingsIt.nextNonNegativeInt();
 						final int pos = postingsIt.nextNonNegativeInt() - 1; // position of next input item (-1 because ehre we added a position incremented by one)
 						reachedFinalStateWithoutOutput |= incStepTwoPass(inputId, inputSequence,edfaStateSequence,
-								pos, inputSupport, fst.getState(stateId), childNode, 0);
+								pos, inputSupport, reverseFst.getState(stateId), childNode, 0);
 					} while (postingsIt.hasNext());
 
 					if (reachedFinalStateWithoutOutput) {
@@ -290,10 +298,7 @@ public class DesqDfs extends MemoryDesqMiner {
 					if (!useTwoPass) {
 						ctx.patternWriter.write(prefix, support);
 					} else {
-						// TODO: make more efficient (avoid double reversal)
-						java.util.Collections.reverse(prefix);
-						ctx.patternWriter.write(prefix, support);
-						java.util.Collections.reverse(prefix);
+						ctx.patternWriter.writeReverse(prefix, support);
 					}
 				}
 			}
