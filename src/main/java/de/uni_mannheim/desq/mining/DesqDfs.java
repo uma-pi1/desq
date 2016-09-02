@@ -16,66 +16,112 @@ import java.util.*;
 public final class DesqDfs extends MemoryDesqMiner {
 	private static final Logger logger = Logger.getLogger(DesqDfs.class);
 
-	// parameters for mining
-	final long sigma;
+	// -- parameters for mining ---------------------------------------------------------------------------------------
+
+	/** Minimum support */
+    final long sigma;
+
+    /** The pattern expression used for mining */
 	final String patternExpression;
+
+    /** If true, input sequences that do not match the pattern expression are pruned */
 	final boolean pruneIrrelevantInputs;
+
+    /** If true, the two-pass algorithm for DesqDfs is used */
 	final boolean useTwoPass;
 
-	// helper variables
-	final Fst fst; // for one-pass
-	final Fst reverseFst; // for two-pass
-	final int largestFrequentFid; // used to quickly determine whether an item is frequent
-	final ArrayList<Iterator<ItemState>> itemStateIterators = new ArrayList<>();
-	final PostingList.Iterator postingsIt = new PostingList.Iterator();
 
-	// helper variables for pruning and twopass
-	final ExtendedDfa edfa;
+	// -- helper variables --------------------------------------------------------------------------------------------
+
+    /** Stores the final state transducer for DesqDfs (one-pass) */
+	final Fst fst;
+
+    /** Stores the reverse final state transducer for DesqDfs (two-pass) */
+    final Fst reverseFst;
+
+    /** Stores the largest fid of an item with frequency at least sigma. Zsed to quickly determine
+     * whether an item is frequent (if fid <= largestFrequentFid, the item is frequent */
+    final int largestFrequentFid;
+
+    /** Stores iterators over output item/next state pairs for reuse. */
+	final ArrayList<Iterator<ItemState>> itemStateIterators = new ArrayList<>();
+
+    /** An iterator over a posting list for reuse */
+    final PostingList.Iterator postingsIt = new PostingList.Iterator();
+
+
+	// -- helper variables for pruning and twopass --------------------------------------------------------------------
+
+	/** The DFA corresponding to the pattern expression. Accepts if the FST can reach a final state on an input */
+    final ExtendedDfa edfa;
 
 	// helper variables for twopass
-	final ArrayList<ExtendedDfaState[]> edfaStateSequences; // per relevant input sequence
-	final ArrayList<int[]> edfaFinalStatePositions; // per relevant input sequence
-	final ArrayList<ExtendedDfaState> edfaStateSequence;
-	final IntList finalPos;
+    /** For each relevant input sequence, the sequence of states taken by edfa */
+	final ArrayList<ExtendedDfaState[]> edfaStateSequences;
+
+    /** For each relevant input sequence, the set of positions at which the FST can reach a final state (before
+     * reading the item at that position) */
+    final ArrayList<int[]> edfaFinalStatePositions; // per relevant input sequence
+
+    /** A sequence of EDFA states for reuse */
+    final ArrayList<ExtendedDfaState> edfaStateSequence;
+
+    /** A sequence of positions for reuse */
+    final IntList finalPos;
+
+
+    // -- construction/clearing ---------------------------------------------------------------------------------------
 
 	public DesqDfs(DesqMinerContext ctx) {
 		super(ctx);
-		this.sigma = PropertiesUtils.getLong(ctx.properties, "minSupport");
-		this.largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
-		
+		sigma = PropertiesUtils.getLong(ctx.properties, "minSupport");
+		largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
+        useTwoPass = PropertiesUtils.getBoolean(ctx.properties, "useTwoPass");
+        pruneIrrelevantInputs = PropertiesUtils.getBoolean(ctx.properties, "pruneIrrelevantInputs");
+
+        // construct pattern expression and FST
 		patternExpression = ".* [" + PropertiesUtils.get(ctx.properties, "patternExpression").trim() + "]";
 		PatEx p = new PatEx(patternExpression, ctx.dict);
 		Fst tempFst = p.translate();
 		tempFst.minimize(); //TODO: move to translate
 
-		useTwoPass = PropertiesUtils.getBoolean(ctx.properties, "useTwoPass");
-		pruneIrrelevantInputs = PropertiesUtils.getBoolean(ctx.properties, "pruneIrrelevantInputs");
-
-		if (useTwoPass) {
+		if (useTwoPass) { // two-pass
+            // two-pass will always prune irrelevant input sequences, so notify the user when the corresponding
+            // property is not set
 			if (!pruneIrrelevantInputs) {
 				logger.warn("property pruneIrrelevantInputs=false will be ignored because useTwoPass=true");
 			}
 
+            // construct the DFA for the FST (for the forward pass)
 			this.edfa = new ExtendedDfa(tempFst, ctx.dict);
-			tempFst.reverse(false); // here we need the reverse fst
+
+            // and then reverse the FST (which we now only need for the backward pass)
+            tempFst.reverse(false); // here we need the reverse fst
 			fst = null;
 			reverseFst = tempFst;
+
+            // initialize helper variables for two-pass
 			edfaStateSequences = new ArrayList<>();
 			edfaFinalStatePositions = new ArrayList<>();
 			edfaStateSequence = new ArrayList<>();
 			finalPos = new IntArrayList();
-		} else {
-			fst = tempFst;
+		} else { // one-pass
+			// store the FST
+            fst = tempFst;
 			reverseFst = null;
-			edfaStateSequences = null;
+
+            // if we prune irrelevant inputs, construct the DFS for the FST
+            if (pruneIrrelevantInputs) {
+                this.edfa = new ExtendedDfa(fst, ctx.dict);
+            } else {
+                this.edfa = null;
+            }
+
+            // invalidate helper variables for two-pass
+            edfaStateSequences = null;
 			edfaFinalStatePositions = null;
 			edfaStateSequence = null;
 			finalPos  = null;
-			if (pruneIrrelevantInputs) {
-				this.edfa = new ExtendedDfa(fst, ctx.dict);
-			} else {
-				this.edfa = null;
-			}
 		}
 	}
 	
@@ -100,54 +146,76 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 	}
 
+	// -- processing input sequences ----------------------------------------------------------------------------------
+
 	@Override
 	public void addInputSequence(IntList inputSequence, int inputSupport) {
-		if (useTwoPass) {
+        // two-pass version of DesqDfs
+        if (useTwoPass) {
+            // run the input sequence through the EDFA and compute the state sequences as well as the positions before
+            // which a final FST state is reached
 			if (edfa.isRelevant(inputSequence, 0, edfaStateSequence, finalPos)) {
+			    // we now know that the sequence is relevant; remember it
 				super.addInputSequence(inputSequence, inputSupport);
 				edfaStateSequences.add(edfaStateSequence.toArray(new ExtendedDfaState[edfaStateSequence.size()]));
-				//TODO: directly do the first incStep to avoid copying and storing finalPos
+				//TODO: directly do the first incStepOnePass to avoid copying and storing finalPos
 				edfaFinalStatePositions.add(finalPos.toIntArray());
 				finalPos.clear();
 			}
 			edfaStateSequence.clear();
-			return;
+            return;
 		}
 
-		// one-pass
+		// one-pass version of DesqDfs
 		if (!pruneIrrelevantInputs || edfa.isRelevant(inputSequence, 0, 0)) {
-			super.addInputSequence(inputSequence, inputSupport);
+			// if we reach this place, we either don't want to prune irrelevant inputs or the input is relevant
+            // -> remember it
+		    super.addInputSequence(inputSequence, inputSupport);
 		}
 	}
 
+
+    // -- mining ------------------------------------------------------------------------------------------------------
+
 	@Override
 	public void mine() {
+	    // this bundles common arguments to incStepOnePass or incStepTwoPass
 		final IncStepArgs incStepArgs = new IncStepArgs();
 
 		if (sumInputSupports >= sigma) {
-			DesqDfsTreeNode root;
+			// stores the root of the search tree
+		    DesqDfsTreeNode root;
 
 			if (!useTwoPass) { // one-pass
+                // create the root
 				root = new DesqDfsTreeNode(new DesqDfsProjectedDatabase(fst.numStates()));
 				incStepArgs.node = root;
 
+                // and process all input sequences to compute the roots children
 				for (int inputId = 0; inputId < inputSupports.size(); inputId++) {
 					incStepArgs.inputId = inputId;
 					incStepArgs.inputSequence = inputSequences.get(inputId);
 					incStepArgs.inputSupport = inputSupports.get(inputId);
-					incStep(incStepArgs, 0, fst.getInitialState(), 0);
+					incStepOnePass(incStepArgs, 0, fst.getInitialState(), 0);
 				}
-			} else { // twopass
+			} else { // two-pass
+                // create the root
 				root = new DesqDfsTreeNode(new DesqDfsProjectedDatabase(reverseFst.numStates()));
 				incStepArgs.node = root;
 
+                // and process all input sequences to compute the roots children
+                // note that we read the input sequences backwards in in the two-pass algorithm
+                // the search tree is also constructed backwards
 				for (int inputId = 0; inputId < inputSupports.size(); inputId++) {
 					incStepArgs.inputId = inputId;
 					incStepArgs.inputSequence = inputSequences.get(inputId);
 					incStepArgs.inputSupport = inputSupports.get(inputId);
 					incStepArgs.edfaStateSequence = edfaStateSequences.get(inputId);
 					final int[] finalStatePos = edfaFinalStatePositions.get(inputId);
-					for (final int pos : finalStatePos) {
+
+                    // look at all positions before which a final FST state can be reached
+                    for (final int pos : finalStatePos) {
+                        // for those positions, start with each possible final FST state and go backwards
 						for (State fstFinalState : incStepArgs.edfaStateSequence[pos].getFstFinalStates()) {
 							incStepTwoPass(incStepArgs, pos-1, fstFinalState, 0);
 						}
@@ -159,16 +227,28 @@ public final class DesqDfs extends MemoryDesqMiner {
                 edfaFinalStatePositions.trimToSize();
 			}
 
+			// recursively grow the patterns
 			root.expansionsToChildren(sigma);
 			expand(new IntArrayList(), root);
 		}
 	}
 
-	private boolean incStep(final IncStepArgs args, final int pos, final State state, final int level) {
-		if (pos >= args.inputSequence.length)
+    /** Updates the projected databases of the children of the current node (args.node) corresponding to each possible
+     * next output item for the current input sequence (also stored in args). Used only in the one-pass algorithm.
+     *
+     * @param args information about the input sequence and the current search tree node
+     * @param pos next item to read
+     * @param state current FST state
+     * @param level recursion level (used for reusing iterators without conflict)
+     *
+     * @return true if a final FST state can be reached without producing further output
+     */
+	private boolean incStepOnePass(final IncStepArgs args, final int pos, final State state, final int level) {
+		// check if we reached the end of the input sequence
+	    if (pos >= args.inputSequence.length)
 			return state.isFinal();
 
-		// get iterator over output item/state pairs; reuse existing ones if possible
+		// get iterator over next output item/state pairs; reuse existing ones if possible
 		final int itemFid = args.inputSequence[pos];
 		Iterator<ItemState> itemStateIt;
 		if (level>=itemStateIterators.size()) {
@@ -178,7 +258,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 			itemStateIt = state.consume(itemFid, itemStateIterators.get(level));
 		}
 
-		// iterator over output item/state pairs
+		// iterate over output item/state pairs and remember whether we hit a final state without producing output
+        // (i.e., no transitions or only transitions with epsilon output)
 		boolean reachedFinalStateWithoutOutput = state.isFinal();
 		while (itemStateIt.hasNext()) {
 			final ItemState itemState = itemStateIt.next();
@@ -186,8 +267,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 			final State toState = itemState.state;
 
 			if (outputItemFid == 0) { // EPS output
-				reachedFinalStateWithoutOutput |= incStep(args, pos+1, toState, level+1);
+                // we did not get an output, so continue running the FST
+				reachedFinalStateWithoutOutput |= incStepOnePass(args, pos+1, toState, level+1);
 			} else if (largestFrequentFid >= outputItemFid) {
+			    // we have an output and its frequent, so update the corresponding projected database
 				args.node.expandWithItem(outputItemFid, args.inputId, args.inputSupport,
 						pos+1, toState.getId());
 			}
@@ -196,17 +279,28 @@ public final class DesqDfs extends MemoryDesqMiner {
 		return reachedFinalStateWithoutOutput;
 	}
 
-	// this runs backwards
+    /** Updates the projected databases of the children of the current node (args.node) corresponding to each possible
+     * previous output item for the current input sequence (also stored in args). Used only in the two-pass algorithm.
+     *
+     * @param args information about the input sequence and the current search tree node
+     * @param pos next item to read
+     * @param state current FST state
+     * @param level recursion level (used for reusing iterators without conflict)
+     *
+     * @return true if the initial FST state can be reached without producing further output
+     */
 	private boolean incStepTwoPass(final IncStepArgs args, final int pos,
 								   final State state, final int level) {
-		if(pos == -1) {
-			// we consumed entire input in reverse -> we must have reached inital state by twopass correctness
+		// check if we reached the beginning of the input sequence
+	    if(pos == -1) {
+			// we consumed entire input in reverse -> we must have reached the inital state by two-pass correctness
 			assert state.getId() == 0;
 			return true;
 		}
 
-		// get iterator over output item/state pairs; reuse existing ones if possible
-		// todo: this is inefficient because we generate item/state pairs that we are not going to need
+        // get iterator over next output item/state pairs; reuse existing ones if possible
+        // note that the reverse FST is used here (since we process inputs backwards)
+		// TODO: this is inefficient because we generate item/state pairs that we are not going to need
 		final int itemFid = args.inputSequence[pos];
 		Iterator<ItemState> itemStateIt;
 		if (level>=itemStateIterators.size()) {
@@ -216,46 +310,55 @@ public final class DesqDfs extends MemoryDesqMiner {
 			itemStateIt = state.consume(itemFid, itemStateIterators.get(level));
 		}
 
-		// iterator over output item/state pairs
-		boolean reachedFinalStateWithoutOutput = false;
+        // iterate over output item/state pairs and remember whether we hit the initial state without producing output
+        // (i.e., no transitions or only transitions with epsilon output)
+        boolean reachedInitialStateWithoutOutput = false;
 		while (itemStateIt.hasNext()) {
 			final ItemState itemState = itemStateIt.next();
 			final State toState = itemState.state;
 
-			// skip irrelevant tostates
+			// if the toState was not a reachable state in the forward pass, we can safely skip it
 			if (!args.edfaStateSequence[pos].getFstStates().get(toState.getId()))
 				continue;
 
 			final int outputItemFid = itemState.itemFid;
 			if (outputItemFid == 0) { // EPS output
-				reachedFinalStateWithoutOutput |= incStepTwoPass(args, pos-1, toState, level+1);
+                // we did not get an output, so continue running the reverse FST
+				reachedInitialStateWithoutOutput |= incStepTwoPass(args, pos-1, toState, level+1);
 			} else if (largestFrequentFid >= outputItemFid) {
-				// we do not expand with pos-1 but with pos to avoid writing -1's when the position was 0
-				// when we read the posting list, we have to substract 1
+                // we have an output and its frequent, so update the corresponding projected database
+				// Note: we do not store pos-1 in the projected database to having avoid write -1's when the
+                // position was 0. When we read the posting list later, we substract 1
 				args.node.expandWithItem(outputItemFid, args.inputId, args.inputSupport,
 						pos, toState.getId());
 			}
 		}
 
-		return reachedFinalStateWithoutOutput;
+		return reachedInitialStateWithoutOutput;
 	}
 
-		// node must have been processed/output/expanded already, but children not
-	// upon return, prefix must be unmodified
-	private void expand(IntList prefix, DesqDfsTreeNode node) {
-		final IncStepArgs incStepArgs = new IncStepArgs();
+    /** Expands all children of the given search tree node. The node itself must have been processed/output/expanded
+     * already.
+     *
+     * @param prefix (partial) output sequence corresponding to the given node (must remain unmodified upon return)
+     * @param node the node whose children to expand
+     */
 
-		// add a placeholder to prefix
+	private void expand(IntList prefix, DesqDfsTreeNode node) {
+        // this bundles common arguments to incStepOnePass or incStepTwoPass
+        final IncStepArgs incStepArgs = new IncStepArgs();
+
+		// add a placeholder to prefix for the output item of the child being expanded
 		final int lastPrefixIndex = prefix.size();
 		prefix.add(-1);
 
-		// iterate over children
+		// iterate over all children
 		for (final DesqDfsTreeNode childNode : node.children )  {
 			// while we expand the child node, we also compute its actual support to determine whether or not
-			// to output it
+			// to output it (and then output it if the support is large enough)
 			long support = 0;
 
-			// we first expand
+			// set up the expansion
 			final DesqDfsProjectedDatabase projectedDatabase = childNode.projectedDatabase;
 			assert projectedDatabase.prefixSupport >= sigma;
 			prefix.set(lastPrefixIndex, projectedDatabase.itemFid);
@@ -263,69 +366,81 @@ public final class DesqDfs extends MemoryDesqMiner {
 			incStepArgs.inputId = -1;
 			incStepArgs.node = childNode;
 
-			if (!useTwoPass) {
+			if (!useTwoPass) { // one-pass
 				do {
 					// process next input sequence
 					incStepArgs.inputId += postingsIt.nextNonNegativeInt();
 					incStepArgs.inputSequence = inputSequences.get(incStepArgs.inputId);
 					incStepArgs.inputSupport = inputSupports.getInt(incStepArgs.inputId);
-					boolean reachedFinalStateWithoutOutput = false;
 
 					// iterate over state@pos snapshots for this input sequence
+                    boolean reachedFinalStateWithoutOutput = false;
 					do {
 						final int stateId = postingsIt.nextNonNegativeInt();
 						final int pos = postingsIt.nextNonNegativeInt(); // position of next input item
-						reachedFinalStateWithoutOutput |= incStep(incStepArgs, pos, fst.getState(stateId), 0);
+						reachedFinalStateWithoutOutput |= incStepOnePass(incStepArgs, pos, fst.getState(stateId), 0);
 					} while (postingsIt.hasNext());
 
+                    // if we reached a final state without output, increment the support of this child node
 					if (reachedFinalStateWithoutOutput) {
 						support += incStepArgs.inputSupport;
 					}
+
+					// now go to next posting (next input sequence)
 				} while (postingsIt.nextPosting());
-			} else {
+			} else { // two-pass
 				do {
-					// process next input sequence
+					// process next input sequence (backwards)
 					incStepArgs.inputId += postingsIt.nextNonNegativeInt();
 					incStepArgs.inputSequence = inputSequences.get(incStepArgs.inputId);
 					incStepArgs.inputSupport = inputSupports.getInt(incStepArgs.inputId);
 					incStepArgs.edfaStateSequence = edfaStateSequences.get(incStepArgs.inputId);
-					boolean reachedFinalStateWithoutOutput = false;
 
 					// iterate over state@pos snapshots for this input sequence
+                    boolean reachedInitialStateWithoutOutput = false;
 					do {
 						final int stateId = postingsIt.nextNonNegativeInt();
-						final int pos = postingsIt.nextNonNegativeInt() - 1; // position of next input item (-1 because ehre we added a position incremented by one)
-						reachedFinalStateWithoutOutput |= incStepTwoPass(incStepArgs, pos,
+						final int pos = postingsIt.nextNonNegativeInt() - 1; // position of next input item
+                                            // (-1 because we added a position incremented by one; see incStepTwoPass)
+						reachedInitialStateWithoutOutput |= incStepTwoPass(incStepArgs, pos,
 								reverseFst.getState(stateId), 0);
 					} while (postingsIt.hasNext());
 
-					if (reachedFinalStateWithoutOutput) {
+                    // if we reached the initial state without output, increment the support of this child node
+                    if (reachedInitialStateWithoutOutput) {
 						support += incStepArgs.inputSupport;
 					}
+
+                    // now go to next posting (next input sequence)
 				} while (postingsIt.nextPosting());
 			}
 
-			// and output if p-frequent
+			// output the patterns for the current child node if it turns out to be frequent
 			if (support >= sigma) {
 				if (ctx.patternWriter != null) {
-					if (!useTwoPass) {
+					if (!useTwoPass) { // one-pass
 						ctx.patternWriter.write(prefix, support);
-					} else {
+					} else { // two-pass
+                        // for the two-pass algorithm, we need to reverse the output because the search tree is built
+                        // in reverse order
 						ctx.patternWriter.writeReverse(prefix, support);
 					}
 				}
 			}
 
-			// expand the just created node
+			// expand the child node
 			childNode.expansionsToChildren(sigma);
 			childNode.projectedDatabase = null; // not needed anymore
 			expand(prefix, childNode);
 			childNode.invalidate(); // not needed anymore
 		}
 
+		// we are done processing the node, so remove its item from the prefix
 		prefix.removeInt(lastPrefixIndex);
 	}
 
+	/** Bundles arguments for {@link #incStepOnePass} and {@link #incStepTwoPass}. These arguments are not modified
+     * during the method's recursions, so we keep them at a single place. */
 	private static class IncStepArgs {
 		int inputId;
 		int[] inputSequence;
