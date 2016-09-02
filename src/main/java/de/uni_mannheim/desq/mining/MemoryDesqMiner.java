@@ -7,7 +7,7 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 public abstract class MemoryDesqMiner extends DesqMiner {
-	protected final List<int[]> inputSequences = new ArrayList<>();
+	protected final ArrayList<int[]> inputSequences = new ArrayList<>();
 	protected final IntList inputSupports = new IntArrayList();
 	long sumInputSupports = 0;
 

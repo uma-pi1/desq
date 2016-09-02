@@ -33,9 +33,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 	final ExtendedDfa edfa;
 
 	// helper variables for twopass
-	final List<ExtendedDfaState[]> edfaStateSequences; // per relevant input sequence
-	final List<int[]> edfaFinalStatePositions; // per relevant input sequence
-	final List<ExtendedDfaState> edfaStateSequence;
+	final ArrayList<ExtendedDfaState[]> edfaStateSequences; // per relevant input sequence
+	final ArrayList<int[]> edfaFinalStatePositions; // per relevant input sequence
+	final ArrayList<ExtendedDfaState> edfaStateSequence;
 	final IntList finalPos;
 
 	public DesqDfs(DesqMinerContext ctx) {
@@ -91,12 +91,14 @@ public final class DesqDfs extends MemoryDesqMiner {
 	
 	public void clear() {
 		inputSequences.clear();
+        inputSequences.trimToSize();
 		if (useTwoPass) {
 			edfaStateSequences.clear();
+            edfaStateSequences.trimToSize();
 			edfaFinalStatePositions.clear();
+            edfaFinalStatePositions.trimToSize();
 		}
 	}
-
 
 	@Override
 	public void addInputSequence(IntList inputSequence, int inputSupport) {
@@ -151,6 +153,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 						}
 					}
 				}
+
+				// we don't need this anymore, so let's save the memory
+				edfaFinalStatePositions.clear();
+                edfaFinalStatePositions.trimToSize();
 			}
 
 			root.expansionsToChildren(sigma);
