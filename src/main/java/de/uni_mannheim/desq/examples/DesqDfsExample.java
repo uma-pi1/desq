@@ -26,11 +26,12 @@ public class DesqDfsExample {
 
 		Properties properties = DesqDfs.createProperties(patternExp, sigma);
 		PropertiesUtils.set(properties, "pruneIrrelevantInputs", true);
+		PropertiesUtils.set(properties, "useTwoPass", true);
 		ExampleUtils.runIcdm16(properties);
 	}
 
 	public static void main(String[] args) throws IOException {
-		//icdm16();
-		nyt();
+		icdm16();
+		//nyt();
 	}
 }

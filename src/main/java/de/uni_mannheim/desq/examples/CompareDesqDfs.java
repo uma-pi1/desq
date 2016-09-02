@@ -24,8 +24,8 @@ public class CompareDesqDfs {
 	// Input parameters 
 	//String patternExpression = "([.^ . .]|[. .^ .]|[. . .^])";
 	//String patternExpression = "(.^){0,3}";
-	String patternExpression = "(JJ@ JJ@ NN@)";
-	int sigma = 10;
+	String patternExpression = "(.^ JJ@ NN@)";
+	int sigma = 1000;
 	
 	
 	// IO
@@ -88,7 +88,7 @@ public class CompareDesqDfs {
 		miningTime.stop();
 	}
 	
-	public void desqDfsNew(boolean pruneIrrelevantInputSequences) throws IOException {
+	public void desqDfsNew(boolean pruneIrrelevantInputSequences, boolean useTwoPass) throws IOException {
 		
 		resetTimers();
 		
@@ -98,11 +98,12 @@ public class CompareDesqDfs {
 		DesqMinerContext ctx = new DesqMinerContext();
 		ctx.dict = dict;
 		DelPatternWriter patternWriter = new DelPatternWriter(
-		        new FileOutputStream(outputFile+"NEW"+pruneIrrelevantInputSequences), DelPatternWriter.TYPE.SID);
+		        new FileOutputStream(outputFile+"-NEW-"+pruneIrrelevantInputSequences+"-"+useTwoPass), DelPatternWriter.TYPE.SID);
 		patternWriter.setDictionary(dict);
 		ctx.patternWriter = patternWriter;
 		ctx.properties = DesqDfs.createProperties(patternExpression, sigma);
 		PropertiesUtils.set(ctx.properties, "pruneIrrelevantInputs", pruneIrrelevantInputSequences);
+        PropertiesUtils.set(ctx.properties, "useTwoPass", useTwoPass);
 
 		System.out.println("Translating pattern expr." + patternExpression);
 		
@@ -127,21 +128,28 @@ public class CompareDesqDfs {
 	
 	public static void main(String[] args) throws Exception {
 		CompareDesqDfs cdd = new CompareDesqDfs();
-		
+
+        /*
 		cdd.desqDfsOld();
 		System.out.println("AutomatonTime = " + automatonTime.elapsed(TimeUnit.SECONDS));
 		System.out.println("IOTime = " + ioTime.elapsed(TimeUnit.SECONDS));
 		System.out.println("MiningTime = " + miningTime.elapsed(TimeUnit.SECONDS));
-		
-		cdd.desqDfsNew(false);
+		*/
+
+		cdd.desqDfsNew(false, false);
 		System.out.println("AutomatonTime = " + automatonTime.elapsed(TimeUnit.SECONDS));
 		System.out.println("IOTime = " + ioTime.elapsed(TimeUnit.SECONDS));
 		System.out.println("MiningTime = " + miningTime.elapsed(TimeUnit.SECONDS));
 
-		cdd.desqDfsNew(true);
+		cdd.desqDfsNew(true, false);
 		System.out.println("AutomatonTime = " + automatonTime.elapsed(TimeUnit.SECONDS));
 		System.out.println("IOTime = " + ioTime.elapsed(TimeUnit.SECONDS));
 		System.out.println("MiningTime = " + miningTime.elapsed(TimeUnit.SECONDS));
+
+        cdd.desqDfsNew(true, true);
+        System.out.println("AutomatonTime = " + automatonTime.elapsed(TimeUnit.SECONDS));
+        System.out.println("IOTime = " + ioTime.elapsed(TimeUnit.SECONDS));
+        System.out.println("MiningTime = " + miningTime.elapsed(TimeUnit.SECONDS));
 	}
 	
 	

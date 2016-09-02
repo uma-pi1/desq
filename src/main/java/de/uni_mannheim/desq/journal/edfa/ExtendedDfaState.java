@@ -1,12 +1,14 @@
 package de.uni_mannheim.desq.journal.edfa;
 
 import de.uni_mannheim.desq.fst.Fst;
+import de.uni_mannheim.desq.fst.State;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -21,7 +23,7 @@ public class ExtendedDfaState {
 
 	//
 	BitSet fstStates;
-	IntList fstFinalStates;
+	List<State> fstFinalStates;
 	
 	public ExtendedDfaState(IntSet stateIdSet, Fst fst) {
 		this.transitionList = new ArrayList<ExtendedDfaTransition>();
@@ -56,21 +58,23 @@ public class ExtendedDfaState {
 	private void setFstStates(int stateId, Fst fst) {
 		this.fstStates = new BitSet(fst.numStates());
 		fstStates.set(stateId);
-		if (fst.getState(stateId).isFinal()) {
-			fstFinalStates = new IntArrayList(1);
-			fstFinalStates.add(stateId);
+		State state = fst.getState(stateId);
+		if (state.isFinal()) {
+			fstFinalStates = new ArrayList<>(1);
+			fstFinalStates.add(state);
 		} else {
-			fstFinalStates = new IntArrayList(0);
+			fstFinalStates = (List<State>)Collections.EMPTY_LIST;
 		}
 	}
 	
 	private void setFstStates(IntSet stateIdSet, Fst fst) {
-		fstFinalStates = new IntArrayList(fst.numStates());
+		fstFinalStates = new ArrayList<>(fst.numStates());
 		this.fstStates = new BitSet(fst.numStates());
 		for(int stateId : stateIdSet) {
 			fstStates.set(stateId);
-			if (fst.getState(stateId).isFinal()) {
-				fstFinalStates.add(stateId);
+			State state = fst.getState(stateId);
+			if (state.isFinal()) {
+				fstFinalStates.add(state);
 			}
 		}
 	}
@@ -82,4 +86,9 @@ public class ExtendedDfaState {
 	public BitSet getFstStates() {
 		return fstStates;
 	}
+
+	public List<State> getFstFinalStates() {
+		return fstFinalStates;
+	}
+
 }

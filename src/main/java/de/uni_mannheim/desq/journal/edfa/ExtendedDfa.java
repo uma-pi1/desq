@@ -197,21 +197,21 @@ public class ExtendedDfa {
 	 * Returns true if the fst snapshot is relevant, i.e., leads to a final state
 	 * otherwise returns false
 	 *
-	 * Also adds to the given list with the sequence of states being visited, excluding the initial state
-	 * And if
+	 * Also adds to the given list with the sequence of states being visited before consuming each item + final one
+	 * i.e., stateSeq[pos] = state before consuming inputSequence[pos]
 	 */
 	public boolean isRelevant(IntList inputSequence, int initialFstStateId, List<ExtendedDfaState> stateSeq,
 							  IntList finalPos) {
 		ExtendedDfaState state = eDfaStateIdForFstStateId[initialFstStateId];
+		stateSeq.add(state);
 		int pos = 0;
 		while(pos < inputSequence.size()) {
-			state = state.consume(inputSequence.getInt(pos));
+			state = state.consume(inputSequence.getInt(pos++));
 			if(state == null)
 				break; // we may return true or false, as we might have reached a final state before
 			stateSeq.add(state);
 			if(state.isFinal())
 				finalPos.add(pos);
-			pos++;
 		}
 		return (!finalPos.isEmpty());
 	}
