@@ -67,7 +67,7 @@ public class ComparePrefixGrowth {
 		dataReader.setDictionary(dict);
 		DesqMinerContext ctx = new DesqMinerContext();
 		ctx.dict = dict;
-		DelPatternWriter patternWriter = new DelPatternWriter(new FileOutputStream(out), true);
+		DelPatternWriter patternWriter = new DelPatternWriter(new FileOutputStream(out), DelPatternWriter.TYPE.GID);
 		patternWriter.setDictionary(dict);
         CountPatternWriter cpw = new CountPatternWriter();
 		ctx.patternWriter = cpw;
@@ -122,7 +122,7 @@ public class ComparePrefixGrowth {
         dataReader.setDictionary(dict);
         DesqMinerContext ctx = new DesqMinerContext();
         ctx.dict = dict;
-        DelPatternWriter patternWriter = new DelPatternWriter(new FileOutputStream(out), true);
+        DelPatternWriter patternWriter = new DelPatternWriter(new FileOutputStream(out), DelPatternWriter.TYPE.GID);
         patternWriter.setDictionary(dict);
         CountPatternWriter cpw = new CountPatternWriter();
         ctx.patternWriter = cpw;

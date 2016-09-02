@@ -10,6 +10,7 @@ import java.io.InputStreamReader;
 /**
  * Created by rgemulla on 18.07.2016.
  */
+// TODO: also support reading del files with item names (sids) like in DelPatternWriter
 public class DelPatternReader extends PatternReader {
     private final BufferedReader reader;
     private final boolean usesFids;

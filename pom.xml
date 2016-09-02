@@ -183,7 +183,7 @@
 			</plugin>
 		</plugins>
 
-		<!-- custom resource folders -->
+    	<!-- custom resource folders -->
 		<resources>
 			<resource>
 				<directory>${basedir}/src/main/resources</directory>

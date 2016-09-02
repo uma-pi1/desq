@@ -42,7 +42,7 @@ public abstract class DesqMiner {
 			throw new IllegalArgumentException("minerClass property not set");
 		}
 		try {
-			DesqMiner miner = ((Class<DesqMiner>)Class.forName(minerClass))
+			DesqMiner miner = (DesqMiner)Class.forName(minerClass)
 					.getConstructor(DesqMinerContext.class).newInstance(ctx);
 			return miner;
 		} catch (InstantiationException e) {

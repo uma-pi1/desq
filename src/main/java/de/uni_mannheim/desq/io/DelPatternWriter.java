@@ -7,20 +7,22 @@ import java.io.Writer;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 public class DelPatternWriter extends PatternWriter {
-	private final PrintWriter writer;
-	private final boolean convertToIds;
+	public static enum TYPE { FID, GID, SID };
 
-	public DelPatternWriter(PrintWriter writer, boolean convertToIds) {
+	private final PrintWriter writer;
+	private final TYPE type;
+
+	public DelPatternWriter(PrintWriter writer, TYPE type) {
 		this.writer = writer;
-		this.convertToIds = convertToIds;
+		this.type = type;
 	}
 
-	public DelPatternWriter(Writer writer, boolean convertToIds) {
-		this(new PrintWriter(writer, true), convertToIds);
+	public DelPatternWriter(Writer writer, TYPE type) {
+		this(new PrintWriter(writer, true), type);
 	}	
 	
-	public DelPatternWriter(OutputStream out, boolean convertToIds) {
-		this(new PrintWriter(out, true), convertToIds);
+	public DelPatternWriter(OutputStream out, TYPE type) {
+		this(new PrintWriter(out, true), type);
 	}
 
 	@Override
@@ -32,10 +34,16 @@ public class DelPatternWriter extends PatternWriter {
 			int fid = itemFids.getInt(i);
 			writer.write(sep);
 			sep = "\t";
-			if (convertToIds) {
-				writer.print( dict.getItemByFid(fid).gid);
-			} else {
-				writer.print( fid );
+			switch (type) {
+				case FID:
+					writer.print( fid );
+					break;
+				case GID:
+					writer.print( dict.getItemByFid(fid).gid);
+					break;
+				case SID:
+					writer.print( dict.getItemByFid(fid).sid);
+					break;
 			}
 		}
 		writer.println();

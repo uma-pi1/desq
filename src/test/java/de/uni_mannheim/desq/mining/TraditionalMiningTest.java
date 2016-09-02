@@ -91,7 +91,7 @@ public abstract class TraditionalMiningTest {
         dataReader.setDictionary(dict);
         DesqMinerContext ctx = new DesqMinerContext();
         ctx.dict = dict;
-        DelPatternWriter patternWriter = new DelPatternWriter(new FileOutputStream(outputDelFile), true);
+        DelPatternWriter patternWriter = new DelPatternWriter(new FileOutputStream(outputDelFile), DelPatternWriter.TYPE.GID);
         patternWriter.setDictionary(dict);
         ctx.patternWriter = patternWriter;
         ctx.properties = createProperties();

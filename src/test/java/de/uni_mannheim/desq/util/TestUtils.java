@@ -62,7 +62,7 @@ public class TestUtils {
         Collections.sort(patterns);
 
         // and write them back
-        DelPatternWriter writer = new DelPatternWriter(new FileOutputStream(file, false), false);
+        DelPatternWriter writer = new DelPatternWriter(new FileOutputStream(file, false), DelPatternWriter.TYPE.FID);
         writer.writeAll(patterns);
         writer.close();
     }

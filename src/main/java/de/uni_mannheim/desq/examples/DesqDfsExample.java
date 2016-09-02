@@ -8,13 +8,15 @@ import java.util.Properties;
 
 public class DesqDfsExample {
 	public static void nyt() throws IOException {
-		int sigma = 1000;
+		int sigma = 10;
 		int gamma = 0;
 		int lambda = 3;
 		boolean generalize = true;
 		String patternExp = DesqDfs.patternExpressionFor(gamma, lambda, generalize);
+		patternExp = "(JJ@ JJ@ NN@)";
 
 		Properties properties = DesqDfs.createProperties(patternExp, sigma);
+		//PropertiesUtils.set(properties, "pruneIrrelevantInputs", true);
 		ExampleUtils.runNyt(properties);
 	}
 
@@ -28,7 +30,7 @@ public class DesqDfsExample {
 	}
 
 	public static void main(String[] args) throws IOException {
-		icdm16();
-		//nyt();
+		//icdm16();
+		nyt();
 	}
 }
