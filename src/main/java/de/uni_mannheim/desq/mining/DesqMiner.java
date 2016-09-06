@@ -37,9 +37,9 @@ public abstract class DesqMiner {
 	/** Creates a miner for the specified context. To determine which miner to create, the "minerClass" property
 	 * needs to be set. */
 	public static DesqMiner create(DesqMinerContext ctx) {
-		String minerClass = ctx.properties.getProperty("minerClass", null);
+		String minerClass = ctx.conf.getString("desq.mining.miner.class", null);
 		if (minerClass==null) {
-			throw new IllegalArgumentException("minerClass property not set");
+			throw new IllegalArgumentException("desq.mining.miner.class property not set");
 		}
 		try {
 			DesqMiner miner = (DesqMiner)Class.forName(minerClass)

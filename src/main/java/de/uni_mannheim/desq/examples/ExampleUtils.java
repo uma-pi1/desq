@@ -12,12 +12,13 @@ import de.uni_mannheim.desq.mining.DesqMinerContext;
 import de.uni_mannheim.desq.mining.Pattern;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.ConfigurationConverter;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URL;
-import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -29,7 +30,7 @@ public class ExampleUtils {
      */
     public static DesqMiner runMiner(SequenceReader dataReader, DesqMinerContext ctx) throws IOException {
         System.out.print("Miner properties: ");
-        System.out.println(ctx.properties);
+        System.out.println(ConfigurationConverter.getProperties(ctx.conf));
 
         System.out.print("Creating miner... ");
         Stopwatch prepTime = Stopwatch.createStarted();
@@ -60,13 +61,13 @@ public class ExampleUtils {
     /**
      * Creates a miner, runs it on the given data, and prints running times as well as pattern statistics.
      */
-    public static DesqMiner runWithStats(SequenceReader dataReader, Properties minerProperties) throws IOException {
+    public static DesqMiner runWithStats(SequenceReader dataReader, Configuration minerConf) throws IOException {
         // create context
         DesqMinerContext ctx = new DesqMinerContext();
         ctx.dict = dataReader.getDictionary();
         CountPatternWriter result = new CountPatternWriter();
         ctx.patternWriter = result;
-        ctx.properties = minerProperties;
+        ctx.conf = minerConf;
 
         // perform the mining
         DesqMiner miner = ExampleUtils.runMiner(dataReader, ctx);
@@ -80,13 +81,13 @@ public class ExampleUtils {
     /**
      * Creates a miner, runs it on the given data, and prints running times as well as all mined patterns.
      */
-    public static DesqMiner runVerbose(SequenceReader dataReader, Properties minerProperties) throws IOException {
+    public static DesqMiner runVerbose(SequenceReader dataReader, Configuration minerConf) throws IOException {
         // create context
         DesqMinerContext ctx = new DesqMinerContext();
         ctx.dict = dataReader.getDictionary();
         MemoryPatternWriter result = new MemoryPatternWriter();
         ctx.patternWriter = result;
-        ctx.properties = minerProperties;
+        ctx.conf = minerConf;
 
         // perform the mining
         DesqMiner miner = ExampleUtils.runMiner(dataReader, ctx);
@@ -104,16 +105,16 @@ public class ExampleUtils {
     }
 
     /** Runs a miner on NYT data. */
-    public static DesqMiner runNyt(Properties minerProperties) throws IOException {
+    public static DesqMiner runNyt(Configuration minerConf) throws IOException {
         Dictionary dict = DictionaryIO.loadFromDel(new FileInputStream("data-local/nyt-1991-dict.del"), true);
         File dataFile = new File("data-local/nyt-1991-data.del");
         SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), true);
         dataReader.setDictionary(dict);
-        return runWithStats(dataReader, minerProperties);
+        return runWithStats(dataReader, minerConf);
     }
 
     /** Runs a miner on ICDM16 example data. */
-    public static DesqMiner runIcdm16(Properties minerProperties) throws IOException {
+    public static DesqMiner runIcdm16(Configuration minerConf) throws IOException {
         URL dictFile = ExampleUtils.class.getResource("/icdm16-example/dict.del");
         URL dataFile = ExampleUtils.class.getResource("/icdm16-example/data.del");
 
@@ -140,6 +141,6 @@ public class ExampleUtils {
 
         dataReader = new DelSequenceReader(dataFile.openStream(), false);
         dataReader.setDictionary(dict);
-        return runVerbose(dataReader, minerProperties);
+        return runVerbose(dataReader, minerConf);
     }
 }

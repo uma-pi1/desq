@@ -6,12 +6,14 @@ import de.uni_mannheim.desq.fst.State;
 import de.uni_mannheim.desq.journal.edfa.ExtendedDfa;
 import de.uni_mannheim.desq.journal.edfa.ExtendedDfaState;
 import de.uni_mannheim.desq.patex.PatEx;
-import de.uni_mannheim.desq.util.PropertiesUtils;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.PropertiesConfiguration;
 import org.apache.log4j.Logger;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
 
 public final class DesqDfs extends MemoryDesqMiner {
 	private static final Logger logger = Logger.getLogger(DesqDfs.class);
@@ -74,13 +76,13 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 	public DesqDfs(DesqMinerContext ctx) {
 		super(ctx);
-		sigma = PropertiesUtils.getLong(ctx.properties, "minSupport");
+		sigma = ctx.conf.getLong("desq.mining.min.support");
 		largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
-        useTwoPass = PropertiesUtils.getBoolean(ctx.properties, "useTwoPass");
-        pruneIrrelevantInputs = PropertiesUtils.getBoolean(ctx.properties, "pruneIrrelevantInputs");
+        useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
+        pruneIrrelevantInputs = ctx.conf.getBoolean("desq.mining.prune.irrelevant.inputs");
 
         // construct pattern expression and FST
-		patternExpression = ".* [" + PropertiesUtils.get(ctx.properties, "patternExpression").trim() + "]";
+		patternExpression = ".* [" + ctx.conf.getString("desq.mining.pattern.expression").trim() + "]";
 		PatEx p = new PatEx(patternExpression, ctx.dict);
 		Fst tempFst = p.translate();
 		tempFst.minimize(); //TODO: move to translate
@@ -89,7 +91,8 @@ public final class DesqDfs extends MemoryDesqMiner {
             // two-pass will always prune irrelevant input sequences, so notify the user when the corresponding
             // property is not set
 			if (!pruneIrrelevantInputs) {
-				logger.warn("property pruneIrrelevantInputs=false will be ignored because useTwoPass=true");
+				logger.warn("property desq.mining.prune.irrelevant.inputs=false will be ignored because " +
+						"desq.mining.use.two.pass=true");
 			}
 
             // construct the DFA for the FST (for the forward pass)
@@ -124,17 +127,18 @@ public final class DesqDfs extends MemoryDesqMiner {
 			finalPos  = null;
 		}
 	}
-	
-	public static Properties createProperties(String patternExpression, long sigma) {
-		Properties properties = new Properties();
-		PropertiesUtils.set(properties, "patternExpression", patternExpression);
-		PropertiesUtils.set(properties, "minSupport", sigma);
-		PropertiesUtils.set(properties, "minerClass", DesqDfs.class.getCanonicalName());
-		PropertiesUtils.set(properties, "pruneIrrelevantInputs", false);
-		PropertiesUtils.set(properties, "useTwoPass", false);
-		return properties;
+
+	public static Configuration createConf(String patternExpression, long sigma) {
+		PropertiesConfiguration conf = new PropertiesConfiguration();
+		conf.setThrowExceptionOnMissing(true);
+		conf.setProperty("desq.mining.miner.class", DesqDfs.class.getCanonicalName());
+		conf.setProperty("desq.mining.min.support", sigma);
+		conf.setProperty("desq.mining.pattern.expression", patternExpression);
+		conf.setProperty("desq.mining.prune.irrelevant.inputs", false);
+		conf.setProperty("desq.mining.use.two.pass", false);
+		return conf;
 	}
-	
+
 	public void clear() {
 		inputSequences.clear();
         inputSequences.trimToSize();

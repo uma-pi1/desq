@@ -1,10 +1,9 @@
 package de.uni_mannheim.desq.examples;
 
 import de.uni_mannheim.desq.mining.DesqDfs;
-import de.uni_mannheim.desq.util.PropertiesUtils;
+import org.apache.commons.configuration2.Configuration;
 
 import java.io.IOException;
-import java.util.Properties;
 
 public class DesqDfsExample {
 	public static void nyt() throws IOException {
@@ -15,19 +14,19 @@ public class DesqDfsExample {
 		String patternExp = DesqDfs.patternExpressionFor(gamma, lambda, generalize);
 		patternExp = "(JJ@ JJ@ NN@)";
 
-		Properties properties = DesqDfs.createProperties(patternExp, sigma);
-		//PropertiesUtils.set(properties, "pruneIrrelevantInputs", true);
-		ExampleUtils.runNyt(properties);
+		Configuration conf = DesqDfs.createConf(patternExp, sigma);
+		// conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
+		ExampleUtils.runNyt(conf);
 	}
 
 	public static void icdm16() throws IOException {
 		String patternExp= "[c|d]([A^|B=^]+)e";
 		int sigma = 2;
 
-		Properties properties = DesqDfs.createProperties(patternExp, sigma);
-		PropertiesUtils.set(properties, "pruneIrrelevantInputs", true);
-		PropertiesUtils.set(properties, "useTwoPass", true);
-		ExampleUtils.runIcdm16(properties);
+		Configuration conf = DesqDfs.createConf(patternExp, sigma);
+		conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
+		conf.setProperty("desq.mining.use.two.pass", true);
+		ExampleUtils.runIcdm16(conf);
 	}
 
 	public static void main(String[] args) throws IOException {

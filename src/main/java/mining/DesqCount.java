@@ -9,7 +9,6 @@ import java.util.Map;
 import de.uni_mannheim.desq.util.IntArrayStrategy;
 import driver.DesqConfig.Match;
 import fst.XFst;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenCustomHashMap;
 import utils.Dictionary;
 import utils.PrimitiveUtils;

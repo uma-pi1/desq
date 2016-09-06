@@ -4,6 +4,7 @@ import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.io.DelPatternWriter;
 import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.util.TestUtils;
+import org.apache.commons.configuration2.Configuration;
 import org.apache.log4j.Logger;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -13,7 +14,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -48,11 +48,8 @@ public abstract class TraditionalMiningTest {
     /** Base file name for expected outputs */
     public abstract String getBaseFileName();
 
-    /** Class of miner */
-    public abstract Class<? extends DesqMiner> getMinerClass();
-
     /** Properties for miner */
-    public abstract Properties createProperties();
+    public abstract Configuration createConf();
 
     @Test
     public void test() throws IOException,
@@ -94,8 +91,8 @@ public abstract class TraditionalMiningTest {
         DelPatternWriter patternWriter = new DelPatternWriter(new FileOutputStream(outputDelFile), DelPatternWriter.TYPE.GID);
         patternWriter.setDictionary(dict);
         ctx.patternWriter = patternWriter;
-        ctx.properties = createProperties();
-        DesqMiner miner = getMinerClass().getConstructor(DesqMinerContext.class).newInstance(ctx);
+        ctx.conf = createConf();
+        DesqMiner miner = DesqMiner.create(ctx);
         miner.addInputSequences(dataReader);
         dataReader.close();
         miner.mine();

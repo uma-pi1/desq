@@ -1,8 +1,6 @@
 package de.uni_mannheim.desq.mining;
 
-import java.util.Properties;
-
-import de.uni_mannheim.desq.util.PropertiesUtils;
+import org.apache.commons.configuration2.Configuration;
 
 public class CompressedDesqDfsIcdm16Test extends Icdm16TraditionalMiningTest {
 
@@ -11,16 +9,10 @@ public class CompressedDesqDfsIcdm16Test extends Icdm16TraditionalMiningTest {
 	}
 
 	@Override
-	public Class<? extends DesqMiner> getMinerClass() {
-		return CompressedDesqDfs.class;
-	}
-
-	@Override
-	public Properties createProperties() {
-		Properties properties = new Properties();
-        PropertiesUtils.set(properties, "minSupport", sigma);
-        PropertiesUtils.set(properties, "patternExpression", DesqMiner.patternExpressionFor(gamma, lambda, generalize));
-        return properties;
+	public Configuration createConf() {
+		String patternExpression = DesqMiner.patternExpressionFor(gamma, lambda, generalize);
+		Configuration conf = CompressedDesqDfs.createConf(patternExpression, sigma);
+		return conf;
 	}
 
 }

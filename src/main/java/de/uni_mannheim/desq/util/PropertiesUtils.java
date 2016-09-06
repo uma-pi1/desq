@@ -5,6 +5,7 @@ import java.util.Properties;
 /**
  * Created by rgemulla on 18.07.2016.
  */
+@Deprecated // we are now using Configuration instead
 public class PropertiesUtils {
     /**
      *

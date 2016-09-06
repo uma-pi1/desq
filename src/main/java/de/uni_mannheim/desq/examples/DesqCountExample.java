@@ -12,14 +12,14 @@ public class DesqCountExample {
 		boolean generalize = true;
 		String patternExp = DesqCount.patternExpressionFor(gamma, lambda, generalize);
 
-		ExampleUtils.runNyt( DesqCount.createProperties(patternExp, sigma) );
+		ExampleUtils.runNyt( DesqCount.createConf(patternExp, sigma) );
 	}
 
 	public static void icdm16() throws IOException {
 		String patternExpression = "[c|d]([A^|B=^]+)e";
 		int sigma = 2;
 
-		ExampleUtils.runIcdm16( DesqCount.createProperties(patternExpression, sigma) );
+		ExampleUtils.runIcdm16( DesqCount.createConf(patternExpression, sigma) );
 	}
 
 	public static void main(String[] args) throws IOException {

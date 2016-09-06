@@ -1,10 +1,8 @@
 package de.uni_mannheim.desq.mining;
 
-import de.uni_mannheim.desq.util.PropertiesUtils;
+import org.apache.commons.configuration2.Configuration;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-
-import java.util.Properties;
 
 /**
  * Created by rgemulla on 16.7.2016.
@@ -16,15 +14,9 @@ public class DesqCountIcdm16Test extends Icdm16TraditionalMiningTest {
     }
 
     @Override
-    public Class<? extends DesqMiner> getMinerClass() {
-        return DesqCount.class;
-    }
-
-    @Override
-    public Properties createProperties() {
-        Properties properties = new Properties();
-        PropertiesUtils.set(properties, "minSupport", sigma);
-        PropertiesUtils.set(properties, "patternExpression", DesqMiner.patternExpressionFor(gamma, lambda, generalize));
-        return properties;
+    public Configuration createConf() {
+        String patternExpression = DesqMiner.patternExpressionFor(gamma, lambda, generalize);
+        Configuration conf = DesqCount.createConf(patternExpression, sigma);
+        return conf;
     }
 }

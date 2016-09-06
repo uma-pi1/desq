@@ -41,13 +41,12 @@ public class DesqCountWithPruning extends DesqMiner {
 
 	public DesqCountWithPruning(DesqMinerContext ctx) {
 		super(ctx);
-		this.sigma = PropertiesUtils.getLong(ctx.properties, "minSupport");
-		if (PropertiesUtils.isSet(ctx.properties, "useFlist"))
-			this.useFlist = PropertiesUtils.getBoolean(ctx.properties, "useFlist");
+		this.sigma = ctx.conf.getLong("minSupport");
+		this.useFlist = ctx.conf.getBoolean("useFlist", true);
 		this.largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
 		this.sid = 0;
 
-		this.patternExpression = PropertiesUtils.get(ctx.properties, "patternExpression");
+		this.patternExpression = ctx.conf.getString("patternExpression");
 		patternExpression = ".* [" + patternExpression.trim() + "]";
 		PatEx p = new PatEx(patternExpression, ctx.dict);
 		this.fst = p.translate();

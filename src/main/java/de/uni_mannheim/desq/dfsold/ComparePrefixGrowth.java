@@ -71,7 +71,7 @@ public class ComparePrefixGrowth {
 		patternWriter.setDictionary(dict);
         CountPatternWriter cpw = new CountPatternWriter();
 		ctx.patternWriter = cpw;
-		ctx.properties = PrefixGrowthMiner.createProperties(sigma, gamma, lambda, generalize);
+		ctx.conf = PrefixGrowthMiner.createConf(sigma, gamma, lambda, generalize);
 		
 		DesqMiner miner =  new PrefixGrowthMiner(ctx);
 		
@@ -126,7 +126,7 @@ public class ComparePrefixGrowth {
         patternWriter.setDictionary(dict);
         CountPatternWriter cpw = new CountPatternWriter();
         ctx.patternWriter = cpw;
-        ctx.properties = PrefixGrowthMiner.createProperties(sigma, gamma, lambda, generalize);
+        ctx.conf = PrefixGrowthMinerTemp.createConf(sigma, gamma, lambda, generalize);
 
         DesqMiner miner =  new PrefixGrowthMinerTemp(ctx);
 

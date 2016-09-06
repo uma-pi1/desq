@@ -46,8 +46,8 @@ public class DesqDfsWithPruning extends MemoryDesqMiner {
 	
 	public DesqDfsWithPruning(DesqMinerContext ctx) {
 		super(ctx);
-		this.patternExpression = PropertiesUtils.get(ctx.properties, "patternExpression");
-		this.sigma = PropertiesUtils.getLong(ctx.properties, "minSupport");
+		this.patternExpression = ctx.conf.getString("patternExpression");
+		this.sigma = ctx.conf.getLong("minSupport");
 		
 		// fst
 		patternExpression = ".* [" + patternExpression.trim() + "]";

@@ -1,9 +1,8 @@
 package de.uni_mannheim.desq.mining;
 
+import org.apache.commons.configuration2.Configuration;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-
-import java.util.Properties;
 
 /**
  * Created by rgemulla on 16.7.2016.
@@ -15,12 +14,7 @@ public class PrefixGrowthMinerIcdm16Test extends Icdm16TraditionalMiningTest {
     }
 
     @Override
-    public Class<? extends DesqMiner> getMinerClass() {
-        return PrefixGrowthMiner.class;
-    }
-
-    @Override
-    public Properties createProperties() {
-        return PrefixGrowthMiner.createProperties(sigma, gamma, lambda, generalize);
+    public Configuration createConf() {
+        return PrefixGrowthMiner.createConf(sigma, gamma, lambda, generalize);
     }
 }

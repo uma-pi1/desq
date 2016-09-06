@@ -1,17 +1,14 @@
 package de.uni_mannheim.desq.mining;
 
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntList;
-//import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-//import it.unimi.dsi.fastutil.ints.IntSet;
-
-import java.util.Iterator;
-import java.util.Properties;
-
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.ItemState;
 import de.uni_mannheim.desq.patex.PatEx;
-import de.uni_mannheim.desq.util.PropertiesUtils;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.PropertiesConfiguration;
+
+import java.util.Iterator;
 
 /**
  * CompressedDesqDfs.java
@@ -35,8 +32,8 @@ public class CompressedDesqDfs extends CompressedMemoryDesqMiner {
 	public CompressedDesqDfs(DesqMinerContext ctx) {
 		super(ctx);
 		inputOffsets = new IntArrayList();
-		this.patternExpression = PropertiesUtils.get(ctx.properties, "patternExpression");
-		this.sigma = PropertiesUtils.getLong(ctx.properties, "minSupport");
+		this.patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
+		this.sigma = ctx.conf.getLong("desq.mining.min.support");
 		
 		patternExpression = ".* [" + patternExpression.trim() + "]";
 		PatEx p = new PatEx(patternExpression, ctx.dict);
@@ -48,11 +45,13 @@ public class CompressedDesqDfs extends CompressedMemoryDesqMiner {
 	}
 
 	
-	public static Properties createProperties(String patternExpression, int sigma) {
-		Properties properties = new Properties();
-		PropertiesUtils.set(properties, "patternExpression", patternExpression);
-		PropertiesUtils.set(properties, "minSupport", sigma);
-		return properties;
+	public static Configuration createConf(String patternExpression, long sigma) {
+		PropertiesConfiguration conf = new PropertiesConfiguration();
+		conf.setThrowExceptionOnMissing(true);
+		conf.setProperty("desq.mining.miner.class", CompressedDesqDfs.class.getCanonicalName());
+		conf.setProperty("desq.mining.min.support", sigma);
+		conf.setProperty("desq.mining.pattern.expression", patternExpression);
+		return conf;
 	}
 	
 	@Override

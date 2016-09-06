@@ -11,7 +11,7 @@ public class PrefixGrowthExample {
 		int lambda = 3;
 		boolean generalize = true;
 
-		ExampleUtils.runNyt( PrefixGrowthMiner.createProperties(sigma,gamma,lambda,generalize) );
+		ExampleUtils.runNyt( PrefixGrowthMiner.createConf(sigma,gamma,lambda,generalize) );
 	}
 
 	public static void icdm16() throws IOException {
@@ -20,7 +20,7 @@ public class PrefixGrowthExample {
 		int lambda = 3;
 		boolean generalize = true;
 
-		ExampleUtils.runIcdm16( PrefixGrowthMiner.createProperties(sigma,gamma,lambda,generalize) );
+		ExampleUtils.runIcdm16( PrefixGrowthMiner.createConf(sigma,gamma,lambda,generalize) );
 	}
 
 	public static void main(String[] args) throws IOException {

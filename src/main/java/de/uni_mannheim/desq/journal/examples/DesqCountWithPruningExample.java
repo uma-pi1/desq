@@ -16,6 +16,7 @@ import de.uni_mannheim.desq.journal.mining.DesqCountWithPruning;
 import de.uni_mannheim.desq.mining.DesqMiner;
 import de.uni_mannheim.desq.mining.DesqMinerContext;
 import de.uni_mannheim.desq.mining.Pattern;
+import org.apache.commons.configuration2.ConfigurationConverter;
 
 public class DesqCountWithPruningExample {
 void icdm16() throws IOException {
@@ -52,12 +53,12 @@ void icdm16() throws IOException {
 		dataReader = new DelSequenceReader(dataFile.openStream(), false);
 		dataReader.setDictionary(dict);
 		DesqMinerContext ctx = new DesqMinerContext();
-		ctx.properties = DesqCountWithPruning.createProperties(patternExpression, sigma);
+		ctx.conf = ConfigurationConverter.getConfiguration(DesqCountWithPruning.createProperties(patternExpression, sigma));
 		MemoryPatternWriter result = new MemoryPatternWriter();
 		ctx.patternWriter = result;
 		ctx.dict = dict;
 		
-		System.out.println("\nPatterns " + ctx.properties.toString());
+		System.out.println("\nPatterns " + ConfigurationConverter.getProperties(ctx.conf));
 		//DesqMiner miner = new DesqCountWithPruning(ctx);
 		DesqMiner miner = new DesqCountIterativeWithPruning(ctx);
 		

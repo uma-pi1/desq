@@ -15,6 +15,7 @@ import de.uni_mannheim.desq.journal.mining.DesqDfsTwoPass;
 import de.uni_mannheim.desq.mining.DesqMiner;
 import de.uni_mannheim.desq.mining.DesqMinerContext;
 import de.uni_mannheim.desq.mining.Pattern;
+import org.apache.commons.configuration2.ConfigurationConverter;
 
 public class DesqDfsTwoPassExample {
 	void icdm16() throws IOException {
@@ -51,8 +52,8 @@ public class DesqDfsTwoPassExample {
 		ctx.dict = dict;
 		MemoryPatternWriter result = new MemoryPatternWriter();
 		ctx.patternWriter = result;
-		ctx.properties = DesqDfsTwoPass.createProperties(patternExpression, sigma);
-		System.out.println("\nPatterns " + ctx.properties.toString());
+		ctx.conf = ConfigurationConverter.getConfiguration(DesqDfsTwoPass.createProperties(patternExpression, sigma));
+		System.out.println("\nPatterns " + ConfigurationConverter.getProperties(ctx.conf));
 		
 		DesqMiner miner = new DesqDfsTwoPass(ctx);
 		miner.addInputSequences(dataReader);

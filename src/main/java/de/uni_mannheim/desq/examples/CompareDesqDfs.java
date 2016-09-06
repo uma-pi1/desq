@@ -15,7 +15,6 @@ import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.mining.DesqDfs;
 import de.uni_mannheim.desq.mining.DesqMiner;
 import de.uni_mannheim.desq.mining.DesqMinerContext;
-import de.uni_mannheim.desq.util.PropertiesUtils;
 
 
 public class CompareDesqDfs {
@@ -100,9 +99,9 @@ public class CompareDesqDfs {
 		        new FileOutputStream(outputFile+"-NEW-"+pruneIrrelevantInputSequences+"-"+useTwoPass), DelPatternWriter.TYPE.SID);
 		patternWriter.setDictionary(dict);
 		ctx.patternWriter = patternWriter;
-		ctx.properties = DesqDfs.createProperties(patternExpression, sigma);
-		PropertiesUtils.set(ctx.properties, "pruneIrrelevantInputs", pruneIrrelevantInputSequences);
-        PropertiesUtils.set(ctx.properties, "useTwoPass", useTwoPass);
+		ctx.conf = DesqDfs.createConf(patternExpression, sigma);
+		ctx.conf.setProperty("desq.mining.prune.irrelevant.inputs", pruneIrrelevantInputSequences);
+		ctx.conf.setProperty("desq.mining.use.two.pass", useTwoPass);
 
 		System.out.println("Translating pattern expr." + patternExpression);
 		

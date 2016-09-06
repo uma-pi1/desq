@@ -15,6 +15,7 @@ import de.uni_mannheim.desq.journal.mining.DesqCountTwoPass;
 import de.uni_mannheim.desq.mining.DesqMiner;
 import de.uni_mannheim.desq.mining.DesqMinerContext;
 import de.uni_mannheim.desq.mining.Pattern;
+import org.apache.commons.configuration2.ConfigurationConverter;
 
 public class DesqCountTwoPassExample {
 
@@ -50,13 +51,13 @@ public class DesqCountTwoPassExample {
 		dataReader = new DelSequenceReader(dataFile.openStream(), false);
 		dataReader.setDictionary(dict);
 		DesqMinerContext ctx = new DesqMinerContext();
-		ctx.properties = DesqCountTwoPass.createProperties(patternExpression, sigma);
+		ctx.conf = ConfigurationConverter.getConfiguration(DesqCountTwoPass.createProperties(patternExpression, sigma));
 		
 		MemoryPatternWriter result = new MemoryPatternWriter();
 		ctx.patternWriter = result;
 		ctx.dict = dict;
 		
-		System.out.println("\nPatterns " + ctx.properties.toString());
+		System.out.println("\nPatterns " + ConfigurationConverter.getProperties(ctx.conf));
 		DesqMiner miner = new DesqCountTwoPass(ctx);
 		
 		miner.addInputSequences(dataReader);

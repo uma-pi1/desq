@@ -1,10 +1,8 @@
 package de.uni_mannheim.desq.mining;
 
-import de.uni_mannheim.desq.util.PropertiesUtils;
+import org.apache.commons.configuration2.Configuration;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-
-import java.util.Properties;
 
 /**
  * Created by rgemulla on 16.7.2016.
@@ -16,16 +14,11 @@ public class DesqDfsTwoPassTest extends Icdm16TraditionalMiningTest {
     }
 
     @Override
-    public Class<? extends DesqMiner> getMinerClass() {
-        return DesqDfs.class;
-    }
-
-    @Override
-    public Properties createProperties() {
+    public Configuration createConf() {
         String patternExpression = DesqMiner.patternExpressionFor(gamma, lambda, generalize);
-        Properties properties = DesqDfs.createProperties(patternExpression, sigma);
-        PropertiesUtils.set(properties, "pruneIrrelevantInputs", true);
-        PropertiesUtils.set(properties, "useTwoPass", true);
-        return properties;
+        Configuration conf = DesqDfs.createConf(patternExpression, sigma);
+        conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
+        conf.setProperty("desq.mining.use.two.pass", true);
+        return conf;
     }
 }

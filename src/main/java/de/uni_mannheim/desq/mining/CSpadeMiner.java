@@ -3,15 +3,15 @@ package de.uni_mannheim.desq.mining;
 
 import de.uni_mannheim.desq.dictionary.Item;
 import de.uni_mannheim.desq.util.IntArrayStrategy;
-import de.uni_mannheim.desq.util.PropertiesUtils;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenCustomHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.PropertiesConfiguration;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
-import java.util.Properties;
 
 public class CSpadeMiner extends DesqMiner {
 
@@ -116,7 +116,7 @@ public class CSpadeMiner extends DesqMiner {
 
     public CSpadeMiner(DesqMinerContext ctx) {
 		super(ctx);
-        setParameters(ctx.properties);
+        setParameters(ctx.conf);
 	}
 
 	/** Flushes all internal data structures. */
@@ -130,22 +130,25 @@ public class CSpadeMiner extends DesqMiner {
 		inputSupports.clear();
 	}
 
-    public static Properties createProperties(long sigma, int gamma, int lambda, boolean generalize) {
-        Properties properties = new Properties();
-        PropertiesUtils.set(properties, "minSupport", sigma);
-        PropertiesUtils.set(properties, "maxGap", gamma);
-        PropertiesUtils.set(properties, "maxLength", lambda);
-        PropertiesUtils.set(properties, "generalize", generalize);
-        return properties;
-    }
+	public static Configuration createConf(long sigma, int gamma, int lambda, boolean generalize) {
+		PropertiesConfiguration conf = new PropertiesConfiguration();
+		conf.setThrowExceptionOnMissing(true);
+		conf.setProperty("desq.mining.miner.class", CSpadeMiner.class.getCanonicalName());
+		conf.setProperty("desq.mining.min.support", sigma);
+		conf.setProperty("desq.mining.max.gap", gamma);
+		conf.setProperty("desq.mining.max.length", lambda);
+		conf.setProperty("desq.mining.generalize", generalize);
 
-    public void setParameters(Properties properties) {
-        long sigma = PropertiesUtils.getLong(properties, "minSupport");
-        int gamma = PropertiesUtils.getInt(properties, "maxGap");
-        int lambda = PropertiesUtils.getInt(properties, "maxLength");
-        boolean generalize = PropertiesUtils.getBoolean(properties, "generalize");
-        setParameters(sigma, gamma, lambda, generalize);
-    }
+		return conf;
+	}
+
+	public void setParameters(Configuration conf) {
+		long sigma = conf.getLong("desq.mining.min.support");
+		int gamma = conf.getInt("desq.mining.max.gap");
+		int lambda = conf.getInt("desq.mining.max.length");
+		boolean generalize = conf.getBoolean("desq.mining.generalize");
+		setParameters(sigma, gamma, lambda, generalize);
+	}
 
     public void setParameters(long sigma, int gamma, int lambda, boolean generalize) {
         this.sigma = sigma;

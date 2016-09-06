@@ -1,19 +1,19 @@
 package de.uni_mannheim.desq.mining;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Properties;
-
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.ItemState;
 import de.uni_mannheim.desq.patex.PatEx;
 import de.uni_mannheim.desq.util.PrimitiveUtils;
-import de.uni_mannheim.desq.util.PropertiesUtils;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.PropertiesConfiguration;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.Map;
 
 public class DesqCount extends DesqMiner {
 	
@@ -35,13 +35,12 @@ public class DesqCount extends DesqMiner {
 
 	public DesqCount(DesqMinerContext ctx) {
 		super(ctx);
-		this.sigma = PropertiesUtils.getLong(ctx.properties, "minSupport");
-		if(PropertiesUtils.isSet(ctx.properties, "useFlist"))
-			this.useFlist = PropertiesUtils.getBoolean(ctx.properties, "useFlist");
+		this.sigma = ctx.conf.getLong("desq.mining.min.support");
+		this.useFlist = ctx.conf.getBoolean("desq.mining.use.flist");
 		this.largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
 		this.sid = 0;
 		
-		this.patternExpression = PropertiesUtils.get(ctx.properties, "patternExpression");
+		this.patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
 		patternExpression = ".* [" + patternExpression.trim() + "]";
 		PatEx p = new PatEx(patternExpression, ctx.dict);
 		this.fst = p.translate();
@@ -51,15 +50,17 @@ public class DesqCount extends DesqMiner {
 		buffer = new IntArrayList();
 		
 	}
-	
-	public static Properties createProperties(String patternExpression, int sigma) {
-		Properties properties = new Properties();
-		PropertiesUtils.set(properties, "patternExpression", patternExpression);
-		PropertiesUtils.set(properties, "minSupport", sigma);
-		PropertiesUtils.set(properties, "minerClass", DesqCount.class.getCanonicalName());
-		return properties;
+
+	public static Configuration createConf(String patternExpression, long sigma) {
+		PropertiesConfiguration conf = new PropertiesConfiguration();
+		conf.setThrowExceptionOnMissing(true);
+		conf.setProperty("desq.mining.miner.class", DesqCount.class.getCanonicalName());
+		conf.setProperty("desq.mining.min.support", sigma);
+		conf.setProperty("desq.mining.pattern.expression", patternExpression);
+		conf.setProperty("desq.mining.use.flist", true);
+		return conf;
 	}
-	
+
 	@Override
 	protected void addInputSequence(IntList inputSequence) {
 		this.inputSequence = inputSequence;

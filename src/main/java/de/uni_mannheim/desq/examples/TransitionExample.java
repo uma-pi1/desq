@@ -1,7 +1,6 @@
 package de.uni_mannheim.desq.examples;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Iterator;
 

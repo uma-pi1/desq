@@ -53,8 +53,8 @@ public class CompressedDesqDfsExample {
 		ctx.dict = dict;
 		MemoryPatternWriter result = new MemoryPatternWriter();
 		ctx.patternWriter = result;
-		ctx.properties = CompressedDesqDfs.createProperties(patternExpression, sigma);
-		System.out.println("\nPatterns " + ctx.properties.toString());
+		ctx.conf = CompressedDesqDfs.createConf(patternExpression, sigma);
+		System.out.println("\nPatterns " + ctx.conf.toString());
 		
 		DesqMiner miner = new CompressedDesqDfs(ctx);
 		miner.addInputSequences(dataReader);
