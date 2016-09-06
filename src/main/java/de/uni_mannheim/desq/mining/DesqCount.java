@@ -3,6 +3,7 @@ package de.uni_mannheim.desq.mining;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.ItemState;
 import de.uni_mannheim.desq.fst.State;
+import de.uni_mannheim.desq.journal.edfa.ExtendedDfa;
 import de.uni_mannheim.desq.patex.PatEx;
 import de.uni_mannheim.desq.util.PrimitiveUtils;
 import it.unimi.dsi.fastutil.booleans.BooleanArrayList;
@@ -34,7 +35,7 @@ public final class DesqCount extends DesqMiner {
 	final boolean iterative;
 
 	/** If true, input sequences that do not match the pattern expression are pruned */
-	final boolean pruneIrrelevantInputs = false;
+	final boolean pruneIrrelevantInputs;
 
 	/** If true, the two-pass algorithm for DesqDfs is used */
 	final boolean useTwoPass = false;
@@ -77,6 +78,11 @@ public final class DesqCount extends DesqMiner {
 	 * Used to avoid unnecessary duplicate output checking */
 	final BooleanList prefixOutput;
 
+	// -- helper variables for pruning and twopass --------------------------------------------------------------------
+
+	/** The DFA corresponding to the pattern expression. Accepts if the FST can reach a final state on an input */
+	final ExtendedDfa edfa;
+
 	// -- construction/clearing ---------------------------------------------------------------------------------------
 
 	public DesqCount(DesqMinerContext ctx) {
@@ -84,6 +90,7 @@ public final class DesqCount extends DesqMiner {
 		this.sigma = ctx.conf.getLong("desq.mining.min.support");
 		this.useFlist = ctx.conf.getBoolean("desq.mining.use.flist");
 		this.iterative = ctx.conf.getBoolean("desq.mining.iterative");
+		this.pruneIrrelevantInputs = ctx.conf.getBoolean("desq.mining.prune.irrelevant.inputs");
 		this.largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
 		this.inputId = 0;
 		
@@ -91,6 +98,13 @@ public final class DesqCount extends DesqMiner {
 		PatEx p = new PatEx(patternExpression, ctx.dict);
 		this.fst = p.translate();
 		fst.minimize();//TODO: move to translate
+
+		// if we prune irrelevant inputs, construct the DFS for the FST
+		if (pruneIrrelevantInputs) {
+			this.edfa = new ExtendedDfa(fst, ctx.dict);
+		} else {
+			this.edfa = null;
+		}
 
 		prefix = new IntArrayList();
 		prefixModified = new BooleanArrayList();
@@ -106,6 +120,7 @@ public final class DesqCount extends DesqMiner {
 		conf.setProperty("desq.mining.pattern.expression", patternExpression);
 		conf.setProperty("desq.mining.use.flist", true);
 		conf.setProperty("desq.mining.iterative", true);
+		conf.setProperty("desq.mining.prune.irrelevant.inputs", false);
 		return conf;
 	}
 
@@ -116,12 +131,16 @@ public final class DesqCount extends DesqMiner {
 	protected void addInputSequence(IntList inputSequence) {
 		assert prefix.isEmpty(); // will be maintained by step()
 		this.inputSequence = inputSequence;
-		if (iterative) {
-			stepIterative();
-		} else {
-			step(0, fst.getInitialState());
+
+		// one-pass version of DesqCount
+		if (!pruneIrrelevantInputs || edfa.isRelevant(inputSequence, 0, 0)) {
+			if (iterative) {
+				stepIterative();
+			} else {
+				step(0, fst.getInitialState());
+			}
+			inputId++;
 		}
-		inputId++;
 	}
 
 	// -- mining ------------------------------------------------------------------------------------------------------
@@ -232,7 +251,6 @@ public final class DesqCount extends DesqMiner {
 			// get next output item/state pair for current position
 			final ItemState itemState = itemStateIt.next();
 			final int outputItemFid = itemState.itemFid;
-			final State toState = itemState.state;
 
 			// skip irrelevant items
 			if (useFlist && largestFrequentFid < outputItemFid) {
@@ -252,6 +270,7 @@ public final class DesqCount extends DesqMiner {
 			}
 
 			// if we reached a final state, we count the current sequence (if any)
+			final State toState = itemState.state;
 			if (toState.isFinal() && !prefix.isEmpty() && !prefixOutput.getBoolean(prefix.size())) {
 				countSequence(prefix);
 				prefixOutput.set(prefix.size(), true);

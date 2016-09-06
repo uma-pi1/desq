@@ -30,18 +30,19 @@ public class CompareDesqCount {
 	String outputFile = "tmp/output";
 	
 	
-	public void run(boolean iterative) throws IOException {
+	public void run(boolean iterative, boolean pruneIrrelevantInputs) throws IOException {
 		Dictionary dict = DictionaryIO.loadFromDel(new FileInputStream(dictFile), true);
 		SequenceReader dataReader = new DelSequenceReader(new FileInputStream(inputFile), true);
 		dataReader.setDictionary(dict);
 		DesqMinerContext ctx = new DesqMinerContext();
 		ctx.dict = dict;
 		DelPatternWriter patternWriter = new DelPatternWriter(
-		        new FileOutputStream(outputFile+"-DesqCount-"+iterative), DelPatternWriter.TYPE.SID);
+		        new FileOutputStream(outputFile+"-DesqCount-"+iterative+"-"+pruneIrrelevantInputs), DelPatternWriter.TYPE.SID);
 		patternWriter.setDictionary(dict);
 		ctx.patternWriter = patternWriter;
 		ctx.conf = DesqCount.createConf(patternExpression, sigma);
 		ctx.conf.setProperty("desq.mining.iterative", iterative);
+		ctx.conf.setProperty("desq.mining.prune.irrelevant.inputs", pruneIrrelevantInputs);
 
 		ExampleUtils.runMiner(dataReader, ctx);
 		patternWriter.close();
@@ -58,10 +59,9 @@ public class CompareDesqCount {
 		System.out.println("MiningTime = " + miningTime.elapsed(TimeUnit.SECONDS));
 		*/
 
-		cdc.run(false);
-		cdc.run(false);
-		cdc.run(true);
-		cdc.run(true);
+		cdc.run(false, false);
+		cdc.run(true, false);
+		cdc.run(true, true);
 	}
 	
 	
