@@ -1,6 +1,7 @@
 package de.uni_mannheim.desq.examples;
 
 import de.uni_mannheim.desq.mining.DesqCount;
+import org.apache.commons.configuration2.Configuration;
 
 import java.io.IOException;
 
@@ -19,7 +20,9 @@ public class DesqCountExample {
 		String patternExpression = "[c|d]([A^|B=^]+)e";
 		int sigma = 2;
 
-		ExampleUtils.runIcdm16( DesqCount.createConf(patternExpression, sigma) );
+		Configuration conf = DesqCount.createConf(patternExpression, sigma);
+		//conf.setProperty("desq.mining.iterative", false);
+		ExampleUtils.runIcdm16(conf);
 	}
 
 	public static void main(String[] args) throws IOException {

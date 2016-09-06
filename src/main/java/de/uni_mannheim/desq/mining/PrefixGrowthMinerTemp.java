@@ -19,7 +19,7 @@ public class PrefixGrowthMinerTemp extends MemoryDesqMiner {
 	private int beginItem = 0;
     private int endItem = Integer.MAX_VALUE;
     private int largestFrequentFid; // used to quickly determine whether an item is frequent
-    private final IntSet ascendants = new IntAVLTreeSet(); // used as a buffer for ascendant items
+    private final IntSet ascendants = new IntAVLTreeSet(); // used as a prefix for ascendant items
     final PostingList.Iterator projectedDatabaseIt = new PostingList.Iterator(); // used to access posting lists
 
 	public PrefixGrowthMinerTemp(DesqMinerContext ctx) {

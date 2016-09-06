@@ -272,7 +272,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 			if (outputItemFid == 0) { // EPS output
                 // we did not get an output, so continue running the FST
-				reachedFinalStateWithoutOutput |= incStepOnePass(args, pos+1, toState, level+1);
+				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
+				reachedFinalStateWithoutOutput |= incStepOnePass(args, pos+1, toState, newLevel);
 			} else if (largestFrequentFid >= outputItemFid) {
 			    // we have an output and its frequent, so update the corresponding projected database
 				args.node.expandWithItem(outputItemFid, args.inputId, args.inputSupport,
@@ -328,7 +329,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 			final int outputItemFid = itemState.itemFid;
 			if (outputItemFid == 0) { // EPS output
                 // we did not get an output, so continue running the reverse FST
-				reachedInitialStateWithoutOutput |= incStepTwoPass(args, pos-1, toState, level+1);
+				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
+				reachedInitialStateWithoutOutput |= incStepTwoPass(args, pos-1, toState, newLevel);
 			} else if (largestFrequentFid >= outputItemFid) {
                 // we have an output and its frequent, so update the corresponding projected database
 				// Note: we do not store pos-1 in the projected database to having avoid write -1's when the

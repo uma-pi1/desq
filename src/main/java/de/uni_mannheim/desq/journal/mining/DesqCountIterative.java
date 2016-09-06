@@ -1,7 +1,9 @@
-package de.uni_mannheim.desq.mining;
+package de.uni_mannheim.desq.journal.mining;
 
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.ItemState;
+import de.uni_mannheim.desq.mining.DesqMiner;
+import de.uni_mannheim.desq.mining.DesqMinerContext;
 import de.uni_mannheim.desq.patex.PatEx;
 import de.uni_mannheim.desq.util.PrimitiveUtils;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -14,7 +16,7 @@ import org.apache.commons.configuration2.PropertiesConfiguration;
 import java.util.Iterator;
 import java.util.Map;
 
-// TODO: integrate into DesqCount
+// TODO: already integrated into DesqCount
 public class DesqCountIterative extends DesqMiner {
 
 	// parameters for mining

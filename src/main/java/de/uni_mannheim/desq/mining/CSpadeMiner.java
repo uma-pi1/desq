@@ -83,7 +83,7 @@ public class CSpadeMiner extends DesqMiner {
 		int lastPosition;
 	}
 
-	/** Used as a temporary buffer during data input. */
+	/** Used as a temporary prefix during data input. */
 	protected final int[] twoSequence = new int[2];
 
 	/**
