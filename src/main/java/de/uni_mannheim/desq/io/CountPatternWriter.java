@@ -3,8 +3,6 @@ package de.uni_mannheim.desq.io;
 import de.uni_mannheim.desq.mining.Pattern;
 import it.unimi.dsi.fastutil.ints.IntList;
 
-import java.util.Collection;
-
 /**
  * Created by rgemulla on 16.08.2016.
  */

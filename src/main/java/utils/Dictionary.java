@@ -40,9 +40,9 @@ public class Dictionary {
 	protected int[][] children;
 	
 	//TODO: Use String[]
-	Int2ObjectOpenHashMap<String> itemIdToItemMap = new Int2ObjectOpenHashMap<String>();
+	Int2ObjectOpenHashMap<String> itemIdToItemMap = new Int2ObjectOpenHashMap<>();
 
-	Object2IntOpenHashMap<String> itemToItemIdMap = new Object2IntOpenHashMap<String>();
+	Object2IntOpenHashMap<String> itemToItemIdMap = new Object2IntOpenHashMap<>();
 	
 	public void load(String fileName) throws IOException {
 
@@ -52,7 +52,7 @@ public class Dictionary {
 		DataInputStream in = new DataInputStream(fstream);
 		br = new BufferedReader(new InputStreamReader(in));
 
-		ObjectArrayList<int[]> parentList = new ObjectArrayList<int[]>();
+		ObjectArrayList<int[]> parentList = new ObjectArrayList<>();
 		parentList.add(new int[0]);
 		
 		IntArrayList supportList = new IntArrayList();

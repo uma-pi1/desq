@@ -23,9 +23,9 @@ public class Fst {
 	Fst() {
 		this.initialState = new State();
 		this.numStates = -1;
-	};
+	}
 
-	
+
 	Fst(State initialState) {
 		this.initialState = initialState;
 		this.numStates = -1;
@@ -43,9 +43,9 @@ public class Fst {
 
 	
 	public Set<State> getAcceptStates() {
-		HashSet<State> accepts = new HashSet<State>();
-		HashSet<State> visited = new HashSet<State>();
-		LinkedList<State> worklist = new LinkedList<State>();
+		HashSet<State> accepts = new HashSet<>();
+		HashSet<State> visited = new HashSet<>();
+		LinkedList<State> worklist = new LinkedList<>();
 		worklist.add(initialState);
 		visited.add(initialState);
 		while (worklist.size() > 0) {
@@ -64,8 +64,8 @@ public class Fst {
 	
 	public int getNumStates() {
 		if (numStates < 0) {
-			HashSet<State> visited = new HashSet<State>();
-			LinkedList<State> worklist = new LinkedList<State>();
+			HashSet<State> visited = new HashSet<>();
+			LinkedList<State> worklist = new LinkedList<>();
 			worklist.add(initialState);
 			visited.add(initialState);
 			while (worklist.size() > 0) {
@@ -105,8 +105,8 @@ public class Fst {
 	 */
 	public void resetStateIds() {
 		int number = 0;
-		Set<State> visited = new HashSet<State>();
-		LinkedList<State> worklist = new LinkedList<State>();
+		Set<State> visited = new HashSet<>();
+		LinkedList<State> worklist = new LinkedList<>();
 		worklist.add(initialState);
 		
 		while (worklist.size() > 0) {
@@ -134,8 +134,8 @@ public class Fst {
 		if (resetStateIds) {
 			this.resetStateIds();
 		}
-		HashSet<State> visited = new HashSet<State>();
-		LinkedList<State> worklist = new LinkedList<State>();
+		HashSet<State> visited = new HashSet<>();
+		LinkedList<State> worklist = new LinkedList<>();
 		
 		if(reverse) {
 			worklist.addAll(FstOperations.reverse(this, false));
@@ -176,8 +176,8 @@ public class Fst {
 		Vdfa vdfa = new Vdfa(file);
 		vdfa.beginGraph();
 		
-		LinkedList<State> worklist = new LinkedList<State>();
-		HashSet<State> visited = new HashSet<State>();
+		LinkedList<State> worklist = new LinkedList<>();
+		HashSet<State> visited = new HashSet<>();
 		worklist.add(initialState);
 		
 		while (worklist.size() > 0) {
@@ -199,8 +199,8 @@ public class Fst {
 	
 
 	public Set<State> getStates() {
-		Set<State> visited 	= new HashSet<State>();
-		LinkedList<State> worklist = new LinkedList<State>();
+		Set<State> visited 	= new HashSet<>();
+		LinkedList<State> worklist = new LinkedList<>();
 		worklist.add(initialState);
 		visited.add(initialState);
 		while (worklist.size() > 0) {
@@ -217,7 +217,7 @@ public class Fst {
 	public Fst clone() {
 		Fst nClone = new Fst();
 		
-		HashMap<State, State> stateMap = new HashMap<State, State>();
+		HashMap<State, State> stateMap = new HashMap<>();
 		Set<State> states = getStates();
 		for (State state : states)
 			stateMap.put(state, new State());
@@ -237,8 +237,8 @@ public class Fst {
 
 	public void writeToStdout() {
 		
-		LinkedList<State> worklist = new LinkedList<State>();
-		HashSet<State> visited = new HashSet<State>();
+		LinkedList<State> worklist = new LinkedList<>();
+		HashSet<State> visited = new HashSet<>();
 		worklist.add(initialState);
 		
 		// Write initial state

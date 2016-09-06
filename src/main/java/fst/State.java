@@ -21,10 +21,10 @@ public class State{
 
 	State() {
 		this(false);
-	};
+	}
 
-	State(boolean accept) {
-		this.transitions = new HashSet<Transition>();
+    State(boolean accept) {
+		this.transitions = new HashSet<>();
 		this.accept = accept;
 		id = next_id++;
 	}
@@ -55,9 +55,7 @@ public class State{
 	public boolean equals(Object obj) {
 		State u = (State) obj;
 
-		if (u.id == id)
-			return true;
-		return false;
+		return u.id == id;
 	}
 
 	/*@Override

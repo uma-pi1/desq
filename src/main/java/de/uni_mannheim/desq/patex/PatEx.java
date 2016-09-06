@@ -238,7 +238,7 @@ public class PatEx {
 					outputLabelType = OutputLabelType.SELF;
 				}
 			} else {
-				assert (generalize == false);
+				assert !generalize;
 				outputLabel = -1;
 				outputLabelType = OutputLabelType.EPSILON;
 				if (force) {

@@ -20,10 +20,9 @@ public class CompressedPrefixGrowthMiner extends CompressedMemoryDesqMiner {
 	// helper variables
 	private int beginItem = 0;
     private int endItem = Integer.MAX_VALUE;
-    private final PrefixGrowthTreeNode root = new PrefixGrowthTreeNode(new ProjectedDatabase());
     private int largestFrequentFid; // used to quickly determine whether an item is frequent
     private final IntSet ascendants = new IntAVLTreeSet(); // used as a buffer for ascendant items
-    final PostingList.Iterator postingsIt = new PostingList.Iterator(); // used to access posting lists
+    final PostingList.Iterator projectedDatabaseIt = new PostingList.Iterator(); // used to access posting lists
     final PostingList.Iterator inputIt = inputSequences.iterator();
 
 	public CompressedPrefixGrowthMiner(DesqMinerContext ctx) {
@@ -36,7 +35,6 @@ public class CompressedPrefixGrowthMiner extends CompressedMemoryDesqMiner {
 	@Override
     public void clear() {
 	    super.clear();
-		root.clear();
 	}
 
 	public static Properties createProperties(long sigma, int gamma, int lambda, boolean generalize) {
@@ -79,6 +77,8 @@ public class CompressedPrefixGrowthMiner extends CompressedMemoryDesqMiner {
 
 	public void mine() {
         if (inputSupports.size() >= sigma) {
+            final PrefixGrowthTreeNode root = new PrefixGrowthTreeNode();
+
             for (int inputId = 0; inputId < inputSupports.size(); inputId++) {
                 int inputOffset = inputOffsets.get(inputId);
                 inputIt.offset = inputOffset;
@@ -129,31 +129,30 @@ public class CompressedPrefixGrowthMiner extends CompressedMemoryDesqMiner {
         // iterate over children
         for (PrefixGrowthTreeNode childNode : node.children) {
             // output patterns (we know it's frequent by construction)
-            ProjectedDatabase projectedDatabase = childNode.projectedDatabase;
-            assert projectedDatabase.support >= sigma;
-            prefix.set(lastPrefixIndex, projectedDatabase.itemFid);
+            assert childNode.support >= sigma;
+            prefix.set(lastPrefixIndex, childNode.itemFid);
             if (ctx.patternWriter != null) {
-                ctx.patternWriter.write(prefix, projectedDatabase.support);
+                ctx.patternWriter.write(prefix, childNode.support);
             }
 
             // check if we need to expand
-            if (prefix.size() >= lambda || childrenToNotExpand.contains(projectedDatabase.itemFid)) {
+            if (prefix.size() >= lambda || childrenToNotExpand.contains(childNode.itemFid)) {
                 childNode.clear();
                 continue;
             }
 
             // ok, do the expansion
             int inputId = -1;
-            postingsIt.reset(projectedDatabase.postingList);
+            projectedDatabaseIt.reset(childNode.projectedDatabase);
             do {
-                inputId += postingsIt.nextNonNegativeInt();
+                inputId += projectedDatabaseIt.nextNonNegativeInt();
                 int inputOffset = inputOffsets.get(inputId);
                 int inputSupport = inputSupports.get(inputId);
 
                 // iterator over all positions
                 int position = 0;
-                while (postingsIt.hasNext()) {
-                    position += postingsIt.nextNonNegativeInt();
+                while (projectedDatabaseIt.hasNext()) {
+                    position += projectedDatabaseIt.nextNonNegativeInt();
                     inputIt.offset = inputOffset + position;
 
                     // Add items in the right gamma+1 neighborhood
@@ -186,18 +185,18 @@ public class CompressedPrefixGrowthMiner extends CompressedMemoryDesqMiner {
 
                     }
                 }
-            } while (postingsIt.nextPosting());
+            } while (projectedDatabaseIt.nextPosting());
 
             // if this expansion did not produce any frequent children, then all siblings with descendant items
             // also can't produce frequent children; remember this
             childNode.expansionsToChildren(sigma);
             if (generalize && childNode.children.isEmpty()) {
-                ctx.dict.addDescendantFids(ctx.dict.getItemByFid(projectedDatabase.itemFid), childrenToNotExpand);
+                ctx.dict.addDescendantFids(ctx.dict.getItemByFid(childNode.itemFid), childrenToNotExpand);
             }
 
             // process just created expansions
             childNode.projectedDatabase.clear(); // not needed anymore
-            boolean containsPivot = hasPivot || (projectedDatabase.itemFid >= beginItem);
+            boolean containsPivot = hasPivot || (childNode.itemFid >= beginItem);
             expand(prefix, childNode, containsPivot);
             childNode.clear(); // not needed anymore
         }

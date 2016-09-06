@@ -30,7 +30,7 @@ public class Dfs {
 
 	protected int lambda;
 
-	protected ArrayList<int[]> inputTransactions = new ArrayList<int[]>();
+	protected ArrayList<int[]> inputTransactions = new ArrayList<>();
 
 	protected IntArrayList transactionSupports = new IntArrayList();
 
@@ -278,7 +278,7 @@ public class Dfs {
 
 	private static final class Items {
 
-		Int2ObjectOpenHashMap<Item> itemIndex = new Int2ObjectOpenHashMap<Item>();
+		Int2ObjectOpenHashMap<Item> itemIndex = new Int2ObjectOpenHashMap<>();
 
 		public void addItem(int itemId, int transactionId, int support, int position) {
 			

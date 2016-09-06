@@ -46,8 +46,8 @@ public final class DesqDfs extends MemoryDesqMiner {
     /** Stores iterators over output item/next state pairs for reuse. */
 	final ArrayList<Iterator<ItemState>> itemStateIterators = new ArrayList<>();
 
-    /** An iterator over a posting list for reuse */
-    final PostingList.Iterator postingsIt = new PostingList.Iterator();
+    /** An iterator over a projected database (a posting list) for reuse */
+    final PostingList.Iterator projectedDatabaseIt = new PostingList.Iterator();
 
 
 	// -- helper variables for pruning and twopass --------------------------------------------------------------------
@@ -188,7 +188,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 			if (!useTwoPass) { // one-pass
                 // create the root
-				root = new DesqDfsTreeNode(new DesqDfsProjectedDatabase(fst.numStates()));
+				root = new DesqDfsTreeNode(fst.numStates());
 				incStepArgs.node = root;
 
                 // and process all input sequences to compute the roots children
@@ -200,7 +200,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				}
 			} else { // two-pass
                 // create the root
-				root = new DesqDfsTreeNode(new DesqDfsProjectedDatabase(reverseFst.numStates()));
+				root = new DesqDfsTreeNode(reverseFst.numStates());
 				incStepArgs.node = root;
 
                 // and process all input sequences to compute the roots children
@@ -228,7 +228,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			}
 
 			// recursively grow the patterns
-			root.expansionsToChildren(sigma);
+			root.pruneInfrequentChildren(sigma);
 			expand(new IntArrayList(), root);
 		}
 	}
@@ -353,33 +353,32 @@ public final class DesqDfs extends MemoryDesqMiner {
 		prefix.add(-1);
 
 		// iterate over all children
-		for (final DesqDfsTreeNode childNode : node.children )  {
+		for (final DesqDfsTreeNode childNode : node.childrenByFid.values() )  {
 			// while we expand the child node, we also compute its actual support to determine whether or not
 			// to output it (and then output it if the support is large enough)
 			long support = 0;
 
 			// set up the expansion
-			final DesqDfsProjectedDatabase projectedDatabase = childNode.projectedDatabase;
-			assert projectedDatabase.prefixSupport >= sigma;
-			prefix.set(lastPrefixIndex, projectedDatabase.itemFid);
-			postingsIt.reset(projectedDatabase.postingList);
+			assert childNode.prefixSupport >= sigma;
+			prefix.set(lastPrefixIndex, childNode.itemFid);
+			projectedDatabaseIt.reset(childNode.projectedDatabase);
 			incStepArgs.inputId = -1;
 			incStepArgs.node = childNode;
 
 			if (!useTwoPass) { // one-pass
 				do {
 					// process next input sequence
-					incStepArgs.inputId += postingsIt.nextNonNegativeInt();
+					incStepArgs.inputId += projectedDatabaseIt.nextNonNegativeInt();
 					incStepArgs.inputSequence = inputSequences.get(incStepArgs.inputId);
 					incStepArgs.inputSupport = inputSupports.getInt(incStepArgs.inputId);
 
 					// iterate over state@pos snapshots for this input sequence
                     boolean reachedFinalStateWithoutOutput = false;
 					do {
-						final int stateId = postingsIt.nextNonNegativeInt();
-						final int pos = postingsIt.nextNonNegativeInt(); // position of next input item
+						final int stateId = projectedDatabaseIt.nextNonNegativeInt();
+						final int pos = projectedDatabaseIt.nextNonNegativeInt(); // position of next input item
 						reachedFinalStateWithoutOutput |= incStepOnePass(incStepArgs, pos, fst.getState(stateId), 0);
-					} while (postingsIt.hasNext());
+					} while (projectedDatabaseIt.hasNext());
 
                     // if we reached a final state without output, increment the support of this child node
 					if (reachedFinalStateWithoutOutput) {
@@ -387,11 +386,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 					}
 
 					// now go to next posting (next input sequence)
-				} while (postingsIt.nextPosting());
+				} while (projectedDatabaseIt.nextPosting());
 			} else { // two-pass
 				do {
 					// process next input sequence (backwards)
-					incStepArgs.inputId += postingsIt.nextNonNegativeInt();
+					incStepArgs.inputId += projectedDatabaseIt.nextNonNegativeInt();
 					incStepArgs.inputSequence = inputSequences.get(incStepArgs.inputId);
 					incStepArgs.inputSupport = inputSupports.getInt(incStepArgs.inputId);
 					incStepArgs.edfaStateSequence = edfaStateSequences.get(incStepArgs.inputId);
@@ -399,12 +398,12 @@ public final class DesqDfs extends MemoryDesqMiner {
 					// iterate over state@pos snapshots for this input sequence
                     boolean reachedInitialStateWithoutOutput = false;
 					do {
-						final int stateId = postingsIt.nextNonNegativeInt();
-						final int pos = postingsIt.nextNonNegativeInt() - 1; // position of next input item
+						final int stateId = projectedDatabaseIt.nextNonNegativeInt();
+						final int pos = projectedDatabaseIt.nextNonNegativeInt() - 1; // position of next input item
                                             // (-1 because we added a position incremented by one; see incStepTwoPass)
 						reachedInitialStateWithoutOutput |= incStepTwoPass(incStepArgs, pos,
 								reverseFst.getState(stateId), 0);
-					} while (postingsIt.hasNext());
+					} while (projectedDatabaseIt.hasNext());
 
                     // if we reached the initial state without output, increment the support of this child node
                     if (reachedInitialStateWithoutOutput) {
@@ -412,7 +411,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 					}
 
                     // now go to next posting (next input sequence)
-				} while (postingsIt.nextPosting());
+				} while (projectedDatabaseIt.nextPosting());
 			}
 
 			// output the patterns for the current child node if it turns out to be frequent
@@ -429,7 +428,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			}
 
 			// expand the child node
-			childNode.expansionsToChildren(sigma);
+			childNode.pruneInfrequentChildren(sigma);
 			childNode.projectedDatabase = null; // not needed anymore
 			expand(prefix, childNode);
 			childNode.invalidate(); // not needed anymore

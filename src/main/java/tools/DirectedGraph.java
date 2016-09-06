@@ -11,7 +11,7 @@ public final class DirectedGraph implements IntIterable {
     /* A map from nodes in the graph to sets of outgoing edges.  Each
      * set of edges is represented by a map from edges to doubles.
      */
-	private final Int2ObjectOpenHashMap<IntOpenHashSet> mGraph = new Int2ObjectOpenHashMap<IntOpenHashSet>();
+	private final Int2ObjectOpenHashMap<IntOpenHashSet> mGraph = new Int2ObjectOpenHashMap<>();
     //private final Map<T, Set<T>> mGraph = new HashMap<T, Set<T>>();
 
     /**

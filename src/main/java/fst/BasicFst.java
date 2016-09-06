@@ -9,7 +9,7 @@ import fst.OutputLabel.Type;
 public final class BasicFst {
 
 	private BasicFst() {
-	};
+	}
 
 	public static Fst translateWildCard(boolean generalize, boolean capture) {
 		return translateItemExpression(0, false, generalize, capture);
@@ -32,7 +32,7 @@ public final class BasicFst {
 				oLabel = new OutputLabel(Type.SELF);
 			}
 		} else {
-			assert (generalize == false);
+			assert !generalize;
 			oLabel = new OutputLabel(Type.EPSILON);
 			if (force) {
 				iLabel = -iLabel;

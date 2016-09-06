@@ -28,7 +28,7 @@ public class XFst {
 	
 	private boolean[] finalStates;
 	
-	private Int2ObjectOpenHashMap<FixedBitSet> dIndex = new Int2ObjectOpenHashMap<FixedBitSet>();
+	private Int2ObjectOpenHashMap<FixedBitSet> dIndex = new Int2ObjectOpenHashMap<>();
 	
 	private Dictionary dictionary = Dictionary.getInstance();
 	

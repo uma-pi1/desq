@@ -29,8 +29,8 @@ public class EncodeData {
 	private static final Logger logger = Logger.getLogger(EncodeData.class.getName());
 	
 	DirectedGraph hierarchy = new DirectedGraph();
-	Object2IntOpenHashMap<String> ids = new Object2IntOpenHashMap<String>();
-	Int2ObjectOpenHashMap<String> names = new Int2ObjectOpenHashMap<String>();
+	Object2IntOpenHashMap<String> ids = new Object2IntOpenHashMap<>();
+	Int2ObjectOpenHashMap<String> names = new Int2ObjectOpenHashMap<>();
 	Int2IntOpenHashMap cfs = new Int2IntOpenHashMap();
 	Int2IntOpenHashMap dfs = new Int2IntOpenHashMap();
 	Int2IntOpenHashMap fids = new Int2IntOpenHashMap();
@@ -55,7 +55,7 @@ public class EncodeData {
 	/**
 	 * Records an item (label) and add it (gid) to the hierarchy
 	 * 
-	 * @param fid
+	 * @param name
 	 *            name (label)
 	 * @return internal gid of the item
 	 */

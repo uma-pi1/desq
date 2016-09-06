@@ -64,7 +64,7 @@ public class CompressedDesqDfs extends CompressedMemoryDesqMiner {
 	public void mine() {
 		if(inputSupports.size() >= sigma) {
 			
-			DesqDfsTreeNode root = new DesqDfsTreeNode(new DesqDfsProjectedDatabase(fst.numStates()));
+			DesqDfsTreeNode root = new DesqDfsTreeNode(fst.numStates());
 			
 			for(int inputId = 0; inputId < inputSupports.size(); inputId++) {
 				int inputOffset = inputOffsets.getInt(inputId);
@@ -73,7 +73,7 @@ public class CompressedDesqDfs extends CompressedMemoryDesqMiner {
 				incStep(inputId, inputOffset, inputSupport, initialStateId, root);
 			}
 			
-			root.expansionsToChildren(sigma);
+			root.pruneInfrequentChildren(sigma);
 			expand(new IntArrayList(), root);
 			root.clear();
 		}
@@ -89,15 +89,14 @@ public class CompressedDesqDfs extends CompressedMemoryDesqMiner {
         //IntSet childrenToNotExpand = new IntOpenHashSet();
         
         // iterate over children
-        for(DesqDfsTreeNode childNode : node.children )  {
+        for(DesqDfsTreeNode childNode : node.childrenByFid.values() )  {
         	
         	//p-support
         	long support = 0;
         	
         	// we first expand and then output
-        	DesqDfsProjectedDatabase projectedDatabase = childNode.projectedDatabase;
-        	assert projectedDatabase.prefixSupport >= sigma;
-        	prefix.set(lastPrefixIndex, projectedDatabase.itemFid);
+        	assert childNode.prefixSupport >= sigma;
+        	prefix.set(lastPrefixIndex, childNode.itemFid);
         	
         	
         	// This pruning does not work with DESQ DFS
@@ -117,7 +116,7 @@ public class CompressedDesqDfs extends CompressedMemoryDesqMiner {
         	
         	
         	// do the expansion
-        	postingsIt.reset(projectedDatabase.postingList);
+        	postingsIt.reset(childNode.projectedDatabase);
         	int inputId = -1;
 			do{
         		inputId += postingsIt.nextNonNegativeInt();
@@ -147,7 +146,7 @@ public class CompressedDesqDfs extends CompressedMemoryDesqMiner {
         	}
         	
         	
-        	childNode.expansionsToChildren(sigma);
+        	childNode.pruneInfrequentChildren(sigma);
         	// This pruning does not work with DESQ DFS (see above)
         	/*if(childNode.children.isEmpty()) {
                 ctx.dict.addDescendantFids(ctx.dict.getItemByFid(projectedDatabase.itemFid), childrenToNotExpand);

@@ -20,7 +20,7 @@ public abstract class PatternWriter extends WithDictionary {
         write(new IntListWrapper(itemFids), frequency);
     }
 
-	public void close() { };
+	public void close() { }
 
     /** Writes a pattern given in terms of fids. The provided Pattern must not be buffered. */
     public void write(Pattern pattern) {

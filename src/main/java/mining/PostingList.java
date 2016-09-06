@@ -5,7 +5,6 @@ import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 /**
  * Utility methods for (de)compressing posting lists.
  * 
- * @see BfsMiner#kPostingLists
  */
 public final class PostingList {
 
@@ -14,7 +13,7 @@ public final class PostingList {
 	 * separator, v=transactionId+1 for a transaction gid, and v=position+1 for a
 	 * position.
 	 */
-	public static final void addCompressed(int v, ByteArrayList postingList) {
+	public static void addCompressed(int v, ByteArrayList postingList) {
 		assert v >= 0;
 		do {
 			byte b = (byte) (v & 127);

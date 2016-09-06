@@ -21,7 +21,7 @@ public class State {
 	
 	
 	public State(boolean isFinal) {
-		this.transitionList = new ArrayList<Transition>();
+		this.transitionList = new ArrayList<>();
 		this.isFinal = isFinal;
 	}
 	
@@ -88,7 +88,7 @@ public class State {
 	}
 	
 	public Iterator<ItemState> consume(int itemFid, Iterator<ItemState> it) {
-		TransitionIterator resultIt = null;
+		TransitionIterator resultIt;
 		if(it != null && it instanceof TransitionIterator)
 			resultIt = (TransitionIterator)it;
 		else
@@ -145,7 +145,7 @@ public class State {
 	}
 	
 	public Iterator<State> toStateIterator(int itemFid, Iterator<State> it) {
-		StateIterator resultIt = null;
+		StateIterator resultIt ;
 		if(it != null && it instanceof StateIterator) 
 			resultIt = (StateIterator) it;
 		else

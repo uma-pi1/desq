@@ -237,7 +237,7 @@ public class Dictionary {
 
     // minFidInItemFids is a lowerbound of the smallest fid currently in the set. This method makes use of the
     // fact that parents have smaller fids than their children.
-    private final int addAscendantFids(int itemFid, IntCollection itemFids, int minFidInItemFids) {
+    private int addAscendantFids(int itemFid, IntCollection itemFids, int minFidInItemFids) {
         int from = parentFidsOffsets[itemFid];
         int to = parentFidsOffsets[itemFid+1];
         for (int i=from; i<to; i++) {
@@ -438,7 +438,7 @@ public class Dictionary {
     }
 
     /** Indexes the parents of each item. Needs to be called before using
-     * {@link #addAscendantFids(int, IntSet)}. Note that this method is implicitly called when recomputing fids
+     * {@link #addAscendantFids(int, IntCollection)}. Note that this method is implicitly called when recomputing fids
      * via {@link #recomputeFids()} and when loading a dictionary with fids from some file. */
     public void indexFids() {
         isForest = true;

@@ -8,10 +8,10 @@ package fst;
 public class OutputLabel {
 	
 	public enum Type {
-		EPSILON, CONSTANT, SELF, SELFGENERALIZE;
-	};
-	
-	public Type type;
+		EPSILON, CONSTANT, SELF, SELFGENERALIZE
+    }
+
+    public Type type;
 	
 	public int item;
 

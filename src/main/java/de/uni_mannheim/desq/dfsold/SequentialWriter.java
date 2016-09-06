@@ -14,7 +14,7 @@ public class SequentialWriter implements Writer {
 
 	private static SequentialWriter instance = null;
 
-	private Int2ObjectMap<String> itemIdToItemMap = new Int2ObjectOpenHashMap<String>();
+	private Int2ObjectMap<String> itemIdToItemMap = new Int2ObjectOpenHashMap<>();
 
 	private String outputPath;
 

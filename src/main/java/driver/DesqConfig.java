@@ -3,14 +3,14 @@ package driver;
 // TODO: this should only contain information for a particular mining task, but no 
 // description of inputs and outputs. If we need this, use a subclass.
 public class DesqConfig {
-	public static enum Method {
+	public enum Method {
 		DESQCOUNT, DESQDFS
-	};
-	
-	public static enum Match {
+	}
+
+	public enum Match {
 		PARTIAL, STRICT, LSTRICT, RSTRICT
-	};
-	
+	}
+
 	// I/O paths
 	private String inputSequencesPath;
 	private String outputSequencesPath;

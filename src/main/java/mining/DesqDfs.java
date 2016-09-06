@@ -19,7 +19,7 @@ public abstract class DesqDfs {
 
 	protected Dictionary dictionary = Dictionary.getInstance();
 	
-	protected ArrayList<int[]> inputSequences = new ArrayList<int[]>();
+	protected ArrayList<int[]> inputSequences = new ArrayList<>();
 	
 	protected static int sId;
 	

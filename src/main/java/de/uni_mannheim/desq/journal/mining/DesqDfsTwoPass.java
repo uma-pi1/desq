@@ -99,8 +99,8 @@ public class DesqDfsTwoPass extends MemoryDesqMiner {
 	public void clear() {
 		inputSequences.clear();
 		posStateIndexList.clear();
-		finalPosList.clear();;
-		finalStateIds.clear();
+		finalPosList.clear();
+        finalStateIds.clear();
 		finalPos.clear();
 	}
 

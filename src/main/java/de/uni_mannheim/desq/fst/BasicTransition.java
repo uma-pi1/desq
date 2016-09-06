@@ -6,10 +6,11 @@ import de.uni_mannheim.desq.dictionary.Dictionary;
 import it.unimi.dsi.fastutil.ints.*;
 
 public class BasicTransition extends Transition {
-	public enum InputLabelType { SELF, SELF_DESCENDANTS };
-	public enum OutputLabelType { SELF, SELF_ASCENDANTS, CONSTANT, EPSILON };
+	public enum InputLabelType { SELF, SELF_DESCENDANTS }
 
-	// parameters
+    public enum OutputLabelType { SELF, SELF_ASCENDANTS, CONSTANT, EPSILON }
+
+    // parameters
 	final int inputLabel; 
 	final InputLabelType inputLabelType;
 	final int outputLabel; // only when outputlabel = constant or self_gen
@@ -126,7 +127,7 @@ public class BasicTransition extends Transition {
 
 	@Override
 	public Iterator<ItemState> consume(int itemFid, Iterator<ItemState> it) {
-		ItemStateIterator resultIt = null;
+		ItemStateIterator resultIt;
 		if (it != null && it instanceof ItemStateIterator)
             resultIt = (ItemStateIterator) it;
 		else
@@ -207,9 +208,7 @@ public class BasicTransition extends Transition {
 			return false;
 		if (outputLabel != other.outputLabel)
 			return false;
-		if (outputLabelType != other.outputLabelType)
-			return false;
-		return true;
+		return outputLabelType == other.outputLabelType;
 	}
 	
 	public void getInputFids(IntSet inputFids) {

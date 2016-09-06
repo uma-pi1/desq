@@ -16,9 +16,9 @@ import java.util.Set;
 public final class FstOperations {
 
 	private FstOperations() {
-	};
+	}
 
-	/** Returns an FST that is concatenation of two FSTs */
+    /** Returns an FST that is concatenation of two FSTs */
 	public static Fst concatenate(Fst a, Fst b) {
 		for (State state : a.getFinalStates()) {
 			state.isFinal = false;
@@ -141,14 +141,14 @@ public final class FstOperations {
 	public static List<State> reverse(Fst fst, boolean createNewInitialState) {
 	
 		Int2ObjectMap<List<Transition>> reversedIncomingTransitionsOfState = new Int2ObjectOpenHashMap<>();
-		reversedIncomingTransitionsOfState.put(fst.initialState.id, new ArrayList<Transition>());
+		reversedIncomingTransitionsOfState.put(fst.initialState.id, new ArrayList<>());
 
 		for (State fromState : fst.states) {
 			for (Transition transition : fromState.transitionList) {
 				List<Transition> reversedIncomingTransitionsOfToState
 						= reversedIncomingTransitionsOfState.get(transition.toState.id);
 				if (reversedIncomingTransitionsOfToState == null) {
-					reversedIncomingTransitionsOfToState = new ArrayList<Transition>();
+					reversedIncomingTransitionsOfToState = new ArrayList<>();
 					reversedIncomingTransitionsOfState.put(transition.toState.id, reversedIncomingTransitionsOfToState);
 				}
 				Transition reversedTransition = transition.shallowCopy();

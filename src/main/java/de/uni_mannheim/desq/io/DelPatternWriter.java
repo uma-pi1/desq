@@ -7,7 +7,7 @@ import java.io.Writer;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 public class DelPatternWriter extends PatternWriter {
-	public static enum TYPE { FID, GID, SID };
+	public enum TYPE { FID, GID, SID }
 
 	private final PrintWriter writer;
 	private final TYPE type;

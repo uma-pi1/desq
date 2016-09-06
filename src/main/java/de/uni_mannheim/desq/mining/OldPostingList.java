@@ -13,7 +13,7 @@ public final class OldPostingList {
 	 * separator, v=transactionId+1 for a transaction gid, and v=position+1 for a
 	 * position.
 	 */
-	public static final void addCompressed(int v, ByteArrayList postingList) {
+	public static void addCompressed(int v, ByteArrayList postingList) {
 		assert v >= 0;
 		do {
 			byte b = (byte) (v & 127);

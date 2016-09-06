@@ -32,9 +32,9 @@ public class Dictionary {
 
 	protected int[][] desc;
 	
-	Int2ObjectOpenHashMap<String> itemIdToItemMap = new Int2ObjectOpenHashMap<String>();
+	Int2ObjectOpenHashMap<String> itemIdToItemMap = new Int2ObjectOpenHashMap<>();
 
-	Object2IntOpenHashMap<String> itemToItemIdMap = new Object2IntOpenHashMap<String>();
+	Object2IntOpenHashMap<String> itemToItemIdMap = new Object2IntOpenHashMap<>();
 	
 	public void load(String fileName, int minSupport) throws IOException {
 

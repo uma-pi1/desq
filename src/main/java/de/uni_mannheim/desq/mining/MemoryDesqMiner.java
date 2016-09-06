@@ -1,7 +1,6 @@
 package de.uni_mannheim.desq.mining;
 
 import java.util.ArrayList;
-import java.util.List;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;

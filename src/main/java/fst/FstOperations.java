@@ -16,9 +16,9 @@ import utils.KPair;
 public final class FstOperations {
 
 	private FstOperations() {
-	};
+	}
 
-	/** Returns an FST that is concatenation of two FSTs */
+    /** Returns an FST that is concatenation of two FSTs */
 	public static Fst concatenate(Fst a, Fst b) {
 		for (State state : a.getAcceptStates()) {
 			state.accept = false;
@@ -120,7 +120,7 @@ public final class FstOperations {
 	 * Partially determinze the Fst
 	 */
 	public static void prioritize(Fst fst) {
-		Set<State> initialStates = new HashSet<State>();
+		Set<State> initialStates = new HashSet<>();
 		initialStates.add(fst.initialState);
 		partiallyDeterminize(fst, initialStates);
 	}
@@ -133,18 +133,18 @@ public final class FstOperations {
 
 		fst.initialState = new State();
 		
-		HashMap<Set<State>, State> pFstStates = new HashMap<Set<State>, State>();
+		HashMap<Set<State>, State> pFstStates = new HashMap<>();
 		pFstStates.put(initialStates, fst.initialState);
 
 		// Map from input-output label to cFST states
-		HashMap<KPair<Integer, OutputLabel>, Set<State>> M = new HashMap<KPair<Integer, OutputLabel>, Set<State>>();
+		HashMap<KPair<Integer, OutputLabel>, Set<State>> M = new HashMap<>();
 
 		// Unprocessed pFST states
-		LinkedList<Set<State>> unprocessedStates = new LinkedList<Set<State>>();
+		LinkedList<Set<State>> unprocessedStates = new LinkedList<>();
 		unprocessedStates.add(initialStates);
 
 		// Processed pFST states
-		HashSet<Set<State>> processedStates = new HashSet<Set<State>>();
+		HashSet<Set<State>> processedStates = new HashSet<>();
 
 		while (unprocessedStates.size() > 0) {
 			// Process a pFST state
@@ -159,10 +159,10 @@ public final class FstOperations {
 				// for (input-output lable,toState) pairs
 				for (State cFstState : fromCFstStates) {
 					for (Transition t : cFstState.transitions) {
-						KPair<Integer, OutputLabel> label = new KPair<Integer, OutputLabel>(t.iLabel, t.oLabel);
+						KPair<Integer, OutputLabel> label = new KPair<>(t.iLabel, t.oLabel);
 						Set<State> reachableStates = M.get(label);
 						if (reachableStates == null) {
-							reachableStates = new HashSet<State>();
+							reachableStates = new HashSet<>();
 							M.put(label, reachableStates);
 						}
 						reachableStates.add(t.to);
@@ -211,13 +211,13 @@ public final class FstOperations {
 	}
 	
 	public static Set<State> reverse(Fst fst, boolean createNewInitialState) {
-		HashMap<State, HashSet<Transition>> reverseTMap = new HashMap<State, HashSet<Transition>>();
-		Set<State> visited 	= new HashSet<State>();
-		LinkedList<State> worklist = new LinkedList<State>();
+		HashMap<State, HashSet<Transition>> reverseTMap = new HashMap<>();
+		Set<State> visited 	= new HashSet<>();
+		LinkedList<State> worklist = new LinkedList<>();
 		
 		worklist.add(fst.initialState);
 		
-		reverseTMap.put(fst.initialState, new HashSet<Transition>());
+		reverseTMap.put(fst.initialState, new HashSet<>());
 	
 		while (worklist.size() > 0) {
 			State s = worklist.removeFirst();
@@ -225,7 +225,7 @@ public final class FstOperations {
 				for (Transition t : s.transitions) {
 					HashSet<Transition> tSet = reverseTMap.get(t.to);
 					if (tSet == null) {
-						tSet = new HashSet<Transition>();
+						tSet = new HashSet<>();
 						reverseTMap.put(t.to, tSet);
 					}
 					tSet.add(new Transition(t.iLabel, t.oLabel, s));
@@ -236,7 +236,7 @@ public final class FstOperations {
 		}
 		
 		// Create final states as initial states
-		Set<State> initialStates = new HashSet<State>();
+		Set<State> initialStates = new HashSet<>();
 		for(State s : visited) {
 			s.transitions = reverseTMap.get(s);
 			if(s.accept) {

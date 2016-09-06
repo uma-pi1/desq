@@ -64,7 +64,7 @@ public class OnePassIterative extends DesqCount {
 	@Override
 	protected void computeMatch() {
 
-		statePrefix[initialState] = new ObjectArrayList<Node>();
+		statePrefix[initialState] = new ObjectArrayList<>();
 		stateList[stateListSize++] = initialState;
 		statePrefix[initialState].add(null);
 
@@ -108,7 +108,7 @@ public class OnePassIterative extends DesqCount {
 						Node node;
 
 						if (null == nextStatePrefix[toState]) {
-							nextStatePrefix[toState] = new ObjectArrayList<Node>();
+							nextStatePrefix[toState] = new ObjectArrayList<>();
 							nextStateList[nextStateListSize++] = toState;
 						}
 

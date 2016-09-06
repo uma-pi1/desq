@@ -1,6 +1,5 @@
 package de.uni_mannheim.desq.mining;
 
-import de.uni_mannheim.desq.util.PropertiesUtils;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 

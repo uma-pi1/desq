@@ -1,9 +1,6 @@
 package de.uni_mannheim.desq.mining;
 
-import com.google.common.base.Stopwatch;
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
-
-import java.util.concurrent.TimeUnit;
 
 /** A posting list is a (possibly empty) sequence of postings, each containing a (possibly empty) sequence
  * of integer elements. Posting lists are stored in memory using variable-byte encoding.

@@ -2,8 +2,6 @@ package de.uni_mannheim.desq.journal.edfa;
 
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.State;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
 import java.util.ArrayList;
@@ -26,12 +24,12 @@ public class ExtendedDfaState {
 	List<State> fstFinalStates;
 	
 	public ExtendedDfaState(IntSet stateIdSet, Fst fst) {
-		this.transitionList = new ArrayList<ExtendedDfaTransition>();
+		this.transitionList = new ArrayList<>();
 		setFstStates(stateIdSet, fst);
 	}
 
 	public ExtendedDfaState(int stateId, Fst fst) {
-		this.transitionList = new ArrayList<ExtendedDfaTransition>();
+		this.transitionList = new ArrayList<>();
 		setFstStates(stateId, fst);
 	}
 

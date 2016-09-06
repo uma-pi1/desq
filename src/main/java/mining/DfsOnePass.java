@@ -267,9 +267,9 @@ public class DfsOnePass extends DesqDfs {
 		int lastSequenceId = -1;
 		int suffixItemId;
 		Node parent;
-		ByteArrayList projectedDatabase = new ByteArrayList();;
-		BitSet[] statePosSet = new BitSet[xfst.numStates()];
-		Int2ObjectOpenHashMap<Node> children = new Int2ObjectOpenHashMap<Node>();
+		ByteArrayList projectedDatabase = new ByteArrayList();
+        BitSet[] statePosSet = new BitSet[xfst.numStates()];
+		Int2ObjectOpenHashMap<Node> children = new Int2ObjectOpenHashMap<>();
 
 		Node(Node parent, int suffixItemId) {
 			this.parent = parent;

@@ -17,7 +17,7 @@ import de.uni_mannheim.desq.fst.BasicTransition.OutputLabelType;
 
 public class TransitionExample {
 
-	static void nyt() throws FileNotFoundException, IOException {
+	static void nyt() throws IOException {
 
 		// load the dictionary with statistics
 		Dictionary dict = DictionaryIO.loadFromDel(new FileInputStream("data-local/nyt-1991-dict.del"), true);
@@ -129,7 +129,7 @@ public class TransitionExample {
 		}
 	}
 
-	public static void main(String[] args) throws FileNotFoundException, IOException {
+	public static void main(String[] args) throws IOException {
 		nyt();
 	}
 }

@@ -24,7 +24,7 @@ public abstract class DesqCount {
 
 	protected Dictionary dictionary = Dictionary.getInstance();
 
-	protected Object2LongOpenCustomHashMap<int[]> outputSequences = new Object2LongOpenCustomHashMap<int[]>(
+	protected Object2LongOpenCustomHashMap<int[]> outputSequences = new Object2LongOpenCustomHashMap<>(
 			new IntArrayStrategy());
 
 	protected int sigma;
@@ -75,8 +75,6 @@ public abstract class DesqCount {
 		DataInputStream in = new DataInputStream(fstream);
 		BufferedReader br = new BufferedReader(new InputStreamReader(in));
 
-		IntArrayList buffer = new IntArrayList();
-		
 		String line;
 		while ((line = br.readLine()) != null) {
 			if (!line.isEmpty()) {
@@ -89,7 +87,6 @@ public abstract class DesqCount {
 				sid = sid + 1;
 				gpt = 0;
 				gptUnique = 0;
-				buffer.clear();
 				//computeMatch(buffer, 0, dfa.getInitialState());
 				computeMatch();
 				globalGpt += gpt;

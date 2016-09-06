@@ -12,8 +12,8 @@ public class Fst {
 	State initialState;
 	
 	// list of states; initialized only after state numbers are updated; see updateStates()
-	List<State> states = new ArrayList<State>();;
-	List<State> finalStates = new ArrayList<State>();;
+	List<State> states = new ArrayList<>();
+    List<State> finalStates = new ArrayList<>();
 
     public Fst() {
         this(false);

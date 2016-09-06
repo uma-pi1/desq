@@ -19,10 +19,9 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
 	// helper variables
 	private int beginItem = 0;
     private int endItem = Integer.MAX_VALUE;
-    private final PrefixGrowthTreeNode root = new PrefixGrowthTreeNode(new ProjectedDatabase());
     private int largestFrequentFid; // used to quickly determine whether an item is frequent
     private IntCollection ascendants; // used as a buffer for ascendant items
-    final PostingList.Iterator postingsIt = new PostingList.Iterator(); // used to access posting lists
+    final PostingList.Iterator projectedDatabaseIt = new PostingList.Iterator(); // used to access posting lists
 
     // if set to true, won't expand an items which have a parent that did not lead to a frequent expansion
     // there shouldn't be any reason to set this to false
@@ -42,7 +41,6 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
 	public void clear() {
 		inputSequences.clear();
 		inputSupports.clear();
-		root.clear();
 	}
 
 	public static Properties createProperties(long sigma, int gamma, int lambda, boolean generalize) {
@@ -87,6 +85,8 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
 
 	public void mine() {
         if (sumInputSupports >= sigma) {
+            final PrefixGrowthTreeNode root = new PrefixGrowthTreeNode();
+
             // first runMiner through all data and create single-item posting lists
             for (int inputId=0; inputId<inputSequences.size(); inputId++) {
                 final int[] inputSequence = inputSequences.get(inputId);
@@ -136,18 +136,17 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
         // iterate over children
         for (PrefixGrowthTreeNode childNode : node.children) {
             // output patterns (we know it's frequent by construction)
-            final ProjectedDatabase projectedDatabase = childNode.projectedDatabase;
-            assert projectedDatabase.support >= sigma;
+            assert childNode.support >= sigma;
             if (ctx.patternWriter != null) {
-                prefix.set(lastPrefixIndex, projectedDatabase.itemFid);
-                ctx.patternWriter.write(prefix, projectedDatabase.support);
+                prefix.set(lastPrefixIndex, childNode.itemFid);
+                ctx.patternWriter.write(prefix, childNode.support);
             }
 
             // check if we need to expand
             boolean expand = prefix.size() < lambda;
             if (USE_PRUNING && expand) {
                 ascendants.clear();
-                ctx.dict.addAscendantFids(projectedDatabase.itemFid, ascendants);
+                ctx.dict.addAscendantFids(childNode.itemFid, ascendants);
                 IntIterator itemFidIt = ascendants.iterator();
                 while (itemFidIt.hasNext()) {
                     if (leftSiblingItemsWithoutFrequentChildNodes.contains(itemFidIt.next())) {
@@ -163,16 +162,16 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
 
             // ok, do the expansion
             int inputId = -1;
-            postingsIt.reset(projectedDatabase.postingList);
+            projectedDatabaseIt.reset(childNode.projectedDatabase);
             do {
-                inputId += postingsIt.nextNonNegativeInt();
+                inputId += projectedDatabaseIt.nextNonNegativeInt();
                 final int[] inputSequence = inputSequences.get(inputId);
                 final int inputSupport = inputSupports.get(inputId);
 
                 // iterator over all positions
                 int position = 0;
-                while (postingsIt.hasNext()) {
-                    position += postingsIt.nextNonNegativeInt();
+                while (projectedDatabaseIt.hasNext()) {
+                    position += projectedDatabaseIt.nextNonNegativeInt();
 
                     // Add items in the right gamma+1 neighborhood
                     int gap = 0;
@@ -203,18 +202,18 @@ public class PrefixGrowthMiner extends MemoryDesqMiner {
 
                     }
                 }
-            } while (postingsIt.nextPosting());
+            } while (projectedDatabaseIt.nextPosting());
 
             // if this expansion did not produce any frequent children, then all siblings with descendant items
             // also can't produce frequent children; remember this item
             childNode.expansionsToChildren(sigma);
             if (USE_PRUNING && generalize && childNode.children.isEmpty()) {
-                leftSiblingItemsWithoutFrequentChildNodes.add(projectedDatabase.itemFid);
+                leftSiblingItemsWithoutFrequentChildNodes.add(childNode.itemFid);
             }
 
             // process just created expansions
             childNode.projectedDatabase = null; // not needed anymore
-            final boolean containsPivot = hasPivot || (projectedDatabase.itemFid >= beginItem);
+            final boolean containsPivot = hasPivot || (childNode.itemFid >= beginItem);
             expand(prefix, childNode, containsPivot);
             childNode.invalidate(); // not needed anymore
         }
