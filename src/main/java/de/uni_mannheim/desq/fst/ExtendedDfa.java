@@ -221,6 +221,7 @@ public final class ExtendedDfa {
 	 * @param finalPos List of positions for which de.uni_mannheim.desq.old.fst reached a final state
 	 * @return true is the input sequence has an accepting run 
 	 */
+	@Deprecated
 	public boolean computeReachability(IntList inputSequence, int initialFstStateId, BitSet[] posStateIndex, IntList finalPos) {
 		ExtendedDfaState state = eDfaStateIdForFstStateId[initialFstStateId];
 		int pos = 0;
