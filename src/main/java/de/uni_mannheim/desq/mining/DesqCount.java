@@ -413,9 +413,13 @@ public final class DesqCount extends DesqMiner {
 		// iterate over output item/state pairs
 		while(itemStateIt.hasNext()) {
 			final ItemState itemState = itemStateIt.next();
-			final int outputItemFid = itemState.itemFid;
-			final State toState = itemState.state;
 
+			// check if we need to process that state
+			final State toState = itemState.state;
+			if (!edfaStateSequence.get(pos).getFstStates().get(toState.getId()))
+				continue;
+
+			final int outputItemFid = itemState.itemFid;
 			if(outputItemFid == 0) { // EPS output
 				// we did not get an output, so continue with the current prefix
 				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
@@ -470,9 +474,16 @@ public final class DesqCount extends DesqMiner {
 
 			// get next output item/state pair for current position
 			final ItemState itemState = itemStateIt.next();
-			final int outputItemFid = itemState.itemFid;
+
+			// check if we need to process that state
+			final State toState = itemState.state;
+			if (!edfaStateSequence.get(pos).getFstStates().get(toState.getId())) {
+				prefixModified.set(pos, false);
+				continue;
+			}
 
 			// skip irrelevant items
+			final int outputItemFid = itemState.itemFid;
 			if (useFlist && largestFrequentFid < outputItemFid) {
 				prefixModified.set(pos, false);
 				continue;
@@ -489,13 +500,6 @@ public final class DesqCount extends DesqMiner {
 				prefixOutput.set(prefix.size(), false);
 			}
 
-			// if we reached a final state, we count the current sequence (if any)
-			final State toState = itemState.state;
-			if (toState.isFinal() && !prefix.isEmpty() && !prefixOutput.getBoolean(prefix.size())) {
-				countSequence(prefix);
-				prefixOutput.set(prefix.size(), true);
-			}
-
 			// now we move to the next item (if any)
 			if (pos > 0) {
 				pos--;
@@ -509,7 +513,7 @@ public final class DesqCount extends DesqMiner {
 			} else {
 				// otherwise we processed all items and must be in an initial state -> output
 				// we consumed entire input in reverse -> we must have reached the inital state by two-pass correctness
-				assert state.getId() == 0;
+				assert toState.getId() == 0;
 				if (!prefix.isEmpty() && !prefixOutput.getBoolean(prefix.size())) {
 					countSequence(prefix);
 					prefixOutput.set(prefix.size(), true);

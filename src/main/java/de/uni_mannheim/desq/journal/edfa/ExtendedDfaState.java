@@ -52,7 +52,8 @@ public class ExtendedDfaState {
 		}
 		return null;
 	}
-	
+
+	@SuppressWarnings("unchecked")
 	private void setFstStates(int stateId, Fst fst) {
 		this.fstStates = new BitSet(fst.numStates());
 		fstStates.set(stateId);

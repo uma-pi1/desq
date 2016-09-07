@@ -28,12 +28,17 @@ public abstract class TraditionalMiningTest {
     long sigma;
     int gamma, lambda;
     boolean generalize;
+    String minerName;
+    Configuration conf;
 
-    TraditionalMiningTest(long sigma, int gamma, int lambda, boolean generalize) {
+    TraditionalMiningTest(long sigma, int gamma, int lambda, boolean generalize,
+                          String minerName, Configuration conf) {
         this.sigma = sigma;
         this.gamma = gamma;
         this.lambda = lambda;
         this.generalize = generalize;
+        this.minerName = minerName;
+        this.conf = conf;
     }
 
     /** The dictionary to use */
@@ -45,18 +50,14 @@ public abstract class TraditionalMiningTest {
     /** Reader for data */
     public abstract SequenceReader getSequenceReader() throws IOException;
 
-    /** Base file name for expected outputs */
-    public abstract String getBaseFileName();
-
-    /** Properties for miner */
-    public abstract Configuration createConf();
+    public abstract String getGoldFileBaseName();
 
     @Test
     public void test() throws IOException,
             InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
-        String fileName = getBaseFileName() + "-" + sigma + "-" + gamma + "-" + lambda + "-" + generalize + ".del";
+        String fileName = getGoldFileBaseName() + "-" + sigma + "-" + gamma + "-" + lambda + "-" + generalize + ".del";
         File actualFile = TestUtils.newTemporaryFile(
-                TestUtils.getPackageResourcesPath(getClass()) + "/" + getClass().getSimpleName() + "/" + fileName);
+                TestUtils.getPackageResourcesPath(getClass()) + "/" + minerName + "/" + fileName);
         mine(actualFile);
         try {
             File expectedFile = TestUtils.getPackageResource(getClass(), fileName);
@@ -91,7 +92,7 @@ public abstract class TraditionalMiningTest {
         DelPatternWriter patternWriter = new DelPatternWriter(new FileOutputStream(outputDelFile), DelPatternWriter.TYPE.GID);
         patternWriter.setDictionary(dict);
         ctx.patternWriter = patternWriter;
-        ctx.conf = createConf();
+        ctx.conf = conf;
         DesqMiner miner = DesqMiner.create(ctx);
         miner.addInputSequences(dataReader);
         dataReader.close();

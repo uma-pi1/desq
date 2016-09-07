@@ -1,6 +1,5 @@
 package de.uni_mannheim.desq.examples;
 
-import com.google.common.base.Stopwatch;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.dictionary.DictionaryIO;
 import de.uni_mannheim.desq.io.DelPatternWriter;
@@ -14,7 +13,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 
 
 public class CompareDesqCount {
@@ -39,7 +37,8 @@ public class CompareDesqCount {
 		DesqMinerContext ctx = new DesqMinerContext();
 		ctx.dict = dict;
 		DelPatternWriter patternWriter = new DelPatternWriter(
-				new FileOutputStream(outputFile+"-DesqCount-"+iterative+"-"+pruneIrrelevantInputs), DelPatternWriter.TYPE.SID);
+				new FileOutputStream(outputFile+"-DesqCountOld-"+iterative+"-"+pruneIrrelevantInputs+"-"+useTwoPass),
+				DelPatternWriter.TYPE.SID);
 		patternWriter.setDictionary(dict);
 		ctx.patternWriter = patternWriter;
 		Properties properties;
