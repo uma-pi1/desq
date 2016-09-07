@@ -35,10 +35,10 @@ public class FstExample {
 		patternExpression = ".* [" + patternExpression.trim() + "]";
 		PatEx patEx = new PatEx(patternExpression, dict);
 		Fst fst = patEx.translate();
-		fst.print("de/uni_mannheim/desq/old/fst");
+		fst.print("fst");
 		
 		fst.minimize();
-		fst.print("./de.uni_mannheim.desq.old.fst-min");
+		fst.print("fst-min");
 	}
 	
 	public static void main(String[] args) throws IOException {

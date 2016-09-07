@@ -66,7 +66,7 @@ public final class ExtendedDfaState {
 	
 	private void setFstStates(IntSet stateIdSet, Fst fst) {
 		fstFinalStates = new ArrayList<>(fst.numStates());
-		this.fstStates = new BitSet(fst.numStates());
+		this.fstStates = new BitSet();
 		for(int stateId : stateIdSet) {
 			fstStates.set(stateId);
 			State state = fst.getState(stateId);

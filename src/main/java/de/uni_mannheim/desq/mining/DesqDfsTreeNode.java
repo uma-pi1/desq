@@ -96,7 +96,6 @@ final class DesqDfsTreeNode {
 			childrenByFid.put(itemFid, child);
 		}
 		
-		// TODO: add delta encoding as for prefix growth
 		if (child.currentInputId != inputId) {
 			// start a new posting
 			child.projectedDatabase.newPosting();

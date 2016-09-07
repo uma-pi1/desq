@@ -1,8 +1,5 @@
 package de.uni_mannheim.desq.fst;
 
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import it.unimi.dsi.fastutil.ints.IntSet;
-
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Iterator;
@@ -152,14 +149,14 @@ public final class State {
 		Transition transition;
 		int fid;
 		State toState;
-		IntSet toStatesSet = new IntOpenHashSet();
+		BitSet toStatesOutput = new BitSet(); // to states already output
 		@Override
 		public boolean hasNext() {
 			while(transitionsIt.hasNext()) {
 				transition = transitionsIt.next();
-				if(transition.matches(fid) &&  !toStatesSet.contains(transition.toState.id)) {
+				if(transition.matches(fid) &&  !toStatesOutput.get(transition.toState.id)) { // returns false if toStatesOutput is to small
 					toState = transition.toState; 
-					toStatesSet.add(toState.id);
+					toStatesOutput.set(toState.id); // automatically resizes upwards if necessary
 					return true;
 				}
 			}
@@ -191,7 +188,7 @@ public final class State {
 		
 		resultIt.transitionsIt = transitionList.iterator();
 		resultIt.fid = itemFid;
-		resultIt.toStatesSet.clear();
+		resultIt.toStatesOutput.clear();
 		resultIt.toState = null;
 		return resultIt;
 	}
