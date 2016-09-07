@@ -4,11 +4,12 @@ import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Iterator;
 import java.util.List;
 
 
-public class State {
+public final class State {
 	
 	int id;
 	// List of transitions
@@ -49,22 +50,25 @@ public class State {
 	private static final class TransitionIterator implements Iterator<ItemState> {
 		Iterator<Transition> transitionsIt;
 		Iterator<ItemState> currentIt;
+		BitSet validToStates;
 		int fid;
         boolean isNew;
 
 		@Override
 		public boolean hasNext() {
 			if (currentIt == null || isNew) {
-				if (transitionsIt.hasNext()) {
-					currentIt = transitionsIt.next().consume(fid, currentIt);
+				Transition nextTransition = nextTransition();
+				if (nextTransition != null) {
+					currentIt = nextTransition.consume(fid, currentIt);
                     isNew = false;
 				} else {
 					return false;
 				}
 			}
 			while (!currentIt.hasNext()) {
-				if (transitionsIt.hasNext()) {
-					currentIt = transitionsIt.next().consume(fid, currentIt);
+				Transition nextTransition = nextTransition();
+				if (nextTransition != null) {
+					currentIt = nextTransition.consume(fid, currentIt);
 				} else {
 					return false;
 				}
@@ -81,26 +85,60 @@ public class State {
 		public void remove() {
 			throw new UnsupportedOperationException();
 		}
+
+		private Transition nextTransition() {
+			if (validToStates==null) {
+				if (transitionsIt.hasNext()) {
+					return transitionsIt.next();
+				} else {
+					return null;
+				}
+			} else {
+				while (transitionsIt.hasNext()) {
+					Transition nextTransition = transitionsIt.next();
+					if (validToStates.get(nextTransition.toState.getId())) {
+						return nextTransition;
+					}
+				}
+				return null;
+			}
+		}
 	}
 	
 	public Iterator<ItemState> consume(int itemFid) {
-		return consume(itemFid, null);
+		return consume(itemFid, null, null);
 	}
 	
 	public Iterator<ItemState> consume(int itemFid, Iterator<ItemState> it) {
+		return consume(itemFid, it, null);
+	}
+
+	/** Returns an iterator over (output item, next state)-pairs consistent with the given input item. Only
+	 * produces pairs for which the next state is contained in validToStates (BitSet indexed by state ids).
+	 *
+	 * If the output item is epsilon, returns (0, next state) pair.
+	 *
+	 * @param itemFid input item
+	 * @param it iterator to reuse
+	 * @param validToStates set of next states to consider
+	 *
+	 * @return an iterator over (output item fid, next state) pairs
+	 */
+	public Iterator<ItemState> consume(int itemFid, Iterator<ItemState> it, BitSet validToStates) {
 		TransitionIterator resultIt;
 		if(it != null && it instanceof TransitionIterator)
 			resultIt = (TransitionIterator)it;
 		else
 			resultIt = new TransitionIterator();
-		
+
 		resultIt.transitionsIt = transitionList.iterator();
+		resultIt.validToStates = validToStates;
 		resultIt.fid = itemFid;
 		resultIt.isNew = true;
 
 		return resultIt;
 	}
-	
+
 	public boolean isFinal() { 
 		return isFinal; 
 	}

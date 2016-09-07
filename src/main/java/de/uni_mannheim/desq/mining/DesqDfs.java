@@ -305,14 +305,15 @@ public final class DesqDfs extends MemoryDesqMiner {
 
         // get iterator over next output item/state pairs; reuse existing ones if possible
         // note that the reverse FST is used here (since we process inputs backwards)
-		// TODO: this is inefficient because we generate item/state pairs that we are not going to need
+		// only iterates over states that we saw in the forward pass (the other ones can safely be skipped)
 		final int itemFid = args.inputSequence[pos];
 		Iterator<ItemState> itemStateIt;
 		if (level>=itemStateIterators.size()) {
-			itemStateIt = state.consume(itemFid);
+			itemStateIt = state.consume(itemFid, null, args.edfaStateSequence[pos].getFstStates());
 			itemStateIterators.add(itemStateIt);
 		} else {
-			itemStateIt = state.consume(itemFid, itemStateIterators.get(level));
+			itemStateIt = state.consume(itemFid, itemStateIterators.get(level),
+					args.edfaStateSequence[pos].getFstStates());
 		}
 
         // iterate over output item/state pairs and remember whether we hit the initial state without producing output
@@ -322,9 +323,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 			final ItemState itemState = itemStateIt.next();
 			final State toState = itemState.state;
 
-			// if the toState was not a reachable state in the forward pass, we can safely skip it
-			if (!args.edfaStateSequence[pos].getFstStates().get(toState.getId()))
-				continue;
+			// we need to process that state because we saw it in the forward pass (assertion checks this)
+			assert args.edfaStateSequence[pos].getFstStates().get(toState.getId());
 
 			final int outputItemFid = itemState.itemFid;
 			if (outputItemFid == 0) { // EPS output

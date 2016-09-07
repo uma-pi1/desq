@@ -400,24 +400,24 @@ public final class DesqCount extends DesqMiner {
 
 		// get iterator over next output item/state pairs; reuse existing ones if possible
 		// note that the reverse FST is used here (since we process inputs backwards)
-		// TODO: this is inefficient because we generate item/state pairs that we are not going to need
+		// only iterates over states that we saw in the forward pass (the other ones can safely be skipped)
 		final int itemFid = inputSequence.getInt(pos);
 		Iterator<ItemState> itemStateIt;
 		if (level>=itemStateIterators.size()) {
-			itemStateIt = state.consume(itemFid);
+			itemStateIt = state.consume(itemFid, null, edfaStateSequence.get(pos).getFstStates());
 			itemStateIterators.add(itemStateIt);
 		} else {
-			itemStateIt = state.consume(itemFid, itemStateIterators.get(level));
+			itemStateIt = state.consume(itemFid, itemStateIterators.get(level),
+					edfaStateSequence.get(pos).getFstStates());
 		}
 
 		// iterate over output item/state pairs
 		while(itemStateIt.hasNext()) {
 			final ItemState itemState = itemStateIt.next();
 
-			// check if we need to process that state
+			// we need to process that state because we saw it in the forward pass (assertion checks this)
 			final State toState = itemState.state;
-			if (!edfaStateSequence.get(pos).getFstStates().get(toState.getId()))
-				continue;
+			assert edfaStateSequence.get(pos).getFstStates().get(toState.getId());
 
 			final int outputItemFid = itemState.itemFid;
 			if(outputItemFid == 0) { // EPS output
@@ -449,12 +449,14 @@ public final class DesqCount extends DesqMiner {
 		}
 
 		// get the first output item/state pairs
+		// only iterates over states that we saw in the forward pass (the other ones can safely be skipped)
 		int pos = initialPos;
 		int itemFid = inputSequence.getInt(pos); // the current input item
 		while (pos >= itemStateIterators.size()) {
 			itemStateIterators.add(null);
 		}
-		Iterator<ItemState> itemStateIt = state.consume(itemFid, itemStateIterators.get(pos));
+		Iterator<ItemState> itemStateIt = state.consume(itemFid, itemStateIterators.get(pos),
+				edfaStateSequence.get(pos).getFstStates());
 		itemStateIterators.set(pos, itemStateIt); // make sure we remember the right one
 		prefixModified.set(pos, false);
 
@@ -475,12 +477,9 @@ public final class DesqCount extends DesqMiner {
 			// get next output item/state pair for current position
 			final ItemState itemState = itemStateIt.next();
 
-			// check if we need to process that state
+			// we need to process that state because we saw it in the forward pass (assertion checks this)
 			final State toState = itemState.state;
-			if (!edfaStateSequence.get(pos).getFstStates().get(toState.getId())) {
-				prefixModified.set(pos, false);
-				continue;
-			}
+			assert edfaStateSequence.get(pos).getFstStates().get(toState.getId());
 
 			// skip irrelevant items
 			final int outputItemFid = itemState.itemFid;
@@ -501,14 +500,16 @@ public final class DesqCount extends DesqMiner {
 			}
 
 			// now we move to the next item (if any)
+			// only iterates over states that we saw in the forward pass (the other ones can safely be skipped)
 			if (pos > 0) {
 				pos--;
 				prefixModified.set(pos, false);
 				itemFid = inputSequence.getInt(pos);
 				if (pos >= itemStateIterators.size()) {
-					itemStateIterators.add( toState.consume(itemFid) );
+					itemStateIterators.add( toState.consume(itemFid, null, edfaStateSequence.get(pos).getFstStates()) );
 				} else {
-					itemStateIterators.set(pos, toState.consume(itemFid, itemStateIterators.get(pos)) );
+					itemStateIterators.set(pos, toState.consume(itemFid, itemStateIterators.get(pos),
+							edfaStateSequence.get(pos).getFstStates()) );
 				}
 			} else {
 				// otherwise we processed all items and must be in an initial state -> output

@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.fst;
 
+import java.util.BitSet;
 import java.util.Iterator;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
