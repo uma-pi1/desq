@@ -21,8 +21,9 @@ public class DesqCountExample {
 		int sigma = 2;
 
 		Configuration conf = DesqCount.createConf(patternExpression, sigma);
-		//conf.setProperty("desq.mining.iterative", false);
+		conf.setProperty("desq.mining.iterative", true);
 		conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
+		conf.setProperty("desq.mining.use.two.pass", true);
 		ExampleUtils.runIcdm16(conf);
 	}
 

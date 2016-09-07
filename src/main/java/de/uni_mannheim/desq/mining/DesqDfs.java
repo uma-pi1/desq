@@ -78,8 +78,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 		super(ctx);
 		sigma = ctx.conf.getLong("desq.mining.min.support");
 		largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
+		pruneIrrelevantInputs = ctx.conf.getBoolean("desq.mining.prune.irrelevant.inputs");
         useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
-        pruneIrrelevantInputs = ctx.conf.getBoolean("desq.mining.prune.irrelevant.inputs");
 
         // construct pattern expression and FST
 		patternExpression = ".* [" + ctx.conf.getString("desq.mining.pattern.expression").trim() + "]";

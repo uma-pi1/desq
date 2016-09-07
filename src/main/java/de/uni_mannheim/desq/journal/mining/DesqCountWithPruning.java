@@ -61,6 +61,7 @@ public class DesqCountWithPruning extends DesqMiner {
 
 	public static Properties createProperties(String patternExpression, int sigma) {
 		Properties properties = new Properties();
+		PropertiesUtils.set(properties, "desq.mining.miner.class", DesqCountWithPruning.class.getCanonicalName());
 		PropertiesUtils.set(properties, "patternExpression", patternExpression);
 		PropertiesUtils.set(properties, "minSupport", sigma);
 		return properties;
