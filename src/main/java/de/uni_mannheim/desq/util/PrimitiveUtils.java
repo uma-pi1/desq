@@ -24,7 +24,7 @@ public final class PrimitiveUtils {
      * @return 
      */
     public static int getLeft(long c) {
-        return (int) (c >> 32);
+        return (int) (c >>> 32);
     }
 
     /**
@@ -34,6 +34,6 @@ public final class PrimitiveUtils {
      * @return 
      */
     public static int getRight(long c) {
-        return (int) c;
+        return (int) (c & 0xFFFFFFFFL);
     }
 }

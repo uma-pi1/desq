@@ -49,11 +49,11 @@ public class CompareDesqDfs {
 
 		boolean writeOutput = true;
 		
-		utils.Dictionary dict = utils.Dictionary.getInstance();
+		old.utils.Dictionary dict = old.utils.Dictionary.getInstance();
 		dict.load(dictFile);
 		
 		if (writeOutput) {
-			writer.DelWriter wr = writer.DelWriter.getInstance();
+			old.writer.DelWriter wr = old.writer.DelWriter.getInstance();
 			wr.setItemIdToItemMap(dict.getItemIdToName());
 			wr.setOutputPath(outputFile);
 		}
@@ -63,15 +63,15 @@ public class CompareDesqDfs {
 		
 		automatonTime.start();
 		String pe = ".*[" + patternExpression + "]";
-		patex.PatExOld ex = new patex.PatExOld(pe);
+		old.patex.PatExOld ex = new old.patex.PatExOld(pe);
 		// Generate cFST
-		fst.Fst cFst = ex.translateToFst();
+		old.fst.Fst cFst = ex.translateToFst();
 		cFst.minimize();
 		// Generate optimized cFst
-		fst.XFst xFst = cFst.optimizeForExecution();
+		old.fst.XFst xFst = cFst.optimizeForExecution();
 		automatonTime.stop();
 		
-		mining.DesqDfs dd = new mining.DfsOnePass(sigma, xFst, writeOutput);
+		old.mining.DesqDfs dd = new old.mining.DfsOnePass(sigma, xFst, writeOutput);
 		
 		
 		System.out.println("Reading input sequences...");

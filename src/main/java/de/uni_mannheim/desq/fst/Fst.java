@@ -99,7 +99,7 @@ public class Fst {
 	}
 	
 	
-	// print the fst to a file
+	// print the de.uni_mannheim.desq.old.fst to a file
 	public void print(String file) {
 		FstVisualizer fstVisualizer = new FstVisualizer(file);
 		fstVisualizer.beginGraph();
@@ -112,7 +112,7 @@ public class Fst {
 		fstVisualizer.endGraph();
 	}
 	
-	// reverses the edges of the fst and creates one initial state
+	// reverses the edges of the de.uni_mannheim.desq.old.fst and creates one initial state
 	// uptates state ids
 	public List<State> reverse() {
 		return reverse(true);

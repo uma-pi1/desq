@@ -48,7 +48,7 @@ public class CSpadeMiner extends DesqMiner {
 	// During data input, we have k=2. Every input sequence is added to the
 	// index (by generating all its (2,gamma)-subsequences and then discarded.
 	//
-	// During frequent sequence mining, we compute repeatedly compute length-(k+1)
+	// During frequent sequence de.uni_mannheim.desq.old.mining, we compute repeatedly compute length-(k+1)
 	// subsequences from the length-k subsequences.
 
 	/** Length of subsequences currently being mined */
@@ -373,7 +373,7 @@ public class CSpadeMiner extends DesqMiner {
 		}
 	}
 
-	// -- mining phase ------------------------------------------------------------------------------
+	// -- de.uni_mannheim.desq.old.mining phase ------------------------------------------------------------------------------
 
     @Override
 	public void mine() {

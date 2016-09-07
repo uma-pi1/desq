@@ -10,7 +10,7 @@ public class Item {
 	/** Unique name of this item */
 	public final String sid;
 
-	/** Internal "frequency" identifier of this item used to support efficient mining. The identifier is not
+	/** Internal "frequency" identifier of this item used to support efficient de.uni_mannheim.desq.old.mining. The identifier is not
 	 * necessarily stable. Generally, the frequency identifier needs to satisfy certain properties, which depend
 	 * on the actual miner being used. In most cases, these properties match the ones described in
 	 * {@link Dictionary#recomputeFids()}}. */

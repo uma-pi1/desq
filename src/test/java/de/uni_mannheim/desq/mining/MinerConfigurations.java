@@ -29,10 +29,10 @@ public class MinerConfigurations {
     public static Pair<String, Configuration> desqCount(long sigma, String patternExpression, boolean useFlist,
                                                         boolean iterative, boolean pruneIrrelevantInputs, boolean useTwoPass) {
         Configuration conf = DesqCount.createConf(patternExpression, sigma);
-        conf.setProperty("desq.mining.use.flist", useFlist);
-        conf.setProperty("desq.mining.iterative", iterative);
-        conf.setProperty("desq.mining.prune.irrelevant.inputs", pruneIrrelevantInputs);
-        conf.setProperty("desq.mining.use.two.pass", useTwoPass);
+        conf.setProperty("desq.de.uni_mannheim.desq.old.mining.use.flist", useFlist);
+        conf.setProperty("desq.de.uni_mannheim.desq.old.mining.iterative", iterative);
+        conf.setProperty("desq.de.uni_mannheim.desq.old.mining.prune.irrelevant.inputs", pruneIrrelevantInputs);
+        conf.setProperty("desq.de.uni_mannheim.desq.old.mining.use.two.pass", useTwoPass);
         String minerName = "DesqCount-" + toLetter(useFlist) + toLetter(iterative) + toLetter(pruneIrrelevantInputs)
                 + toLetter(useTwoPass);
         return Pair.of(minerName, conf);
@@ -47,8 +47,8 @@ public class MinerConfigurations {
     public static Pair<String, Configuration> desqDfs(long sigma, String patternExpression,
                                                       boolean pruneIrrelevantInputs, boolean useTwoPass) {
         Configuration conf = DesqDfs.createConf(patternExpression, sigma);
-        conf.setProperty("desq.mining.prune.irrelevant.inputs", pruneIrrelevantInputs);
-        conf.setProperty("desq.mining.use.two.pass", useTwoPass);
+        conf.setProperty("desq.de.uni_mannheim.desq.old.mining.prune.irrelevant.inputs", pruneIrrelevantInputs);
+        conf.setProperty("desq.de.uni_mannheim.desq.old.mining.use.two.pass", useTwoPass);
         String minerName = "DesqDfs-" + toLetter(pruneIrrelevantInputs) + toLetter(useTwoPass);
         return Pair.of(minerName, conf);
     }

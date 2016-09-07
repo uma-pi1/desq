@@ -10,7 +10,7 @@ import org.apache.commons.configuration2.PropertiesConfiguration;
  */
 @Deprecated // should be integrated via an improved posting list to avoid code duplicaton
 public class CompressedPrefixGrowthMiner extends CompressedMemoryDesqMiner {
-	// parameters for mining
+	// parameters for de.uni_mannheim.desq.old.mining
     private long sigma;
     private int gamma;
     private int lambda;

@@ -221,7 +221,7 @@ public class Dictionary {
     }
 
     /** Adds all ascendants of the specified item to itemFids, excluding the given item and all
-     * ascendants of items already present in itemFids. This method is performance-critical for many mining methods.
+     * ascendants of items already present in itemFids. This method is performance-critical for many de.uni_mannheim.desq.old.mining methods.
      * If the dictionary does not form a forest (see {@link #isForest()}) or if <code>itemFids</code> is not initially
      * empty, <code>itemFids</code> *must* be an {@link IntSet}, ideally one that allows for fast look-ups
      * (such as {@link IntOpenHashSet} or{@link IntAVLTreeSet}). Otherwise, for best performance, pass an

@@ -5,7 +5,7 @@ import de.uni_mannheim.desq.dictionary.DictionaryIO;
 import de.uni_mannheim.desq.io.DelPatternWriter;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.SequenceReader;
-import de.uni_mannheim.desq.journal.mining.*;
+import old.journal.mining.*;
 import de.uni_mannheim.desq.mining.*;
 import org.apache.commons.configuration2.ConfigurationConverter;
 
@@ -89,8 +89,8 @@ public class CompareDesqCount {
 	public static void main(String[] args) throws Exception {
 		CompareDesqCount cdc = new CompareDesqCount();
 
-		System.out.println("OLD METHODS");
-		System.out.println("-----------");
+		System.out.println("OLD JOURNAL METHODS");
+		System.out.println("-------------------");
 		cdc.runOld(false, true, false);
 		cdc.runOld(false, true, true);
 		cdc.runOld(true, false, false);

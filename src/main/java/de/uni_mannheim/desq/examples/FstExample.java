@@ -31,14 +31,14 @@ public class FstExample {
 		//String patternExpression = "([A|B]c*[d|e])";
 		//String patternExpression = "([A|B]c+[d|e])";
 		
-		// create fst
+		// create de.uni_mannheim.desq.old.fst
 		patternExpression = ".* [" + patternExpression.trim() + "]";
 		PatEx patEx = new PatEx(patternExpression, dict);
 		Fst fst = patEx.translate();
-		fst.print("./fst");
+		fst.print("de/uni_mannheim/desq/old/fst");
 		
 		fst.minimize();
-		fst.print("./fst-min");
+		fst.print("./de.uni_mannheim.desq.old.fst-min");
 	}
 	
 	public static void main(String[] args) throws IOException {

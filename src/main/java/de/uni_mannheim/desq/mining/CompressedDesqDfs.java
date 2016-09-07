@@ -17,7 +17,7 @@ import java.util.Iterator;
 @Deprecated // should be integrated via an improved posting list to avoid code duplicaton
 public class CompressedDesqDfs extends CompressedMemoryDesqMiner {
 
-	// parameters for mining
+	// parameters for de.uni_mannheim.desq.old.mining
 	String patternExpression;
 	long sigma;
 	

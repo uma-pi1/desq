@@ -9,7 +9,7 @@ import org.apache.commons.configuration2.PropertiesConfiguration;
  * @author Rainer Gemulla (rgemulla@uni-mannheim.de)
  */
 public class PrefixGrowthMiner extends MemoryDesqMiner {
-	// parameters for mining
+	// parameters for de.uni_mannheim.desq.old.mining
     private long sigma;
     private int gamma;
     private int lambda;
