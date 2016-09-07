@@ -37,7 +37,7 @@ public class CompareDesqCount {
 		DesqMinerContext ctx = new DesqMinerContext();
 		ctx.dict = dict;
 		DelPatternWriter patternWriter = new DelPatternWriter(
-				new FileOutputStream(outputFile+"-DesqCountOld-"+iterative+"-"+pruneIrrelevantInputs+"-"+useTwoPass),
+				new FileOutputStream(outputFile+"-OldDesqCount-"+iterative+"-"+pruneIrrelevantInputs+"-"+useTwoPass),
 				DelPatternWriter.TYPE.SID);
 		patternWriter.setDictionary(dict);
 		ctx.patternWriter = patternWriter;

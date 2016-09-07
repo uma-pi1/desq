@@ -62,6 +62,7 @@ public class DesqDfsWithPruning extends MemoryDesqMiner {
 	
 	public static Properties createProperties(String patternExpression, int sigma) {
 		Properties properties = new Properties();
+		PropertiesUtils.set(properties, "desq.mining.miner.class", DesqDfsWithPruning.class.getCanonicalName());
 		PropertiesUtils.set(properties, "patternExpression", patternExpression);
 		PropertiesUtils.set(properties, "minSupport", sigma);
 		return properties;
