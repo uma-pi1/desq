@@ -56,4 +56,9 @@ public class Icdm16TraditionalMiningTest extends TraditionalMiningTest {
     public String getGoldFileBaseName() {
         return "icdm16/icdm16-traditional-patterns-ids";
     }
+
+    @Override
+    public String getTestDirectoryName() {
+        return getClass().getSimpleName();
+    }
 }

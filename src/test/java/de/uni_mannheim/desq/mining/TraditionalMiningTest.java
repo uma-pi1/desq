@@ -52,12 +52,14 @@ public abstract class TraditionalMiningTest {
 
     public abstract String getGoldFileBaseName();
 
+    public abstract String getTestDirectoryName();
+
     @Test
     public void test() throws IOException,
             InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
         String fileName = getGoldFileBaseName() + "-" + sigma + "-" + gamma + "-" + lambda + "-" + generalize + ".del";
         File actualFile = TestUtils.newTemporaryFile(
-                TestUtils.getPackageResourcesPath(getClass()) + "/" + minerName + "/" + fileName);
+                TestUtils.getPackageResourcesPath(getClass()) + "/" + getTestDirectoryName() + "/" + minerName + "/" + fileName);
         mine(actualFile);
         try {
             File expectedFile = TestUtils.getPackageResource(getClass(), fileName);
