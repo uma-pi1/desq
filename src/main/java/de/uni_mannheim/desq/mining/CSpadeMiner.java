@@ -13,7 +13,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
 
-public class CSpadeMiner extends DesqMiner {
+public final class CSpadeMiner extends DesqMiner {
 
 	// -- parameters --------------------------------------------------------------------------------
 

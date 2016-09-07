@@ -4,7 +4,7 @@ import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.ints.IntSets;
 
 /** Utility methods for working with IntSet */
-public class IntSetUtils {
+public final class IntSetUtils {
 	/** Returns an optimized representation of the given intset. Note that the result may
 	 * be identical to the input, and it may be unmodifiable.
 	 */

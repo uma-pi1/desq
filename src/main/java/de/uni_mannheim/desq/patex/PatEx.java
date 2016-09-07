@@ -34,7 +34,7 @@ import de.uni_mannheim.desq.patex.PatExParser.WildCardContext;
 
 
 
-public class PatEx {
+public final class PatEx {
 	String expression;
 	Dictionary dict;
 	

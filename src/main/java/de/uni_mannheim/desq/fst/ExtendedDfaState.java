@@ -11,7 +11,7 @@ import java.util.List;
  * ExtendedDfaState.java
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
-public class ExtendedDfaState {
+public final class ExtendedDfaState {
 	
 	// parameters
 	//int id;

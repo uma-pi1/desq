@@ -1,12 +1,11 @@
 package de.uni_mannheim.desq.fst;
 
-import java.util.BitSet;
-import java.util.Iterator;
-
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import it.unimi.dsi.fastutil.ints.*;
 
-public class BasicTransition extends Transition {
+import java.util.Iterator;
+
+public final class BasicTransition extends Transition {
 	public enum InputLabelType { SELF, SELF_DESCENDANTS }
 
     public enum OutputLabelType { SELF, SELF_ASCENDANTS, CONSTANT, EPSILON }

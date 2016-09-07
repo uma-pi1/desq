@@ -7,7 +7,7 @@ import de.uni_mannheim.desq.visual.FstVisualizer;
 
 
  
-public class Fst {
+public final class Fst {
 	// initial state
 	State initialState;
 	

@@ -24,7 +24,7 @@ import de.uni_mannheim.desq.dictionary.Item;
  * ExtendedDfa.java
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
-public class ExtendedDfa {
+public final class ExtendedDfa {
 	
 
 	//TODO: probably not needed

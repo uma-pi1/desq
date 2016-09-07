@@ -11,7 +11,7 @@ import java.util.Collections;
 import java.util.List;
 
 /* I/O method for Dictionary */
-public class DictionaryIO {
+public final class DictionaryIO {
 	/** Adds an item to the specified dictionary by deconding a line from del file format. */
 	public static void addItemFromDelLine(Dictionary dict, String line, boolean withStatistics) {
 		// create the item

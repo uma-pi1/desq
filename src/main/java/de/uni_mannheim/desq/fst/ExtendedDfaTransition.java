@@ -6,7 +6,7 @@ import java.util.BitSet;
  * ExtendedDfaTransition.java
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
-public class ExtendedDfaTransition {
+public final class ExtendedDfaTransition {
 
 	BitSet inputFids;
 	ExtendedDfaState toState;

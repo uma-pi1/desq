@@ -11,7 +11,7 @@ import it.unimi.dsi.fastutil.objects.ObjectIterator;
  * DesqDfsTreeNode.java
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
-public final class DesqDfsTreeNode {
+final class DesqDfsTreeNode {
 
 	// -- member variables --------------------------------------------------------------------------------------------
 

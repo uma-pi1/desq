@@ -9,7 +9,7 @@ import de.uni_mannheim.desq.util.IntSetUtils;
 import it.unimi.dsi.fastutil.ints.*;
 
 /** A set of items arranged in a hierarchy */ 
-public class Dictionary {
+public final class Dictionary {
 	// indexes
     final Int2ObjectMap<Item> itemsById = new Int2ObjectOpenHashMap<>();
 	final Int2ObjectMap<Item> itemsByFid = new Int2ObjectOpenHashMap<>();

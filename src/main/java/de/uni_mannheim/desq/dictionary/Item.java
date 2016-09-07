@@ -3,7 +3,7 @@ package de.uni_mannheim.desq.dictionary;
 import java.util.*;
 
 /** A single item in a dictionary.  */
-public class Item {
+public final class Item {
 	/** Stable global identifier of this item */
 	public final int gid;
 
