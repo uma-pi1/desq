@@ -10,7 +10,7 @@ import it.unimi.dsi.fastutil.ints.IntList;
 public class DelSequenceReader extends SequenceReader {
 	private final BufferedReader reader;
 	private final boolean usesFids;
-	
+
 	public DelSequenceReader(InputStream in, boolean usesFids) {
 		this.reader = new BufferedReader(new InputStreamReader(in));
 		this.usesFids = usesFids;

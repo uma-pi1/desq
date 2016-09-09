@@ -29,8 +29,39 @@ public class DesqDfsExample {
 		ExampleUtils.runIcdm16(conf);
 	}
 
+	public static void netflixFlat() throws IOException {
+		String patternExp= "(.)";
+        int sigma = 100000;
+		// these patterns are all spurious due to the way the data is created (ratings on same day ordered by id)
+		patternExp="(.).{0,3}(.).{0,3}('The Incredibles#2004#10947')";
+		sigma = 1000;
+
+		Configuration conf = DesqDfs.createConf(patternExp, sigma);
+		conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
+		conf.setProperty("desq.mining.use.two.pass", true);
+		ExampleUtils.runNetflixFlat(conf);
+	}
+
+    public static void netflixDeep() throws IOException {
+        String patternExp= "(.)";
+        int sigma = 100000;
+
+        // these patterns are all spurious due to the way the data is created (ratings on same day ordered by id)
+        patternExp="(.).{0,3}(.).{0,3}('The Incredibles#2004#10947'=^)";
+        sigma = 1000;
+        patternExp="('5stars'{2})";
+        sigma = 10000;
+
+        Configuration conf = DesqDfs.createConf(patternExp, sigma);
+        conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
+        conf.setProperty("desq.mining.use.two.pass", true);
+        ExampleUtils.runNetflixDeep(conf);
+    }
+
 	public static void main(String[] args) throws IOException {
-		icdm16();
+		//icdm16();
 		//nyt();
+		//netflixFlat();
+        netflixDeep();
 	}
 }

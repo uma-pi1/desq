@@ -70,7 +70,7 @@ public final class FstOperations {
 		return a;
 	}
 
-	public static Fst repeat(Fst a, int n) {
+	public static Fst repeatExactly(Fst a, int n) {
 		if (n == 0) {
 		    return new Fst(true);
 		}
@@ -90,7 +90,7 @@ public final class FstOperations {
 	
 	public static Fst repeatMin(Fst a, int min) {
 		Fst aPlus = plus(a.shallowCopy());
-		Fst aMax = repeat(a.shallowCopy(), min - 1);
+		Fst aMax = repeatExactly(a.shallowCopy(), min - 1);
 		return concatenate(aMax, aPlus);
 	}
 	
@@ -104,7 +104,7 @@ public final class FstOperations {
 		} else if (min == 1) {
 			fst = a.shallowCopy();
 		} else {
-			fst = repeat(a.shallowCopy(), min);
+			fst = repeatExactly(a.shallowCopy(), min);
 		}
 		if (max > 0) {
 			Fst aa = a.shallowCopy();

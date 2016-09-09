@@ -1,6 +1,5 @@
 package de.uni_mannheim.desq.fst;
 
-import java.util.BitSet;
 import java.util.Iterator;
 
 public abstract class Transition {

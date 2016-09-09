@@ -21,9 +21,10 @@ repeatexp
 	repeatexp '?'					#optionalExpression
 	|repeatexp '*'					#starExpression
 	|repeatexp '+'					#plusExpression
-	|repeatexp '{' WORD '}'          #repeatMaxExpression
-	|repeatexp '{' WORD ',' '}'      #repeatMinExpression
-	|repeatexp '{' WORD ',' WORD '}'  #repeatMinMaxExpression
+	|repeatexp '{' INT '}'          #repeatExactlyExpression
+	|repeatexp '{' ',' INT '}'      #repeatMaxExpression
+    |repeatexp '{' INT ',' '}'      #repeatMinExpression
+	|repeatexp '{' INT ',' INT '}'  #repeatMinMaxExpression
 	| simpleexp						#simpleExpression
 ;
 simpleexp
@@ -36,14 +37,31 @@ simpleexp
 itemexp 
 :
 	'.' '^'?                        #wildCard
-	| WORD '='? '^'?                 #item
+	| item '='? '^'?                #nonWildCard
 ;
 
-WORD :
-	CHAR+
-;  
+item
+:
+    INT
+    | ID
+    | QID
+;
 
-
-CHAR : ~('|' | '?' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
+// an integer
 INT : [0-9]+ ;
+
+// an item identifier (excluding integers)
+ID :
+	CHAR+
+;
+
+// a quoted item identifier
+QID :
+    SQUOTE ID (WS* ID)*? SQUOTE
+    | DQUOTE ID (WS* ID)*? DQUOTE
+;
+
+SQUOTE : '\'' ;
+DQUOTE : '\"' ;
+CHAR : ~('\'' | '\"' | '|' | '?' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
 WS  : [ \t\r\n]+ -> skip; // skip spaces, tabs, newlines

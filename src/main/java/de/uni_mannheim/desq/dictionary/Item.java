@@ -56,8 +56,13 @@ public final class Item {
 		return item;
 	}
 
-	/** Returns a comparator that compares by {@link de.uni_mannheim.desq.dictionary.Item#dFreq} descending. */
+	/** Returns a comparator that compares by {@link de.uni_mannheim.desq.dictionary.Item#dFreq} descending,
+	 * then by gid ascending. */
 	public static Comparator<Item> dfreqDecrComparator() {
-		return (o1, o2) -> o2.dFreq - o1.dFreq;
+		return (o1, o2) -> {
+            int freqDif = o2.dFreq - o1.dFreq;
+            if (freqDif != 0) return freqDif;
+            return o1.gid - o2.gid;
+        };
 	}
 }

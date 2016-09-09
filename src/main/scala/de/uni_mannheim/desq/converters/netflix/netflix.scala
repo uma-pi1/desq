@@ -1,7 +1,6 @@
 package de.uni_mannheim.desq.converters.netflix
 
 import java.io.{File, FileInputStream, FileOutputStream, PrintWriter}
-import java.nio.charset.Charset
 import java.util.regex.Pattern
 
 import de.uni_mannheim.desq.dictionary.{Dictionary, DictionaryIO, Item}
@@ -25,9 +24,9 @@ object TrainingSetToCsv extends App {
   println(s"Using temporary file $tempFile")
 
   // parse the data and store as CSV in temp file
-  val tempFileWriter = new PrintWriter(tempFile);
+  val tempFileWriter = new PrintWriter(tempFile)
   val files = inputDirectory.listFiles
-  val movieIdPattern = Pattern.compile("^(\\d+)\\:$");
+  val movieIdPattern = Pattern.compile("^(\\d+)\\:$")
   val entryPattern = Pattern.compile("^(\\d+),(\\d+),(.+)$")
   for (file <- files) {
     println(s"Processing $file")
@@ -68,6 +67,9 @@ class Movie(_id : Int, _year : Option[Int], _title : String) {
   val title = _title
 
   override def toString = s"Movie($id,$year,$title)"
+  def yearString = year.getOrElse("UnknownYear").toString
+  def unratedSid = title + "#" + yearString + "#" + id
+  def ratedSid(rating : Int) = unratedSid + "@" + rating
 }
 
 /** Utility methods to read movie data */
@@ -75,7 +77,7 @@ object Movie {
   def readMovies : Array[Movie] = {
     // training set must be untared in the following directory
     val inputFile = "data-local/netflix/raw/movie_titles.txt"
-    val pattern = Pattern.compile("^(\\d+),(\\d+|NULL),(.+)$");
+    val pattern = Pattern.compile("^(\\d+),(\\d+|NULL),(.+)$")
     val movies = new mutable.ArrayBuffer[Movie]
     for (line <- Source.fromFile(inputFile, "Cp850").getLines) {
       val matcher = pattern.matcher(line)
@@ -89,20 +91,20 @@ object Movie {
       movies.append(movie)
     }
 
-    return movies.toArray
+    movies.toArray
   }
 
   def idIndex(movies : Seq[Movie]): Map[Int,Movie] = {
-    return Map(movies.map(m => (m.id, m)): _*)
+    Map(movies.map(m => (m.id, m)): _*)
   }
 
   def titleIndex(movies : Seq[Movie]): Map[String,Movie] = {
-    return Map(movies.map(m => (m.title, m)): _*)
+    Map(movies.map(m => (m.title, m)): _*)
   }
 }
 
 /** A rating of a user for an item at a specific date */
-class Rating(_userId : Int, _date : String, _movieId : Int, _rating : Int) {
+class MovieRating(_userId : Int, _date : String, _movieId : Int, _rating : Int) {
   val userId = _userId
   val date = _date
   val movieId = _movieId
@@ -112,54 +114,54 @@ class Rating(_userId : Int, _date : String, _movieId : Int, _rating : Int) {
 }
 
 /** Utility methods for reading training data (once converted to CSV) */
-object Rating {
+object MovieRating {
   /** One sequence per user, each with that user's ratings sorted by time */
-  def getRatingsByUserIterator : Iterator[ Seq[Rating] ]= {
+  def getMovieRatingsByUserIterator : Iterator[ Seq[MovieRating] ]= {
     val inputFile = "data-local/netflix/training_set.csv"
 
-    return new Iterator[ Seq[Rating] ] {
-      val sequence = new mutable.ArrayBuffer[Rating]
+    new Iterator[ Seq[MovieRating] ] {
+      val sequence = new mutable.ArrayBuffer[MovieRating]
       val lines = Source.fromFile(inputFile).getLines
-      var nextRating = readNextRating(lines.next)
+      var nextMovieRating = readNextMovieRating(lines.next)
       var noSequences = 0
 
-      def readNextRating(line: String): Rating = {
+      def readNextMovieRating(line: String): MovieRating = {
         val entries = line.split(',')
         val userId = entries(0).toInt
         val date = entries(1)
         val movieId = entries(2).toInt
-        val ratingValue = entries(3).toInt
-        val rating = new Rating(userId, date, movieId, ratingValue)
-        return rating
+        val rating = entries(3).toInt
+        val movieRating = new MovieRating(userId, date, movieId, rating)
+        movieRating
       }
 
-      override def hasNext: Boolean = nextRating != null
+      override def hasNext: Boolean = nextMovieRating != null
 
-      override def next(): Seq[Rating] = {
+      override def next(): Seq[MovieRating] = {
         sequence.clear
-        sequence.append(nextRating)
-        var userId = nextRating.userId
+        sequence.append(nextMovieRating)
+        var userId = nextMovieRating.userId
         var done = false
         while (lines.hasNext && !done) {
-          nextRating = readNextRating(lines.next)
-          if (nextRating.userId == userId) {
-            sequence.append(nextRating)
+          nextMovieRating = readNextMovieRating(lines.next)
+          if (nextMovieRating.userId == userId) {
+            sequence.append(nextMovieRating)
           } else {
             done = true
           }
         }
         noSequences = noSequences + 1
         if (!lines.hasNext) { //} || noSequences == 10) {
-          nextRating = null
+          nextMovieRating = null
         }
-        return sequence
+        sequence
       }
     }
   }
 
   /** Once sequence per user consisting of the original movie ids */
   def getMovieIdSequenceReader : SequenceReader = {
-    val sequenceIt = Rating.getRatingsByUserIterator
+    val sequenceIt = MovieRating.getMovieRatingsByUserIterator
     val sequenceReader = new SequenceReader {
       override def usesFids(): Boolean = false
 
@@ -170,13 +172,37 @@ object Rating {
           return false
 
         items.clear
-        for (rating <- sequenceIt.next) {
-          items.add(rating.movieId) // gids correspond to movie id's here
+        for (movieRating <- sequenceIt.next) {
+          items.add(movieRating.movieId) // gids correspond to movie id's here
         }
-        return true
+        true
       }
     }
-    return sequenceReader
+    sequenceReader
+  }
+
+  /** Once sequence per user consisting of the id for the rated movie (need dictionary set to deep dictionary */
+  def getRatedMovieSequenceReader : SequenceReader = {
+    val sequenceIt = MovieRating.getMovieRatingsByUserIterator
+    val sequenceReader = new SequenceReader {
+      override def usesFids(): Boolean = false
+
+      override def close(): Unit = {}
+
+      override def read(items: IntList): Boolean = {
+        if (!sequenceIt.hasNext)
+          return false
+
+        items.clear
+        for (movieRating <- sequenceIt.next) {
+          val movieSid = dict.getItemById(movieRating.movieId).sid
+          val movieRatingSid = movieSid + "@" + movieRating.rating
+          items.add(dict.getItemBySid(movieRatingSid).gid)
+        }
+        true
+      }
+    }
+    sequenceReader
   }
 }
 
@@ -186,15 +212,14 @@ object CreateFlatDictionary extends App {
 
   // read all movies and build a dictionary
   println("Reading movies...")
-  val movies = Movie.readMovies
   val dict = new Dictionary
-  for (movie <- movies) {
-    dict.addItem(new Item(movie.id, movie.title + "#" + movie.year.getOrElse("null") + "#" + movie.id))
+  for (movie <- Movie.readMovies) {
+    dict.addItem(new Item(movie.id, movie.unratedSid))
   }
 
   // now scan the data and count
   println("Reading training set...")
-  val sequenceReader = Rating.getMovieIdSequenceReader
+  val sequenceReader = MovieRating.getMovieIdSequenceReader
   dict.clearCounts
   dict.incCounts(sequenceReader)
 
@@ -209,7 +234,7 @@ object CreateFlatData extends App {
   val outputFile = "data-local/netflix/flat-data-gid.del"
 
   val dict = DictionaryIO.loadFromDel(new FileInputStream(dictFile), true)
-  val sequenceReader = Rating.getMovieIdSequenceReader
+  val sequenceReader = MovieRating.getMovieIdSequenceReader
   val sequenceWriter = new DelSequenceWriter(new FileOutputStream(outputFile), false) // we read gids and write them as is
   sequenceWriter.setDictionary(dict)
   val items = new IntArrayList()
@@ -218,4 +243,84 @@ object CreateFlatData extends App {
   }
   sequenceReader.close
   sequenceWriter.close
+}
+
+/** Creates a deep dictionary where item.gid = original movie id plus items for rated movies, ratings, and years
+  * are added */
+object CreateDeepDictionary extends App {
+  val outputFileGid = "data-local/netflix/deep-dict-gid.del"
+
+  // read all movies and build a dictionary
+  println("Reading movies...")
+  var nextId = 0
+  val dict = new Dictionary
+  val yearStrings = new mutable.TreeSet[String].empty
+  for (movie <- Movie.readMovies) {
+    yearStrings.add(movie.yearString)
+    dict.addItem(new Item(movie.id, movie.unratedSid))
+    nextId = Math.max(nextId, movie.id)
+  }
+  nextId = nextId + 1
+
+  // create items for ratings and years
+  for (yearString <- yearStrings) {
+    dict.addItem(new Item(nextId, yearString))
+    nextId = nextId + 1
+  }
+  for (rating <- Range.inclusive(1,5)) {
+    dict.addItem(new Item(nextId, rating + "stars"))
+    nextId = nextId + 1
+  }
+
+  // read them again and add hierarchy items
+  for (movie <- Movie.readMovies) {
+    val movieItem = dict.getItemBySid(movie.unratedSid)
+    val yearItem = dict.getItemBySid(movie.yearString)
+    Item.addParent(movieItem, yearItem)
+
+    for (rating <- Range.inclusive(1,5)) {
+      val newItem = new Item(nextId, movie.ratedSid(rating))
+      nextId = nextId + 1
+      dict.addItem(newItem)
+      Item.addParent(newItem, movieItem)
+      Item.addParent(newItem, dict.getItemBySid(rating+"stars"))
+    }
+  }
+
+  // now scan the data and count
+  println("Reading training set...")
+  val sequenceReader = MovieRating.getRatedMovieSequenceReader
+  sequenceReader.setDictionary(dict)
+  dict.clearCounts
+  dict.incCounts(sequenceReader)
+
+  // write the dictionary
+  println("Writing dictionary...")
+  DictionaryIO.saveToDel(new FileOutputStream(outputFileGid), dict, false, true)
+}
+
+/** Reencodes the training set using the deep dictionary (see above) and ignoring time stamps */
+object CreateDeepData extends App {
+  val dictFile = "data-local/netflix/deep-dict-gid.del"
+  val outputFile = "data-local/netflix/deep-data-gid.del"
+
+  val dict = DictionaryIO.loadFromDel(new FileInputStream(dictFile), true)
+  val sequenceReader = MovieRating.getRatedMovieSequenceReader
+  sequenceReader.setDictionary(dict)
+  val sequenceWriter = new DelSequenceWriter(new FileOutputStream(outputFile), false) // we read gids and write them as is
+  sequenceWriter.setDictionary(dict)
+  val items = new IntArrayList()
+  while (sequenceReader.read(items)) {
+    sequenceWriter.write(items)
+  }
+  sequenceReader.close
+  sequenceWriter.close
+}
+
+object RunAllConverters extends App {
+  TrainingSetToCsv.main(Array.empty[String])
+  CreateFlatDictionary.main(Array.empty[String])
+  CreateFlatData.main(Array.empty[String])
+  CreateDeepDictionary.main(Array.empty[String])
+  CreateDeepData.main(Array.empty[String])
 }

@@ -1,14 +1,15 @@
 package de.uni_mannheim.desq.dictionary;
 
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 
 /* I/O method for Dictionary */
 public final class DictionaryIO {
@@ -98,10 +99,14 @@ public final class DictionaryIO {
 	/** Save a dictionary to del line format. */
 	public static void saveToDel(OutputStream out, Dictionary dict, 
 			boolean useFids, boolean withStatistics) throws IOException {
-		List<Integer> items = new ArrayList<>(
-                useFids ? dict.itemsByFid.keySet() : dict.itemsById.keySet());
-		Collections.sort(items);
-		
+		IntList items;
+		if (useFids) {
+			items = new IntArrayList(dict.itemsByFid.keySet());
+			Collections.sort(items); // use fid order
+		} else {
+			items = dict.topologicalSort(); // use topological order
+		}
+
 		OutputStreamWriter writer = new OutputStreamWriter(out);
 		for (Integer i : items) {
 			Item item = useFids ? dict.getItemByFid(i) : dict.getItemById(i);

@@ -113,6 +113,26 @@ public class ExampleUtils {
         return runWithStats(dataReader, minerConf);
     }
 
+    /** Runs a miner on Netflix data */
+    public static DesqMiner runNetflixFlat(Configuration minerConf) throws IOException {
+        Dictionary dict = DictionaryIO.loadFromDel(new FileInputStream("data-local/netflix/flat-dict-gid.del"), true);
+        dict.recomputeFids();
+        File dataFile = new File("data-local/netflix/flat-data-gid.del");
+        SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), false);
+        dataReader.setDictionary(dict);
+        return runVerbose(dataReader, minerConf);
+    }
+
+    /** Runs a miner on Netflix data */
+    public static DesqMiner runNetflixDeep(Configuration minerConf) throws IOException {
+        Dictionary dict = DictionaryIO.loadFromDel(new FileInputStream("data-local/netflix/deep-dict-gid.del"), true);
+        dict.recomputeFids();
+        File dataFile = new File("data-local/netflix/deep-data-gid.del");
+        SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), false);
+        dataReader.setDictionary(dict);
+        return runVerbose(dataReader, minerConf);
+    }
+
     /** Runs a miner on ICDM16 example data. */
     public static DesqMiner runIcdm16(Configuration minerConf) throws IOException {
         URL dictFile = ExampleUtils.class.getResource("/icdm16-example/dict.del");

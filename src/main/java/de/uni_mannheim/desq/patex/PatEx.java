@@ -15,12 +15,13 @@ import de.uni_mannheim.desq.fst.Transition;
 import de.uni_mannheim.desq.patex.PatExParser.CaptureContext;
 import de.uni_mannheim.desq.patex.PatExParser.ConcatContext;
 import de.uni_mannheim.desq.patex.PatExParser.ConcatExpressionContext;
-import de.uni_mannheim.desq.patex.PatExParser.ItemContext;
+import de.uni_mannheim.desq.patex.PatExParser.NonWildCardContext;
 import de.uni_mannheim.desq.patex.PatExParser.ItemExpressionContext;
 import de.uni_mannheim.desq.patex.PatExParser.OptionalExpressionContext;
 import de.uni_mannheim.desq.patex.PatExParser.ParensContext;
 import de.uni_mannheim.desq.patex.PatExParser.PlusExpressionContext;
 import de.uni_mannheim.desq.patex.PatExParser.RepeatExpressionContext;
+import de.uni_mannheim.desq.patex.PatExParser.RepeatExactlyExpressionContext;
 import de.uni_mannheim.desq.patex.PatExParser.RepeatMaxExpressionContext;
 import de.uni_mannheim.desq.patex.PatExParser.RepeatMinExpressionContext;
 import de.uni_mannheim.desq.patex.PatExParser.RepeatMinMaxExpressionContext;
@@ -110,22 +111,28 @@ public final class PatEx {
 		
 		@Override
 		public Fst visitRepeatMinMaxExpression(RepeatMinMaxExpressionContext ctx) {
-			int min = Integer.parseInt(ctx.WORD(0).getText());
-			int max = Integer.parseInt(ctx.WORD(1).getText());
+			int min = Integer.parseInt(ctx.INT(0).getText());
+			int max = Integer.parseInt(ctx.INT(1).getText());
 			return FstOperations.repeatMinMax(visit(ctx.repeatexp()), min, max);
 		}
 
+
+		@Override
+		public Fst visitRepeatExactlyExpression(RepeatExactlyExpressionContext ctx) {
+			int n = Integer.parseInt(ctx.INT().getText());
+			return FstOperations.repeatExactly(visit(ctx.repeatexp()), n);
+		}
 		
 		@Override
 		public Fst visitRepeatMaxExpression(RepeatMaxExpressionContext ctx) {
-			int max = Integer.parseInt(ctx.WORD().getText());
-			return FstOperations.repeat(visit(ctx.repeatexp()), max);
+			int max = Integer.parseInt(ctx.INT().getText());
+			return FstOperations.repeatMinMax(visit(ctx.repeatexp()), 0, max);
 		}
 
 		
 		@Override
 		public Fst visitRepeatMinExpression(RepeatMinExpressionContext ctx) {
-			int min = Integer.parseInt(ctx.WORD().getText());
+			int min = Integer.parseInt(ctx.INT().getText());
 			return FstOperations.repeatMin(visit(ctx.repeatexp()), min);
 		}
 
@@ -195,11 +202,15 @@ public final class PatEx {
 
 		
 		@Override
-		public Fst visitItem(ItemContext ctx) {
+		public Fst visitNonWildCard(NonWildCardContext ctx) {
 			boolean generalize = false;
 			boolean force = false;
-			String word = ctx.WORD().getText();
-			
+			String word = ctx.item().getText();
+			if (word.startsWith("'") && word.endsWith("'") || word.startsWith("\"") && word.endsWith("\"")) {
+				// strip the quotes
+				word = word.substring(1, word.length()-1);
+			}
+
 			int inputLabel = dict.getItemBySid(word).fid;
 			
 			int opCount = ctx.getChildCount();

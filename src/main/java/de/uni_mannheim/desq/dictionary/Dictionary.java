@@ -43,8 +43,8 @@ public final class Dictionary {
 		if (item.fid >= 0) itemsByFid.put(item.fid, item);
 		itemsBySid.put(item.sid, item);
 	}
-	
-	/** Updates the counts of the hierarchy by adding the given input sequence. 
+
+	/** Updates the counts of the hierarchy by adding the given input sequence.
 	 * The two insets are used for temporary storage. */
 	private void incCounts(IntList inputSequence, IntSet seenItems, IntSet ancItems, boolean fid) {
 		seenItems.clear();
@@ -359,10 +359,11 @@ public final class Dictionary {
 	
 	/** Performs a topological sort of the items in this dictionary, respecting document 
 	 * frequencies. Throws an IllegalArgumentException if there is a cycle.
-	 *  
+	 *
+	 * @returns item gids in topological order
      * @author Keith Schwarz (htiek@cs.stanford.edu) 
      */
-    private IntList topologicalSort() {
+    public IntList topologicalSort() {
         /* Maintain two structures - a set of visited nodes (so that once we've
          * added a node to the list, we don't label it again), and a list of
          * nodes that actually holds the topological ordering.
