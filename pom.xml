@@ -140,6 +140,7 @@
 					<recompileMode>incremental</recompileMode>
 					<args>
 						<arg>-target:jvm-1.8</arg>
+						<arg>-feature</arg>
 					</args>
 					<javacArgs>
 						<javacArg>-Xlint:unchecked</javacArg>

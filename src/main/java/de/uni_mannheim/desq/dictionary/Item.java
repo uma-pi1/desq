@@ -31,8 +31,8 @@ public final class Item {
     /** Other properties associated with this item */
     public Properties properties;
 	
-	public Item(int id, String sid) {
-		this.gid = id;
+	public Item(int gid, String sid) {
+		this.gid = gid;
 		this.sid = sid;
 	}
 	
