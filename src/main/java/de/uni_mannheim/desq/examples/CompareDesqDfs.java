@@ -63,7 +63,7 @@ public class CompareDesqDfs {
 		DesqMinerContext ctx = new DesqMinerContext();
 		ctx.dict = dict;
 		DelPatternWriter patternWriter = new DelPatternWriter(
-		        new FileOutputStream(outputFile+"-DesqDfs-"+"-"+pruneIrrelevantInputs+"-"+useTwoPass),
+		        new FileOutputStream(outputFile+"-DesqDfs-"+pruneIrrelevantInputs+"-"+useTwoPass),
 				DelPatternWriter.TYPE.SID);
 		patternWriter.setDictionary(dict);
 		ctx.patternWriter = patternWriter;

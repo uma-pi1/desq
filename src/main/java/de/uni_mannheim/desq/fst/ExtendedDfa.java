@@ -184,7 +184,7 @@ public final class ExtendedDfa {
 			// was null
 			if(state == null)
 				return false;
-			if(state.isFinal())
+			if(state.isFinal() && (!fst.requireFullMatch || position==inputSequence.size()))
 				return true;
 		}
 		return false;
@@ -207,8 +207,9 @@ public final class ExtendedDfa {
 			if(state == null)
 				break; // we may return true or false, as we might have reached a final state before
 			stateSeq.add(state);
-			if(state.isFinal())
+			if (state.isFinal() && (!fst.requireFullMatch || pos==inputSequence.size())) {
 				finalPos.add(pos);
+			}
 		}
 		return (!finalPos.isEmpty());
 	}

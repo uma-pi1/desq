@@ -42,7 +42,7 @@ public class EDfaExample {
 		}*/
 		
 		String patternExpression = "[c|d]([A^|B=^]+)e";
-		patternExpression = ".* [" + patternExpression.trim() + "]";
+		patternExpression = patternExpression.trim();
 		PatEx p = new PatEx(patternExpression, dict);
 		Fst fst = p.translate();
 		fst.minimize();

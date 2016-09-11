@@ -1,17 +1,14 @@
 package de.uni_mannheim.desq.patex;
 
+import de.uni_mannheim.desq.dictionary.Item;
+import de.uni_mannheim.desq.fst.*;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.fst.BasicTransition;
 import de.uni_mannheim.desq.fst.BasicTransition.InputLabelType;
 import de.uni_mannheim.desq.fst.BasicTransition.OutputLabelType;
-import de.uni_mannheim.desq.fst.Fst;
-import de.uni_mannheim.desq.fst.FstOperations;
-import de.uni_mannheim.desq.fst.State;
-import de.uni_mannheim.desq.fst.Transition;
 import de.uni_mannheim.desq.patex.PatExParser.CaptureContext;
 import de.uni_mannheim.desq.patex.PatExParser.ConcatContext;
 import de.uni_mannheim.desq.patex.PatExParser.ConcatExpressionContext;
@@ -30,9 +27,6 @@ import de.uni_mannheim.desq.patex.PatExParser.StarExpressionContext;
 import de.uni_mannheim.desq.patex.PatExParser.UnionContext;
 import de.uni_mannheim.desq.patex.PatExParser.UnionExpressionContext;
 import de.uni_mannheim.desq.patex.PatExParser.WildCardContext;
-
-
-
 
 
 public final class PatEx {
@@ -68,6 +62,7 @@ public final class PatEx {
 		fst.updateStates();
 		return fst;
 	}
+
 	public class Visitor extends PatExBaseVisitor<Fst> {
 		
 		private boolean capture = false;
@@ -75,7 +70,20 @@ public final class PatEx {
 		
 		@Override
 		public Fst visitUnion(UnionContext ctx) {
-			return visit(ctx.unionexp());
+			Fst fst = visit(ctx.unionexp());
+
+			// add self loop to starting state if we can start anywhere
+			if (ctx.start == null) {
+				State initialState = fst.getInitialState();
+				initialState.addTransition(
+						new BasicTransition(0, InputLabelType.SELF, -1, OutputLabelType.EPSILON, initialState, dict)
+				);
+			}
+
+			// remember whether we need to match to the end
+			fst.setRequireFullMatch( ctx.end != null );
+
+			return fst;
 		}
 
 		
@@ -208,10 +216,15 @@ public final class PatEx {
 			String word = ctx.item().getText();
 			if (word.startsWith("'") && word.endsWith("'") || word.startsWith("\"") && word.endsWith("\"")) {
 				// strip the quotes
-				word = word.substring(1, word.length()-1);
+				//word = word.substring(1, word.length()-1);
 			}
 
-			int inputLabel = dict.getItemBySid(word).fid;
+			Item item = dict.getItemBySid(word);
+			if (item == null) {
+				throw new RuntimeException("unknown item " + word + " at " + ctx.item().getStart().getLine()
+						+ ":" + ctx.item().getStart().getCharPositionInLine());
+			}
+			int inputLabel = item.fid;
 			
 			int opCount = ctx.getChildCount();
 			if (opCount == 2) {

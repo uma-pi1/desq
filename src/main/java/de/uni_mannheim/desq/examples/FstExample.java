@@ -31,7 +31,6 @@ public class FstExample {
 		//String patternExpression = "([A|B]c+[d|e])";
 		
 		// create de.uni_mannheim.desq.old.fst
-		patternExpression = ".* [" + patternExpression.trim() + "]";
 		PatEx patEx = new PatEx(patternExpression, dict);
 		Fst fst = patEx.translate();
 		fst.print("fst");

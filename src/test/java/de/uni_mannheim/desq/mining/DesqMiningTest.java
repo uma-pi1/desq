@@ -103,6 +103,7 @@ public abstract class DesqMiningTest {
 
     /** Sanitizes the given string (often a pattern expression) so that it can be used as filename */
     public static String sanitize(String s) {
+        s = s.replace(" ", "-");
         s = s.replace("|", "_I");
         s = s.replace("*", "_S");
         s = s.replace("?", "_Q");

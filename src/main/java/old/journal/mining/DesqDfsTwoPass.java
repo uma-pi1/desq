@@ -65,7 +65,7 @@ public class DesqDfsTwoPass extends MemoryDesqMiner {
 		this.largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
 		
 		// old.fst
-		patternExpression = ".* [" + patternExpression.trim() + "]";
+		patternExpression = patternExpression.trim();
 		PatEx p = new PatEx(patternExpression, ctx.dict);
 		this.fst = p.translate();
 		fst.minimize(); //TODO: move to translate

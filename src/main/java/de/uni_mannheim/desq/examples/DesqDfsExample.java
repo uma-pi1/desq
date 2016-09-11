@@ -23,6 +23,12 @@ public class DesqDfsExample {
 		String patternExp= "[c|d]([A^|B=^]+)e";
 		int sigma = 2;
 
+		patternExp= "(a1)..$";
+		sigma = 1;
+
+		patternExp= "^.(a1)";
+		sigma = 1;
+
 		Configuration conf = DesqDfs.createConf(patternExp, sigma);
 		conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
 		conf.setProperty("desq.mining.use.two.pass", true);
@@ -59,9 +65,9 @@ public class DesqDfsExample {
     }
 
 	public static void main(String[] args) throws IOException {
-		//icdm16();
+		icdm16();
 		//nyt();
 		//netflixFlat();
-        netflixDeep();
+        //netflixDeep();
 	}
 }

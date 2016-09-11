@@ -4,8 +4,9 @@ grammar PatEx;
 
 patex
 :
-	unionexp						#union
+	start='^'? expr=unionexp end='$'?				#union
 ;
+
 unionexp
 :
 	concatexp '|' unionexp			#unionExpression
@@ -61,7 +62,7 @@ QID :
     | DQUOTE ID (WS* ID)*? DQUOTE
 ;
 
-SQUOTE : '\'' ;
-DQUOTE : '\"' ;
-CHAR : ~('\'' | '\"' | '|' | '?' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
+fragment SQUOTE : '\'';
+fragment DQUOTE : '\"';
+fragment CHAR : ~('\'' | '\"' | '|' | '?' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
 WS  : [ \t\r\n]+ -> skip; // skip spaces, tabs, newlines

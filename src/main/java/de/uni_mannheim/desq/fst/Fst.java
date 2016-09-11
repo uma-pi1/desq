@@ -15,6 +15,9 @@ public final class Fst {
 	List<State> states = new ArrayList<>();
     List<State> finalStates = new ArrayList<>();
 
+	// flag indicating whether full input must be consumed
+	boolean requireFullMatch = false;
+
     public Fst() {
         this(false);
     }
@@ -24,7 +27,15 @@ public final class Fst {
         initialState.isFinal = isFinal;
         updateStates();
 	}
-	
+
+	public boolean getRequireFullMatch() {
+		return requireFullMatch;
+	}
+
+	public void setRequireFullMatch(boolean requireFullMatch) {
+		this.requireFullMatch = requireFullMatch;
+	}
+
 	public State getInitialState() {
 		return initialState;
 	}

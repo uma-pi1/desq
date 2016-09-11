@@ -82,7 +82,7 @@ public final class DesqDfs extends MemoryDesqMiner {
         useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
 
         // construct pattern expression and FST
-		patternExpression = ".* [" + ctx.conf.getString("desq.mining.pattern.expression").trim() + "]";
+		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
 		PatEx p = new PatEx(patternExpression, ctx.dict);
 		Fst tempFst = p.translate();
 		tempFst.minimize(); //TODO: move to translate
@@ -250,7 +250,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	private boolean incStepOnePass(final IncStepArgs args, final int pos, final State state, final int level) {
 		// check if we reached the end of the input sequence
 	    if (pos >= args.inputSequence.length)
-			return state.isFinal();
+			return state.isFinal(); // whether or not we require a full match
 
 		// get iterator over next output item/state pairs; reuse existing ones if possible
 		final int itemFid = args.inputSequence[pos];
@@ -264,7 +264,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		// iterate over output item/state pairs and remember whether we hit a final state without producing output
         // (i.e., no transitions or only transitions with epsilon output)
-		boolean reachedFinalStateWithoutOutput = state.isFinal();
+		boolean reachedFinalStateWithoutOutput = state.isFinal() && !fst.getRequireFullMatch();
 		while (itemStateIt.hasNext()) {
 			final ItemState itemState = itemStateIt.next();
 			final int outputItemFid = itemState.itemFid;

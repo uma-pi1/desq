@@ -50,7 +50,7 @@ public class DesqCountIterative extends DesqMiner {
 		this.sid = 0;
 
 		this.patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
-		patternExpression = ".* [" + patternExpression.trim() + "]";
+		patternExpression = patternExpression.trim();
 		PatEx p = new PatEx(patternExpression, ctx.dict);
 		this.fst = p.translate();
 		fst.minimize();// TODO: move to translate

@@ -110,7 +110,7 @@ public final class DesqCount extends DesqMiner {
 		this.largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
 		this.inputId = 0;
 		
-		patternExpression = ".* [" + ctx.conf.getString("desq.mining.pattern.expression") + "]";
+		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
 		PatEx p = new PatEx(patternExpression, ctx.dict);
 		Fst tempFst = p.translate();
 		tempFst.minimize(); //TODO: move to translate
@@ -255,7 +255,7 @@ public final class DesqCount extends DesqMiner {
 	 */
 	private void stepOnePass(int pos, State state, int level) {
 		// if we reached a final state, we count the current sequence (if any)
-		if(state.isFinal() && !prefix.isEmpty()) {
+		if(state.isFinal() && !prefix.isEmpty() && (!fst.getRequireFullMatch() || pos==inputSequence.size())) {
 			countSequence(prefix);
 		}
 
@@ -361,7 +361,8 @@ public final class DesqCount extends DesqMiner {
 
 			// if we reached a final state, we count the current sequence (if any)
 			final State toState = itemState.state;
-			if (toState.isFinal() && !prefix.isEmpty() && !prefixOutput.getBoolean(prefix.size())) {
+			if (toState.isFinal() && !prefix.isEmpty() && !prefixOutput.getBoolean(prefix.size())
+					&& (!fst.getRequireFullMatch() || pos==inputSequence.size()-1) ) {
 				countSequence(prefix);
 				prefixOutput.set(prefix.size(), true);
 			}
