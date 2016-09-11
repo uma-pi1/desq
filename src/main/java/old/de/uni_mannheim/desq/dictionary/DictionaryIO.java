@@ -1,5 +1,7 @@
-package de.uni_mannheim.desq.dictionary;
+package old.de.uni_mannheim.desq.dictionary;
 
+import de.uni_mannheim.desq.dictionary.Dictionary;
+import de.uni_mannheim.desq.dictionary.Item;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
@@ -12,6 +14,7 @@ import java.io.OutputStreamWriter;
 import java.util.Collections;
 
 /* I/O method for Dictionary */
+@Deprecated // use Avro now
 public final class DictionaryIO {
 	/** Adds an item to the specified dictionary by deconding a line from del file format. */
 	public static void addItemFromDelLine(Dictionary dict, String line, boolean withStatistics) {
@@ -32,9 +35,6 @@ public final class DictionaryIO {
 			String sid = columns[0];
 			int id = Integer.parseInt(columns[1]);
 			item = new Item(id, sid);
-			item.fid = -1;
-			item.cFreq = 0;
-			item.dFreq = 0;
 			dict.addItem(item);
 			parents = columns[2].split(",");
 		}
@@ -43,7 +43,7 @@ public final class DictionaryIO {
 		for (String parentString : parents) {
 			int parentId = Integer.parseInt(parentString);
 			if (parentId == 0) continue; // indicates no parent
-			Item parent = dict.getItemById(parentId);
+			Item parent = dict.getItemByGid(parentId);
 			Item.addParent(item, parent);
 		}
 	}
@@ -101,7 +101,7 @@ public final class DictionaryIO {
 			boolean useFids, boolean withStatistics) throws IOException {
 		IntList items;
 		if (useFids) {
-			items = new IntArrayList(dict.itemsByFid.keySet());
+			items = new IntArrayList(dict.getItemsByFid().keySet());
 			Collections.sort(items); // use fid order
 		} else {
 			items = dict.topologicalSort(); // use topological order
@@ -109,7 +109,7 @@ public final class DictionaryIO {
 
 		OutputStreamWriter writer = new OutputStreamWriter(out);
 		for (Integer i : items) {
-			Item item = useFids ? dict.getItemByFid(i) : dict.getItemById(i);
+			Item item = useFids ? dict.getItemByFid(i) : dict.getItemByGid(i);
 			writer.write(itemToDelLine(item, useFids, withStatistics));
 			writer.write("\n");
 		}

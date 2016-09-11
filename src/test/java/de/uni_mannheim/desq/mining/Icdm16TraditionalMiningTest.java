@@ -1,7 +1,6 @@
 package de.uni_mannheim.desq.mining;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.dictionary.DictionaryIO;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.SequenceReader;
 import org.apache.commons.configuration2.Configuration;
@@ -37,8 +36,8 @@ public class Icdm16TraditionalMiningTest extends TraditionalMiningTest {
 
     @Override
     public Dictionary getDictionary() throws IOException {
-        URL dictFile = TraditionalMiningTest.class.getResource("/icdm16-example/dict.del");
-        return DictionaryIO.loadFromDel(dictFile.openStream(), false);
+        URL dictFile = TraditionalMiningTest.class.getResource("/icdm16-example/dict.json");
+        return Dictionary.loadFrom(dictFile);
     }
 
     @Override

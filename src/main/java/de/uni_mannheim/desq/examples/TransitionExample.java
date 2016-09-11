@@ -1,11 +1,9 @@
 package de.uni_mannheim.desq.examples;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Iterator;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.dictionary.DictionaryIO;
 import de.uni_mannheim.desq.dictionary.Item;
 import de.uni_mannheim.desq.fst.BasicTransition;
 import de.uni_mannheim.desq.fst.ItemState;
@@ -19,7 +17,7 @@ public class TransitionExample {
 	static void nyt() throws IOException {
 
 		// load the dictionary with statistics
-		Dictionary dict = DictionaryIO.loadFromDel(new FileInputStream("data-local/nyt-1991-dict.del"), true);
+		Dictionary dict = Dictionary.loadFrom("data-local/nyt-1991-dict.avro.gz");
 		Transition t;
 		Item item;
 

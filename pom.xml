@@ -73,52 +73,50 @@
 			<artifactId>scala-library</artifactId>
 			<version>2.11.8</version>
 		</dependency>
-        <!-- unused dependency
+		<dependency>
+			<groupId>org.apache.avro</groupId>
+			<artifactId>avro</artifactId>
+			<version>1.8.1</version>
+		</dependency>
+        <!-- unused dependencies
         <dependency>
             <groupId>jdk.de.uni_mannheim.desq.old.tools</groupId>
             <artifactId>jdk.de.uni_mannheim.desq.old.tools</artifactId>
             <version>${java.version}</version>
             <systemPath>${java.home}/../lib/de.uni_mannheim.desq.old.tools.jar</systemPath>
             <scope>system</scope>
-        </dependency> -->
-		<!-- >dependency> <groupId>org.apache.lucene</groupId> <artifactId>lucene-core</artifactId>
-			<version>4.0.0</version> </dependency -->
-		<!--dependency> <groupId>org.apache.hadoop</groupId> <artifactId>hadoop-auth</artifactId>
-			<version>2.6.0</version> </dependency> <dependency> <groupId>org.apache.hadoop</groupId>
-			<artifactId>hadoop-common</artifactId> <version>2.6.0</version> </dependency>
-			<dependency> <groupId>org.apache.hadoop</groupId> <artifactId>hadoop-core</artifactId>
-			<version>1.2.1</version> </dependency -->		<!--dependency> <groupId>org.apache.mahout</groupId> <artifactId>mahout-math</artifactId>
-			<version>0.7</version> </dependency -->
-		<!--dependency> <groupId>org.apache.mahout</groupId> <artifactId>mahout-core</artifactId> 
-			<version>0.7</version> </dependency -->
-		<!--dependency> <groupId>org.apache.commons</groupId> <artifactId>commons-math</artifactId> 
-			<version>2.2</version> </dependency -->
-		<!-- dependency> <groupId>org.apache.commons</groupId> <artifactId>commons-compress</artifactId> 
-			<version>1.1</version> </dependency -->
-		<!--dependency> <groupId>junit</groupId> <artifactId>junit</artifactId> 
-			<version>3.8.2</version> </dependency -->
-		<!--dependency> <groupId>org.apache.mahout</groupId> <artifactId>mahout-integration</artifactId> 
-			<version>0.7</version> </dependency -->
-		<!--dependency> <groupId>org.jgrapht</groupId> <artifactId>jgrapht-core</artifactId>
-			<version>0.9.1</version> </dependency> <dependency> <groupId>org.jgrapht</groupId> 
-			<artifactId>jgrapht-ext</artifactId> <version>0.9.1</version> </dependency -->
+        </dependency>
+        -->
 	</dependencies>
 
 	<build>
 		<plugins>
+			<!-- Avro schemas -->
+			<plugin>
+				<groupId>org.apache.avro</groupId>
+				<artifactId>avro-maven-plugin</artifactId>
+				<version>1.8.1</version>
+				<executions>
+					<execution>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>schema</goal>
+						</goals>
+						<configuration>
+							<sourceDirectory>${project.basedir}/src/main/avro/</sourceDirectory>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
 			<!-- antrl4 support -->
 			<plugin>
 				<groupId>org.antlr</groupId>
 				<artifactId>antlr4-maven-plugin</artifactId>
 				<version>4.5</version>
 				<configuration>
-					<!-- <sourceDirectory>${basedir}/src/main/java/de.uni_mannheim.desq.old.patex</sourceDirectory> -->
 					<sourceDirectory>${basedir}/src/main/antlr4</sourceDirectory>
-					<!-- <outputDirectory>${basedir}/src/main/java/de/uni_mannheim/desq/de.uni_mannheim.desq.old.patex</outputDirectory> -->
 					<visitor>true</visitor>
-					<!-- for some reason handing over the parameter directly does not
-                        work Therefore, the definition is done in the respective .g4 file. <arguments>
-                        <argument>-package de.uni_mannheim.desq.old.patex</argument> </arguments> -->
 				</configuration>
 				<executions>
 					<execution>

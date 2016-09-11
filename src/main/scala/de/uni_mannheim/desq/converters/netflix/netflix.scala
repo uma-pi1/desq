@@ -3,9 +3,11 @@ package de.uni_mannheim.desq.converters.netflix
 import java.io.{File, FileInputStream, FileOutputStream, PrintWriter}
 import java.util.regex.Pattern
 
-import de.uni_mannheim.desq.dictionary.{Dictionary, DictionaryIO, Item}
+import de.uni_mannheim.desq.dictionary.{Dictionary, Item}
 import de.uni_mannheim.desq.io.{DelSequenceWriter, SequenceReader}
 import it.unimi.dsi.fastutil.ints.{IntArrayList, IntList}
+import old.de.uni_mannheim.desq.dictionary.DictionaryIO
+import org.apache.log4j.PropertyConfigurator
 
 import scala.collection.mutable
 import scala.io.Source
@@ -195,7 +197,7 @@ object MovieRating {
 
         items.clear
         for (movieRating <- sequenceIt.next) {
-          val movieSid = dict.getItemById(movieRating.movieId).sid
+          val movieSid = dict.getItemByGid(movieRating.movieId).sid
           val movieRatingSid = movieSid + "@" + movieRating.rating
           items.add(dict.getItemBySid(movieRatingSid).gid)
         }
@@ -208,7 +210,7 @@ object MovieRating {
 
 /** Creates a flat dictionary where item.gid = original movie id */
 object CreateFlatDictionary extends App {
-  val outputFileGid = "data-local/netflix/flat-dict-gid.del"
+  val outputFileBaseName = "data-local/netflix/flat-dict"
 
   // read all movies and build a dictionary
   println("Reading movies...")
@@ -220,20 +222,22 @@ object CreateFlatDictionary extends App {
   // now scan the data and count
   println("Reading training set...")
   val sequenceReader = MovieRating.getMovieIdSequenceReader
-  dict.clearCounts
+  dict.clearCountsAndFids
   dict.incCounts(sequenceReader)
+  dict.recomputeFids
 
   // write the dictionary
   println("Writing dictionary...")
-  DictionaryIO.saveToDel(new FileOutputStream(outputFileGid), dict, false, true)
+  dict.write(outputFileBaseName + ".json")
+  dict.write(outputFileBaseName + ".avro.gz")
 }
 
 /** Reencodes the training set using a flat dictionary (see above) and ignoring time stamps */
 object CreateFlatData extends App {
-  val dictFile = "data-local/netflix/flat-dict-gid.del"
+  val dictFile = "data-local/netflix/flat-dict.avro.gz"
   val outputFile = "data-local/netflix/flat-data-gid.del"
 
-  val dict = DictionaryIO.loadFromDel(new FileInputStream(dictFile), true)
+  val dict = Dictionary.loadFrom(dictFile)
   val sequenceReader = MovieRating.getMovieIdSequenceReader
   val sequenceWriter = new DelSequenceWriter(new FileOutputStream(outputFile), false) // we read gids and write them as is
   sequenceWriter.setDictionary(dict)
@@ -248,7 +252,7 @@ object CreateFlatData extends App {
 /** Creates a deep dictionary where item.gid = original movie id plus items for rated movies, ratings, and years
   * are added */
 object CreateDeepDictionary extends App {
-  val outputFileGid = "data-local/netflix/deep-dict-gid.del"
+  val outputFileBaseName = "data-local/netflix/deep-dict"
 
   // read all movies and build a dictionary
   println("Reading movies...")
@@ -257,18 +261,24 @@ object CreateDeepDictionary extends App {
   val yearStrings = new mutable.TreeSet[String].empty
   for (movie <- Movie.readMovies) {
     yearStrings.add(movie.yearString)
-    dict.addItem(new Item(movie.id, movie.unratedSid))
+    val item = new Item(movie.id, movie.unratedSid)
+    item.properties.setProperty("type", "movie")
+    dict.addItem(item)
     nextId = Math.max(nextId, movie.id)
   }
   nextId = nextId + 1
 
   // create items for ratings and years
   for (yearString <- yearStrings) {
-    dict.addItem(new Item(nextId, yearString))
+    val item = new Item(nextId, yearString)
+    item.properties.setProperty("type", "year")
+    dict.addItem(item)
     nextId = nextId + 1
   }
   for (rating <- Range.inclusive(1,5)) {
-    dict.addItem(new Item(nextId, rating + "stars"))
+    val item = new Item(nextId, rating + "stars")
+    item.properties.setProperty("type", "rating")
+    dict.addItem(item)
     nextId = nextId + 1
   }
 
@@ -280,6 +290,7 @@ object CreateDeepDictionary extends App {
 
     for (rating <- Range.inclusive(1,5)) {
       val newItem = new Item(nextId, movie.ratedSid(rating))
+      newItem.properties.setProperty("type", "ratedMovie")
       nextId = nextId + 1
       dict.addItem(newItem)
       Item.addParent(newItem, movieItem)
@@ -291,20 +302,22 @@ object CreateDeepDictionary extends App {
   println("Reading training set...")
   val sequenceReader = MovieRating.getRatedMovieSequenceReader
   sequenceReader.setDictionary(dict)
-  dict.clearCounts
+  dict.clearCountsAndFids
   dict.incCounts(sequenceReader)
+  dict.recomputeFids
 
   // write the dictionary
   println("Writing dictionary...")
-  DictionaryIO.saveToDel(new FileOutputStream(outputFileGid), dict, false, true)
+  dict.write(outputFileBaseName + ".json")
+  dict.write(outputFileBaseName + ".avro.gz")
 }
 
 /** Reencodes the training set using the deep dictionary (see above) and ignoring time stamps */
 object CreateDeepData extends App {
-  val dictFile = "data-local/netflix/deep-dict-gid.del"
+  val dictFile = "data-local/netflix/deep-dict.avro.gz"
   val outputFile = "data-local/netflix/deep-data-gid.del"
 
-  val dict = DictionaryIO.loadFromDel(new FileInputStream(dictFile), true)
+  val dict = Dictionary.loadFrom(dictFile)
   val sequenceReader = MovieRating.getRatedMovieSequenceReader
   sequenceReader.setDictionary(dict)
   val sequenceWriter = new DelSequenceWriter(new FileOutputStream(outputFile), false) // we read gids and write them as is

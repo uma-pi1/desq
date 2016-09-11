@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.net.URL;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.dictionary.DictionaryIO;
 import de.uni_mannheim.desq.dictionary.Item;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.DelSequenceWriter;
@@ -16,10 +15,15 @@ import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
 public class DictionaryExample {
-	void nyt() throws IOException {
+	static void nyt() throws IOException {
+		// use to convert old file to new format
+		//Dictionary dict = DictionaryIO.loadFromDel(new FileInputStream("data-local/nyt-1991-dict.del"), true);
+		//dict.write("data-local/nyt-1991-dict.json");
+		//dict.write("data-local/nyt-1991-dict.avro.gz");
+
 		// load the dictionary
-		Dictionary dict = DictionaryIO.loadFromDel(new FileInputStream("data-local/nyt-1991-dict.del"), true);
-		
+		Dictionary dict = Dictionary.loadFrom("data-local/nyt-1991-dict.avro.gz");
+
 		Item item;
 		IntSet fids;
 
@@ -39,30 +43,28 @@ public class DictionaryExample {
 		// restrict the dictionary to specified subset
 		Dictionary restricted = dict.restrictedCopy(
 				dict.descendantsFids(dict.getItemBySid("DT@").fid));
-		DictionaryIO.saveToDel(System.out, restricted, false, true);
+		restricted.writeJson(System.out);
+		System.out.println();
 	
 		// clear the counts in the dictionary and recopute
 		System.out.println("Recomputing counts");
-		System.out.println(
-				DictionaryIO.itemToDelLine(dict.getItemBySid("be@VB@"), true, true));
-		dict.clearCounts();
-		System.out.println(
-				DictionaryIO.itemToDelLine(dict.getItemBySid("be@VB@"), true, true));
+		System.out.println(dict.getItemBySid("be@VB@").toJson());
+		dict.clearCountsAndFids();
+		System.out.println(dict.getItemBySid("be@VB@").toJson());
 		SequenceReader dataReader = new DelSequenceReader(
 				new FileInputStream("data-local/nyt-1991-data.del"), false);
 		dict.incCounts(dataReader);
-		System.out.println(
-				DictionaryIO.itemToDelLine(dict.getItemBySid("be@VB@"), true, true));
+		System.out.println(dict.getItemBySid("be@VB@").toJson());
 	}
-	
-	void icdm16() throws IOException {
-		URL dictFile = getClass().getResource("/icdm16-example/dict.del");
-		URL dataFile = getClass().getResource("/icdm16-example/data.del");
+
+	static void icdm16() throws IOException {
+		URL dictFile = DictionaryExample.class.getResource("/icdm16-example/dict.json");
+		URL dataFile = DictionaryExample.class.getResource("/icdm16-example/data.del");
 
 		// load the dictionary
-		Dictionary dict = DictionaryIO.loadFromDel(dictFile.openStream(), false);
-		System.out.println("All items: " + dict.allItems());
-		
+		Dictionary dict = Dictionary.loadFrom(dictFile);
+		System.out.println("All items: " + dict.getItems());
+
 		// print data
 		System.out.println("Input sequences:");
 		SequenceReader dataReader = new DelSequenceReader(dataFile.openStream(), false);
@@ -75,13 +77,15 @@ public class DictionaryExample {
 		dataReader = new DelSequenceReader(dataFile.openStream(), false);
 		dict.incCounts(dataReader);
 		System.out.println("Dictionary with counts: ");
-		DictionaryIO.saveToDel(System.out, dict, false, true);
-		
+		dict.writeJson(System.out);
+		System.out.println();
+
 		// update fids
 		System.out.println("Dictionary with new fids: ");
 		dict.recomputeFids();
-		DictionaryIO.saveToDel(System.out, dict, true, true);
-		
+		dict.writeJson(System.out);
+		System.out.println();
+
 		// show converted input sequences
 		dataReader = new DelSequenceReader(dataFile.openStream(), false);
 		SequenceWriter dataWriter = new DelSequenceWriter(System.out, false);
@@ -93,7 +97,7 @@ public class DictionaryExample {
 	
 	
 	public static void main(String[] args) throws IOException {
-		new DictionaryExample().nyt();
-		//new DictionaryExample().icdm16();
+		//nyt();
+		icdm16();
 	}
 }

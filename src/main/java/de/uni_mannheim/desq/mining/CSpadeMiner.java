@@ -390,7 +390,7 @@ public final class CSpadeMiner extends DesqMiner {
                     }
                 }
             } else {
-                for (Item item : ctx.dict.allItems()) {
+                for (Item item : ctx.dict.getItems()) {
                     if (item.dFreq >= sigma) {
                         itemFids.set(0, item.fid);
                         ctx.patternWriter.write(itemFids, item.dFreq);

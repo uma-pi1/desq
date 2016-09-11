@@ -106,7 +106,7 @@ public final class ExtendedDfa {
 				}
 				
 				//for all items, for all transitions
-				for(Item item : dict.allItems()) {
+				for(Item item : dict.getItems()) {
 					int itemFid = item.fid;
 					
 					for(Transition t : transitionList){
@@ -125,7 +125,7 @@ public final class ExtendedDfa {
 					IntSet reachableStates = reachableStatesFromItemId.get(itemFid);
 					BitSet eDfaTransition = incTransitionToStates.get(reachableStates);
 					if(eDfaTransition == null) {
-						eDfaTransition = new BitSet(dict.allItems().size() + 1);
+						eDfaTransition = new BitSet(dict.getItems().size() + 1);
 						incTransitionToStates.put(reachableStates, eDfaTransition);
 					}
 					eDfaTransition.set(itemFid);

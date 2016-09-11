@@ -80,7 +80,7 @@ public abstract class TraditionalMiningTest {
         if (computeStatisticsAndFids()) {
             SequenceReader dataReader = getSequenceReader();
             dataReader.setDictionary(dict);
-            dict.clearCounts();
+            dict.clearCountsAndFids();
             dict.incCounts(dataReader);
             dataReader.close();
             dict.recomputeFids();

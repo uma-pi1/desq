@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.net.URL;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.dictionary.DictionaryIO;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.SequenceReader;
@@ -15,11 +14,11 @@ public class FstExample {
 
 	//Requires dot software
 	void icdm16() throws IOException {
-		URL dictFile = getClass().getResource("/icdm16-example/dict.del");
+		URL dictFile = getClass().getResource("/icdm16-example/dict.json");
 		URL dataFile = getClass().getResource("/icdm16-example/data.del");
 
 		// load the dictionary
-		Dictionary dict = DictionaryIO.loadFromDel(dictFile.openStream(), false);
+		Dictionary dict = Dictionary.loadFrom(dictFile);
 
 		// update hierarchy
 		SequenceReader dataReader = new DelSequenceReader(dataFile.openStream(), false);

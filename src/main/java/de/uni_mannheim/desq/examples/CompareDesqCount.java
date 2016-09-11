@@ -1,7 +1,6 @@
 package de.uni_mannheim.desq.examples;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.dictionary.DictionaryIO;
 import de.uni_mannheim.desq.io.DelPatternWriter;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.SequenceReader;
@@ -26,12 +25,12 @@ public class CompareDesqCount {
 	
 	// IO
 	String inputFile = "data-local/nyt-1991-data.del";
-	String dictFile = "data-local/nyt-1991-dict.del";
+	String dictFile = "data-local/nyt-1991-dict.avro.gz";
 	String outputFile = "tmp/output";
 
 
 	public void runOld(boolean iterative, boolean pruneIrrelevantInputs, boolean useTwoPass) throws IOException {
-		Dictionary dict = DictionaryIO.loadFromDel(new FileInputStream(dictFile), true);
+		Dictionary dict = Dictionary.loadFrom(dictFile);
 		SequenceReader dataReader = new DelSequenceReader(new FileInputStream(inputFile), true);
 		dataReader.setDictionary(dict);
 		DesqMinerContext ctx = new DesqMinerContext();
@@ -66,7 +65,7 @@ public class CompareDesqCount {
 	}
 
 	public void run(boolean iterative, boolean pruneIrrelevantInputs, boolean useTwoPass) throws IOException {
-		Dictionary dict = DictionaryIO.loadFromDel(new FileInputStream(dictFile), true);
+		Dictionary dict = Dictionary.loadFrom(dictFile);
 		SequenceReader dataReader = new DelSequenceReader(new FileInputStream(inputFile), true);
 		dataReader.setDictionary(dict);
 		DesqMinerContext ctx = new DesqMinerContext();

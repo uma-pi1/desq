@@ -1,0 +1,58 @@
+{
+  "namespace": "de.uni_mannheim.desq.avro",
+  "name": "AvroItem",
+  "type": "record",
+  "fields": [
+    {
+      "name": "gid",
+      "type": "int"
+    },
+    {
+      "name": "sid",
+      "type": "string"
+    },
+    {
+      "name": "fid",
+      "type": "int",
+      "default": -1
+    },
+    {
+      "name": "cFreq",
+      "type": "int"
+    },
+    {
+      "name": "dFreq",
+      "type": "int"
+    },
+    {
+      "name": "parentGids",
+      "type": {
+        "type": "array",
+        "items": "int"
+      }
+    },
+    {
+      "name": "properties",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "AvroItemProperties",
+          "fields": [
+            {
+              "name": "key",
+              "type": "string"
+            },
+            {
+              "name": "value",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

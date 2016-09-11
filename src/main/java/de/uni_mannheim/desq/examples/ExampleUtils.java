@@ -2,7 +2,6 @@ package de.uni_mannheim.desq.examples;
 
 import com.google.common.base.Stopwatch;
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.dictionary.DictionaryIO;
 import de.uni_mannheim.desq.io.CountPatternWriter;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.MemoryPatternWriter;
@@ -106,7 +105,7 @@ public class ExampleUtils {
 
     /** Runs a miner on NYT data. */
     public static DesqMiner runNyt(Configuration minerConf) throws IOException {
-        Dictionary dict = DictionaryIO.loadFromDel(new FileInputStream("data-local/nyt-1991-dict.del"), true);
+        Dictionary dict = Dictionary.loadFrom("data-local/nyt-1991-dict.avro.gz");
         File dataFile = new File("data-local/nyt-1991-data.del");
         SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), true);
         dataReader.setDictionary(dict);
@@ -115,7 +114,7 @@ public class ExampleUtils {
 
     /** Runs a miner on Netflix data */
     public static DesqMiner runNetflixFlat(Configuration minerConf) throws IOException {
-        Dictionary dict = DictionaryIO.loadFromDel(new FileInputStream("data-local/netflix/flat-dict-gid.del"), true);
+        Dictionary dict = Dictionary.loadFrom("data-local/netflix/flat-dict.avro.gz");
         dict.recomputeFids();
         File dataFile = new File("data-local/netflix/flat-data-gid.del");
         SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), false);
@@ -125,7 +124,7 @@ public class ExampleUtils {
 
     /** Runs a miner on Netflix data */
     public static DesqMiner runNetflixDeep(Configuration minerConf) throws IOException {
-        Dictionary dict = DictionaryIO.loadFromDel(new FileInputStream("data-local/netflix/deep-dict-gid.del"), true);
+        Dictionary dict = Dictionary.loadFrom("data-local/netflix/deep-dict.avro.gz");
         dict.recomputeFids();
         File dataFile = new File("data-local/netflix/deep-data-gid.del");
         SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), false);
@@ -135,18 +134,18 @@ public class ExampleUtils {
 
     /** Runs a miner on ICDM16 example data. */
     public static DesqMiner runIcdm16(Configuration minerConf) throws IOException {
-        URL dictFile = ExampleUtils.class.getResource("/icdm16-example/dict.del");
+        URL dictFile = ExampleUtils.class.getResource("/icdm16-example/dict.json");
         URL dataFile = ExampleUtils.class.getResource("/icdm16-example/data.del");
 
         // load the dictionary
-        Dictionary dict = DictionaryIO.loadFromDel(dictFile.openStream(), false);
+        Dictionary dict = Dictionary.loadFrom(dictFile);
 
         // update hierarchy
         SequenceReader dataReader = new DelSequenceReader(dataFile.openStream(), false);
         dict.incCounts(dataReader);
         dict.recomputeFids();
         System.out.println("Dictionary with statitics:");
-        DictionaryIO.saveToDel(System.out, dict, true, true);
+        dict.writeJson(System.out);
         System.out.println();
 
         // print sequences

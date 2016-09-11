@@ -1,12 +1,21 @@
 package de.uni_mannheim.desq.dictionary;
 
-import java.io.IOException;
+import java.io.*;
+import java.net.URL;
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
+import de.uni_mannheim.desq.avro.AvroItem;
 import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.util.IntSetUtils;
 import it.unimi.dsi.fastutil.ints.*;
+import org.apache.avro.file.DataFileStream;
+import org.apache.avro.file.DataFileWriter;
+import org.apache.avro.io.*;
+import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.avro.specific.SpecificDatumWriter;
 
 /** A set of items arranged in a hierarchy */ 
 public final class Dictionary {
@@ -50,17 +59,17 @@ public final class Dictionary {
 		seenItems.clear();
 		for(int i=0; i<inputSequence.size(); i++) {
 			int ii = inputSequence.getInt(i);
-			Item item = fid ? getItemByFid(ii) : getItemById(ii);
+			Item item = fid ? getItemByFid(ii) : getItemByGid(ii);
 			ancItems.clear();
 			ancItems.add(item.gid);
 			addAscendantIds(item, ancItems);
 			for (int id : ancItems) {
-				getItemById(id).cFreq++;
+				getItemByGid(id).cFreq++;
 			}
 			seenItems.addAll(ancItems);
 		}
 		for (int id : seenItems) {
-			getItemById(id).dFreq++;
+			getItemByGid(id).dFreq++;
 		}
 	}
 	
@@ -77,36 +86,42 @@ public final class Dictionary {
 			incCounts(inputSequence, seenItems, ancItems, reader.usesFids());
 		}
 	}
-	
+
+	/** Clears everything */
+	public void clear() {
+		itemsById.clear();
+		itemsByFid.clear();
+		itemsBySid.clear();
+		parentFids = null;
+		parentFidsOffsets = null;
+		isForest = false;
+	}
+
 	/** Sets fid of all items to -1 */
-	public void clearFids() {
+	public void clearCountsAndFids() {
 		itemsByFid.clear();
 		for (Item item : itemsById.values()) {
 			item.fid = -1;
-		}
-	}
-
-	/** Sets cFreq and dFreq counts of all items to 0 */
-	public void clearCounts() {
-		for (Item item : itemsById.values()) {
 			item.cFreq = 0;
 			item.dFreq = 0;
 		}
 	}
-	
+
 	// -- access to indexes -----------------------------------------------------------------------
 	
-	public Collection<Item> allItems() {
+	public Collection<Item> getItems() {
 		return itemsById.values();
 	}
-	
+
+	public Int2ObjectMap<Item> getItemsByFid() { return itemsByFid; }
+
 	/** Checks whether there is an item with the given ID in the hierarchy. */
 	public boolean containsId(int itemId) {
 		return itemsById.containsKey(itemId);
 	}
 	
 	/** Returns the item with the given gid (or null if no such item exists) */
-	public Item getItemById(int itemId) {
+	public Item getItemByGid(int itemId) {
 		return itemsById.get(itemId);
 	}
 	/** Returns all items for the given fids */
@@ -121,7 +136,7 @@ public final class Dictionary {
 		target.clear();
 		IntIterator it = itemFids.iterator();
 		while (it.hasNext()) {
-			target.add(getItemById(it.nextInt()));
+			target.add(getItemByGid(it.nextInt()));
 		}		
 	}
 
@@ -259,7 +274,7 @@ public final class Dictionary {
 	public void addAscendantIds(Item item, IntSet itemIds) {
 		for (Item parent : item.parents) {
 			if (itemIds.add(parent.gid)) {
-				addAscendantIds(getItemById(parent.gid), itemIds);
+				addAscendantIds(getItemByGid(parent.gid), itemIds);
 			}
 		}
 	}
@@ -321,7 +336,7 @@ public final class Dictionary {
 	public void idsToFids(IntList ids) {
 		for (int i=0; i<ids.size(); i++) {
 			int id = ids.getInt(i);
-			int fid = getItemById(id).fid;
+			int fid = getItemByGid(id).fid;
 			ids.set(i, fid);	
 		}
 	}
@@ -349,7 +364,7 @@ public final class Dictionary {
 		for (int i=0; i<order.size(); i++) {
 			int fid = i+1;
 			int id = order.get(i);
-			Item item = getItemById(id);
+			Item item = getItemByGid(id);
 			item.fid = fid;
 			itemsByFid.put(fid, item);
 		}
@@ -382,7 +397,7 @@ public final class Dictionary {
         // items with a higher frequency will always appear before items
         // with lower frequency (under the assumption that document frequencies
         // are valid).
-        List<Item> items = new ArrayList<>(allItems());
+        List<Item> items = new ArrayList<>(getItems());
         Collections.sort(items, Item.dfreqDecrComparator());
 
         /* Fire off a DFS from each node in the graph. */
@@ -475,4 +490,157 @@ public final class Dictionary {
 
         parentFids = tempParentFids.toIntArray();
     }
+
+	// -- I/O ---------------------------------------------------------------------------------------------------------
+
+	public static Dictionary loadFrom(String fileName) throws IOException {
+		return loadFrom(new File(fileName));
+	}
+
+	public static Dictionary loadFrom(File file) throws IOException {
+		Dictionary dict = new Dictionary();
+		dict.read(file);
+		return dict;
+	}
+
+	public static Dictionary loadFrom(URL url) throws IOException {
+		Dictionary dict = new Dictionary();
+		dict.read(url);
+		return dict;
+	}
+
+	/** Reads a dictionary from a file. Automatically determines the right format based on file extension. */
+	public void read(File file) throws IOException {
+		if (file.getName().endsWith(".json")) {
+			readJson(new FileInputStream(file));
+			return;
+		}
+		if (file.getName().endsWith(".json.gz")) {
+			readJson(new GZIPInputStream(new FileInputStream(file)));
+			return;
+		}
+		if (file.getName().endsWith(".avro")) {
+			readAvro(new FileInputStream(file));
+			return;
+		}
+		if (file.getName().endsWith(".avro.gz")) {
+			readAvro(new GZIPInputStream(new FileInputStream(file)));
+			return;
+		}
+		throw new IllegalArgumentException("unknown file extension: " + file.getName());
+	}
+
+	/** Reads a dictionary from an URL. Automatically determines the right format based on file extension. */
+	public void read(URL url) throws IOException {
+		if (url.getFile().endsWith(".json")) {
+			readJson(url.openStream());
+			return;
+		}
+		if (url.getFile().endsWith(".json.gz")) {
+			readJson(new GZIPInputStream(url.openStream()));
+			return;
+		}
+		if (url.getFile().endsWith(".avro")) {
+			readAvro(url.openStream());
+			return;
+		}
+		if (url.getFile().endsWith(".avro.gz")) {
+			readAvro(new GZIPInputStream(url.openStream()));
+			return;
+		}
+		throw new IllegalArgumentException("unknown file extension: " + url.getFile());
+	}
+
+	public void write(String fileName) throws IOException {
+		write(new File(fileName));
+	}
+
+	public void write(File file) throws IOException {
+		if (file.getName().endsWith(".json")) {
+			writeJson(new FileOutputStream(file));
+			return;
+		}
+		if (file.getName().endsWith(".json.gz")) {
+			writeJson(new GZIPOutputStream(new FileOutputStream(file)));
+			return;
+		}
+		if (file.getName().endsWith(".avro")) {
+			writeAvro(new FileOutputStream(file));
+			return;
+		}
+		if (file.getName().endsWith(".avro.gz")) {
+			writeAvro(new GZIPOutputStream(new FileOutputStream(file)));
+			return;
+		}
+		throw new IllegalArgumentException("unknown file extension: " + file.getName());
+	}
+
+	public void writeAvro(OutputStream out) throws IOException {
+		// set up writers
+		AvroItem avroItem = new AvroItem();
+		DatumWriter<AvroItem> itemDatumWriter = new SpecificDatumWriter<>(AvroItem.class);
+		DataFileWriter<AvroItem> dataFileWriter = new DataFileWriter<>(itemDatumWriter);
+		dataFileWriter.create(avroItem.getSchema(), out);
+
+		// write items in topological order
+		List<Integer> items = topologicalSort();
+		for (int itemGid : items) {
+			dataFileWriter.append( getItemByGid(itemGid).toAvroItem(avroItem) );
+		}
+
+		// close
+		dataFileWriter.close();
+	}
+
+	public void readAvro(InputStream in) throws IOException {
+		clear();
+		DatumReader<AvroItem> itemDatumReader = new SpecificDatumReader<>(AvroItem.class);
+		DataFileStream<AvroItem> dataFileReader = new DataFileStream<>(in, itemDatumReader);
+		AvroItem avroItem = null;
+		boolean hasFids = true;
+		while (dataFileReader.hasNext()) {
+			avroItem = dataFileReader.next(avroItem);
+			Item item = Item.fromAvroItem(avroItem, this);
+			if (item.fid < 0) {
+				hasFids = false;
+			}
+			addItem(item);
+		}
+		if (hasFids) {
+			indexFids();
+		}
+	}
+
+	public void writeJson(OutputStream out) throws IOException {
+		DatumWriter<AvroItem> itemDatumWriter = new SpecificDatumWriter<>(AvroItem.class);
+		List<Integer> items = topologicalSort();
+		AvroItem avroItem = new AvroItem();
+		Encoder encoder = EncoderFactory.get().jsonEncoder(avroItem.getSchema(), out);
+		for (int itemGid : items) {
+			itemDatumWriter.write( getItemByGid(itemGid).toAvroItem(avroItem), encoder );
+		}
+		encoder.flush();
+	}
+
+	public void readJson(InputStream in) throws IOException {
+		clear();
+		DatumReader<AvroItem> itemDatumReader = new SpecificDatumReader<>(AvroItem.class);
+		AvroItem avroItem = new AvroItem();
+		Decoder decoder = DecoderFactory.get().jsonDecoder(avroItem.getSchema(), in);
+		boolean hasFids = true;
+		try {
+			while ((avroItem = itemDatumReader.read(avroItem, decoder)) != null) {
+				Item item = Item.fromAvroItem(avroItem, this);
+				if (item.fid < 0) {
+					hasFids = false;
+				}
+				addItem(item);
+			}
+		} catch (EOFException e) {
+			// fine, we read everything
+		}
+		if (hasFids) {
+			indexFids();
+		}
+	}
 }

@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.base.Stopwatch;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.dictionary.DictionaryIO;
+import old.de.uni_mannheim.desq.dictionary.DictionaryIO;
 import de.uni_mannheim.desq.io.CountPatternWriter;
 import de.uni_mannheim.desq.io.DelPatternWriter;
 import de.uni_mannheim.desq.io.DelSequenceReader;
@@ -62,7 +62,7 @@ public class ComparePrefixGrowth {
 		out.delete();
 		
 		
-		Dictionary dict = DictionaryIO.loadFromDel(new FileInputStream(dictFile), true);
+		Dictionary dict = Dictionary.loadFrom(dictFile);
 		SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), true);
 		dataReader.setDictionary(dict);
 		DesqMinerContext ctx = new DesqMinerContext();
@@ -117,7 +117,7 @@ public class ComparePrefixGrowth {
         out.delete();
 
 
-        Dictionary dict = DictionaryIO.loadFromDel(new FileInputStream(dictFile), true);
+        Dictionary dict = Dictionary.loadFrom(dictFile);
         SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), true);
         dataReader.setDictionary(dict);
         DesqMinerContext ctx = new DesqMinerContext();
@@ -166,7 +166,7 @@ public class ComparePrefixGrowth {
 		boolean generalize = true;
 		
 		String dataFile = "data-local/nyt-1991-data.del";
-		String dictFile = "data-local/nyt-1991-dict.del";
+		String dictFile = "data-local/nyt-1991-dict.avro.gz";
 		String outFile = "./tmp";
 
 		ComparePrefixGrowth cpg = new ComparePrefixGrowth(sigma, gamma, lambda, generalize);

@@ -45,11 +45,7 @@ public abstract class DesqMiner {
 			DesqMiner miner = (DesqMiner)Class.forName(minerClass)
 					.getConstructor(DesqMinerContext.class).newInstance(ctx);
 			return miner;
-		} catch (InstantiationException | IllegalAccessException | NoSuchMethodException e) {
-			throw new RuntimeException(e);
-		} catch (InvocationTargetException e) {
-			throw new RuntimeException(e);
-		} catch (ClassNotFoundException e) {
+		} catch (InstantiationException | IllegalAccessException | NoSuchMethodException | ClassNotFoundException | InvocationTargetException e) {
 			throw new RuntimeException(e);
 		}
 	}
