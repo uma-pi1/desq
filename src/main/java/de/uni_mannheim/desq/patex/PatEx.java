@@ -216,7 +216,7 @@ public final class PatEx {
 			String word = ctx.item().getText();
 			if (word.startsWith("'") && word.endsWith("'") || word.startsWith("\"") && word.endsWith("\"")) {
 				// strip the quotes
-				//word = word.substring(1, word.length()-1);
+				word = word.substring(1, word.length()-1);
 			}
 
 			Item item = dict.getItemBySid(word);
