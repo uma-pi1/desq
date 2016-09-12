@@ -65,9 +65,9 @@ public class DesqDfsExample {
     }
 
 	public static void main(String[] args) throws IOException {
-		icdm16();
+		//icdm16();
 		//nyt();
-		//netflixFlat();
+		netflixFlat();
         //netflixDeep();
 	}
 }
