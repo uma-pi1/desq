@@ -18,7 +18,7 @@ import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
 
 /** A set of items arranged in a hierarchy */ 
-public final class Dictionary {
+public final class Dictionary implements Serializable {
 	// indexes
     final Int2ObjectMap<Item> itemsById = new Int2ObjectOpenHashMap<>();
 	final Int2ObjectMap<Item> itemsByFid = new Int2ObjectOpenHashMap<>();

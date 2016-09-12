@@ -65,6 +65,7 @@ public class DictionaryExample {
 		Dictionary dict = Dictionary.loadFrom(dictFile);
 		System.out.println("All items: " + dict.getItems());
 
+
 		// print data
 		System.out.println("Input sequences:");
 		SequenceReader dataReader = new DelSequenceReader(dataFile.openStream(), false);

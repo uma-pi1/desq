@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.io;
 
+import de.uni_mannheim.desq.dictionary.Dictionary;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 import java.io.BufferedReader;
@@ -22,10 +23,13 @@ public class DelPatternReader extends PatternReader {
 
     @Override
     public long read(IntList items) throws IOException {
-        items.clear();
-
         String line = reader.readLine();
         if (line == null) return -1;
+        return parseLine(line, items);
+    }
+
+    public static long parseLine(String line, IntList items) {
+        items.clear();
         String[] tokens = line.split("\t");
         long frequency = Long.parseLong(tokens[0]);
         for (int i=1; i<tokens.length; i++) {

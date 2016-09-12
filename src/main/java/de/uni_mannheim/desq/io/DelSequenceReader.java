@@ -17,21 +17,27 @@ public class DelSequenceReader extends SequenceReader {
 	}
 
 	@Override
-	public boolean read(IntList itemFids) throws IOException {
-		itemFids.clear();
-		
+	public boolean read(IntList items) throws IOException {
 		String line = reader.readLine();
-		if (line == null) return false;
-		for (String token : line.split("[\t ]")) {
-			if (token.isEmpty()) continue;
-			itemFids.add(Integer.parseInt(token));
+		if (line == null) {
+			items.clear();
+			return false;
 		}
+		parseLine(line, items);
 		return true;
 	}
 
 	@Override
 	public boolean usesFids() {
 		return usesFids;
+	}
+
+	public static void parseLine(String line, IntList items) {
+		items.clear();
+		for (String token : line.split("[\t ]")) {
+			if (token.isEmpty()) continue;
+			items.add(Integer.parseInt(token));
+		}
 	}
 
 	@Override
