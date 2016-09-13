@@ -94,9 +94,9 @@ public class ExampleUtils {
         // print results
         System.out.println("Patterns:");
         for (WeightedSequence pattern : result.getPatterns()) {
-            System.out.print(pattern.getSupport());
+            System.out.print(pattern.support);
             System.out.print(": ");
-            System.out.println(dataReader.getDictionary().getItemsByFids(pattern.getItems()));
+            System.out.println(dataReader.getDictionary().getItemsByFids(pattern.items));
         }
 
         return miner;

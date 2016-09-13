@@ -65,9 +65,9 @@ public class DesqCountTwoPassExample {
 		
 		System.out.println("P-frequent sequences");
 		 for (WeightedSequence pattern : result.getPatterns()) {
-			 System.out.print(pattern.getSupport());
+			 System.out.print(pattern.support);
 			 System.out.print(": ");
-			 System.out.println(dict.getItemsByFids(pattern.getItems()));
+			 System.out.println(dict.getItemsByFids(pattern.items));
 		 }
 	}
 	

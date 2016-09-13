@@ -12,14 +12,14 @@ import java.io.ObjectOutput;
  * Created by rgemulla on 18.07.2016.
  */
 public final class WeightedSequence implements Comparable<WeightedSequence>, Externalizable {
-    private final IntList items;
-    private long support;
+    public final IntList items;
+    public long support;
 
-   public WeightedSequence() {
+    public WeightedSequence() {
        this(new IntArrayList(), 0);
    }
 
-   public WeightedSequence(long support) {
+    public WeightedSequence(long support) {
        this(new IntArrayList(), support);
    }
 
@@ -30,18 +30,6 @@ public final class WeightedSequence implements Comparable<WeightedSequence>, Ext
 
     public WeightedSequence clone() {
         return new WeightedSequence(new IntArrayList(items), support);
-    }
-
-    public void setSupport(long support) {
-        this.support = support;
-    }
-
-    public long getSupport() {
-        return support;
-    }
-
-    public IntList getItems() {
-        return items;
     }
 
     @Override

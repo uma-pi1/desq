@@ -24,7 +24,7 @@ public abstract class PatternWriter extends WithDictionary {
 
     /** Writes a pattern given in terms of fids. The provided WeightedSequence must not be buffered. */
     public void write(WeightedSequence pattern) {
-        write(pattern.getItems(), pattern.getSupport());
+        write(pattern.items, pattern.support);
     }
 
     /** Writes a collection of pattern given in terms of fids. The provided Patterns must not be buffered. */

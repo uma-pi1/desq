@@ -50,8 +50,8 @@ public abstract class PatternReader extends WithDictionary {
      * @return <code>false</code> if there are no more patterns
      */
     public boolean read(WeightedSequence pattern) throws IOException {
-	    pattern.setSupport(read(pattern.getItems()));
-        return pattern.getSupport() >= 0;
+	    pattern.support = read(pattern.items);
+        return pattern.support >= 0;
     }
 
     /** Reads next pattern stores the result as fids in <code>pattern</code>.
@@ -59,8 +59,8 @@ public abstract class PatternReader extends WithDictionary {
      * @return <code>false</code> if there are no more patterns
      */
     public boolean readAsFids(WeightedSequence pattern) throws IOException {
-        pattern.setSupport(readAsFids(pattern.getItems()));
-        return pattern.getSupport() >= 0;
+        pattern.support = readAsFids(pattern.items);
+        return pattern.support >= 0;
     }
 
 
@@ -69,8 +69,8 @@ public abstract class PatternReader extends WithDictionary {
      * @return <code>false</code> if there are no more patterns
      */
     public boolean readAsIds(WeightedSequence pattern) throws IOException {
-        pattern.setSupport(readAsIds(pattern.getItems()));
-        return pattern.getSupport() >= 0;
+        pattern.support = readAsIds(pattern.items);
+        return pattern.support >= 0;
     }
 
     /** Reads all patterns and appends them to <code>patterns</code>. Depending on {@link #usesFids()},
