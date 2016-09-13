@@ -15,7 +15,7 @@ import old.journal.mining.DesqCountIterativeWithPruning;
 import old.journal.mining.DesqCountWithPruning;
 import de.uni_mannheim.desq.mining.DesqMiner;
 import de.uni_mannheim.desq.mining.DesqMinerContext;
-import de.uni_mannheim.desq.mining.Pattern;
+import de.uni_mannheim.desq.mining.WeightedSequence;
 import org.apache.commons.configuration2.ConfigurationConverter;
 
 public class DesqCountWithPruningExample {
@@ -66,10 +66,10 @@ void icdm16() throws IOException {
 		miner.mine();
 		
 		System.out.println("P-frequent sequences");
-		 for (Pattern pattern : result.getPatterns()) {
-			 System.out.print(pattern.getFrequency());
+		 for (WeightedSequence pattern : result.getPatterns()) {
+			 System.out.print(pattern.getSupport());
 			 System.out.print(": ");
-			 System.out.println(dict.getItemsByFids(pattern.getItemFids()));
+			 System.out.println(dict.getItemsByFids(pattern.getItems()));
 		 }
 	}
 

@@ -40,7 +40,7 @@ public class Driver {
 		options.addOption("mine", false, "Mine sequences");
 		options.addOption("o", true, "Path/to/output/sequences/");
 		options.addOption("s", true, "Minimum support threshold");
-		options.addOption("p", true, "Pattern expression");
+		options.addOption("p", true, "WeightedSequence expression");
 		options.addOption("match", true, "Type of match (p)artial, (s)trict, (ls)trict, (rs)trict");
 		
 		options.addOption("method", true, null);

@@ -14,7 +14,7 @@ import de.uni_mannheim.desq.io.SequenceReader;
 import old.journal.mining.DesqCountTwoPass;
 import de.uni_mannheim.desq.mining.DesqMiner;
 import de.uni_mannheim.desq.mining.DesqMinerContext;
-import de.uni_mannheim.desq.mining.Pattern;
+import de.uni_mannheim.desq.mining.WeightedSequence;
 import org.apache.commons.configuration2.ConfigurationConverter;
 
 public class DesqCountTwoPassExample {
@@ -64,10 +64,10 @@ public class DesqCountTwoPassExample {
 		miner.mine();
 		
 		System.out.println("P-frequent sequences");
-		 for (Pattern pattern : result.getPatterns()) {
-			 System.out.print(pattern.getFrequency());
+		 for (WeightedSequence pattern : result.getPatterns()) {
+			 System.out.print(pattern.getSupport());
 			 System.out.print(": ");
-			 System.out.println(dict.getItemsByFids(pattern.getItemFids()));
+			 System.out.println(dict.getItemsByFids(pattern.getItems()));
 		 }
 	}
 	

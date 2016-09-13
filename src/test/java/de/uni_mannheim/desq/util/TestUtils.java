@@ -2,7 +2,7 @@ package de.uni_mannheim.desq.util;
 
 import de.uni_mannheim.desq.io.DelPatternReader;
 import de.uni_mannheim.desq.io.DelPatternWriter;
-import de.uni_mannheim.desq.mining.Pattern;
+import de.uni_mannheim.desq.mining.WeightedSequence;
 import org.apache.log4j.Logger;
 import org.junit.rules.*;
 
@@ -53,7 +53,7 @@ public class TestUtils {
 
     public static void sortDelPatternFile(File file) throws IOException {
         // read the file into memory
-        List<Pattern> patterns = new ArrayList<>();
+        List<WeightedSequence> patterns = new ArrayList<>();
         DelPatternReader reader = new DelPatternReader(new FileInputStream(file), true);
         reader.readAll(patterns);
         reader.close();

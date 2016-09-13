@@ -3,7 +3,7 @@ package de.uni_mannheim.desq.io;
 import java.io.IOException;
 import java.util.List;
 
-import de.uni_mannheim.desq.mining.Pattern;
+import de.uni_mannheim.desq.mining.WeightedSequence;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 public abstract class PatternReader extends WithDictionary {
@@ -49,18 +49,18 @@ public abstract class PatternReader extends WithDictionary {
      *
      * @return <code>false</code> if there are no more patterns
      */
-    public boolean read(Pattern pattern) throws IOException {
-	    pattern.setFrequency(read(pattern.getItemFids()));
-        return pattern.getFrequency() >= 0;
+    public boolean read(WeightedSequence pattern) throws IOException {
+	    pattern.setSupport(read(pattern.getItems()));
+        return pattern.getSupport() >= 0;
     }
 
     /** Reads next pattern stores the result as fids in <code>pattern</code>.
      *
      * @return <code>false</code> if there are no more patterns
      */
-    public boolean readAsFids(Pattern pattern) throws IOException {
-        pattern.setFrequency(readAsFids(pattern.getItemFids()));
-        return pattern.getFrequency() >= 0;
+    public boolean readAsFids(WeightedSequence pattern) throws IOException {
+        pattern.setSupport(readAsFids(pattern.getItems()));
+        return pattern.getSupport() >= 0;
     }
 
 
@@ -68,15 +68,15 @@ public abstract class PatternReader extends WithDictionary {
      *
      * @return <code>false</code> if there are no more patterns
      */
-    public boolean readAsIds(Pattern pattern) throws IOException {
-        pattern.setFrequency(readAsIds(pattern.getItemFids()));
-        return pattern.getFrequency() >= 0;
+    public boolean readAsIds(WeightedSequence pattern) throws IOException {
+        pattern.setSupport(readAsIds(pattern.getItems()));
+        return pattern.getSupport() >= 0;
     }
 
     /** Reads all patterns and appends them to <code>patterns</code>. Depending on {@link #usesFids()},
      * stores ids or fids. */
-    public void readAll(List<Pattern> patterns) throws IOException {
-        Pattern pattern = new Pattern();
+    public void readAll(List<WeightedSequence> patterns) throws IOException {
+        WeightedSequence pattern = new WeightedSequence();
         while (read(pattern)) {
             patterns.add(pattern.clone());
         }
@@ -84,16 +84,16 @@ public abstract class PatternReader extends WithDictionary {
 
 
     /** Reads all patterns and appends them as fids to <code>patterns</code>. */
-    public void readAsFidsAll(List<Pattern> patterns) throws IOException {
-        Pattern pattern = new Pattern();
+    public void readAsFidsAll(List<WeightedSequence> patterns) throws IOException {
+        WeightedSequence pattern = new WeightedSequence();
         while (readAsFids(pattern)) {
             patterns.add(pattern.clone());
         }
     }
 
     /** Reads all patterns and appends them as ids to <code>patterns</code>. */
-    public void readAsIdsAll(List<Pattern> patterns) throws IOException {
-        Pattern pattern = new Pattern();
+    public void readAsIdsAll(List<WeightedSequence> patterns) throws IOException {
+        WeightedSequence pattern = new WeightedSequence();
         while (readAsIds(pattern)) {
             patterns.add(pattern.clone());
         }

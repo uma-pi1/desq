@@ -53,37 +53,50 @@ public final class Dictionary implements Serializable {
 		itemsBySid.put(item.sid, item);
 	}
 
-	/** Updates the counts of the hierarchy by adding the given input sequence.
-	 * The two insets are used for temporary storage. */
-	private void incCounts(IntList inputSequence, IntSet seenItems, IntSet ancItems, boolean fid) {
-		seenItems.clear();
-		for(int i=0; i<inputSequence.size(); i++) {
-			int ii = inputSequence.getInt(i);
-			Item item = fid ? getItemByFid(ii) : getItemByGid(ii);
+	/** Computes the item frequencies of the items in a sequence (including ancestors).
+	 *
+	 * @param sequence the input sequence
+	 * @param itemCounts the result (map from item identifier to frequency)
+	 * @param ancItems a temporary set used by this method (for reuse; won't be read but be modified)
+	 * @param usesFids whether the input sequence consists of gid or fid item identifiers
+	 */
+	public void computeItemFrequencies(IntList sequence, Int2IntMap itemCounts, IntSet ancItems, boolean usesFids) {
+		assert itemCounts.defaultReturnValue() <= 0;
+		itemCounts.clear();
+		for (int i = 0; i < sequence.size(); i++) {
+			int ii = sequence.getInt(i);
 			ancItems.clear();
-			ancItems.add(item.gid);
-			addAscendantIds(item, ancItems);
-			for (int id : ancItems) {
-				getItemByGid(id).cFreq++;
+			ancItems.add(ii);
+			if (usesFids) {
+				addAscendantFids(ii, ancItems);
+			} else {
+				addAscendantIds(getItemByGid(ii), ancItems);
 			}
-			seenItems.addAll(ancItems);
-		}
-		for (int id : seenItems) {
-			getItemByGid(id).dFreq++;
+			for (int item : ancItems) {
+				int oldValue = itemCounts.put(item, 1);
+				if (oldValue > 0) {
+					itemCounts.put(item, oldValue + 1);
+				}
+			}
 		}
 	}
-	
+
 	/** Updates the counts of the hierarchy by adding the given input sequences. Does
 	 * not modify fids, so those may be inconsistent afterwards. 
-	 * 
-	 * TODO: optimize by deferring updates to collection frequency to the end
 	 */
 	public void incCounts(SequenceReader reader) throws IOException {
+		boolean usesFids = reader.usesFids();
 		IntList inputSequence = new IntArrayList();
-		IntSet seenItems = new IntOpenHashSet();
+		Int2IntOpenHashMap itemCounts = new Int2IntOpenHashMap();
+		itemCounts.defaultReturnValue(0);
 		IntSet ancItems = new IntOpenHashSet();
 		while (reader.read(inputSequence)) {
-			incCounts(inputSequence, seenItems, ancItems, reader.usesFids());
+			computeItemFrequencies(inputSequence, itemCounts, ancItems, usesFids);
+			for (Int2IntMap.Entry entry : itemCounts.int2IntEntrySet()) {
+				Item item = usesFids ? getItemByFid(entry.getIntKey()) : getItemByGid(entry.getIntKey());
+				item.dFreq += 1;
+				item.cFreq += entry.getIntValue();
+			}
 		}
 	}
 

@@ -3,17 +3,17 @@ package de.uni_mannheim.desq.io;
 import java.util.ArrayList;
 import java.util.List;
 
-import de.uni_mannheim.desq.mining.Pattern;
+import de.uni_mannheim.desq.mining.WeightedSequence;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 /** Keeps all output in memory */
 public class MemoryPatternWriter extends PatternWriter {
-	private final List<Pattern> patterns = new ArrayList<>();
+	private final List<WeightedSequence> patterns = new ArrayList<>();
 	
 	@Override
 	public void write(IntList itemFids, long frequency) {
-		patterns.add(new Pattern(new IntArrayList(itemFids), frequency));
+		patterns.add(new WeightedSequence(new IntArrayList(itemFids), frequency));
 	}
 
 	@Override
@@ -22,7 +22,7 @@ public class MemoryPatternWriter extends PatternWriter {
 		for (int i=reverseItemFids.size()-1; i>=0; i--) {
 			itemFids.add(reverseItemFids.get(i));
 		}
-		patterns.add(new Pattern(itemFids, frequency));
+		patterns.add(new WeightedSequence(itemFids, frequency));
 	}
 
 	@Override
@@ -33,7 +33,7 @@ public class MemoryPatternWriter extends PatternWriter {
 		return patterns.size();
 	}
 	
-	public List<Pattern> getPatterns() {
+	public List<WeightedSequence> getPatterns() {
 		return patterns;
 	}
 }

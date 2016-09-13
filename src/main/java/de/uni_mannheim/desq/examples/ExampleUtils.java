@@ -8,7 +8,7 @@ import de.uni_mannheim.desq.io.MemoryPatternWriter;
 import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.mining.DesqMiner;
 import de.uni_mannheim.desq.mining.DesqMinerContext;
-import de.uni_mannheim.desq.mining.Pattern;
+import de.uni_mannheim.desq.mining.WeightedSequence;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import org.apache.commons.configuration2.Configuration;
@@ -93,10 +93,10 @@ public class ExampleUtils {
 
         // print results
         System.out.println("Patterns:");
-        for (Pattern pattern : result.getPatterns()) {
-            System.out.print(pattern.getFrequency());
+        for (WeightedSequence pattern : result.getPatterns()) {
+            System.out.print(pattern.getSupport());
             System.out.print(": ");
-            System.out.println(dataReader.getDictionary().getItemsByFids(pattern.getItemFids()));
+            System.out.println(dataReader.getDictionary().getItemsByFids(pattern.getItems()));
         }
 
         return miner;

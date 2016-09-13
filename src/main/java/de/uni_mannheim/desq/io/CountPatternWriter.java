@@ -1,6 +1,6 @@
 package de.uni_mannheim.desq.io;
 
-import de.uni_mannheim.desq.mining.Pattern;
+import de.uni_mannheim.desq.mining.WeightedSequence;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 /**
@@ -28,9 +28,9 @@ public class CountPatternWriter extends PatternWriter {
     }
 
     @Override
-    public void write(Pattern pattern) {
+    public void write(WeightedSequence pattern) {
         count++;
-        totalFrequency += pattern.getFrequency();
+        totalFrequency += pattern.getSupport();
     }
 
     public long getCount() {

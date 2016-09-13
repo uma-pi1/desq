@@ -24,5 +24,11 @@ object DictionaryExample extends App {
   println("\nData:")
   val delFile = sc.parallelize(Source.fromURL(dataFile).getLines.toSeq)
   val data = DesqDataset.fromDelFile(delFile, dict, false)
-  data.sequences.collect.foreach(println)
+  data.toSidRDD().map(s => (s._1.deep.mkString(" "), s._2)).collect.foreach(println)
+
+  println("\nDictionary with frequencies")
+  data.recomputeDictionaryCountsAndFids // updates contained dict = our dict
+  dict.writeJson(System.out)
+  println
+
 }
