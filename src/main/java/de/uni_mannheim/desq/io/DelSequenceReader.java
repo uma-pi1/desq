@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 public class DelSequenceReader extends SequenceReader {
@@ -38,6 +39,16 @@ public class DelSequenceReader extends SequenceReader {
 			if (token.isEmpty()) continue;
 			items.add(Integer.parseInt(token));
 		}
+	}
+
+	public static IntList parseLine(String line) {
+		String[] tokens = line.split("[\t ]");
+		IntList items = new IntArrayList(tokens.length);
+		for (String token : tokens) {
+			if (token.isEmpty()) continue;
+			items.add(Integer.parseInt(token));
+		}
+		return items;
 	}
 
 	@Override

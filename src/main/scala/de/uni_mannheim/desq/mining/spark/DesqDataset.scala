@@ -89,20 +89,7 @@ class DesqDataset(_sequences: RDD[WeightedSequence], _dict: Dictionary, _usesFid
 
 object DesqDataset {
   def fromDelFile(delFile: RDD[String], dict: Dictionary, usesFids: Boolean): DesqDataset = {
-    val sequences = delFile.mapPartitions(rows => {
-      new Iterator[WeightedSequence] {
-        val items = new IntArrayList() // reuse to avoid lots of resizing
-
-        override def hasNext: Boolean = rows.hasNext
-
-        override def next(): WeightedSequence = {
-          val line = rows.next
-          DelSequenceReader.parseLine(line, items)
-          return new WeightedSequence(new IntArrayList(items), 1)
-        }
-      }
-    })
-
+    val sequences = delFile.map(line => new WeightedSequence(DelSequenceReader.parseLine(line), 1))
     new DesqDataset(sequences, dict, usesFids)
   }
 
