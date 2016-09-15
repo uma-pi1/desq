@@ -6,7 +6,7 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.PropertiesConfiguration;
 
 public final class DesqMinerContext {
-	public Dictionary dict;
-	public PatternWriter patternWriter;
+	public Dictionary dict = null;
+	public PatternWriter patternWriter = null;
 	public Configuration conf = new PropertiesConfiguration();
 }

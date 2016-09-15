@@ -18,7 +18,7 @@ import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
 
 /** A set of items arranged in a hierarchy */ 
-public final class Dictionary implements Serializable {
+public final class Dictionary implements Externalizable {
 	// indexes
     final Int2ObjectMap<Item> itemsById = new Int2ObjectOpenHashMap<>();
 	final Int2ObjectMap<Item> itemsByFid = new Int2ObjectOpenHashMap<>();
@@ -191,7 +191,17 @@ public final class Dictionary implements Serializable {
 	
 	
 	// -- computing descendants and ascendants ----------------------------------------------------
-	
+
+	/** Returns a suitable IntCollection that can be passed to various methods for ancestor and descendant computation
+	 * performed in this class. */
+	public IntCollection newFidCollection() {
+		if (isForest()) {
+			return new IntArrayList();
+		} else {
+			// TODO: we may want to make a more informed choice here
+			return new IntAVLTreeSet();
+		}
+	}
 	/** Returns the fids of all descendants of the given item (including the given item) */
 	public IntSet descendantsFids(int itemFid) {
 		return descendantsFids(IntSets.singleton(itemFid));		
@@ -250,6 +260,8 @@ public final class Dictionary implements Serializable {
 
     /** Adds all ascendants of the specified item to itemFids, excluding the given item and all
      * ascendants of items already present in itemFids. This method is performance-critical for many mining methods.
+	 * Best performance is achieved if itemFids is as obtained from {@link #newFidCollection()}.
+	 *
      * If the dictionary does not form a forest (see {@link #isForest()}) or if <code>itemFids</code> is not initially
      * empty, <code>itemFids</code> *must* be an {@link IntSet}, ideally one that allows for fast look-ups
      * (such as {@link IntOpenHashSet} or{@link IntAVLTreeSet}). Otherwise, for best performance, pass an
@@ -346,19 +358,37 @@ public final class Dictionary implements Serializable {
 		return isForest;
 	}
 
-	public void idsToFids(IntList ids) {
-		for (int i=0; i<ids.size(); i++) {
-			int id = ids.getInt(i);
-			int fid = getItemByGid(id).fid;
-			ids.set(i, fid);	
+	public void gidsToFids(IntList items) {
+		for (int i=0; i<items.size(); i++) {
+			int gid = items.getInt(i);
+			int fid = getItemByGid(gid).fid;
+			items.set(i, fid);
 		}
 	}
-	
-	public void fidsToIds(IntList fids) {
+
+	public void gidsToFids(IntList ids, IntList fids) {
+		fids.size(0);
+		for (int i=0; i<ids.size(); i++) {
+			int gid = ids.getInt(i);
+			int fid = getItemByGid(gid).fid;
+			fids.add(fid);
+		}
+	}
+
+	public void fidsToGids(IntList items) {
+		for (int i=0; i<items.size(); i++) {
+			int fid = items.getInt(i);
+			int gid = getItemByFid(fid).gid;
+			items.set(i, gid);
+		}
+	}
+
+	public void fidsToGids(IntList fids, IntList ids) {
+		ids.size(0);
 		for (int i=0; i<fids.size(); i++) {
 			int fid = fids.getInt(i);
-			int id = getItemByFid(fid).gid;
-			fids.set(i, id);	
+			int gid = getItemByFid(fid).gid;
+			ids.add(gid);
 		}
 	}
 	
@@ -655,5 +685,22 @@ public final class Dictionary implements Serializable {
 		if (hasFids) {
 			indexFids();
 		}
+	}
+
+	@Override
+	public void writeExternal(ObjectOutput out) throws IOException {
+		ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
+		writeAvro(bytesOut);
+		byte[] bytes = bytesOut.toByteArray();
+		out.writeInt(bytes.length);
+		out.write(bytes);
+	}
+
+	@Override
+	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+		int length = in.readInt();
+		byte[] bytes = new byte[length];
+		in.readFully(bytes);
+		readAvro(new ByteArrayInputStream(bytes));
 	}
 }

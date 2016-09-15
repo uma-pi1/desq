@@ -15,7 +15,7 @@ import java.io.*;
 import java.util.*;
 
 /** A single item in a dictionary.  */
-public final class Item implements Serializable {
+public final class Item {
 	/** Stable global identifier of this item */
 	public final int gid;
 
@@ -41,7 +41,7 @@ public final class Item implements Serializable {
     public final List<Item> parents = new ArrayList<>();
 
     /** Other properties associated with this item */
-    public transient PropertiesConfiguration properties = new PropertiesConfiguration();
+    public PropertiesConfiguration properties = new PropertiesConfiguration();
 	
 	public Item(int gid, String sid) {
 		this.gid = gid;
@@ -160,24 +160,4 @@ public final class Item implements Serializable {
 
 		return item;
 	}
-
-	private void writeObject(java.io.ObjectOutputStream out) throws IOException {
-		out.defaultWriteObject();
-		try {
-			properties.write(new OutputStreamWriter(out));
-		} catch (ConfigurationException e) {
-			throw new IOException(e);
-		}
-	}
-
-	private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
-		in.defaultReadObject();
-		properties = new PropertiesConfiguration();
-		try {
-			properties.read(new InputStreamReader(in));
-		} catch (ConfigurationException e) {
-			throw new IOException(e);
-		}
-	}
-
 }

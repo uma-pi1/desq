@@ -25,5 +25,5 @@ for %%j in ("%classpath:,=" "%") do (
 )
 
 rem now run the shell
-%SPARK_HOME%\bin\spark-shell --master local --jars %classpath% -i target\spark-shell-require.scala
+%SPARK_HOME%\bin\spark-shell --jars %classpath% -i target\spark-shell-require.scala
 

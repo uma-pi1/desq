@@ -25,7 +25,7 @@ public abstract class SequenceReader extends WithDictionary {
 	public boolean readAsIds(IntList itemIds) throws IOException {
 		boolean hasNext = read(itemIds);
 		if (hasNext && usesFids()) {
-			dict.fidsToIds(itemIds);
+			dict.fidsToGids(itemIds);
 		}
 		return hasNext;
 	}
@@ -37,7 +37,7 @@ public abstract class SequenceReader extends WithDictionary {
 	public boolean readAsFids(IntList itemFids) throws IOException {
 		boolean hasNext = read(itemFids);
 		if (hasNext && !usesFids()) {
-			dict.idsToFids(itemFids);
+			dict.gidsToFids(itemFids);
 		}
 		return hasNext;
 	}

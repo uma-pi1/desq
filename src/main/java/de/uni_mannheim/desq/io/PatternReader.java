@@ -27,7 +27,7 @@ public abstract class PatternReader extends WithDictionary {
 	public long readAsIds(IntList itemIds) throws IOException {
 		long frequency = read(itemIds);
 		if (frequency >= 0 && usesFids()) {
-			dict.fidsToIds(itemIds);
+			dict.fidsToGids(itemIds);
 		}
 		return frequency;
 	}
@@ -39,7 +39,7 @@ public abstract class PatternReader extends WithDictionary {
 	public long readAsFids(IntList itemFids) throws IOException {
 		long frequency = read(itemFids);
 		if (frequency >= 0 && !usesFids()) {
-			dict.idsToFids(itemFids);
+			dict.gidsToFids(itemFids);
 		}
 		return frequency;
 	}

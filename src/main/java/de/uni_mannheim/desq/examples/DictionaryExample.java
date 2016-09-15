@@ -91,7 +91,7 @@ public class DictionaryExample {
 		dataReader = new DelSequenceReader(dataFile.openStream(), false);
 		SequenceWriter dataWriter = new DelSequenceWriter(System.out, false);
 		while (dataReader.readAsIds(inputSequence)) {
-			dict.idsToFids(inputSequence);
+			dict.gidsToFids(inputSequence);
 			dataWriter.write(inputSequence);
 		}
 	}
