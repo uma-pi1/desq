@@ -10,5 +10,7 @@ import de.uni_mannheim.desq.util.DesqProperties
 class DesqMinerContext(_conf: DesqProperties) extends Serializable {
   val conf: DesqProperties= _conf
 
-  def this() = this(new DesqProperties)
+  def this() {
+    this(new DesqProperties)
+  }
 }

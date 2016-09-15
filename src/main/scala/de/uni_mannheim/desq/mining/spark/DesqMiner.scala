@@ -6,11 +6,8 @@ package de.uni_mannheim.desq.mining.spark
 abstract class DesqMiner(_ctx: DesqMinerContext) {
   protected val ctx = _ctx
 
-  /** Mines the given dataset using this miner. Note that computation may or may not be triggered by this method.
-    *
-    * @param data
-    * @return
-    */
+  /** Mines the given dataset using this miner and returns the result. Note that computation may or may not be
+    * triggered by this method, i.e., can be performed lazily when accessing the sequence RDD in the result. */
   def mine(data: DesqDataset): DesqDataset
 }
 

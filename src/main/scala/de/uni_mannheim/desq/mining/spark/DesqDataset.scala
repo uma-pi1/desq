@@ -6,6 +6,7 @@ import de.uni_mannheim.desq.mining.WeightedSequence
 import it.unimi.dsi.fastutil.ints._
 import it.unimi.dsi.fastutil.objects.ObjectIterator
 import org.apache.spark.SparkContext
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 
 import scala.collection.JavaConversions
@@ -18,42 +19,83 @@ class DesqDataset(_sequences: RDD[WeightedSequence], _dict: Dictionary, _usesFid
   val sequences: RDD[WeightedSequence] = _sequences
   val dict = _dict
   val usesFids = _usesFids
+  private var serializedDict: Broadcast[Array[Byte]] = _
 
-
-  def toSidRDD(): RDD[(Array[String],Long)] = {
-    val dict = this.dict // to make it local
-    if (usesFids) {
-      return sequences.map(s => {
-        val itemFids = s.items
-        val itemSids = new Array[String](itemFids.size)
-        for (i <- Range(0,itemFids.size)) {
-          itemSids(i) = dict.getItemByFid(itemFids.get(i)).sid
-        }
-        (itemSids, s.support)
-      })
-    } else {
-      return sequences.map(s => {
-        val itemGids = s.items
-        val itemSids = new Array[String](itemGids.size)
-        for (i <- Range(0,itemGids.size)) {
-          itemSids(i) = dict.getItemByGid(itemGids.get(i)).sid
-        }
-        (itemSids, s.support)
-      })
-    }
+  def this(_sequences: RDD[WeightedSequence], source: DesqDataset, _usesFids: Boolean) {
+    this(_sequences, source.dict, _usesFids)
+    serializedDict = source.serializedDict
   }
 
-  @throws[IllegalStateException]("if usesFid is set")
-  def recomputeDictionaryCountsAndFids(): Unit = {
-    val usesFids = this.usesFids
-    if (usesFids) {
-      throw new IllegalStateException("only applicable when usesFids=false")
-    }
+  /** Creates a copy of this DesqDataset with a deep copy of its dictionary. Useful when changes should be
+    * performed to a dictionary that has been broadcasted before (and hence cannot/should not be changed). */
+  def copy(): DesqDataset = {
+    new DesqDataset(sequences, dict.deepCopy(), usesFids)
+  }
 
+  /** Returns a broadcast variable that can be used to access the dictionary of this dataset. The broadcast
+    * variable stores the dictionary in serialized form for memory efficiency. Use
+    * <code>Dictionary.fromBytes(result.value)</code> to get the dictionary at workers.
+    */
+  def broadcastSerializedDictionary(): Broadcast[Array[Byte]] = {
+    if (serializedDict == null) {
+      val dict = this.dict
+      serializedDict = sequences.context.broadcast(dict.toBytes)
+    }
+    serializedDict
+  }
+
+  /** Returns an RDD that contains for each sequence an array of its string identifiers and its support. */
+  def toSidsSupportPairs: RDD[(Array[String],Long)] = {
+    val serializedDictionary = broadcastSerializedDictionary()
+    val usesFids = this.usesFids // to localize
+
+    sequences.mapPartitions(rows => {
+      new Iterator[(Array[String],Long)] {
+        val dict = Dictionary.fromBytes(serializedDictionary.value)
+
+        override def hasNext: Boolean = rows.hasNext
+
+        override def next(): (Array[String], Long) = {
+          val s = rows.next()
+          val items = s.items
+          val itemSids = new Array[String](items.size)
+          for (i <- Range(0,items.size)) {
+            if (usesFids) {
+              itemSids(i) = dict.getItemByFid(items.get(i)).sid
+            } else {
+              itemSids(i) = dict.getItemByGid(items.get(i)).sid
+            }
+          }
+          (itemSids, s.support)
+        }
+      }
+    })
+  }
+
+  /** Pretty prints up to <code>maxSequences</code> sequences contained in this dataset. */
+  def print(maxSequences: Int = -1): Unit = {
+    val strings = toSidsSupportPairs.map(s => {
+      val sidString = s._1.deep.mkString("[", " ", "]")
+      if (s._2 == 1)
+        sidString
+      else
+        sidString + "@" + s._2
+    })
+    if (maxSequences < 0)
+      strings.collect.foreach(println)
+    else
+      strings.take(maxSequences).foreach(println)
+  }
+
+  /** Returns a copy of this dataset with a new dictionary, containing updated counts and fid identifiers. The
+    * original input sequences are "translated" to the new dictionary if needed. */
+  def copyWithRecomputedCountsAndFids: DesqDataset = {
     // compute counts
-    val dict = this.dict // to make it local
+    val usesFids = this.usesFids
+    val serializedDict = broadcastSerializedDictionary()
     val totalItemCounts = sequences.mapPartitions(rows => {
       new Iterator[(Int, (Long,Long))] {
+        val dict = Dictionary.fromBytes(serializedDict.value)
         val itemCounts = new Int2IntOpenHashMap
         var currentItemCountsIterator = itemCounts.int2IntEntrySet().fastIterator()
         var currentSupport = 0L
@@ -66,7 +108,7 @@ class DesqDataset(_sequences: RDD[WeightedSequence], _dict: Dictionary, _usesFid
             dict.computeItemFrequencies(sequence.items, itemCounts, ancItems, usesFids)
             currentItemCountsIterator = itemCounts.int2IntEntrySet().fastIterator()
           }
-          return currentItemCountsIterator.hasNext
+          currentItemCountsIterator.hasNext
         }
 
         override def next(): (Int, (Long, Long)) = {
@@ -77,23 +119,53 @@ class DesqDataset(_sequences: RDD[WeightedSequence], _dict: Dictionary, _usesFid
     }).reduceByKey((c1,c2) => (c1._1+c2._1, c1._2+c2._2)).collect
 
     // and put them in the dictionary
+    val newDict = dict.deepCopy()
     for (itemCount <- totalItemCounts) {
-      val item = dict.getItemByGid(itemCount._1)
+      val item = newDict.getItemByGid(itemCount._1)
       // TODO: drop toInt once items support longs
       item.dFreq = itemCount._2._1.toInt
       item.cFreq = itemCount._2._2.toInt
     }
-    dict.recomputeFids
+    newDict.recomputeFids()
+
+    // if we are not using fids, we are done
+    if (!usesFids) {
+      return new DesqDataset(sequences, newDict, false)
+    }
+
+    // otherwise we need to relabel the fids
+    val newSerializedDict = sequences.context.broadcast(dict.toBytes)
+    val newSequences = sequences.mapPartitions(rows => {
+      new Iterator[WeightedSequence] {
+        val dict = Dictionary.fromBytes(serializedDict.value)
+        val newDict = Dictionary.fromBytes(newSerializedDict.value)
+
+        override def hasNext: Boolean = rows.hasNext
+
+        override def next(): WeightedSequence = {
+          val old = rows.next()
+          val newItems = new IntArrayList(old.items)
+          dict.fidsToGids(newItems)
+          newDict.gidsToFids(newItems)
+          new WeightedSequence(newItems, old.support)
+        }
+      }
+    })
+    val newData = new DesqDataset(newSequences, newDict, true)
+    newData.serializedDict = newSerializedDict
+    newData
   }
 }
 
 object DesqDataset {
+  /** Loads data from the specified del file */
   def fromDelFile(delFile: RDD[String], dict: Dictionary, usesFids: Boolean): DesqDataset = {
     val sequences = delFile.map(line => new WeightedSequence(DelSequenceReader.parseLine(line), 1))
     new DesqDataset(sequences, dict, usesFids)
   }
 
-  def fromDelFile(implicit sc: SparkContext, delFile: String, dict: Dictionary, usesFids: Boolean = false): DesqDataset = {
+  /** Loads data from the specified del file */
+  def fromDelFile(delFile: String, dict: Dictionary, usesFids: Boolean = false)(implicit sc: SparkContext): DesqDataset = {
     fromDelFile(sc.textFile(delFile), dict, usesFids)
   }
 }

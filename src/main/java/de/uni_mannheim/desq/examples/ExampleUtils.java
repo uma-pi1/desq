@@ -68,7 +68,7 @@ public class ExampleUtils {
         ctx.patternWriter = result;
         ctx.conf = minerConf;
 
-        // perform the de.uni_mannheim.desq.old.mining
+        // perform the mining
         DesqMiner miner = ExampleUtils.runMiner(dataReader, ctx);
 
         // print results
@@ -88,7 +88,7 @@ public class ExampleUtils {
         ctx.patternWriter = result;
         ctx.conf = minerConf;
 
-        // perform the de.uni_mannheim.desq.old.mining
+        // perform the mining
         DesqMiner miner = ExampleUtils.runMiner(dataReader, ctx);
 
         // print results

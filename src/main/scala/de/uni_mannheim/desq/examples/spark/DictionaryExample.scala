@@ -11,7 +11,7 @@ import scala.io.Source
   */
 object DictionaryExample extends App {
   val conf = new SparkConf().setAppName(getClass.getName)
-  val sc = new SparkContext(conf)
+  implicit val sc = new SparkContext(conf)
 
   val dictFile = getClass.getResource("/icdm16-example/dict.json")
   val dataFile = getClass.getResource("/icdm16-example/data.del")
@@ -23,14 +23,13 @@ object DictionaryExample extends App {
 
   println("\nData:")
   val delFile = sc.parallelize(Source.fromURL(dataFile).getLines.toSeq)
-  val data = DesqDataset.fromDelFile(delFile, dict, false)
+  val data = DesqDataset.fromDelFile(delFile, dict, usesFids = false)
   data.sequences.collect.foreach(println)
   println
-  data.toSidRDD().map(s => (s._1.deep.mkString(" "), s._2)).collect.foreach(println)
+  data.print()
 
   println("\nDictionary with frequencies")
-  data.recomputeDictionaryCountsAndFids // updates contained dict = our dict
-  dict.writeJson(System.out)
+  val newData = data.copyWithRecomputedCountsAndFids
+  newData.dict.writeJson(System.out)
   println
-
 }

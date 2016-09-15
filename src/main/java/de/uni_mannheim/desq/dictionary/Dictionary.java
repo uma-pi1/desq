@@ -35,6 +35,18 @@ public final class Dictionary implements Externalizable {
     /** Whether this dictionary is a forest. See {@link #isForest()}. */
     private boolean isForest = false;
 
+	// -- construction ----------------------------------------------------------------------------
+
+	public Dictionary deepCopy() {
+		// this could be made more efficient with more lines of code
+		try {
+			byte[] bytes = toBytes();
+			return Dictionary.fromBytes(bytes);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
 	// -- updating the hierarchy ------------------------------------------------------------------
 	
 	/** Adds a new item to the hierarchy. If the fid equals 0, it won't be indexed */
@@ -687,11 +699,21 @@ public final class Dictionary implements Externalizable {
 		}
 	}
 
-	@Override
-	public void writeExternal(ObjectOutput out) throws IOException {
+	public byte[] toBytes() throws IOException {
 		ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
 		writeAvro(bytesOut);
-		byte[] bytes = bytesOut.toByteArray();
+		return bytesOut.toByteArray();
+	}
+
+	public static Dictionary fromBytes(byte[] bytes) throws IOException {
+		Dictionary dict = new Dictionary();
+		dict.readAvro(new ByteArrayInputStream(bytes));
+		return dict;
+	}
+
+	@Override
+	public void writeExternal(ObjectOutput out) throws IOException {
+		byte[] bytes = toBytes();
 		out.writeInt(bytes.length);
 		out.write(bytes);
 	}

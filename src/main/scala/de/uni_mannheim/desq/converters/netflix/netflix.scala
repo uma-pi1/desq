@@ -1,13 +1,11 @@
 package de.uni_mannheim.desq.converters.netflix
 
-import java.io.{File, FileInputStream, FileOutputStream, PrintWriter}
+import java.io.{File, FileOutputStream, PrintWriter}
 import java.util.regex.Pattern
 
 import de.uni_mannheim.desq.dictionary.{Dictionary, Item}
 import de.uni_mannheim.desq.io.{DelSequenceWriter, SequenceReader}
 import it.unimi.dsi.fastutil.ints.{IntArrayList, IntList}
-import old.de.uni_mannheim.desq.dictionary.DictionaryIO
-import org.apache.log4j.PropertyConfigurator
 
 import scala.collection.mutable
 import scala.io.Source
@@ -50,7 +48,7 @@ object TrainingSetToCsv extends App {
       tempFileWriter.println(s"$userId,$date,$movieId,$rating")
     }
   }
-  tempFileWriter.close
+  tempFileWriter.close()
 
   // now sort the temporary file using GNU sort
   println("Sorting...")
@@ -167,13 +165,13 @@ object MovieRating {
     val sequenceReader = new SequenceReader {
       override def usesFids(): Boolean = false
 
-      override def close(): Unit = {}
+      override def close() {}
 
       override def read(items: IntList): Boolean = {
         if (!sequenceIt.hasNext)
           return false
 
-        items.clear
+        items.clear()
         for (movieRating <- sequenceIt.next) {
           items.add(movieRating.movieId) // gids correspond to movie id's here
         }
@@ -189,13 +187,13 @@ object MovieRating {
     val sequenceReader = new SequenceReader {
       override def usesFids(): Boolean = false
 
-      override def close(): Unit = {}
+      override def close() {}
 
       override def read(items: IntList): Boolean = {
         if (!sequenceIt.hasNext)
           return false
 
-        items.clear
+        items.clear()
         for (movieRating <- sequenceIt.next) {
           val movieSid = dict.getItemByGid(movieRating.movieId).sid
           val movieRatingSid = movieSid + "@" + movieRating.rating
@@ -222,9 +220,9 @@ object CreateFlatDictionary extends App {
   // now scan the data and count
   println("Reading training set...")
   val sequenceReader = MovieRating.getMovieIdSequenceReader
-  dict.clearCountsAndFids
+  dict.clearCountsAndFids()
   dict.incCounts(sequenceReader)
-  dict.recomputeFids
+  dict.recomputeFids()
 
   // write the dictionary
   println("Writing dictionary...")
@@ -245,8 +243,8 @@ object CreateFlatData extends App {
   while (sequenceReader.read(items)) {
     sequenceWriter.write(items)
   }
-  sequenceReader.close
-  sequenceWriter.close
+  sequenceReader.close()
+  sequenceWriter.close()
 }
 
 /** Creates a deep dictionary where item.gid = original movie id plus items for rated movies, ratings, and years
@@ -302,9 +300,9 @@ object CreateDeepDictionary extends App {
   println("Reading training set...")
   val sequenceReader = MovieRating.getRatedMovieSequenceReader
   sequenceReader.setDictionary(dict)
-  dict.clearCountsAndFids
+  dict.clearCountsAndFids()
   dict.incCounts(sequenceReader)
-  dict.recomputeFids
+  dict.recomputeFids()
 
   // write the dictionary
   println("Writing dictionary...")
@@ -326,8 +324,8 @@ object CreateDeepData extends App {
   while (sequenceReader.read(items)) {
     sequenceWriter.write(items)
   }
-  sequenceReader.close
-  sequenceWriter.close
+  sequenceReader.close()
+  sequenceWriter.close()
 }
 
 object RunAllConverters extends App {
