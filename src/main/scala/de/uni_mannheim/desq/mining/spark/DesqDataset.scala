@@ -1,16 +1,13 @@
 package de.uni_mannheim.desq.mining.spark
 
 import de.uni_mannheim.desq.dictionary.Dictionary
-import de.uni_mannheim.desq.io.{DelPatternReader, DelSequenceReader}
+import de.uni_mannheim.desq.io.DelSequenceReader
 import de.uni_mannheim.desq.mining.WeightedSequence
+import de.uni_mannheim.desq.util.DesqProperties
 import it.unimi.dsi.fastutil.ints._
-import it.unimi.dsi.fastutil.objects.ObjectIterator
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
-
-import scala.collection.JavaConversions
-import scala.runtime.RichInt
 
 /**
   * Created by rgemulla on 12.09.2016.
@@ -45,7 +42,7 @@ class DesqDataset(_sequences: RDD[WeightedSequence], _dict: Dictionary, _usesFid
   }
 
   /** Returns an RDD that contains for each sequence an array of its string identifiers and its support. */
-  def toSidsSupportPairs: RDD[(Array[String],Long)] = {
+  def toSidsSupportPairs(): RDD[(Array[String],Long)] = {
     val serializedDictionary = broadcastSerializedDictionary()
     val usesFids = this.usesFids // to localize
 
@@ -82,28 +79,28 @@ class DesqDataset(_sequences: RDD[WeightedSequence], _dict: Dictionary, _usesFid
         sidString + "@" + s._2
     })
     if (maxSequences < 0)
-      strings.collect.foreach(println)
+      strings.collect().foreach(println)
     else
       strings.take(maxSequences).foreach(println)
   }
 
   /** Returns a copy of this dataset with a new dictionary, containing updated counts and fid identifiers. The
     * original input sequences are "translated" to the new dictionary if needed. */
-  def copyWithRecomputedCountsAndFids: DesqDataset = {
+  def copyWithRecomputedCountsAndFids(): DesqDataset = {
     // compute counts
     val usesFids = this.usesFids
     val serializedDict = broadcastSerializedDictionary()
     val totalItemCounts = sequences.mapPartitions(rows => {
       new Iterator[(Int, (Long,Long))] {
         val dict = Dictionary.fromBytes(serializedDict.value)
-        val itemCounts = new Int2IntOpenHashMap
+        val itemCounts = new Int2IntOpenHashMap()
         var currentItemCountsIterator = itemCounts.int2IntEntrySet().fastIterator()
         var currentSupport = 0L
-        val ancItems = new IntAVLTreeSet
+        val ancItems = new IntAVLTreeSet()
 
         override def hasNext: Boolean = {
           while (!currentItemCountsIterator.hasNext && rows.hasNext) {
-            val sequence = rows.next
+            val sequence = rows.next()
             currentSupport = sequence.support
             dict.computeItemFrequencies(sequence.items, itemCounts, ancItems, usesFids)
             currentItemCountsIterator = itemCounts.int2IntEntrySet().fastIterator()
@@ -155,6 +152,21 @@ class DesqDataset(_sequences: RDD[WeightedSequence], _dict: Dictionary, _usesFid
     newData.serializedDict = newSerializedDict
     newData
   }
+
+  def mine(minerConf: DesqProperties): DesqDataset = {
+    val ctx = new DesqMinerContext(minerConf)
+    mine(ctx)
+  }
+
+  def mine(ctx: DesqMinerContext): DesqDataset = {
+    val miner = DesqMiner.create(ctx)
+    mine(miner)
+  }
+
+  def mine(miner: DesqMiner): DesqDataset = {
+    miner.mine(this)
+  }
+
 }
 
 object DesqDataset {

@@ -27,7 +27,7 @@ object DesqCountExample {
     val sparkConf = new SparkConf().setAppName(getClass.getName)
     implicit val sc = new SparkContext(sparkConf)
     //sc.setLogLevel("INFO")
-    //icdm16
-    nyt
+    icdm16
+    //nyt
   }
 }

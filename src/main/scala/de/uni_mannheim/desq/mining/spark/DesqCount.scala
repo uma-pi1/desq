@@ -25,7 +25,7 @@ class DesqCount(_ctx: DesqMinerContext) extends DesqMiner(_ctx) {
       new Iterator[(IntList,Long)] {
         // initialize the sequential desq miner
         val dict = Dictionary.fromBytes(serializedDict.value)
-        val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext
+        val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext()
         baseContext.dict = dict
         baseContext.conf = conf
         val baseMiner = new de.uni_mannheim.desq.mining.DesqCount(baseContext)
@@ -40,7 +40,7 @@ class DesqCount(_ctx: DesqMinerContext) extends DesqMiner(_ctx) {
           // do we still have an output sequence from the previous input sequence?
           while (!outputIterator.hasNext && rows.hasNext) {
             // if not, go to the next input sequence
-            val s = rows.next
+            val s = rows.next()
             currentSupport = s.support
 
             // and run sequential DesqCount to get all output sequences produced by that input
@@ -56,7 +56,7 @@ class DesqCount(_ctx: DesqMinerContext) extends DesqMiner(_ctx) {
         }
 
         override def next(): (IntList, Long) = {
-          val pattern = outputIterator.next
+          val pattern = outputIterator.next()
           if (reversedOutput) {
             // will change the pattern in our outputIterator as well, but that's fine as we don't need it again
             Collections.reverse(pattern)

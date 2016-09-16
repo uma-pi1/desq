@@ -19,17 +19,17 @@ object DictionaryExample extends App {
   val dict: Dictionary = Dictionary.loadFrom(dictFile)
   println("Initial dictionary")
   dict.writeJson(System.out)
-  println
+  println()
 
   println("\nData:")
   val delFile = sc.parallelize(Source.fromURL(dataFile).getLines.toSeq)
   val data = DesqDataset.fromDelFile(delFile, dict, usesFids = false)
-  data.sequences.collect.foreach(println)
-  println
+  data.sequences.collect().foreach(println)
+  println()
   data.print()
 
   println("\nDictionary with frequencies")
   val newData = data.copyWithRecomputedCountsAndFids
   newData.dict.writeJson(System.out)
-  println
+  println()
 }

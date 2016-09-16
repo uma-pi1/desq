@@ -85,12 +85,12 @@ object ExampleUtils {
     val data = DesqDataset.fromDelFile(delFile, dict, false).copyWithRecomputedCountsAndFids
     println("\nDictionary with frequencies:")
     dict.writeJson(System.out)
-    println
+    println()
 
     // print sequences
     System.out.println("\nInput sequences:")
     data.print()
-    println
+    println()
 
     val (miner, result) = runVerbose(data, minerConf)
     result.sequences.unpersist()
