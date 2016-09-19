@@ -9,6 +9,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 object DesqCountExample {
   def icdm16()(implicit sc: SparkContext) {
     val patternExpression = "[c|d]([A^|B=^]+)e"
+    //val patternExpression = "(.)"
     val sigma = 2
     val conf = DesqCount.createConf(patternExpression, sigma)
     ExampleUtils.runIcdm16(conf)
@@ -24,8 +25,8 @@ object DesqCountExample {
   }
 
   def main(args: Array[String]) {
-    val sparkConf = new SparkConf().setAppName(getClass.getName)
-    implicit val sc = new SparkContext(sparkConf)
+    val conf = new SparkConf().setAppName(getClass.getName).setMaster("local[*]")
+    implicit val sc = new SparkContext(conf)
     //sc.setLogLevel("INFO")
     icdm16
     //nyt

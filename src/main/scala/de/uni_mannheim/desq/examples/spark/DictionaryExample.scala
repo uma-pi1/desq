@@ -10,7 +10,7 @@ import scala.io.Source
   * Created by rgemulla on 12.09.2016.
   */
 object DictionaryExample extends App {
-  val conf = new SparkConf().setAppName(getClass.getName)
+  val conf = new SparkConf().setAppName(getClass.getName).setMaster("local[*]")
   implicit val sc = new SparkContext(conf)
 
   val dictFile = getClass.getResource("/icdm16-example/dict.json")
