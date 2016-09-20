@@ -5,12 +5,20 @@ import org.apache.commons.configuration2.PropertiesConfiguration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 public class DesqProperties extends PropertiesConfiguration implements Externalizable {
+    public DesqProperties() {
+        super();
+    }
+
+    public DesqProperties(Properties prop) {
+        super();
+        for(Map.Entry<Object,Object> entry : prop.entrySet()) {
+            setProperty((String)entry.getKey(), entry.getValue());
+        }
+    }
+
     @Override
     public void writeExternal(ObjectOutput out) throws IOException {
         ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();

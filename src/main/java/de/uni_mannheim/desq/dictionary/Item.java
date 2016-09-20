@@ -2,14 +2,12 @@ package de.uni_mannheim.desq.dictionary;
 
 import de.uni_mannheim.desq.avro.AvroItem;
 import de.uni_mannheim.desq.avro.AvroItemProperties;
+import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificDatumWriter;
-import org.apache.commons.configuration2.ConfigurationConverter;
-import org.apache.commons.configuration2.PropertiesConfiguration;
-import org.apache.commons.configuration2.ex.ConfigurationException;
 
 import java.io.*;
 import java.util.*;
@@ -41,7 +39,7 @@ public final class Item {
     public final List<Item> parents = new ArrayList<>();
 
     /** Other properties associated with this item */
-    public PropertiesConfiguration properties = new PropertiesConfiguration();
+    public DesqProperties properties = new DesqProperties();
 	
 	public Item(int gid, String sid) {
 		this.gid = gid;

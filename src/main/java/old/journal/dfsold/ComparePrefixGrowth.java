@@ -9,7 +9,6 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.base.Stopwatch;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import old.de.uni_mannheim.desq.dictionary.DictionaryIO;
 import de.uni_mannheim.desq.io.CountPatternWriter;
 import de.uni_mannheim.desq.io.DelPatternWriter;
 import de.uni_mannheim.desq.io.DelSequenceReader;

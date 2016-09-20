@@ -42,6 +42,7 @@ class DesqDataset(_sequences: RDD[WeightedSequence], _dict: Dictionary, _usesFid
   }
 
   /** Returns an RDD that contains for each sequence an array of its string identifiers and its support. */
+  //noinspection AccessorLikeMethodIsEmptyParen
   def toSidsSupportPairs(): RDD[(Array[String],Long)] = {
     val serializedDictionary = broadcastSerializedDictionary()
     val usesFids = this.usesFids // to localize
@@ -71,7 +72,7 @@ class DesqDataset(_sequences: RDD[WeightedSequence], _dict: Dictionary, _usesFid
 
   /** Pretty prints up to <code>maxSequences</code> sequences contained in this dataset. */
   def print(maxSequences: Int = -1): Unit = {
-    val strings = toSidsSupportPairs.map(s => {
+    val strings = toSidsSupportPairs().map(s => {
       val sidString = s._1.deep.mkString("[", " ", "]")
       if (s._2 == 1)
         sidString

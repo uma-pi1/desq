@@ -25,7 +25,7 @@ object DesqCountExample {
   }
 
   def main(args: Array[String]) {
-    val conf = new SparkConf().setAppName(getClass.getName).setMaster("local[*]")
+    val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
     implicit val sc = new SparkContext(conf)
     //sc.setLogLevel("INFO")
     icdm16

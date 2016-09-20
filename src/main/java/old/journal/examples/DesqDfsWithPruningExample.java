@@ -1,5 +1,6 @@
 package old.journal.examples;
 
+import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
@@ -52,7 +53,7 @@ public class DesqDfsWithPruningExample {
 		ctx.dict = dict;
 		MemoryPatternWriter result = new MemoryPatternWriter();
 		ctx.patternWriter = result;
-		ctx.conf = ConfigurationConverter.getConfiguration(DesqDfsWithPruning.createProperties(patternExpression, sigma));
+		ctx.conf = new DesqProperties(DesqDfsWithPruning.createProperties(patternExpression, sigma));
 		System.out.println("\nPatterns " + ConfigurationConverter.getProperties(ctx.conf));
 		
 		DesqMiner miner = new DesqDfsWithPruning(ctx);

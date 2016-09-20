@@ -1,5 +1,6 @@
 package old.journal.examples;
 
+import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
@@ -51,7 +52,7 @@ public class DesqCountTwoPassExample {
 		dataReader = new DelSequenceReader(dataFile.openStream(), false);
 		dataReader.setDictionary(dict);
 		DesqMinerContext ctx = new DesqMinerContext();
-		ctx.conf = ConfigurationConverter.getConfiguration(DesqCountTwoPass.createProperties(patternExpression, sigma));
+		ctx.conf = new DesqProperties(DesqCountTwoPass.createProperties(patternExpression, sigma));
 		
 		MemoryPatternWriter result = new MemoryPatternWriter();
 		ctx.patternWriter = result;

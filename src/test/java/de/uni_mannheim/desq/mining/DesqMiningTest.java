@@ -3,8 +3,8 @@ package de.uni_mannheim.desq.mining;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.io.DelPatternWriter;
 import de.uni_mannheim.desq.io.SequenceReader;
+import de.uni_mannheim.desq.util.DesqProperties;
 import de.uni_mannheim.desq.util.TestUtils;
-import org.apache.commons.configuration2.Configuration;
 import org.apache.log4j.Logger;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -28,9 +28,9 @@ public abstract class DesqMiningTest {
     long sigma;
     String patternExpression;
     String minerName;
-    Configuration conf;
+    DesqProperties conf;
 
-    DesqMiningTest(long sigma, String patternExpression, String minerName, Configuration conf) {
+    DesqMiningTest(long sigma, String patternExpression, String minerName, DesqProperties conf) {
         this.sigma = sigma;
         this.patternExpression = patternExpression;
         this.minerName = minerName;

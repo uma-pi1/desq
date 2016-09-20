@@ -1,6 +1,6 @@
 package de.uni_mannheim.desq.mining;
 
-import org.apache.commons.configuration2.Configuration;
+import de.uni_mannheim.desq.util.DesqProperties;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
@@ -8,27 +8,27 @@ import java.util.List;
 
 /** Helper methods to creates configurations for (all) miners. Used for testing. */
 public class MinerConfigurations {
-    public static Pair<String, Configuration> prefixGrowth(long sigma, int gamma, int lambda, boolean generalize) {
+    public static Pair<String, DesqProperties> prefixGrowth(long sigma, int gamma, int lambda, boolean generalize) {
         String minerName = "PrefixGrowth";
-        Configuration conf = PrefixGrowthMiner.createConf(sigma, gamma, lambda, generalize);
+        DesqProperties conf = PrefixGrowthMiner.createConf(sigma, gamma, lambda, generalize);
         return Pair.of(minerName, conf);
     }
 
-    public static Pair<String, Configuration> compressedPrefixGrowth(long sigma, int gamma, int lambda, boolean generalize) {
+    public static Pair<String, DesqProperties> compressedPrefixGrowth(long sigma, int gamma, int lambda, boolean generalize) {
         String minerName = "CompressedPrefixGrowth";
-        Configuration conf = CompressedPrefixGrowthMiner.createConf(sigma, gamma, lambda, generalize);
+        DesqProperties conf = CompressedPrefixGrowthMiner.createConf(sigma, gamma, lambda, generalize);
         return Pair.of(minerName, conf);
     }
 
-    public static Pair<String, Configuration> cSpade(long sigma, int gamma, int lambda, boolean generalize) {
+    public static Pair<String, DesqProperties> cSpade(long sigma, int gamma, int lambda, boolean generalize) {
         String minerName = "CSpade";
-        Configuration conf = CSpadeMiner.createConf(sigma, gamma, lambda, generalize);
+        DesqProperties conf = CSpadeMiner.createConf(sigma, gamma, lambda, generalize);
         return Pair.of(minerName, conf);
     }
 
-    public static Pair<String, Configuration> desqCount(long sigma, String patternExpression, boolean useFlist,
+    public static Pair<String, DesqProperties> desqCount(long sigma, String patternExpression, boolean useFlist,
                                                         boolean iterative, boolean pruneIrrelevantInputs, boolean useTwoPass) {
-        Configuration conf = DesqCount.createConf(patternExpression, sigma);
+        DesqProperties conf = DesqCount.createConf(patternExpression, sigma);
         conf.setProperty("desq.mining.use.flist", useFlist);
         conf.setProperty("desq.mining.iterative", iterative);
         conf.setProperty("desq.mining.prune.irrelevant.inputs", pruneIrrelevantInputs);
@@ -38,29 +38,29 @@ public class MinerConfigurations {
         return Pair.of(minerName, conf);
     }
 
-    public static Pair<String, Configuration> desqCount(long sigma, int gamma, int lambda, boolean generalize, boolean useFlist,
+    public static Pair<String, DesqProperties> desqCount(long sigma, int gamma, int lambda, boolean generalize, boolean useFlist,
                                           boolean iterative, boolean pruneIrrelevantInputs, boolean useTwoPass) {
         String patternExpression = DesqMiner.patternExpressionFor(gamma, lambda, generalize);
         return desqCount(sigma, patternExpression, useFlist, iterative, pruneIrrelevantInputs, useTwoPass);
     }
 
-    public static Pair<String, Configuration> desqDfs(long sigma, String patternExpression,
+    public static Pair<String, DesqProperties> desqDfs(long sigma, String patternExpression,
                                                       boolean pruneIrrelevantInputs, boolean useTwoPass) {
-        Configuration conf = DesqDfs.createConf(patternExpression, sigma);
+        DesqProperties conf = DesqDfs.createConf(patternExpression, sigma);
         conf.setProperty("desq.mining.prune.irrelevant.inputs", pruneIrrelevantInputs);
         conf.setProperty("desq.mining.use.two.pass", useTwoPass);
         String minerName = "DesqDfs-" + toLetter(pruneIrrelevantInputs) + toLetter(useTwoPass);
         return Pair.of(minerName, conf);
     }
 
-    public static Pair<String, Configuration> desqDfs(long sigma, int gamma, int lambda, boolean generalize,
+    public static Pair<String, DesqProperties> desqDfs(long sigma, int gamma, int lambda, boolean generalize,
                                           boolean pruneIrrelevantInputs, boolean useTwoPass) {
         String patternExpression = DesqMiner.patternExpressionFor(gamma, lambda, generalize);
         return desqDfs(sigma, patternExpression, pruneIrrelevantInputs, useTwoPass);
     }
 
-    public static List<Pair<String, Configuration>> all(long sigma, int gamma, int lambda, boolean generalize) {
-        List<Pair<String, Configuration>> allMiners = new ArrayList<>();
+    public static List<Pair<String, DesqProperties>> all(long sigma, int gamma, int lambda, boolean generalize) {
+        List<Pair<String, DesqProperties>> allMiners = new ArrayList<>();
         allMiners.add(prefixGrowth(sigma, gamma, lambda, generalize));
         allMiners.add(compressedPrefixGrowth(sigma, gamma, lambda, generalize));
         allMiners.add(cSpade(sigma, gamma, lambda, generalize));
@@ -69,8 +69,8 @@ public class MinerConfigurations {
         return allMiners;
     }
 
-    public static List<Pair<String, Configuration>> all(long sigma, String patternExpression) {
-        List<Pair<String, Configuration>> allMiners = new ArrayList<>();
+    public static List<Pair<String, DesqProperties>> all(long sigma, String patternExpression) {
+        List<Pair<String, DesqProperties>> allMiners = new ArrayList<>();
         allMiners.add(desqCount(sigma, patternExpression, false, false, false, false));
         allMiners.add(desqCount(sigma, patternExpression, false, false, true, false));
         allMiners.add(desqCount(sigma, patternExpression, false, false, true, true));

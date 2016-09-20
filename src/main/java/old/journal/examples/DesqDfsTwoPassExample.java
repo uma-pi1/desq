@@ -1,6 +1,7 @@
 package old.journal.examples;
 
 import de.uni_mannheim.desq.mining.WeightedSequence;
+import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
@@ -52,7 +53,7 @@ public class DesqDfsTwoPassExample {
 		ctx.dict = dict;
 		MemoryPatternWriter result = new MemoryPatternWriter();
 		ctx.patternWriter = result;
-		ctx.conf = ConfigurationConverter.getConfiguration(DesqDfsTwoPass.createProperties(patternExpression, sigma));
+		ctx.conf = new DesqProperties(DesqDfsTwoPass.createProperties(patternExpression, sigma));
 		System.out.println("\nPatterns " + ConfigurationConverter.getProperties(ctx.conf));
 		
 		DesqMiner miner = new DesqDfsTwoPass(ctx);

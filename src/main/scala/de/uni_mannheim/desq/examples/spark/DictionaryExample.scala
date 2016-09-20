@@ -10,7 +10,7 @@ import scala.io.Source
   * Created by rgemulla on 12.09.2016.
   */
 object DictionaryExample extends App {
-  val conf = new SparkConf().setAppName(getClass.getName).setMaster("local[*]")
+  val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
   implicit val sc = new SparkContext(conf)
 
   val dictFile = getClass.getResource("/icdm16-example/dict.json")
@@ -29,7 +29,7 @@ object DictionaryExample extends App {
   data.print()
 
   println("\nDictionary with frequencies")
-  val newData = data.copyWithRecomputedCountsAndFids
+  val newData = data.copyWithRecomputedCountsAndFids()
   newData.dict.writeJson(System.out)
   println()
 }

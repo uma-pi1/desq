@@ -3,8 +3,8 @@ package de.uni_mannheim.desq.mining;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.io.DelPatternWriter;
 import de.uni_mannheim.desq.io.SequenceReader;
+import de.uni_mannheim.desq.util.DesqProperties;
 import de.uni_mannheim.desq.util.TestUtils;
-import org.apache.commons.configuration2.Configuration;
 import org.apache.log4j.Logger;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -29,10 +29,10 @@ public abstract class TraditionalMiningTest {
     int gamma, lambda;
     boolean generalize;
     String minerName;
-    Configuration conf;
+    DesqProperties conf;
 
     TraditionalMiningTest(long sigma, int gamma, int lambda, boolean generalize,
-                          String minerName, Configuration conf) {
+                          String minerName, DesqProperties conf) {
         this.sigma = sigma;
         this.gamma = gamma;
         this.lambda = lambda;

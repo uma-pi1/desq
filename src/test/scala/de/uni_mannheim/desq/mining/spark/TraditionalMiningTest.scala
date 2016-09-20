@@ -30,24 +30,23 @@ abstract class TraditionalMiningTest(_sigma: Long, _gamma: Int, _lambda: Int, _g
     /** The data */
     def getDataset()(implicit sc: SparkContext): DesqDataset
 
-    def getGoldFileBaseName(): String
+    def goldFileBaseName: String
 
-    def getTestDirectoryName(): String
+    def testDirectoryName: String
 
     @Test
     def test() {
-        val fileName = getGoldFileBaseName() + "-" + sigma + "-" + gamma + "-" + lambda + "-" + generalize + ".del"
+        val fileName = goldFileBaseName + "-" + sigma + "-" + gamma + "-" + lambda + "-" + generalize + ".del"
         val actualFile = TestUtils.newTemporaryFile(
-                TestUtils.getPackageResourcesPath(getClass()) + "/" + getTestDirectoryName() + "/" + minerName + "/" + fileName)
+                TestUtils.getPackageResourcesPath(getClass) + "/" + testDirectoryName + "/" + minerName + "/" + fileName)
         mine(actualFile)
         try {
             val expectedFile = TestUtils.getPackageResource(classOf[de.uni_mannheim.desq.mining.TraditionalMiningTest], fileName) // use path of sequential results
             assertThat(actualFile).hasSameContentAs(expectedFile)
         } catch {
-            case e: NullPointerException => {
+            case e: NullPointerException =>
                 TraditionalMiningTest.logger.error("Can't access expected data file for " + actualFile)
                 throw e
-            }
         }
     }
 
@@ -63,7 +62,7 @@ abstract class TraditionalMiningTest(_sigma: Long, _gamma: Int, _lambda: Int, _g
         val patternWriter = new DelPatternWriter(new FileOutputStream(outputDelFile),
             DelPatternWriter.TYPE.GID)
         patternWriter.setDictionary(data.dict)
-        result.foreach(patternWriter.write(_))
+        result.foreach(patternWriter.write)
         patternWriter.close()
 
         // sort del file

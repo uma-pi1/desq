@@ -4,6 +4,7 @@ import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.io.DelPatternWriter;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.SequenceReader;
+import de.uni_mannheim.desq.util.DesqProperties;
 import old.journal.mining.*;
 import de.uni_mannheim.desq.mining.*;
 import org.apache.commons.configuration2.ConfigurationConverter;
@@ -58,7 +59,7 @@ public class CompareDesqCount {
 				throw new UnsupportedOperationException();
 			}
 		}
-		ctx.conf = ConfigurationConverter.getConfiguration(properties);
+		ctx.conf = new DesqProperties(properties);
 		ExampleUtils.runMiner(dataReader, ctx);
 		System.out.println();
 		patternWriter.close();

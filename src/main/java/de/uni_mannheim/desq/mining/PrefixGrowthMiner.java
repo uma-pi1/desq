@@ -1,8 +1,8 @@
 package de.uni_mannheim.desq.mining;
 
+import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.*;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.commons.configuration2.PropertiesConfiguration;
 
 /**
  * @author Kaustubh Beedkar (kbeedkar@uni-mannheim.de)
@@ -42,8 +42,8 @@ public final class PrefixGrowthMiner extends MemoryDesqMiner {
 		inputSupports.clear();
 	}
 
-    public static Configuration createConf(long sigma, int gamma, int lambda, boolean generalize) {
-        PropertiesConfiguration conf = new PropertiesConfiguration();
+    public static DesqProperties createConf(long sigma, int gamma, int lambda, boolean generalize) {
+        DesqProperties conf = new DesqProperties();
         conf.setThrowExceptionOnMissing(true);
         conf.setProperty("desq.mining.miner.class", PrefixGrowthMiner.class.getCanonicalName());
         conf.setProperty("desq.mining.min.support", sigma);

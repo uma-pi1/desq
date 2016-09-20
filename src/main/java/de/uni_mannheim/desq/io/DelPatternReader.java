@@ -1,6 +1,5 @@
 package de.uni_mannheim.desq.io;
 
-import de.uni_mannheim.desq.dictionary.Dictionary;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 import java.io.BufferedReader;

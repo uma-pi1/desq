@@ -6,10 +6,9 @@ import de.uni_mannheim.desq.fst.State;
 import de.uni_mannheim.desq.fst.ExtendedDfa;
 import de.uni_mannheim.desq.fst.ExtendedDfaState;
 import de.uni_mannheim.desq.patex.PatEx;
+import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
-import org.apache.commons.configuration2.Configuration;
-import org.apache.commons.configuration2.PropertiesConfiguration;
 import org.apache.log4j.Logger;
 
 import java.util.ArrayList;
@@ -128,8 +127,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 	}
 
-	public static Configuration createConf(String patternExpression, long sigma) {
-		PropertiesConfiguration conf = new PropertiesConfiguration();
+	public static DesqProperties createConf(String patternExpression, long sigma) {
+		DesqProperties conf = new DesqProperties();
 		conf.setThrowExceptionOnMissing(true);
 		conf.setProperty("desq.mining.miner.class", DesqDfs.class.getCanonicalName());
 		conf.setProperty("desq.mining.min.support", sigma);

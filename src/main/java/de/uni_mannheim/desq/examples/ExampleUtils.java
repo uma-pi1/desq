@@ -9,9 +9,9 @@ import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.mining.DesqMiner;
 import de.uni_mannheim.desq.mining.DesqMinerContext;
 import de.uni_mannheim.desq.mining.WeightedSequence;
+import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
-import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ConfigurationConverter;
 
 import java.io.File;
@@ -60,7 +60,7 @@ public class ExampleUtils {
     /**
      * Creates a miner, runs it on the given data, and prints running times as well as pattern statistics.
      */
-    public static DesqMiner runWithStats(SequenceReader dataReader, Configuration minerConf) throws IOException {
+    public static DesqMiner runWithStats(SequenceReader dataReader, DesqProperties minerConf) throws IOException {
         // create context
         DesqMinerContext ctx = new DesqMinerContext();
         ctx.dict = dataReader.getDictionary();
@@ -80,7 +80,7 @@ public class ExampleUtils {
     /**
      * Creates a miner, runs it on the given data, and prints running times as well as all mined patterns.
      */
-    public static DesqMiner runVerbose(SequenceReader dataReader, Configuration minerConf) throws IOException {
+    public static DesqMiner runVerbose(SequenceReader dataReader, DesqProperties minerConf) throws IOException {
         // create context
         DesqMinerContext ctx = new DesqMinerContext();
         ctx.dict = dataReader.getDictionary();
@@ -104,7 +104,7 @@ public class ExampleUtils {
     }
 
     /** Runs a miner on NYT data. */
-    public static DesqMiner runNyt(Configuration minerConf) throws IOException {
+    public static DesqMiner runNyt(DesqProperties minerConf) throws IOException {
         Dictionary dict = Dictionary.loadFrom("data-local/nyt-1991-dict.avro.gz");
         File dataFile = new File("data-local/nyt-1991-data.del");
         SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), true);
@@ -113,7 +113,7 @@ public class ExampleUtils {
     }
 
     /** Runs a miner on Netflix data */
-    public static DesqMiner runNetflixFlat(Configuration minerConf) throws IOException {
+    public static DesqMiner runNetflixFlat(DesqProperties minerConf) throws IOException {
         Dictionary dict = Dictionary.loadFrom("data-local/netflix/flat-dict.avro.gz");
         dict.recomputeFids();
         File dataFile = new File("data-local/netflix/flat-data-gid.del");
@@ -123,7 +123,7 @@ public class ExampleUtils {
     }
 
     /** Runs a miner on Netflix data */
-    public static DesqMiner runNetflixDeep(Configuration minerConf) throws IOException {
+    public static DesqMiner runNetflixDeep(DesqProperties minerConf) throws IOException {
         Dictionary dict = Dictionary.loadFrom("data-local/netflix/deep-dict.avro.gz");
         dict.recomputeFids();
         File dataFile = new File("data-local/netflix/deep-data-gid.del");
@@ -133,7 +133,7 @@ public class ExampleUtils {
     }
 
     /** Runs a miner on ICDM16 example data. */
-    public static DesqMiner runIcdm16(Configuration minerConf) throws IOException {
+    public static DesqMiner runIcdm16(DesqProperties minerConf) throws IOException {
         URL dictFile = ExampleUtils.class.getResource("/icdm16-example/dict.json");
         URL dataFile = ExampleUtils.class.getResource("/icdm16-example/data.del");
 

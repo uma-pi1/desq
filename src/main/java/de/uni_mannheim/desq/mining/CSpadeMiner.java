@@ -2,12 +2,12 @@ package de.uni_mannheim.desq.mining;
 
 
 import de.uni_mannheim.desq.dictionary.Item;
+import de.uni_mannheim.desq.util.DesqProperties;
 import de.uni_mannheim.desq.util.IntArrayStrategy;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenCustomHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.commons.configuration2.PropertiesConfiguration;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -130,8 +130,8 @@ public final class CSpadeMiner extends DesqMiner {
 		inputSupports.clear();
 	}
 
-	public static Configuration createConf(long sigma, int gamma, int lambda, boolean generalize) {
-		PropertiesConfiguration conf = new PropertiesConfiguration();
+	public static DesqProperties createConf(long sigma, int gamma, int lambda, boolean generalize) {
+		DesqProperties conf = new DesqProperties();
 		conf.setThrowExceptionOnMissing(true);
 		conf.setProperty("desq.mining.miner.class", CSpadeMiner.class.getCanonicalName());
 		conf.setProperty("desq.mining.min.support", sigma);

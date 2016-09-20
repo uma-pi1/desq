@@ -1,7 +1,7 @@
 package de.uni_mannheim.desq.examples;
 
 import de.uni_mannheim.desq.mining.DesqCount;
-import org.apache.commons.configuration2.Configuration;
+import de.uni_mannheim.desq.util.DesqProperties;
 
 import java.io.IOException;
 
@@ -20,7 +20,7 @@ public class DesqCountExample {
 		String patternExpression = "[c|d]([A^|B=^]+)e";
 		int sigma = 2;
 
-		Configuration conf = DesqCount.createConf(patternExpression, sigma);
+		DesqProperties conf = DesqCount.createConf(patternExpression, sigma);
 		conf.setProperty("desq.mining.iterative", true);
 		conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
 		conf.setProperty("desq.mining.use.two.pass", true);

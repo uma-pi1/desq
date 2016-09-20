@@ -1,7 +1,7 @@
 package de.uni_mannheim.desq.examples;
 
 import de.uni_mannheim.desq.mining.DesqDfs;
-import org.apache.commons.configuration2.Configuration;
+import de.uni_mannheim.desq.util.DesqProperties;
 
 import java.io.IOException;
 
@@ -14,7 +14,7 @@ public class DesqDfsExample {
 		String patternExp = DesqDfs.patternExpressionFor(gamma, lambda, generalize);
 		patternExp = "(JJ@ JJ@ NN@)";
 
-		Configuration conf = DesqDfs.createConf(patternExp, sigma);
+		DesqProperties conf = DesqDfs.createConf(patternExp, sigma);
 		// conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
 		ExampleUtils.runNyt(conf);
 	}
@@ -29,7 +29,7 @@ public class DesqDfsExample {
 		patternExp= "^.(a1)";
 		sigma = 1;
 
-		Configuration conf = DesqDfs.createConf(patternExp, sigma);
+		DesqProperties conf = DesqDfs.createConf(patternExp, sigma);
 		conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
 		conf.setProperty("desq.mining.use.two.pass", true);
 		ExampleUtils.runIcdm16(conf);
@@ -42,7 +42,7 @@ public class DesqDfsExample {
 		patternExp="(.).{0,3}(.).{0,3}('The Incredibles#2004#10947')";
 		sigma = 1000;
 
-		Configuration conf = DesqDfs.createConf(patternExp, sigma);
+		DesqProperties conf = DesqDfs.createConf(patternExp, sigma);
 		conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
 		conf.setProperty("desq.mining.use.two.pass", true);
 		ExampleUtils.runNetflixFlat(conf);
@@ -58,7 +58,7 @@ public class DesqDfsExample {
         patternExp="('5stars'{2})";
         sigma = 10000;
 
-        Configuration conf = DesqDfs.createConf(patternExp, sigma);
+		DesqProperties conf = DesqDfs.createConf(patternExp, sigma);
         conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
         conf.setProperty("desq.mining.use.two.pass", true);
         ExampleUtils.runNetflixDeep(conf);

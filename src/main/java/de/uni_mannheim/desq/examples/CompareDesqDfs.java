@@ -6,9 +6,9 @@ import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.mining.DesqDfs;
 import de.uni_mannheim.desq.mining.DesqMinerContext;
+import de.uni_mannheim.desq.util.DesqProperties;
 import old.journal.mining.DesqDfsTwoPass;
 import old.journal.mining.DesqDfsWithPruning;
-import org.apache.commons.configuration2.ConfigurationConverter;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -50,7 +50,7 @@ public class CompareDesqDfs {
 		} else {
 			throw new UnsupportedOperationException();
 		}
-		ctx.conf = ConfigurationConverter.getConfiguration(properties);
+		ctx.conf = new DesqProperties(properties);
 		ExampleUtils.runMiner(dataReader, ctx);
 		System.out.println();
 		patternWriter.close();

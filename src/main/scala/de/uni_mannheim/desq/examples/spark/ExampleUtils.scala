@@ -82,7 +82,7 @@ object ExampleUtils {
     // load the dictionary & update hierarchy
     val dict = Dictionary.loadFrom(dictFile)
     val delFile = sc.parallelize(Source.fromURL(dataFile).getLines.toSeq)
-    val data = DesqDataset.fromDelFile(delFile, dict, false).copyWithRecomputedCountsAndFids
+    val data = DesqDataset.fromDelFile(delFile, dict, usesFids = false).copyWithRecomputedCountsAndFids()
     println("\nDictionary with frequencies:")
     dict.writeJson(System.out)
     println()
