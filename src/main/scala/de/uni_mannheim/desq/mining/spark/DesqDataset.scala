@@ -12,14 +12,11 @@ import org.apache.spark.rdd.RDD
 /**
   * Created by rgemulla on 12.09.2016.
   */
-class DesqDataset(_sequences: RDD[WeightedSequence], _dict: Dictionary, _usesFids: Boolean = false) {
-  val sequences: RDD[WeightedSequence] = _sequences
-  val dict = _dict
-  val usesFids = _usesFids
+class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, val usesFids: Boolean = false) {
   private var serializedDict: Broadcast[Array[Byte]] = _
 
-  def this(_sequences: RDD[WeightedSequence], source: DesqDataset, _usesFids: Boolean) {
-    this(_sequences, source.dict, _usesFids)
+  def this(sequences: RDD[WeightedSequence], source: DesqDataset, usesFids: Boolean) {
+    this(sequences, source.dict, usesFids)
     serializedDict = source.serializedDict
   }
 

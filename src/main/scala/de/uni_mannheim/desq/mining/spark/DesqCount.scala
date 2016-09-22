@@ -11,7 +11,7 @@ import it.unimi.dsi.fastutil.objects.{ObjectIterator, ObjectLists}
 /**
   * Created by rgemulla on 14.09.2016.
   */
-class DesqCount(_ctx: DesqMinerContext) extends DesqMiner(_ctx) {
+class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
   override def mine(data: DesqDataset): DesqDataset = {
     // localize the variables we need in the RDD
     val serializedDict = data.broadcastSerializedDictionary()

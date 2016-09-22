@@ -61,15 +61,11 @@ object TrainingSetToCsv extends App {
 }
 
 /** Information about a movie */
-class Movie(_id : Int, _year : Option[Int], _title : String) {
-  val id = _id
-  val year = _year
-  val title = _title
-
+class Movie(val id: Int, val year: Option[Int], val title: String) {
   override def toString = s"Movie($id,$year,$title)"
   def yearString = year.getOrElse("UnknownYear").toString
-  def unratedSid = title + "#" + yearString + "#" + id
-  def ratedSid(rating : Int) = unratedSid + "@" + rating
+  def unratedSid = s"$title#$yearString#$id"
+  def ratedSid(rating : Int) = s"$unratedSid@$rating"
 }
 
 /** Utility methods to read movie data */
@@ -104,12 +100,7 @@ object Movie {
 }
 
 /** A rating of a user for an item at a specific date */
-class MovieRating(_userId : Int, _date : String, _movieId : Int, _rating : Int) {
-  val userId = _userId
-  val date = _date
-  val movieId = _movieId
-  val rating = _rating
-
+class MovieRating(val userId: Int, val date: String, val movieId: Int, val rating: Int) {
   override def toString = s"Rating($userId,$date,$movieId,$rating)"
 }
 

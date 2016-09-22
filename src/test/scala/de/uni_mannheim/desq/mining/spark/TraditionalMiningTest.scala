@@ -18,15 +18,8 @@ import org.assertj.core.api.Assertions.assertThat
  * Created by rgemulla on 18.07.2016.
  */
 @RunWith(classOf[Parameterized])
-abstract class TraditionalMiningTest(_sigma: Long, _gamma: Int, _lambda: Int, _generalize: Boolean,
-                                     _minerName: String, _conf: DesqProperties) extends AssertionsForJUnit {
-    val sigma = _sigma
-    val gamma = _gamma
-    val lambda = _lambda
-    val generalize = _generalize
-    val minerName = _minerName
-    val conf = _conf
-
+abstract class TraditionalMiningTest(sigma: Long, gamma: Int, lambda: Int, generalize: Boolean,
+                                     minerName: String, conf: DesqProperties) extends AssertionsForJUnit {
     /** The data */
     def getDataset()(implicit sc: SparkContext): DesqDataset
 

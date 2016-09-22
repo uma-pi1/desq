@@ -15,8 +15,8 @@ import scala.collection.JavaConversions._
   */
 
 @RunWith(classOf[Parameterized])
-class Icdm16DesqMiningTest(_sigma: Long, _patternExpression: String, _minerName: String, _conf: DesqProperties)
-  extends DesqMiningTest(_sigma, _patternExpression, _minerName, _conf) {
+class Icdm16DesqMiningTest(sigma: Long, patternExpression: String, minerName: String, conf: DesqProperties)
+  extends DesqMiningTest(sigma, patternExpression, minerName, conf) {
   /** The data */
   override def getDataset()(implicit sc: SparkContext): DesqDataset = Icdm16TraditionalMiningTest.getDataset()
 

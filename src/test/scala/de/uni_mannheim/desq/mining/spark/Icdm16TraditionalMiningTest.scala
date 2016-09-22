@@ -16,9 +16,9 @@ import scala.io.Source
  * Created by rgemulla on 18.07.2016.
  */
 @RunWith(classOf[Parameterized])
-class Icdm16TraditionalMiningTest(_sigma: Long, _gamma: Int, _lambda: Int, _generalize: Boolean,
-                                  _minerName: String, _conf: DesqProperties)
-  extends TraditionalMiningTest(_sigma, _gamma, _lambda, _generalize, _minerName, _conf) {
+class Icdm16TraditionalMiningTest(sigma: Long, gamma: Int, lambda: Int, generalize: Boolean,
+                                  minerName: String, conf: DesqProperties)
+  extends TraditionalMiningTest(sigma, gamma, lambda, generalize, minerName, conf) {
 
     override def goldFileBaseName = "icdm16/icdm16-traditional-patterns-ids"
 

@@ -16,13 +16,8 @@ import org.scalatest.junit.AssertionsForJUnit
   * Created by rgemulla on 20.09.2016.
   */
 @RunWith(classOf[Parameterized])
-abstract class DesqMiningTest(_sigma: Long, _patternExpression: String,
-                                     _minerName: String, _conf: DesqProperties) extends AssertionsForJUnit {
-  val sigma = _sigma
-  val patternExpression = _patternExpression
-  val minerName = _minerName
-  val conf = _conf
-
+abstract class DesqMiningTest(sigma: Long, patternExpression: String,
+                              minerName: String, conf: DesqProperties) extends AssertionsForJUnit {
   /** The data */
   def getDataset()(implicit sc: SparkContext): DesqDataset
 
