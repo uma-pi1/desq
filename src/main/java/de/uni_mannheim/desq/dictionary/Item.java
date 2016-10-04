@@ -48,6 +48,7 @@ public final class Item {
 	
 	/** Connects child and parent. Modifies child.parents and parent.children. */ 
 	public static void addParent(Item child, Item parent) {
+		if (child == null || parent == null) throw new IllegalArgumentException();
 		child.parents.add(parent);
 		parent.children.add(child);
 	}

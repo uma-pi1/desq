@@ -1,6 +1,6 @@
 package de.uni_mannheim.desq.mining.spark
 
-import de.uni_mannheim.desq.dictionary.Dictionary
+import de.uni_mannheim.desq.dictionary.{Dictionary, DictionaryBuilder, SequenceBuilder, DesqBuilder}
 import de.uni_mannheim.desq.io.DelSequenceReader
 import de.uni_mannheim.desq.mining.WeightedSequence
 import de.uni_mannheim.desq.util.DesqProperties
@@ -67,7 +67,7 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
     })
   }
 
-  /** Pretty prints up to <code>maxSequences</code> sequences contained in this dataset. */
+  /** Pretty prints up to <code>maxSequences</code> sequences contained in this dataset using their sid's. */
   def print(maxSequences: Int = -1): Unit = {
     val strings = toSidsSupportPairs().map(s => {
       val sidString = s._1.deep.mkString("[", " ", "]")
@@ -100,7 +100,7 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
           while (!currentItemCountsIterator.hasNext && rows.hasNext) {
             val sequence = rows.next()
             currentSupport = sequence.support
-            dict.computeItemFrequencies(sequence.items, itemCounts, ancItems, usesFids)
+            dict.computeItemFrequencies(sequence.items, itemCounts, ancItems, usesFids, 1)
             currentItemCountsIterator = itemCounts.int2IntEntrySet().fastIterator()
           }
           currentItemCountsIterator.hasNext
@@ -169,13 +169,68 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
 
 object DesqDataset {
   /** Loads data from the specified del file */
-  def fromDelFile(delFile: RDD[String], dict: Dictionary, usesFids: Boolean): DesqDataset = {
+  def loadFromDelFile(delFile: RDD[String], dict: Dictionary, usesFids: Boolean): DesqDataset = {
     val sequences = delFile.map(line => new WeightedSequence(DelSequenceReader.parseLine(line), 1))
     new DesqDataset(sequences, dict, usesFids)
   }
 
   /** Loads data from the specified del file */
-  def fromDelFile(delFile: String, dict: Dictionary, usesFids: Boolean = false)(implicit sc: SparkContext): DesqDataset = {
-    fromDelFile(sc.textFile(delFile), dict, usesFids)
+  def loadFromDelFile(delFile: String, dict: Dictionary, usesFids: Boolean = false)(implicit sc: SparkContext): DesqDataset = {
+    loadFromDelFile(sc.textFile(delFile), dict, usesFids)
+  }
+
+  /** Builds a DesqDataset from an RDD of string arrays. Every array corresponds to one sequence, every element to
+    * one item. The generated hierarchy is flat. */
+  def buildFromStrings(rawData: RDD[Array[String]]): DesqDataset = {
+    val parse = (strings: Array[String], seqBuilder: DesqBuilder) => {
+      seqBuilder.newSequence(1)
+      for (string <- strings) {
+        seqBuilder.appendItem(string)
+      }
+    }
+    build[Array[String]](rawData, parse)
+  }
+
+  /** Builds a DesqDataset from arbitrary input data. The dataset is linked to the original data and parses it again
+    * when used. For improved performance, save the dataset once created.
+    *
+    * @param rawData the input data as an RDD
+    * @param parse method that takes an input element, parses it, and registers the resulting items (and their parents)
+    *              with the provided DesqBuilder. Used to construct the dictionary and to translate the data.
+    * @tparam T type of input data elements
+    * @return the created DesqDataset
+    */
+  def build[T](rawData: RDD[T], parse: (T, DesqBuilder) => _) : DesqDataset = {
+    // construct the dictionary
+    val dict = rawData.mapPartitions(rows => {
+      val dictBuilder = new DictionaryBuilder()
+      while (rows.hasNext) {
+        parse.apply(rows.next(), dictBuilder)
+      }
+      dictBuilder.newSequence(0) // flush last sequence
+      Iterator.single(dictBuilder.getDictionary)
+    }).treeReduce((d1, d2) => { d1.mergeWith(d2); d1 }, 3)
+    dict.recomputeFids()
+
+    // now convert the sequences (lazily)
+    val serializedDict = rawData.context.broadcast(dict.toBytes)
+    val sequences = rawData.mapPartitions(rows => new Iterator[WeightedSequence] {
+      val dict = Dictionary.fromBytes(serializedDict.value)
+      val seqBuilder = new SequenceBuilder(dict)
+
+      override def hasNext: Boolean = rows.hasNext
+
+      override def next(): WeightedSequence = {
+        parse.apply(rows.next(), seqBuilder)
+        val items = new IntArrayList(seqBuilder.getCurrentGids)
+        dict.gidsToFids(items)
+        new WeightedSequence(items, seqBuilder.getCurrentSupport)
+      }
+    })
+
+    // return the dataset
+    val result = new DesqDataset(sequences, dict, true)
+    result.serializedDict = serializedDict
+    result
   }
 }

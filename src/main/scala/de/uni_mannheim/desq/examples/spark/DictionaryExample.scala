@@ -23,7 +23,7 @@ object DictionaryExample extends App {
 
   println("\nData:")
   val delFile = sc.parallelize(Source.fromURL(dataFile).getLines.toSeq)
-  val data = DesqDataset.fromDelFile(delFile, dict, usesFids = false)
+  val data = DesqDataset.loadFromDelFile(delFile, dict, usesFids = false)
   data.sequences.collect().foreach(println)
   println()
   data.print()
