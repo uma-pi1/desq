@@ -3,7 +3,7 @@ package de.uni_mannheim.desq.mining.spark
 import java.util.Collections
 
 import de.uni_mannheim.desq.dictionary.Dictionary
-import de.uni_mannheim.desq.mining.WeightedSequence
+import de.uni_mannheim.desq.mining.{Sequence, WeightedSequence}
 import de.uni_mannheim.desq.util.DesqProperties
 import it.unimi.dsi.fastutil.ints.{IntArrayList, IntList}
 import it.unimi.dsi.fastutil.objects.{ObjectIterator, ObjectLists}
@@ -22,14 +22,14 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     // build RDD to perform the minig
     val patterns = data.sequences.mapPartitions(rows => {
       // for each row, get output of FST and produce (output sequence, 1) pair
-      new Iterator[(WeightedSequence,Long)] {
+      new Iterator[(Sequence,Long)] {
         // initialize the sequential desq miner
         val dict = Dictionary.fromBytes(serializedDict.value)
         val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext()
         baseContext.dict = dict
         baseContext.conf = conf
         val baseMiner = new de.uni_mannheim.desq.mining.DesqCount(baseContext)
-        var outputIterator: ObjectIterator[IntList] = ObjectLists.emptyList[IntList].iterator()
+        var outputIterator: ObjectIterator[Sequence] = ObjectLists.emptyList[Sequence].iterator()
         var currentSupport = 0L
         val itemFids = new IntArrayList
         val reversedOutput = baseMiner.mine1reversedOutput()
@@ -45,9 +45,9 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 
             // and run sequential DesqCount to get all output sequences produced by that input
             if (usesFids) {
-              outputIterator = baseMiner.mine1(s.items).iterator()
+              outputIterator = baseMiner.mine1(s).iterator()
             } else {
-              dict.gidsToFids(s.items, itemFids)
+              dict.gidsToFids(s, itemFids)
               outputIterator = baseMiner.mine1(itemFids).iterator()
             }
           }
@@ -55,18 +55,18 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
           outputIterator.hasNext
         }
 
-        override def next(): (WeightedSequence, Long) = {
+        override def next(): (Sequence, Long) = {
           val pattern = outputIterator.next()
           if (reversedOutput) {
             // will change the pattern in our outputIterator as well, but that's fine as we don't need it again
             Collections.reverse(pattern)
           }
-          (new WeightedSequence(pattern, 0), currentSupport) // support in weightedsequence ignored (used for compression)
+          (pattern, currentSupport)
         }
       }
     }).reduceByKey(_ + _) // now sum up count
       .filter(_._2 >= minSupport) // and drop infrequent output sequences
-      .map(s => new WeightedSequence(s._1.items, s._2)) // and pack the remaining sequences into a WeightedSequence
+      .map(s => new WeightedSequence(s._1, s._2)) // and pack the remaining sequences into a WeightedSequence
 
     // all done, return result (last parameter is true because mining.DesqCount always produces fids)
     new DesqDataset(patterns, data, true)

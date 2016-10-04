@@ -61,13 +61,12 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
 
         override def next(): (Array[String], Long) = {
           val s = rows.next()
-          val items = s.items
-          val itemSids = new Array[String](items.size)
-          for (i <- Range(0,items.size)) {
+          val itemSids = new Array[String](s.size())
+          for (i <- Range(0,s.size())) {
             if (usesFids) {
-              itemSids(i) = dict.getItemByFid(items.get(i)).sid
+              itemSids(i) = dict.getItemByFid(s.getInt(i)).sid
             } else {
-              itemSids(i) = dict.getItemByGid(items.get(i)).sid
+              itemSids(i) = dict.getItemByGid(s.getInt(i)).sid
             }
           }
           (itemSids, s.support)
@@ -109,7 +108,7 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
           while (!currentItemCountsIterator.hasNext && rows.hasNext) {
             val sequence = rows.next()
             currentSupport = sequence.support
-            dict.computeItemFrequencies(sequence.items, itemCounts, ancItems, usesFids, 1)
+            dict.computeItemFrequencies(sequence, itemCounts, ancItems, usesFids, 1)
             currentItemCountsIterator = itemCounts.int2IntEntrySet().fastIterator()
           }
           currentItemCountsIterator.hasNext
@@ -147,11 +146,11 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
         override def hasNext: Boolean = rows.hasNext
 
         override def next(): WeightedSequence = {
-          val old = rows.next()
-          val newItems = new IntArrayList(old.items)
-          dict.fidsToGids(newItems)
-          newDict.gidsToFids(newItems)
-          new WeightedSequence(newItems, old.support)
+          val oldSeq = rows.next()
+          val newSeq = oldSeq.clone()
+          dict.fidsToGids(newSeq)
+          newDict.gidsToFids(newSeq)
+          newSeq
         }
       }
     })
@@ -206,7 +205,12 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
 object DesqDataset {
   /** Loads data from the specified del file */
   def loadFromDelFile(delFile: RDD[String], dict: Dictionary, usesFids: Boolean): DesqDataset = {
-    val sequences = delFile.map(line => new WeightedSequence(DelSequenceReader.parseLine(line), 1))
+    val sequences = delFile.map(line => {
+      val s = new WeightedSequence(1L)
+      DelSequenceReader.parseLine(line, s)
+      s
+    })
+
     new DesqDataset(sequences, dict, usesFids)
   }
 
@@ -258,9 +262,9 @@ object DesqDataset {
 
       override def next(): WeightedSequence = {
         parse.apply(rows.next(), seqBuilder)
-        val items = new IntArrayList(seqBuilder.getCurrentGids)
-        dict.gidsToFids(items)
-        new WeightedSequence(items, seqBuilder.getCurrentSupport)
+        val s = new WeightedSequence(seqBuilder.getCurrentGids, seqBuilder.getCurrentSupport)
+        dict.gidsToFids(s)
+        s
       }
     })
 

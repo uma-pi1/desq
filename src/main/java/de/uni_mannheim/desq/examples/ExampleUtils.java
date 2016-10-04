@@ -96,7 +96,7 @@ public class ExampleUtils {
         for (WeightedSequence pattern : result.getPatterns()) {
             System.out.print(pattern.support);
             System.out.print(": ");
-            System.out.println(dataReader.getDictionary().getItemsByFids(pattern.items));
+            System.out.println(dataReader.getDictionary().getItemsByFids(pattern));
         }
 
         return miner;

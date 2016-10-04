@@ -68,7 +68,7 @@ public class DesqCountTwoPassExample {
 		 for (WeightedSequence pattern : result.getPatterns()) {
 			 System.out.print(pattern.support);
 			 System.out.print(": ");
-			 System.out.println(dict.getItemsByFids(pattern.items));
+			 System.out.println(dict.getItemsByFids(pattern));
 		 }
 	}
 	

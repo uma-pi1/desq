@@ -8,38 +8,66 @@ import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.util.List;
 
-/**
- * Created by rgemulla on 18.07.2016.
- */
-public final class WeightedSequence implements Comparable<WeightedSequence>, Externalizable {
-    public final IntList items;
+/** A sequence of integers plus a weight (support). */
+public final class WeightedSequence extends Sequence implements Externalizable {
     public long support;
 
     public WeightedSequence() {
-       this(new IntArrayList(), 0);
-   }
+       super();
+       support = 1;
+    }
 
     public WeightedSequence(long support) {
-       this(new IntArrayList(), support);
-   }
-
-    public WeightedSequence(IntList items, long support) {
-        this.items = items;
+       super();
         this.support = support;
     }
 
-    public WeightedSequence clone() {
-        return new WeightedSequence(new IntArrayList(items), support);
+    public WeightedSequence(IntList l, long support) {
+        super(l);
+        this.support = support;
+    }
+
+    protected WeightedSequence(int capacity) {
+        super(capacity);
     }
 
     @Override
-    public int compareTo(WeightedSequence o) {
-        int cmp = Long.signum(o.support - support); // descending
-        if (cmp != 0)
-            return cmp;
-        else
-            return items.compareTo(o.items);
+    public WeightedSequence clone() {
+        WeightedSequence c = new WeightedSequence(size);
+        System.arraycopy(this.a, 0, c.a, 0, this.size);
+        c.size = this.size;
+        c.support = support;
+        return c;
+    }
+
+    @Override
+    public int compareTo(List<? extends Integer> o) {
+        if (o instanceof WeightedSequence) {
+            int cmp = Long.signum(((WeightedSequence)o).support - support); // descending
+            if (cmp != 0)
+                return cmp;
+        } else {
+            int cmp = Long.signum(1L - support);
+            if (cmp != 0)
+                return cmp;
+        }
+        return super.compareTo(o);
+    }
+
+    @Override
+    public int compareTo(IntArrayList o) {
+        if (o instanceof WeightedSequence) {
+            int cmp = Long.signum(((WeightedSequence)o).support - support); // descending
+            if (cmp != 0)
+                return cmp;
+        } else {
+            int cmp = Long.signum(1L - support);
+            if (cmp != 0)
+                return cmp;
+        }
+        return super.compareTo(o);
     }
 
     @Override
@@ -48,41 +76,32 @@ public final class WeightedSequence implements Comparable<WeightedSequence>, Ext
         if (o == null || getClass() != o.getClass()) return false;
         WeightedSequence that = (WeightedSequence) o;
         if (support != that.support) return false;
-        return items != null ? items.equals(that.items) : that.items == null;
+        return super.equals(o);
     }
 
     @Override
     public int hashCode() {
-        int result = items != null ? items.hashCode() : 0;
-        result = 31 * result + (int) (support ^ (support >>> 32));
-        return result;
+        return 31 * super.hashCode() + (int) (support ^ (support >>> 32));
     }
 
     @Override
     public String toString() {
         if (support == 1) {
-            return items.toString();
+            return super.toString();
         } else {
-            return items.toString() + "@" + support;
+            return super.toString() + "@" + support;
         }
     }
 
     @Override
     public void writeExternal(ObjectOutput out) throws IOException {
         WritableUtils.writeVLong(out, support);
-        WritableUtils.writeVInt(out, items.size());
-        for (int i=0; i<items.size(); i++) {
-            WritableUtils.writeVInt(out, items.getInt(i));
-        }
+        super.writeExternal(out);
     }
 
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         support = WritableUtils.readVLong(in);
-        int size = WritableUtils.readVInt(in);
-        items.size(size);
-        for (int i=0; i<size; i++) {
-            items.set(i, WritableUtils.readVInt(in) );
-        }
+        super.readExternal(in);
     }
 }
