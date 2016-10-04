@@ -22,7 +22,7 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     // build RDD to perform the minig
     val patterns = data.sequences.mapPartitions(rows => {
       // for each row, get output of FST and produce (output sequence, 1) pair
-      new Iterator[(IntList,Long)] {
+      new Iterator[(WeightedSequence,Long)] {
         // initialize the sequential desq miner
         val dict = Dictionary.fromBytes(serializedDict.value)
         val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext()
@@ -55,18 +55,18 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
           outputIterator.hasNext
         }
 
-        override def next(): (IntList, Long) = {
+        override def next(): (WeightedSequence, Long) = {
           val pattern = outputIterator.next()
           if (reversedOutput) {
             // will change the pattern in our outputIterator as well, but that's fine as we don't need it again
             Collections.reverse(pattern)
           }
-          (pattern, currentSupport)
+          (new WeightedSequence(pattern, 0), currentSupport) // support in weightedsequence ignored (used for compression)
         }
       }
     }).reduceByKey(_ + _) // now sum up count
       .filter(_._2 >= minSupport) // and drop infrequent output sequences
-      .map(s => new WeightedSequence(s._1, s._2)) // and pack the remaining sequences into a WeightedSequence
+      .map(s => new WeightedSequence(s._1.items, s._2)) // and pack the remaining sequences into a WeightedSequence
 
     // all done, return result (last parameter is true because mining.DesqCount always produces fids)
     new DesqDataset(patterns, data, true)

@@ -2,6 +2,7 @@ package de.uni_mannheim.desq.mining;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+import org.apache.hadoop.io.WritableUtils;
 
 import java.io.Externalizable;
 import java.io.IOException;
@@ -42,6 +43,22 @@ public final class WeightedSequence implements Comparable<WeightedSequence>, Ext
     }
 
     @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        WeightedSequence that = (WeightedSequence) o;
+        if (support != that.support) return false;
+        return items != null ? items.equals(that.items) : that.items == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = items != null ? items.hashCode() : 0;
+        result = 31 * result + (int) (support ^ (support >>> 32));
+        return result;
+    }
+
+    @Override
     public String toString() {
         if (support == 1) {
             return items.toString();
@@ -50,22 +67,22 @@ public final class WeightedSequence implements Comparable<WeightedSequence>, Ext
         }
     }
 
-    // TODO: compress
     @Override
     public void writeExternal(ObjectOutput out) throws IOException {
-        out.writeLong(support);
-        out.writeInt(items.size());
+        WritableUtils.writeVLong(out, support);
+        WritableUtils.writeVInt(out, items.size());
         for (int i=0; i<items.size(); i++) {
-            out.writeInt( items.getInt(i) );
+            WritableUtils.writeVInt(out, items.getInt(i));
         }
     }
 
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        support = in.readLong();
-        int size = in.readInt();
+        support = WritableUtils.readVLong(in);
+        int size = WritableUtils.readVInt(in);
+        items.size(size);
         for (int i=0; i<size; i++) {
-            items.add( in.readInt() );
+            items.set(i, WritableUtils.readVInt(in) );
         }
     }
 }

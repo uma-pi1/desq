@@ -1,10 +1,19 @@
 package de.uni_mannheim.desq.mining.spark
 
-import de.uni_mannheim.desq.dictionary.{Dictionary, DictionaryBuilder, SequenceBuilder, DesqBuilder}
+import java.net.URI
+import java.util.Calendar
+import java.util.zip.{GZIPInputStream, GZIPOutputStream}
+
+import de.uni_mannheim.desq.avro.AvroDesqDatasetDescriptor
+import de.uni_mannheim.desq.dictionary.{DesqBuilder, Dictionary, DictionaryBuilder, SequenceBuilder}
 import de.uni_mannheim.desq.io.DelSequenceReader
 import de.uni_mannheim.desq.mining.WeightedSequence
 import de.uni_mannheim.desq.util.DesqProperties
 import it.unimi.dsi.fastutil.ints._
+import org.apache.avro.io.{DecoderFactory, EncoderFactory}
+import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter}
+import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.hadoop.fs.permission.FsPermission
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -165,6 +174,33 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
     miner.mine(this)
   }
 
+  def save(outputPath: String): DesqDataset = {
+    // write sequences
+    val sequencePath = s"$outputPath/sequences"
+    sequences.saveAsObjectFile(sequencePath)
+
+    // write dictionary
+    val fileSystem = FileSystem.get(new URI(outputPath), sequences.context.hadoopConfiguration)
+    val dictPath = s"$outputPath/dict.avro.gz"
+    val dictOut = FileSystem.create(fileSystem, new Path(dictPath), FsPermission.getFileDefault)
+    dict.writeAvro(new GZIPOutputStream(dictOut))
+    dictOut.close()
+
+    // write descriptor
+    val descriptor = new AvroDesqDatasetDescriptor()
+    descriptor.setCreationTime(Calendar.getInstance().getTime.toString)
+    descriptor.setUsesFids(usesFids)
+    val descriptorPath = s"$outputPath/descriptor.json"
+    val descriptorOut = FileSystem.create(fileSystem, new Path(descriptorPath), FsPermission.getFileDefault)
+    val writer = new SpecificDatumWriter[AvroDesqDatasetDescriptor](classOf[AvroDesqDatasetDescriptor])
+    val encoder = EncoderFactory.get.jsonEncoder(descriptor.getSchema, descriptorOut)
+    writer.write(descriptor, encoder)
+    encoder.flush()
+    descriptorOut.close()
+
+    // return a new dataset for the just saved data
+    new DesqDataset(sequences.context.objectFile[WeightedSequence](sequencePath), dict, usesFids)
+  }
 }
 
 object DesqDataset {
@@ -200,7 +236,7 @@ object DesqDataset {
     * @tparam T type of input data elements
     * @return the created DesqDataset
     */
-  def build[T](rawData: RDD[T], parse: (T, DesqBuilder) => _) : DesqDataset = {
+  def build[T](rawData: RDD[T], parse: (T, DesqBuilder) => _): DesqDataset = {
     // construct the dictionary
     val dict = rawData.mapPartitions(rows => {
       val dictBuilder = new DictionaryBuilder()
@@ -232,5 +268,31 @@ object DesqDataset {
     val result = new DesqDataset(sequences, dict, true)
     result.serializedDict = serializedDict
     result
+  }
+
+  def load(inputPath: String)(implicit sc: SparkContext): DesqDataset = {
+    // read sequences
+    val sequencePath = s"$inputPath/sequences"
+    val sequences = sc.objectFile[WeightedSequence](sequencePath)
+
+    // read dictionary
+    val fileSystem = FileSystem.get(new URI(inputPath), sequences.context.hadoopConfiguration)
+    val dictPath = s"$inputPath/dict.avro.gz"
+    val dictIn = fileSystem.open(new Path(dictPath))
+    val dict = new Dictionary()
+    dict.readAvro(new GZIPInputStream(dictIn))
+    dictIn.close()
+
+    // read descriptor
+    var descriptor = new AvroDesqDatasetDescriptor()
+    val descriptorPath = s"$inputPath/descriptor.json"
+    val descriptorIn = fileSystem.open(new Path(descriptorPath))
+    val reader = new SpecificDatumReader[AvroDesqDatasetDescriptor](classOf[AvroDesqDatasetDescriptor])
+    val decoder = DecoderFactory.get.jsonDecoder(descriptor.getSchema, descriptorIn)
+    descriptor = reader.read(descriptor, decoder)
+    descriptorIn.close()
+
+    // return the dataset
+    new DesqDataset(sequences, dict, descriptor.getUsesFids)
   }
 }

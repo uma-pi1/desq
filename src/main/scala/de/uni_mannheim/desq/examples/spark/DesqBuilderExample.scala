@@ -15,13 +15,22 @@ object DesqBuilderExample extends App {
   // create the dataset
   val lines = sc.textFile("data-local/nyt-1991-data.del")
   val data = DesqDataset.buildFromStrings(lines.map(s => s.split(" ")))
-  data.print(100)
+
+  // save it
+  val savedData = data.save("data-local/nyt-1991-data")
+  savedData.print(5)
+  println("--")
+
+  // load it
+  val loadedData = DesqDataset.load("data-local/nyt-1991-data")
+  loadedData.print(5)
+  println("--")
 
   // test correctness of counts
   val fullDict = Dictionary.loadFrom("data-local/nyt-1991-dict.avro.gz")
   for (item <- fullDict.getItems) {
     if (item.children.size() == 0) { // only verify leafs
-      val otherItem = data.dict.getItemBySid(Integer.toString(item.gid))
+      val otherItem = loadedData.dict.getItemBySid(Integer.toString(item.gid))
       if (item.cFreq != otherItem.cFreq || item.dFreq != otherItem.dFreq) {
         println(s"Incorrect item: $item != $otherItem")
       }

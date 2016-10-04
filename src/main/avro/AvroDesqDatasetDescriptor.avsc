@@ -1,0 +1,15 @@
+{
+  "namespace": "de.uni_mannheim.desq.avro",
+  "name": "AvroDesqDatasetDescriptor",
+  "type": "record",
+  "fields": [
+    {
+      "name": "creationTime",
+      "type": "string"
+    },
+    {
+      "name": "usesFids",
+      "type": "boolean"
+    }
+  ]
+}
