@@ -1,17 +1,23 @@
 package de.uni_mannheim.desq.mining;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.Serializer;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+import de.uni_mannheim.desq.util.Input2DataInputWrapper;
+import de.uni_mannheim.desq.util.Output2DataOutputWrapper;
+import de.uni_mannheim.desq.util.Writable2Serializer;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.io.WritableUtils;
 
-import java.io.Externalizable;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
+import java.io.*;
 import java.util.List;
 
 /** A sequence of integers plus a weight (support). */
-public final class WeightedSequence extends Sequence implements Externalizable {
+public final class WeightedSequence extends Sequence implements Externalizable, Writable {
     public long support;
 
     public WeightedSequence() {
@@ -21,7 +27,7 @@ public final class WeightedSequence extends Sequence implements Externalizable {
 
     public WeightedSequence(long support) {
        super();
-        this.support = support;
+       this.support = support;
     }
 
     public WeightedSequence(IntList l, long support) {
@@ -31,6 +37,10 @@ public final class WeightedSequence extends Sequence implements Externalizable {
 
     protected WeightedSequence(int capacity) {
         super(capacity);
+    }
+
+    public WeightedSequence(final int[] a, boolean dummy) {
+        super(a, dummy);
     }
 
     @Override
@@ -94,14 +104,32 @@ public final class WeightedSequence extends Sequence implements Externalizable {
     }
 
     @Override
-    public void writeExternal(ObjectOutput out) throws IOException {
+    public void write(DataOutput out) throws IOException {
         WritableUtils.writeVLong(out, support);
-        super.writeExternal(out);
+        super.write(out);
+    }
+
+    @Override
+    public void readFields(DataInput in) throws IOException {
+        support = WritableUtils.readVLong(in);
+        super.readFields(in);
+    }
+
+    @Override
+    public void writeExternal(ObjectOutput out) throws IOException {
+        write(out);
     }
 
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        support = WritableUtils.readVLong(in);
-        super.readExternal(in);
+        readFields(in);
     }
+
+    public static final class KryoSerializer extends Writable2Serializer<WeightedSequence> {
+        @Override
+        public WeightedSequence newInstance(Kryo kryo, Input input, Class<WeightedSequence> type) {
+            return new WeightedSequence(null, true);
+        }
+    }
+
 }

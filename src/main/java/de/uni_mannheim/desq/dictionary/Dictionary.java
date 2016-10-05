@@ -7,18 +7,24 @@ import java.util.Map.Entry;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
 import de.uni_mannheim.desq.avro.AvroItem;
 import de.uni_mannheim.desq.io.SequenceReader;
+import de.uni_mannheim.desq.mining.WeightedSequence;
 import de.uni_mannheim.desq.util.IntSetUtils;
+import de.uni_mannheim.desq.util.Writable2Serializer;
 import it.unimi.dsi.fastutil.ints.*;
 import org.apache.avro.file.DataFileStream;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.io.*;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.WritableUtils;
 
 /** A set of items arranged in a hierarchy */ 
-public final class Dictionary implements Externalizable {
+public final class Dictionary implements Externalizable, Writable {
 	// indexes
     final Int2ObjectMap<Item> itemsById = new Int2ObjectOpenHashMap<>();
 	final Int2ObjectMap<Item> itemsByFid = new Int2ObjectOpenHashMap<>();
@@ -798,11 +804,13 @@ public final class Dictionary implements Externalizable {
 
 	public byte[] toBytes() throws IOException {
 		ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
-		writeAvro(bytesOut);
+		writeAvro(new DataOutputStream(bytesOut));
 		return bytesOut.toByteArray();
 	}
 
 	public static Dictionary fromBytes(byte[] bytes) throws IOException {
+		// TODO: this method is quite slow (readAvro is slow for some reason) and may become a bottleneck
+		// TODO: for internal use (e.g., broadcasting dictionaries), we may want to switch to a custom binary format
 		Dictionary dict = new Dictionary();
 		dict.readAvro(new ByteArrayInputStream(bytes));
 		return dict;
@@ -810,16 +818,33 @@ public final class Dictionary implements Externalizable {
 
 	@Override
 	public void writeExternal(ObjectOutput out) throws IOException {
+		write(out);
+	}
+
+	@Override
+	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+		readFields(in);
+	}
+
+	@Override
+	public void write(DataOutput out) throws IOException {
 		byte[] bytes = toBytes();
 		out.writeInt(bytes.length);
 		out.write(bytes);
 	}
 
 	@Override
-	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+	public void readFields(DataInput in) throws IOException {
 		int length = in.readInt();
 		byte[] bytes = new byte[length];
 		in.readFully(bytes);
 		readAvro(new ByteArrayInputStream(bytes));
+	}
+
+	public static final class KryoSerializer extends Writable2Serializer<Dictionary> {
+		@Override
+		public Dictionary newInstance(Kryo kryo, Input input, Class<Dictionary> type) {
+			return new Dictionary();
+		}
 	}
 }

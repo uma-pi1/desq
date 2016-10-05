@@ -14,6 +14,7 @@ import org.apache.avro.io.{DecoderFactory, EncoderFactory}
 import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter}
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
+import org.apache.hadoop.io.NullWritable
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -174,12 +175,13 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
   }
 
   def save(outputPath: String): DesqDataset = {
+    val fileSystem = FileSystem.get(new URI(outputPath), sequences.context.hadoopConfiguration)
+
     // write sequences
     val sequencePath = s"$outputPath/sequences"
-    sequences.saveAsObjectFile(sequencePath)
+    sequences.map(s => (NullWritable.get(),s)).saveAsSequenceFile(sequencePath)
 
     // write dictionary
-    val fileSystem = FileSystem.get(new URI(outputPath), sequences.context.hadoopConfiguration)
     val dictPath = s"$outputPath/dict.avro.gz"
     val dictOut = FileSystem.create(fileSystem, new Path(dictPath), FsPermission.getFileDefault)
     dict.writeAvro(new GZIPOutputStream(dictOut))
@@ -198,7 +200,9 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
     descriptorOut.close()
 
     // return a new dataset for the just saved data
-    new DesqDataset(sequences.context.objectFile[WeightedSequence](sequencePath), dict, usesFids)
+    new DesqDataset(
+      sequences.context.sequenceFile(sequencePath, classOf[NullWritable], classOf[WeightedSequence]).map(kv => kv._2),
+      dict, usesFids)
   }
 }
 
@@ -275,17 +279,7 @@ object DesqDataset {
   }
 
   def load(inputPath: String)(implicit sc: SparkContext): DesqDataset = {
-    // read sequences
-    val sequencePath = s"$inputPath/sequences"
-    val sequences = sc.objectFile[WeightedSequence](sequencePath)
-
-    // read dictionary
-    val fileSystem = FileSystem.get(new URI(inputPath), sequences.context.hadoopConfiguration)
-    val dictPath = s"$inputPath/dict.avro.gz"
-    val dictIn = fileSystem.open(new Path(dictPath))
-    val dict = new Dictionary()
-    dict.readAvro(new GZIPInputStream(dictIn))
-    dictIn.close()
+    val fileSystem = FileSystem.get(new URI(inputPath), sc.hadoopConfiguration)
 
     // read descriptor
     var descriptor = new AvroDesqDatasetDescriptor()
@@ -295,6 +289,17 @@ object DesqDataset {
     val decoder = DecoderFactory.get.jsonDecoder(descriptor.getSchema, descriptorIn)
     descriptor = reader.read(descriptor, decoder)
     descriptorIn.close()
+
+    // read dictionary
+    val dictPath = s"$inputPath/dict.avro.gz"
+    val dictIn = fileSystem.open(new Path(dictPath))
+    val dict = new Dictionary()
+    dict.readAvro(new GZIPInputStream(dictIn))
+    dictIn.close()
+
+    // read sequences
+    val sequencePath = s"$inputPath/sequences"
+    val sequences = sc.sequenceFile(sequencePath, classOf[NullWritable], classOf[WeightedSequence]).map(kv => kv._2)
 
     // return the dataset
     new DesqDataset(sequences, dict, descriptor.getUsesFids)

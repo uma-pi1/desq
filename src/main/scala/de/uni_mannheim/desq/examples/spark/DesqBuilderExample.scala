@@ -4,12 +4,14 @@ import de.uni_mannheim.desq.dictionary.{Dictionary, Item}
 import de.uni_mannheim.desq.mining.spark.DesqDataset
 import org.apache.spark.{SparkConf, SparkContext}
 import scala.collection.JavaConversions._
+import de.uni_mannheim.desq.Desq._
 
 /**
   * Created by rgemulla on 03.10.2016.
   */
 object DesqBuilderExample extends App {
   val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
+  initDesq(conf)
   implicit val sc = new SparkContext(conf)
 
   // create the dataset
