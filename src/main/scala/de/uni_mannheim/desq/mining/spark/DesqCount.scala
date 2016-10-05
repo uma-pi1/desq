@@ -14,7 +14,7 @@ import it.unimi.dsi.fastutil.objects.{ObjectIterator, ObjectLists}
 class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
   override def mine(data: DesqDataset): DesqDataset = {
     // localize the variables we need in the RDD
-    val serializedDict = data.broadcastSerializedDictionary()
+    val dictBroadcast = data.broadcastDictionary()
     val conf = ctx.conf
     val usesFids = data.usesFids
     val minSupport = conf.getLong("desq.mining.min.support")
@@ -24,7 +24,7 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
       // for each row, get output of FST and produce (output sequence, 1) pair
       new Iterator[(Sequence,Long)] {
         // initialize the sequential desq miner
-        val dict = Dictionary.fromBytes(serializedDict.value)
+        val dict = dictBroadcast.value
         val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext()
         baseContext.dict = dict
         baseContext.conf = conf

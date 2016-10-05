@@ -23,11 +23,11 @@ import org.apache.spark.rdd.RDD
   * Created by rgemulla on 12.09.2016.
   */
 class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, val usesFids: Boolean = false) {
-  private var serializedDict: Broadcast[Array[Byte]] = _
+  private var dictBroadcast: Broadcast[Dictionary] = _
 
   def this(sequences: RDD[WeightedSequence], source: DesqDataset, usesFids: Boolean) {
     this(sequences, source.dict, usesFids)
-    serializedDict = source.serializedDict
+    dictBroadcast = source.dictBroadcast
   }
 
   /** Creates a copy of this DesqDataset with a deep copy of its dictionary. Useful when changes should be
@@ -40,23 +40,23 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
     * variable stores the dictionary in serialized form for memory efficiency. Use
     * <code>Dictionary.fromBytes(result.value)</code> to get the dictionary at workers.
     */
-  def broadcastSerializedDictionary(): Broadcast[Array[Byte]] = {
-    if (serializedDict == null) {
+  def broadcastDictionary(): Broadcast[Dictionary] = {
+    if (dictBroadcast == null) {
       val dict = this.dict
-      serializedDict = sequences.context.broadcast(dict.toBytes)
+      dictBroadcast = sequences.context.broadcast(dict)
     }
-    serializedDict
+    dictBroadcast
   }
 
   /** Returns an RDD that contains for each sequence an array of its string identifiers and its support. */
   //noinspection AccessorLikeMethodIsEmptyParen
   def toSidsSupportPairs(): RDD[(Array[String],Long)] = {
-    val serializedDictionary = broadcastSerializedDictionary()
+    val dictBroadcast = broadcastDictionary()
     val usesFids = this.usesFids // to localize
 
     sequences.mapPartitions(rows => {
       new Iterator[(Array[String],Long)] {
-        val dict = Dictionary.fromBytes(serializedDictionary.value)
+        val dict = dictBroadcast.value
 
         override def hasNext: Boolean = rows.hasNext
 
@@ -96,10 +96,10 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
   def copyWithRecomputedCountsAndFids(): DesqDataset = {
     // compute counts
     val usesFids = this.usesFids
-    val serializedDict = broadcastSerializedDictionary()
+    val dictBroadcast = broadcastDictionary()
     val totalItemCounts = sequences.mapPartitions(rows => {
       new Iterator[(Int, (Long,Long))] {
-        val dict = Dictionary.fromBytes(serializedDict.value)
+        val dict = dictBroadcast.value
         val itemCounts = new Int2IntOpenHashMap()
         var currentItemCountsIterator = itemCounts.int2IntEntrySet().fastIterator()
         var currentSupport = 0L
@@ -138,11 +138,11 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
     }
 
     // otherwise we need to relabel the fids
-    val newSerializedDict = sequences.context.broadcast(dict.toBytes)
+    val newDictBroadcast = sequences.context.broadcast(newDict)
     val newSequences = sequences.mapPartitions(rows => {
       new Iterator[WeightedSequence] {
-        val dict = Dictionary.fromBytes(serializedDict.value)
-        val newDict = Dictionary.fromBytes(newSerializedDict.value)
+        val dict = dictBroadcast.value
+        val newDict = newDictBroadcast.value
 
         override def hasNext: Boolean = rows.hasNext
 
@@ -156,7 +156,7 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
       }
     })
     val newData = new DesqDataset(newSequences, newDict, true)
-    newData.serializedDict = newSerializedDict
+    newData.dictBroadcast = newDictBroadcast
     newData
   }
 
@@ -257,9 +257,9 @@ object DesqDataset {
     dict.recomputeFids()
 
     // now convert the sequences (lazily)
-    val serializedDict = rawData.context.broadcast(dict.toBytes)
+    val dictBroadcast = rawData.context.broadcast(dict)
     val sequences = rawData.mapPartitions(rows => new Iterator[WeightedSequence] {
-      val dict = Dictionary.fromBytes(serializedDict.value)
+      val dict = dictBroadcast.value
       val seqBuilder = new SequenceBuilder(dict)
 
       override def hasNext: Boolean = rows.hasNext
@@ -274,7 +274,7 @@ object DesqDataset {
 
     // return the dataset
     val result = new DesqDataset(sequences, dict, true)
-    result.serializedDict = serializedDict
+    result.dictBroadcast = dictBroadcast
     result
   }
 
