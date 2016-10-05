@@ -804,7 +804,7 @@ public final class Dictionary implements Externalizable, Writable {
 
 	public byte[] toBytes() throws IOException {
 		ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
-		writeAvro(new DataOutputStream(bytesOut));
+		writeAvro(bytesOut);
 		return bytesOut.toByteArray();
 	}
 
