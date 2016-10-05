@@ -4,9 +4,12 @@ import de.uni_mannheim.desq.io.DelPatternReader;
 import de.uni_mannheim.desq.io.DelPatternWriter;
 import de.uni_mannheim.desq.mining.WeightedSequence;
 import org.apache.log4j.Logger;
-import org.junit.rules.*;
+import org.junit.rules.TemporaryFolder;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;

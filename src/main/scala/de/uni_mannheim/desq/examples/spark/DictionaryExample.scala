@@ -1,11 +1,8 @@
 package de.uni_mannheim.desq.examples.spark
 
-import java.io.{DataInputStream, DataOutputStream, FileInputStream, FileOutputStream}
-
 import de.uni_mannheim.desq.Desq._
 import de.uni_mannheim.desq.dictionary.Dictionary
 import de.uni_mannheim.desq.mining.spark.DesqDataset
-import old.de.uni_mannheim.desq.dictionary.DictionaryIO
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.io.Source

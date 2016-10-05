@@ -1,8 +1,8 @@
 package de.uni_mannheim.desq.io;
 
-import java.io.IOException;
-
 import it.unimi.dsi.fastutil.ints.IntList;
+
+import java.io.IOException;
 
 public abstract class SequenceReader extends WithDictionary {
 	/** Reads next input sequence and stores the result in <code>items</code>. Depending on {@link #usesFids()},

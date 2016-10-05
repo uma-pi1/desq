@@ -1,10 +1,6 @@
 package de.uni_mannheim.desq.mining;
 
-import de.uni_mannheim.desq.fst.Fst;
-import de.uni_mannheim.desq.fst.ItemState;
-import de.uni_mannheim.desq.fst.State;
-import de.uni_mannheim.desq.fst.ExtendedDfa;
-import de.uni_mannheim.desq.fst.ExtendedDfaState;
+import de.uni_mannheim.desq.fst.*;
 import de.uni_mannheim.desq.patex.PatEx;
 import de.uni_mannheim.desq.util.DesqProperties;
 import de.uni_mannheim.desq.util.PrimitiveUtils;
@@ -165,7 +161,6 @@ public final class DesqCount extends DesqMiner {
 
 	public static DesqProperties createConf(String patternExpression, long sigma) {
 		DesqProperties conf = new DesqProperties();
-		conf.setThrowExceptionOnMissing(true);
 		conf.setProperty("desq.mining.miner.class", DesqCount.class.getCanonicalName());
 		conf.setProperty("desq.mining.min.support", sigma);
 		conf.setProperty("desq.mining.pattern.expression", patternExpression);

@@ -1,23 +1,21 @@
 package old.journal.dfsold;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.util.concurrent.TimeUnit;
-
 import com.google.common.base.Stopwatch;
-
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.io.CountPatternWriter;
 import de.uni_mannheim.desq.io.DelPatternWriter;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.SequenceReader;
-
 import de.uni_mannheim.desq.mining.DesqMiner;
 import de.uni_mannheim.desq.mining.DesqMinerContext;
 import de.uni_mannheim.desq.mining.PrefixGrowthMiner;
 import de.uni_mannheim.desq.mining.PrefixGrowthMinerTemp;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 public class ComparePrefixGrowth {
 

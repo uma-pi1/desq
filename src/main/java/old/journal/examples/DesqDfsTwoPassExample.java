@@ -1,22 +1,20 @@
 package old.journal.examples;
 
+import de.uni_mannheim.desq.dictionary.Dictionary;
+import de.uni_mannheim.desq.io.DelSequenceReader;
+import de.uni_mannheim.desq.io.MemoryPatternWriter;
+import de.uni_mannheim.desq.io.SequenceReader;
+import de.uni_mannheim.desq.mining.DesqMiner;
+import de.uni_mannheim.desq.mining.DesqMinerContext;
 import de.uni_mannheim.desq.mining.WeightedSequence;
 import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+import old.de.uni_mannheim.desq.dictionary.DictionaryIO;
+import old.journal.mining.DesqDfsTwoPass;
 
 import java.io.IOException;
 import java.net.URL;
-
-import de.uni_mannheim.desq.dictionary.Dictionary;
-import old.de.uni_mannheim.desq.dictionary.DictionaryIO;
-import de.uni_mannheim.desq.io.DelSequenceReader;
-import de.uni_mannheim.desq.io.MemoryPatternWriter;
-import de.uni_mannheim.desq.io.SequenceReader;
-import old.journal.mining.DesqDfsTwoPass;
-import de.uni_mannheim.desq.mining.DesqMiner;
-import de.uni_mannheim.desq.mining.DesqMinerContext;
-import org.apache.commons.configuration2.ConfigurationConverter;
 
 public class DesqDfsTwoPassExample {
 	void icdm16() throws IOException {
@@ -54,7 +52,7 @@ public class DesqDfsTwoPassExample {
 		MemoryPatternWriter result = new MemoryPatternWriter();
 		ctx.patternWriter = result;
 		ctx.conf = new DesqProperties(DesqDfsTwoPass.createProperties(patternExpression, sigma));
-		System.out.println("\nPatterns " + ConfigurationConverter.getProperties(ctx.conf));
+		System.out.println("\nPatterns " + ctx.conf.toProperties());
 		
 		DesqMiner miner = new DesqDfsTwoPass(ctx);
 		miner.addInputSequences(dataReader);

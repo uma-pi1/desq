@@ -5,7 +5,7 @@ import java.util.Collections
 import de.uni_mannheim.desq.dictionary.Dictionary
 import de.uni_mannheim.desq.mining.{Sequence, WeightedSequence}
 import de.uni_mannheim.desq.util.DesqProperties
-import it.unimi.dsi.fastutil.ints.{IntArrayList, IntList}
+import it.unimi.dsi.fastutil.ints.IntArrayList
 import it.unimi.dsi.fastutil.objects.{ObjectIterator, ObjectLists}
 
 /**

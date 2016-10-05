@@ -1,6 +1,6 @@
 package old.writer;
 
-import it.unimi.dsi.fastutil.ints.	Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 
 import java.io.BufferedWriter;
 import java.io.File;

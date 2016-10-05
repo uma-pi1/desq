@@ -3,7 +3,7 @@ package de.uni_mannheim.desq.io.spark
 import com.esotericsoftware.kryo.Kryo
 import de.uni_mannheim.desq.dictionary.Dictionary
 import de.uni_mannheim.desq.mining.{Sequence, WeightedSequence}
-import org.apache.spark.serializer.{JavaSerializer, KryoRegistrator}
+import org.apache.spark.serializer.KryoRegistrator
 
 /**
   * Created by rgemulla on 05.10.2016.

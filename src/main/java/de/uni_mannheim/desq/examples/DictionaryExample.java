@@ -1,9 +1,5 @@
 package de.uni_mannheim.desq.examples;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.net.URL;
-
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.dictionary.Item;
 import de.uni_mannheim.desq.io.DelSequenceReader;
@@ -13,6 +9,10 @@ import de.uni_mannheim.desq.io.SequenceWriter;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntSet;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.net.URL;
 
 public class DictionaryExample {
 	static void nyt() throws IOException {

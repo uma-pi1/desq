@@ -1,29 +1,16 @@
 package old.journal.mining;
 
-import it.unimi.dsi.fastutil.bytes.ByteArrayList;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntIterator;
-import it.unimi.dsi.fastutil.ints.IntList;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Properties;
-
-import de.uni_mannheim.desq.fst.Fst;
-import de.uni_mannheim.desq.fst.ItemState;
-import de.uni_mannheim.desq.fst.State;
-import de.uni_mannheim.desq.fst.Transition;
+import de.uni_mannheim.desq.fst.*;
 import de.uni_mannheim.desq.io.SequenceReader;
-import de.uni_mannheim.desq.fst.ExtendedDfa;
 import de.uni_mannheim.desq.mining.DesqMinerContext;
 import de.uni_mannheim.desq.mining.MemoryDesqMiner;
 import de.uni_mannheim.desq.patex.PatEx;
+import it.unimi.dsi.fastutil.bytes.ByteArrayList;
+import it.unimi.dsi.fastutil.ints.*;
 import old.journal.PropertiesUtils;
+
+import java.io.IOException;
+import java.util.*;
 
 /**
  * DesqDfsTwoPass.java

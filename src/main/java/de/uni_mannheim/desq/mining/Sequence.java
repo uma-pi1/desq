@@ -1,20 +1,14 @@
 package de.uni_mannheim.desq.mining;
 
 import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-import de.uni_mannheim.desq.util.Input2DataInputWrapper;
-import de.uni_mannheim.desq.util.Output2DataOutputWrapper;
 import de.uni_mannheim.desq.util.Writable2Serializer;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
-import org.apache.commons.lang.NotImplementedException;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableUtils;
 
 import java.io.*;
-import java.util.function.Supplier;
 
 /** A sequence of integers. */
 public class Sequence extends IntArrayList implements Externalizable, Writable {

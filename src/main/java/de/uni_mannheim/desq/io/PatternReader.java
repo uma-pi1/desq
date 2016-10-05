@@ -1,10 +1,10 @@
 package de.uni_mannheim.desq.io;
 
-import java.io.IOException;
-import java.util.List;
-
 import de.uni_mannheim.desq.mining.WeightedSequence;
 import it.unimi.dsi.fastutil.ints.IntList;
+
+import java.io.IOException;
+import java.util.List;
 
 public abstract class PatternReader extends WithDictionary {
     /** Reads next pattern stores the result in <code>items</code>. Depending on {@link #usesFids()},

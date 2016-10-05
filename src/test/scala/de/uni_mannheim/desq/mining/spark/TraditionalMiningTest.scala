@@ -6,11 +6,11 @@ import de.uni_mannheim.desq.io.DelPatternWriter
 import de.uni_mannheim.desq.util.{DesqProperties, TestUtils}
 import org.apache.log4j.Logger
 import org.apache.spark.SparkContext
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.scalatest.junit.AssertionsForJUnit
-import org.assertj.core.api.Assertions.assertThat
 
 
 /** A test for traditional frequent sequence mining. Datasets and parameters are set by implementing classes.

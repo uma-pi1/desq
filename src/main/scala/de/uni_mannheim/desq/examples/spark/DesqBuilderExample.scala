@@ -1,10 +1,11 @@
 package de.uni_mannheim.desq.examples.spark
 
-import de.uni_mannheim.desq.dictionary.{Dictionary, Item}
+import de.uni_mannheim.desq.Desq._
+import de.uni_mannheim.desq.dictionary.Dictionary
 import de.uni_mannheim.desq.mining.spark.DesqDataset
 import org.apache.spark.{SparkConf, SparkContext}
+
 import scala.collection.JavaConversions._
-import de.uni_mannheim.desq.Desq._
 
 /**
   * Created by rgemulla on 03.10.2016.

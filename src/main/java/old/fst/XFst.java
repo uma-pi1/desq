@@ -1,12 +1,10 @@
 package old.fst;
 
 
-import org.apache.lucene.util.FixedBitSet;
-
-
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import old.utils.Dictionary;
 import old.visual.Vdfa;
+import org.apache.lucene.util.FixedBitSet;
 
 
 

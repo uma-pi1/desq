@@ -1,11 +1,6 @@
 package old.driver;
 
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import com.google.common.base.Stopwatch;
-
 import old.fst.Fst;
 import old.fst.XFst;
 import old.mining.DesqDfs;
@@ -13,6 +8,10 @@ import old.mining.DfsOnePass;
 import old.patex.PatExOld;
 import old.utils.Dictionary;
 import old.writer.DelWriter;
+
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * DesqDfsDriver.java

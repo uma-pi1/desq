@@ -1,11 +1,11 @@
 package old.mining;
 
 
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import old.driver.DesqConfig.Match;
 import old.fst.OutputLabel;
 import old.fst.XFst;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 
 public class OnePassRecursive extends DesqCount {
 	

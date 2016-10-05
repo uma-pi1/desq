@@ -1,9 +1,9 @@
 package de.uni_mannheim.desq.fst;
 
 
-import java.util.*;
-
 import de.uni_mannheim.desq.visual.FstVisualizer;
+
+import java.util.*;
 
 
  

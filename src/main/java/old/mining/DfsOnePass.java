@@ -1,15 +1,15 @@
 package old.mining;
 
-import java.io.IOException;
-import java.util.BitSet;
-
-import old.fst.OutputLabel;
-import old.fst.XFst;
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import old.fst.OutputLabel;
+import old.fst.XFst;
+
+import java.io.IOException;
+import java.util.BitSet;
 
 /**
  * DfsOnePass.java

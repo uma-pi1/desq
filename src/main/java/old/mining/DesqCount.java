@@ -1,18 +1,18 @@
 package old.mining;
 
+import de.uni_mannheim.desq.util.IntArrayStrategy;
+import it.unimi.dsi.fastutil.objects.Object2LongOpenCustomHashMap;
+import old.driver.DesqConfig.Match;
+import old.fst.XFst;
+import old.utils.Dictionary;
+import old.utils.PrimitiveUtils;
+import old.writer.DelWriter;
+
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.util.Map;
-
-import de.uni_mannheim.desq.util.IntArrayStrategy;
-import old.driver.DesqConfig.Match;
-import old.fst.XFst;
-import it.unimi.dsi.fastutil.objects.Object2LongOpenCustomHashMap;
-import old.utils.Dictionary;
-import old.utils.PrimitiveUtils;
-import old.writer.DelWriter;
 
 
 /**

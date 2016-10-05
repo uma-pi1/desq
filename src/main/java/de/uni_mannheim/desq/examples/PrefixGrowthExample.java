@@ -1,8 +1,8 @@
 package de.uni_mannheim.desq.examples;
 
-import java.io.IOException;
+import de.uni_mannheim.desq.mining.PrefixGrowthMiner;
 
-import de.uni_mannheim.desq.mining.*;
+import java.io.IOException;
 
 public class PrefixGrowthExample {
 	public static void nyt() throws IOException {

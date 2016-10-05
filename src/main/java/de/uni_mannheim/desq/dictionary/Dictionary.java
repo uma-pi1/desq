@@ -1,17 +1,9 @@
 package de.uni_mannheim.desq.dictionary;
 
-import java.io.*;
-import java.net.URL;
-import java.util.*;
-import java.util.Map.Entry;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
-
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import de.uni_mannheim.desq.avro.AvroItem;
 import de.uni_mannheim.desq.io.SequenceReader;
-import de.uni_mannheim.desq.mining.WeightedSequence;
 import de.uni_mannheim.desq.util.IntSetUtils;
 import de.uni_mannheim.desq.util.Writable2Serializer;
 import it.unimi.dsi.fastutil.ints.*;
@@ -21,7 +13,13 @@ import org.apache.avro.io.*;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.io.WritableUtils;
+
+import java.io.*;
+import java.net.URL;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 /** A set of items arranged in a hierarchy */ 
 public final class Dictionary implements Externalizable, Writable {
@@ -57,18 +55,15 @@ public final class Dictionary implements Externalizable, Writable {
 	
 	/** Adds a new item to the hierarchy. If the fid equals 0, it won't be indexed */
 	public void addItem(Item item) {
-		if (containsGid(item.gid)) {
+		if (itemsById.put(item.gid, item) != null) {
 			throw new IllegalArgumentException("Item gid '" + item.gid + "' exists already");
 		}
-		if (itemsBySid.containsKey(item.sid)) {
+		if (itemsBySid.put(item.sid, item) != null) {
 			throw new IllegalArgumentException("Item sid '" + item.sid + "' exists already");
 		}
-		if (item.fid >= 0 && itemsByFid.containsKey(item.fid)) {
+		if (item.fid >= 0 && itemsByFid.put(item.fid, item) != null) {
 			throw new IllegalArgumentException("Item fid '" + item.gid + "' exists already");
 		}
-		itemsById.put(item.gid, item);
-		if (item.fid >= 0) itemsByFid.put(item.fid, item);
-		itemsBySid.put(item.sid, item);
 	}
 
 	/** Computes the item frequencies of the items in a sequence (including ancestors).
@@ -615,6 +610,10 @@ public final class Dictionary implements Externalizable, Writable {
      * {@link #addAscendantFids(int, IntCollection)}. Note that this method is implicitly called when recomputing fids
      * via {@link #recomputeFids()} and when loading a dictionary with fids from some file. */
     public void indexParentFids() {
+		if (itemsById.size()==0) {
+			parentFids = new int[] { 0 };
+			return;
+		}
         isForest = true;
         IntArrayList fids = new IntArrayList(itemsByFid.keySet());
         Collections.sort(fids);
@@ -751,12 +750,17 @@ public final class Dictionary implements Externalizable, Writable {
 	}
 
 	public void readAvro(InputStream in) throws IOException {
+		readAvro(in, Integer.MAX_VALUE);
+	}
+
+	private void readAvro(InputStream in, int maxItems) throws IOException {
 		clear();
 		DatumReader<AvroItem> itemDatumReader = new SpecificDatumReader<>(AvroItem.class);
 		DataFileStream<AvroItem> dataFileReader = new DataFileStream<>(in, itemDatumReader);
 		AvroItem avroItem = null;
 		boolean hasFids = true;
-		while (dataFileReader.hasNext()) {
+		while (dataFileReader.hasNext() && maxItems > 0) {
+			maxItems--;
 			avroItem = dataFileReader.next(avroItem);
 			Item item = Item.fromAvroItem(avroItem, this);
 			if (item.fid < 0) {
@@ -803,14 +807,12 @@ public final class Dictionary implements Externalizable, Writable {
 	}
 
 	public byte[] toBytes() throws IOException {
-		ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
+		ByteArrayOutputStream bytesOut = new ByteArrayOutputStream(itemsByFid.size()*50);
 		writeAvro(bytesOut);
 		return bytesOut.toByteArray();
 	}
 
 	public static Dictionary fromBytes(byte[] bytes) throws IOException {
-		// TODO: this method is quite slow (readAvro is slow for some reason) and may become a bottleneck
-		// TODO: for internal use (e.g., broadcasting dictionaries), we may want to switch to a custom binary format
 		Dictionary dict = new Dictionary();
 		dict.readAvro(new ByteArrayInputStream(bytes));
 		return dict;

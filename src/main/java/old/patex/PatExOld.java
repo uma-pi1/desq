@@ -1,30 +1,13 @@
 package old.patex;
 
-import org.antlr.v4.runtime.ANTLRInputStream;
-import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.tree.ParseTree;
-
 import old.fst.BasicFst;
 import old.fst.Fst;
 import old.fst.FstOperations;
-import old.patex.PatExOldParser.CaptureContext;
-import old.patex.PatExOldParser.ConcatContext;
-import old.patex.PatExOldParser.ConcatExpressionContext;
-import old.patex.PatExOldParser.ItemContext;
-import old.patex.PatExOldParser.ItemExpressionContext;
-import old.patex.PatExOldParser.OptionalExpressionContext;
-import old.patex.PatExOldParser.ParensContext;
-import old.patex.PatExOldParser.PlusExpressionContext;
-import old.patex.PatExOldParser.RepeatExpressionContext;
-import old.patex.PatExOldParser.RepeatMaxExpressionContext;
-import old.patex.PatExOldParser.RepeatMinExpressionContext;
-import old.patex.PatExOldParser.RepeatMinMaxExpressionContext;
-import old.patex.PatExOldParser.SimpleExpressionContext;
-import old.patex.PatExOldParser.StarExpressionContext;
-import old.patex.PatExOldParser.UnionContext;
-import old.patex.PatExOldParser.UnionExpressionContext;
-import old.patex.PatExOldParser.WildCardContext;
+import old.patex.PatExOldParser.*;
 import old.utils.Dictionary;
+import org.antlr.v4.runtime.ANTLRInputStream;
+import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.tree.ParseTree;
 
 
 /**
