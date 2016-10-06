@@ -24,29 +24,29 @@ object ExampleUtils {
     ctx.conf.prettyPrint()
 
     print("Creating miner... ")
-    val prepTime = Stopwatch.createStarted
+    //val prepTime = Stopwatch.createStarted
     val miner = DesqMiner.create(ctx)
-    prepTime.stop
-    println(prepTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+    //prepTime.stop
+    //println(prepTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
     print("Mining (RDD construction)... ")
-    val miningTime = Stopwatch.createStarted
+   // val miningTime = Stopwatch.createStarted
     val result = miner.mine(data)
-    miningTime.stop
-    println(miningTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+    //miningTime.stop
+    //println(miningTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
     print("Mining (persist)... ")
-    val persistTime = Stopwatch.createStarted
-    result.sequences.cache()
-    val (count, support) = result.sequences.map(ws => (1, ws.support)).reduce((cs1, cs2) => (cs1._1+cs2._1, cs1._2+cs2._2))
-    persistTime.stop
-    println(persistTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+    //val persistTime = Stopwatch.createStarted
+    //result.sequences.cache()
+    //val (count, support) = result.sequences.map(ws => (1, ws.support)).reduce((cs1, cs2) => (cs1._1+cs2._1, cs1._2+cs2._2))
+   // persistTime.stop
+    //println(persistTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
-    println("Total time: " + (prepTime.elapsed(TimeUnit.MILLISECONDS)
-      + miningTime.elapsed(TimeUnit.MILLISECONDS) + persistTime.elapsed(TimeUnit.MILLISECONDS)) + "ms")
+    //println("Total time: " + (prepTime.elapsed(TimeUnit.MILLISECONDS)
+    //  + miningTime.elapsed(TimeUnit.MILLISECONDS) + persistTime.elapsed(TimeUnit.MILLISECONDS)) + "ms")
 
-    println("Number of patterns: " + count)
-    println("Total frequency of all patterns: " + support)
+    //println("Number of patterns: " + count)
+    //println("Total frequency of all patterns: " + support)
 
     (miner, result)
   }

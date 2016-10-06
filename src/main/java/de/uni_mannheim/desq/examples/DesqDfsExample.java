@@ -19,19 +19,26 @@ public class DesqDfsExample {
 		ExampleUtils.runNyt(conf);
 	}
 
-	public static void icdm16() throws IOException {
+	public static void icdm16(String[] args) throws IOException {
+		
+		
 		String patternExp= "[c|d]([A^|B=^]+)e";
 		int sigma = 2;
 
-		patternExp= "(a1)..$";
-		sigma = 1;
+		if(args.length >= 2) {
+			sigma = Integer.parseInt(args[0]);
+			patternExp = args[1];
+		}
 
-		patternExp= "^.(a1)";
-		sigma = 1;
+		//patternExp= "(a1)..$";
+		//sigma = 1;
+
+		//patternExp= "^.(a1)";
+		//sigma = 1;
 
 		DesqProperties conf = DesqDfs.createConf(patternExp, sigma);
 		conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
-		conf.setProperty("desq.mining.use.two.pass", true);
+		conf.setProperty("desq.mining.use.two.pass", false);
 		ExampleUtils.runIcdm16(conf);
 	}
 
@@ -65,9 +72,9 @@ public class DesqDfsExample {
     }
 
 	public static void main(String[] args) throws IOException {
-		//icdm16();
+		icdm16(args);
 		//nyt();
-		netflixFlat();
+		//netflixFlat();
         //netflixDeep();
 	}
 }
