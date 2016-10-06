@@ -16,7 +16,7 @@ import scala.collection.JavaConverters._
 class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
   override def mine(data: DesqDataset): DesqDataset = {
     // localize the variables we need in the RDD
-    val serializedDict = data.broadcastSerializedDictionary()
+    val dictBroadcast = data.broadcastDictionary()
     val conf = ctx.conf
     val usesFids = data.usesFids
     val minSupport = conf.getLong("desq.mining.min.support")
@@ -34,7 +34,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
       //   a (output item, input sequence) pair for all of the possible output items
       new Iterator[(Int, IntList)] {
         // initialize the sequential desq miner
-        val dict = Dictionary.fromBytes(serializedDict.value)
+        val dict = dictBroadcast.value
         val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext()
         baseContext.dict = dict
         baseContext.conf = conf
@@ -56,9 +56,9 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 
             // for that new input sequence, find all possible output sequences and add them to the outputIterator
             if (usesFids) {
-              outputIterator = baseMiner.getFreqOutputItemsOfOneSequence(currentSequence.items).iterator()
+              outputIterator = baseMiner.getFreqOutputItemsOfOneSequence(currentSequence).iterator()
             } else {
-              dict.gidsToFids(currentSequence.items, itemFids)
+              dict.gidsToFids(currentSequence, itemFids)
               outputIterator = baseMiner.getFreqOutputItemsOfOneSequence(itemFids).iterator()
             }
           }
@@ -73,7 +73,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
           // There is some weird behavior if we use itemFids here. So for now, let's just emit
           //   the sequene as is and convert it later, again.
           //   Not as bad as it sounds as we will mostly use fid-data sets
-          (outputItem, currentSequence.items)
+          (outputItem, currentSequence)
         }
       }
     }).groupByKey()
@@ -86,7 +86,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
       val sequencesIt = row._2.iterator
       
       // grab the necessary variables
-      val dict = Dictionary.fromBytes(serializedDict.value)
+      val dict = dictBroadcast.value
       val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext()
       baseContext.dict = dict
       baseContext.conf = conf
