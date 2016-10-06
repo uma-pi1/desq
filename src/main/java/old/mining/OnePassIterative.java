@@ -2,12 +2,12 @@ package old.mining;
 
 //import java.util.Arrays;
 
-import old.driver.DesqConfig.Match;
-import old.fst.OutputLabel;
-import old.fst.XFst;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import old.driver.DesqConfig.Match;
+import old.fst.OutputLabel;
+import old.fst.XFst;
 
 public class OnePassIterative extends DesqCount {
 

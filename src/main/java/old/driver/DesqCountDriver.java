@@ -1,21 +1,21 @@
 package old.driver;
 
+import com.google.common.base.Stopwatch;
+import old.driver.DesqConfig.Match;
+import old.fst.Fst;
+import old.fst.XFst;
+import old.mining.DesqCount;
+import old.mining.OnePassIterative;
+import old.patex.PatExOld;
+import old.utils.Dictionary;
+import old.writer.DelWriter;
+
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.google.common.base.Stopwatch;
-
-import old.driver.DesqConfig.Match;
-import old.fst.Fst;
-import old.fst.XFst;
-import old.patex.PatExOld;
-import old.mining.DesqCount;
-import old.mining.OnePassIterative;
 //import old.mining.OnePassIterative;
 //import old.mining.TwoPass;
-import old.utils.Dictionary;
-import old.writer.DelWriter;
 
 /**
  * DesqCountDriver.java

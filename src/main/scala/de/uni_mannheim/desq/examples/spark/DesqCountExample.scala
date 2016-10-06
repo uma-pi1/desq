@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.examples.spark
 
+import de.uni_mannheim.desq.Desq._
 import de.uni_mannheim.desq.mining.spark.DesqCount
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -26,6 +27,7 @@ object DesqCountExample {
 
   def main(args: Array[String]) {
     val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
+    initDesq(conf)
     implicit val sc = new SparkContext(conf)
     //sc.setLogLevel("INFO")
     icdm16

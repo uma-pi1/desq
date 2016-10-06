@@ -1,20 +1,15 @@
 package old.journal.dfsold;
 
 
-import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-
-import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.Map;
-
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import old.mining.PostingList;
 import old.utils.Dictionary;
+
+import java.io.*;
+import java.util.ArrayList;
+import java.util.Map;
 
 
 

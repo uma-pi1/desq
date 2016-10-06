@@ -1,11 +1,11 @@
 package de.uni_mannheim.desq.io;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import de.uni_mannheim.desq.mining.WeightedSequence;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /** Keeps all output in memory */
 public class MemoryPatternWriter extends PatternWriter {

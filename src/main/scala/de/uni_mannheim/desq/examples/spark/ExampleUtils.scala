@@ -82,7 +82,7 @@ object ExampleUtils {
     // load the dictionary & update hierarchy
     val dict = Dictionary.loadFrom(dictFile)
     val delFile = sc.parallelize(Source.fromURL(dataFile).getLines.toSeq)
-    val data = DesqDataset.fromDelFile(delFile, dict, usesFids = false).copyWithRecomputedCountsAndFids()
+    val data = DesqDataset.loadFromDelFile(delFile, dict, usesFids = false).copyWithRecomputedCountsAndFids()
     println("\nDictionary with frequencies:")
     dict.writeJson(System.out)
     println()
@@ -103,7 +103,7 @@ object ExampleUtils {
     val dict: Dictionary = Dictionary.loadFrom("data-local/nyt-1991-dict.avro.gz")
     val delFilename = "data-local/nyt-1991-data.del"
     val delFile = sc.textFile(delFilename)
-    val data = DesqDataset.fromDelFile(delFile, dict, usesFids = true)
+    val data = DesqDataset.loadFromDelFile(delFile, dict, usesFids = true)
     if (verbose)
       runMiner(data, minerConf)
     else

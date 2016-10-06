@@ -1,9 +1,10 @@
 package de.uni_mannheim.desq.util;
 
+import it.unimi.dsi.fastutil.Hash.Strategy;
+
 import java.util.Arrays;
 
 //import gnu.trove.TObjectHashingStrategy;
-import it.unimi.dsi.fastutil.Hash.Strategy;
 
 
 public final class IntArrayStrategy implements Strategy<int[]> {  

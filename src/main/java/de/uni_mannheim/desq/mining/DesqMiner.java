@@ -1,11 +1,11 @@
 package de.uni_mannheim.desq.mining;
 
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-
 import de.uni_mannheim.desq.io.SequenceReader;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 
 public abstract class DesqMiner {
 	// if null, patterns are mined but not collected

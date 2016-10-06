@@ -25,13 +25,7 @@ package de.uni_mannheim.desq.visual;
  */
 
 
-import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.InputStreamReader;
+import java.io.*;
 
 /**
  * <dl>

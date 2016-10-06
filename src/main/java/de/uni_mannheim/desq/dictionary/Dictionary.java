@@ -1,5 +1,19 @@
 package de.uni_mannheim.desq.dictionary;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import de.uni_mannheim.desq.avro.AvroItem;
+import de.uni_mannheim.desq.io.SequenceReader;
+import de.uni_mannheim.desq.util.IntSetUtils;
+import de.uni_mannheim.desq.util.Writable2Serializer;
+import it.unimi.dsi.fastutil.ints.*;
+import org.apache.avro.file.DataFileStream;
+import org.apache.avro.file.DataFileWriter;
+import org.apache.avro.io.*;
+import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.hadoop.io.Writable;
+
 import java.io.*;
 import java.net.URL;
 import java.util.*;
@@ -7,18 +21,8 @@ import java.util.Map.Entry;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-import de.uni_mannheim.desq.avro.AvroItem;
-import de.uni_mannheim.desq.io.SequenceReader;
-import de.uni_mannheim.desq.util.IntSetUtils;
-import it.unimi.dsi.fastutil.ints.*;
-import org.apache.avro.file.DataFileStream;
-import org.apache.avro.file.DataFileWriter;
-import org.apache.avro.io.*;
-import org.apache.avro.specific.SpecificDatumReader;
-import org.apache.avro.specific.SpecificDatumWriter;
-
 /** A set of items arranged in a hierarchy */ 
-public final class Dictionary implements Externalizable {
+public final class Dictionary implements Externalizable, Writable {
 	// indexes
     final Int2ObjectMap<Item> itemsById = new Int2ObjectOpenHashMap<>();
 	final Int2ObjectMap<Item> itemsByFid = new Int2ObjectOpenHashMap<>();
@@ -51,32 +55,31 @@ public final class Dictionary implements Externalizable {
 	
 	/** Adds a new item to the hierarchy. If the fid equals 0, it won't be indexed */
 	public void addItem(Item item) {
-		if (containsId(item.gid)) {
+		if (itemsById.put(item.gid, item) != null) {
 			throw new IllegalArgumentException("Item gid '" + item.gid + "' exists already");
 		}
-		if (itemsBySid.containsKey(item.sid)) {
+		if (itemsBySid.put(item.sid, item) != null) {
 			throw new IllegalArgumentException("Item sid '" + item.sid + "' exists already");
 		}
-		if (item.fid >= 0 && itemsByFid.containsKey(item.fid)) {
+		if (item.fid >= 0 && itemsByFid.put(item.fid, item) != null) {
 			throw new IllegalArgumentException("Item fid '" + item.gid + "' exists already");
 		}
-		itemsById.put(item.gid, item);
-		if (item.fid >= 0) itemsByFid.put(item.fid, item);
-		itemsBySid.put(item.sid, item);
 	}
 
 	/** Computes the item frequencies of the items in a sequence (including ancestors).
 	 *
 	 * @param sequence the input sequence
-	 * @param itemCounts the result (map from item identifier to frequency)
-	 * @param ancItems a temporary set used by this method (for reuse; won't be read but be modified)
+	 * @param itemCounts stores the result (map from item identifier to frequency)
+	 * @param ancItems a temporary set used by this method (for reuse; won't be read but is modified)
 	 * @param usesFids whether the input sequence consists of gid or fid item identifiers
+	 * @param support the support of the sequence
 	 */
-	public void computeItemFrequencies(IntList sequence, Int2IntMap itemCounts, IntSet ancItems, boolean usesFids) {
+	public void computeItemFrequencies(IntCollection sequence, Int2IntMap itemCounts, IntSet ancItems, boolean usesFids, int support) {
 		assert itemCounts.defaultReturnValue() <= 0;
 		itemCounts.clear();
-		for (int i = 0; i < sequence.size(); i++) {
-			int ii = sequence.getInt(i);
+		IntIterator it = sequence.iterator();
+		while(it.hasNext()) {
+			int ii = it.nextInt();
 			ancItems.clear();
 			ancItems.add(ii);
 			if (usesFids) {
@@ -85,17 +88,29 @@ public final class Dictionary implements Externalizable {
 				addAscendantIds(getItemByGid(ii), ancItems);
 			}
 			for (int item : ancItems) {
-				int oldValue = itemCounts.put(item, 1);
+				int oldValue = itemCounts.put(item, support);
 				if (oldValue > 0) {
-					itemCounts.put(item, oldValue + 1);
+					itemCounts.put(item, oldValue + support);
 				}
 			}
 		}
 	}
 
-	/** Updates the counts of the hierarchy by adding the given input sequences. Does
-	 * not modify fids, so those may be inconsistent afterwards. 
+	/** Updates the counts of the hierarchy by adding the given input sequence. Does
+	 * not modify fids, so those may be inconsistent afterwards. <code>itemCounts</code> and
+	 * <code>ancItems</code> are temporary variables.
 	 */
+	public void incCounts(IntCollection inputSequence, Int2IntMap itemCounts, IntSet ancItems, boolean usesFids, int support) {
+		computeItemFrequencies(inputSequence, itemCounts, ancItems, usesFids, support);
+		for (Int2IntMap.Entry entry : itemCounts.int2IntEntrySet()) {
+			Item item = usesFids ? getItemByFid(entry.getIntKey()) : getItemByGid(entry.getIntKey());
+			item.dFreq += support;
+			item.cFreq += entry.getIntValue();
+		}
+	}
+
+	/** Updates the counts of the hierarchy by adding the given input sequences. Does
+	 * not modify fids, so those may be inconsistent afterwards.  */
 	public void incCounts(SequenceReader reader) throws IOException {
 		boolean usesFids = reader.usesFids();
 		IntList inputSequence = new IntArrayList();
@@ -103,12 +118,7 @@ public final class Dictionary implements Externalizable {
 		itemCounts.defaultReturnValue(0);
 		IntSet ancItems = new IntOpenHashSet();
 		while (reader.read(inputSequence)) {
-			computeItemFrequencies(inputSequence, itemCounts, ancItems, usesFids);
-			for (Int2IntMap.Entry entry : itemCounts.int2IntEntrySet()) {
-				Item item = usesFids ? getItemByFid(entry.getIntKey()) : getItemByGid(entry.getIntKey());
-				item.dFreq += 1;
-				item.cFreq += entry.getIntValue();
-			}
+			incCounts(inputSequence, itemCounts, ancItems, usesFids, 1);
 		}
 	}
 
@@ -123,12 +133,75 @@ public final class Dictionary implements Externalizable {
 	}
 
 	/** Sets fid of all items to -1 */
+	public void clearFids() {
+		itemsByFid.clear();
+		for (Item item : itemsById.values()) {
+			item.fid = -1;
+		}
+	}
+
+	/** Sets fid of all items to -1 and clears all counts */
 	public void clearCountsAndFids() {
 		itemsByFid.clear();
 		for (Item item : itemsById.values()) {
 			item.fid = -1;
 			item.cFreq = 0;
 			item.dFreq = 0;
+		}
+	}
+
+	/** Merges the provided dictionary (including counts) into this dictionary. Items are matched based on
+	 * {@link Item#sid}. The provided dictionary must be consistent with this one in that every item that occurs
+	 * in both dictionaries must have matching parents. Item properties and identifiers are retained from this
+	 * dictionary if present; otherwise, they are taken from the other dictionary (if possible without conflict).
+	 * Fids are likely to be inconsistent after merging and need to be recomputed (see {@link #checkFids()}).
+	 *
+	 * @throws IllegalArgumentException if other is inconsistent with this dictionary (both dictionary should then be
+	 *                                  considered destroyed)
+	 */
+	public void mergeWith(Dictionary other) {
+		int maxGid = Collections.max(itemsById.keySet());
+		Set<String> thisParentSids = new HashSet<>();
+		Set<String> otherParentSids = new HashSet<>();
+
+		for (int otherItemGid : other.topologicalSort()) {
+			Item otherItem = other.getItemByGid(otherItemGid);
+			Item thisItem = getItemBySid(otherItem.sid);
+
+			if (thisItem == null) {
+				// a new item: copy item from other and retain what's possible to retain
+				int gid = otherItem.gid;
+				if (containsGid(otherItem.gid)) { // we give the other item a new gid
+					maxGid++;
+					gid = maxGid;
+				} else {
+					maxGid = Math.max(maxGid, gid);
+				}
+				Item newItem = new Item(gid, otherItem.sid);
+				newItem.cFreq = otherItem.cFreq;
+				newItem.dFreq = otherItem.dFreq;
+				newItem.properties = otherItem.properties;
+
+				// add parents
+				for (Item parent : otherItem.parents) {
+					Item.addParent(newItem, getItemBySid(parent.sid)); // throws exception if parent not present here, as desired
+				}
+
+				// add item
+				addItem(newItem);
+			} else {
+				// check parents
+				thisParentSids.clear();
+				for (Item p : thisItem.parents) thisParentSids.add(p.sid);
+				otherParentSids.clear();
+				for (Item p : otherItem.parents) otherParentSids.add(p.sid);
+				if (!thisParentSids.equals(otherParentSids))
+					throw new IllegalArgumentException("parents of item sid=" + thisItem.sid + " disagree");
+
+				// fine; we only need to merge counts
+				thisItem.cFreq += otherItem.cFreq;
+				thisItem.dFreq += otherItem.dFreq;
+			}
 		}
 	}
 
@@ -141,7 +214,7 @@ public final class Dictionary implements Externalizable {
 	public Int2ObjectMap<Item> getItemsByFid() { return itemsByFid; }
 
 	/** Checks whether there is an item with the given ID in the hierarchy. */
-	public boolean containsId(int itemId) {
+	public boolean containsGid(int itemId) {
 		return itemsById.containsKey(itemId);
 	}
 	
@@ -320,7 +393,8 @@ public final class Dictionary implements Externalizable {
 	 * the *direct* links between these items).
 	 * 
 	 * TODO: also add indirect links? (takes some thought to figure out which links to acutally add and how to do this 
-	 * reasonably efficiently; perhaps helpful: a method that removes "unnecessary" links)
+	 *       reasonably efficiently. One option: compute transitive closure, drop items to be removed, then compute
+	 *       transitive reduction.)
 	 */
 	public Dictionary restrictedCopy(IntSet itemFids) {
 		// copy the relevant items
@@ -343,7 +417,7 @@ public final class Dictionary implements Externalizable {
 		}
 
 		// compute fid index for restricted dictionary
-        dict.indexFids();
+        dict.indexParentFids();
 
 		return dict;
 	}
@@ -365,11 +439,12 @@ public final class Dictionary implements Externalizable {
 	}
 
 	/** Determines whether the items in this dictionary form a forest. The result of this method is undefined unless
-     * {@link #indexFids()} has been called. */
+     * {@link #indexParentFids()} has been called. */
 	public boolean isForest() {
 		return isForest;
 	}
 
+	/** in-place */
 	public void gidsToFids(IntList items) {
 		for (int i=0; i<items.size(); i++) {
 			int gid = items.getInt(i);
@@ -387,6 +462,7 @@ public final class Dictionary implements Externalizable {
 		}
 	}
 
+	/** in-place */
 	public void fidsToGids(IntList items) {
 		for (int i=0; i<items.size(); i++) {
 			int fid = items.getInt(i);
@@ -424,9 +500,31 @@ public final class Dictionary implements Externalizable {
 			itemsByFid.put(fid, item);
 		}
 
-		indexFids();
+		indexParentFids();
 	}
-	
+
+	/** Checks if fids are assigned and indexed correctly. (If not, use {@link #recomputeFids()}.) */
+	public boolean checkFids() {
+		if (itemsByFid.size() != itemsById.size()) return false;
+
+		List<Item> items = new ArrayList<>(getItems());
+		Collections.sort(items, (i1, i2) -> i1.fid-i2.fid );
+
+		int lastFid = Integer.MIN_VALUE;
+		int lastDFreq = Integer.MAX_VALUE;
+		for (Item item : items) {
+			if (lastFid == item.fid || item.dFreq > lastDFreq) return false;
+			lastFid = item.fid;
+			lastDFreq = item.dFreq;
+
+			for (Item parent : item.parents) {
+				if (parent.fid <= item.fid) return false;
+			}
+		}
+
+		return true;
+	}
+
 	/** Performs a topological sort of the items in this dictionary, respecting document 
 	 * frequencies. Throws an IllegalArgumentException if there is a cycle.
 	 *
@@ -511,7 +609,11 @@ public final class Dictionary implements Externalizable {
     /** Indexes the parents of each item. Needs to be called before using
      * {@link #addAscendantFids(int, IntCollection)}. Note that this method is implicitly called when recomputing fids
      * via {@link #recomputeFids()} and when loading a dictionary with fids from some file. */
-    public void indexFids() {
+    public void indexParentFids() {
+		if (itemsById.size()==0) {
+			parentFids = new int[] { 0 };
+			return;
+		}
         isForest = true;
         IntArrayList fids = new IntArrayList(itemsByFid.keySet());
         Collections.sort(fids);
@@ -648,12 +750,17 @@ public final class Dictionary implements Externalizable {
 	}
 
 	public void readAvro(InputStream in) throws IOException {
+		readAvro(in, Integer.MAX_VALUE);
+	}
+
+	private void readAvro(InputStream in, int maxItems) throws IOException {
 		clear();
 		DatumReader<AvroItem> itemDatumReader = new SpecificDatumReader<>(AvroItem.class);
 		DataFileStream<AvroItem> dataFileReader = new DataFileStream<>(in, itemDatumReader);
 		AvroItem avroItem = null;
 		boolean hasFids = true;
-		while (dataFileReader.hasNext()) {
+		while (dataFileReader.hasNext() && maxItems > 0) {
+			maxItems--;
 			avroItem = dataFileReader.next(avroItem);
 			Item item = Item.fromAvroItem(avroItem, this);
 			if (item.fid < 0) {
@@ -662,7 +769,7 @@ public final class Dictionary implements Externalizable {
 			addItem(item);
 		}
 		if (hasFids) {
-			indexFids();
+			indexParentFids();
 		}
 	}
 
@@ -695,12 +802,12 @@ public final class Dictionary implements Externalizable {
 			// fine, we read everything
 		}
 		if (hasFids) {
-			indexFids();
+			indexParentFids();
 		}
 	}
 
 	public byte[] toBytes() throws IOException {
-		ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
+		ByteArrayOutputStream bytesOut = new ByteArrayOutputStream(itemsByFid.size()*50);
 		writeAvro(bytesOut);
 		return bytesOut.toByteArray();
 	}
@@ -713,16 +820,33 @@ public final class Dictionary implements Externalizable {
 
 	@Override
 	public void writeExternal(ObjectOutput out) throws IOException {
+		write(out);
+	}
+
+	@Override
+	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+		readFields(in);
+	}
+
+	@Override
+	public void write(DataOutput out) throws IOException {
 		byte[] bytes = toBytes();
 		out.writeInt(bytes.length);
 		out.write(bytes);
 	}
 
 	@Override
-	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+	public void readFields(DataInput in) throws IOException {
 		int length = in.readInt();
 		byte[] bytes = new byte[length];
 		in.readFully(bytes);
 		readAvro(new ByteArrayInputStream(bytes));
+	}
+
+	public static final class KryoSerializer extends Writable2Serializer<Dictionary> {
+		@Override
+		public Dictionary newInstance(Kryo kryo, Input input, Class<Dictionary> type) {
+			return new Dictionary();
+		}
 	}
 }

@@ -1,47 +1,106 @@
 package de.uni_mannheim.desq.util;
 
 import com.google.common.base.Strings;
-import org.apache.commons.configuration2.PropertiesConfiguration;
-import org.apache.commons.configuration2.ex.ConfigurationException;
 
 import java.io.*;
 import java.util.*;
 
-public class DesqProperties extends PropertiesConfiguration implements Externalizable {
+/** Light-weight collection of properties */
+public class DesqProperties implements Externalizable {
+    private HashMap<String,String> properties;
+
     public DesqProperties() {
-        super();
+        properties = new HashMap<>(0);
+    }
+
+    public DesqProperties(int initialCapacity) {
+        properties = new HashMap<>(initialCapacity);
     }
 
     public DesqProperties(Properties prop) {
-        super();
+        properties = new HashMap<>(prop.size());
         for(Map.Entry<Object,Object> entry : prop.entrySet()) {
             setProperty((String)entry.getKey(), entry.getValue());
         }
     }
 
+    public void setProperty(String key, Object value) {
+        properties.put(key, value.toString());
+    }
+
+    public String getString(String key) {
+        String value = properties.get(key);
+        if (value != null) {
+            return value;
+        } else if (properties.containsKey(key)) {
+            return null;
+        } else {
+            throw new NoSuchElementException(String.format(
+                "Key '%s' does not map to an existing object!", key));
+        }
+    }
+
+    public String getString(String key, String defaultValue) {
+        String value = properties.get(key);
+        if (value != null) {
+            return value;
+        } else if (properties.containsKey(key)) {
+            return null;
+        } else {
+            return defaultValue;
+        }
+    }
+
+    public int getInt(String key) {
+        String value = getString(key);
+        return Integer.parseInt(value);
+    }
+
+    public long getLong(String key) {
+        String value = getString(key);
+        return Long.parseLong(value);
+    }
+
+    public boolean getBoolean(String key) {
+        String value = getString(key);
+        return Boolean.parseBoolean(value);
+    }
+
+    public boolean getBoolean(String key, boolean defaultValue) {
+        String value = properties.get(key);
+        if (value == null && !properties.containsKey(key)) {
+            return defaultValue;
+        }
+        return Boolean.parseBoolean(value);
+    }
+
+    public Properties toProperties() {
+        Properties result = new Properties();
+        for (Map.Entry<String, String> p : properties.entrySet()) {
+            result.put(p.getKey(), p.getValue());
+        }
+        return result;
+    }
+
+    public Iterator<String> getKeys() {
+        return properties.keySet().iterator();
+    }
+
     @Override
     public void writeExternal(ObjectOutput out) throws IOException {
-        ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
-        try {
-            write(new OutputStreamWriter(bytesOut));
-        } catch (ConfigurationException e) {
-            throw new IOException(e);
+        out.writeInt(properties.size());
+        for (Map.Entry<String, String> p : properties.entrySet()) {
+            out.writeUTF(p.getKey());
+            out.writeUTF(p.getValue());
         }
-        byte[] bytes = bytesOut.toByteArray();
-        out.writeInt(bytes.length);
-        out.write(bytes);
-
     }
 
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        int length = in.readInt();
-        byte[] bytes = new byte[length];
-        in.readFully(bytes);
-        try {
-            read(new InputStreamReader(new ByteArrayInputStream(bytes)));
-        } catch (ConfigurationException e) {
-            throw new IOException(e);
+        for (int size = in.readInt(); size>0; size--) {
+            String key = in.readUTF();
+            String value = in.readUTF();
+            properties.put(key, value);
         }
     }
 
@@ -52,7 +111,7 @@ public class DesqProperties extends PropertiesConfiguration implements Externali
     public void prettyPrint(PrintStream out, int indent) {
         String indentString = Strings.repeat(" ", indent);
         List<String> keys = new ArrayList<>();
-        getKeys().forEachRemaining(keys::add);
+        properties.keySet().forEach(keys::add);
         Collections.sort(keys);
         for (String key : keys) {
             out.print(indentString);

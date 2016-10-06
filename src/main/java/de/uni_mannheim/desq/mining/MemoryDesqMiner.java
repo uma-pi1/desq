@@ -1,9 +1,9 @@
 package de.uni_mannheim.desq.mining;
 
-import java.util.ArrayList;
-
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+
+import java.util.ArrayList;
 
 public abstract class MemoryDesqMiner extends DesqMiner {
 	protected final ArrayList<int[]> inputSequences = new ArrayList<>();

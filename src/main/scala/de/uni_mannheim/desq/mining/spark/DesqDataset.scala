@@ -1,10 +1,20 @@
 package de.uni_mannheim.desq.mining.spark
 
-import de.uni_mannheim.desq.dictionary.Dictionary
+import java.net.URI
+import java.util.Calendar
+import java.util.zip.{GZIPInputStream, GZIPOutputStream}
+
+import de.uni_mannheim.desq.avro.AvroDesqDatasetDescriptor
+import de.uni_mannheim.desq.dictionary.{DesqBuilder, Dictionary, DictionaryBuilder, SequenceBuilder}
 import de.uni_mannheim.desq.io.DelSequenceReader
 import de.uni_mannheim.desq.mining.WeightedSequence
 import de.uni_mannheim.desq.util.DesqProperties
 import it.unimi.dsi.fastutil.ints._
+import org.apache.avro.io.{DecoderFactory, EncoderFactory}
+import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter}
+import org.apache.hadoop.fs.permission.FsPermission
+import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.hadoop.io.NullWritable
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -13,11 +23,11 @@ import org.apache.spark.rdd.RDD
   * Created by rgemulla on 12.09.2016.
   */
 class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, val usesFids: Boolean = false) {
-  private var serializedDict: Broadcast[Array[Byte]] = _
+  private var dictBroadcast: Broadcast[Dictionary] = _
 
   def this(sequences: RDD[WeightedSequence], source: DesqDataset, usesFids: Boolean) {
     this(sequences, source.dict, usesFids)
-    serializedDict = source.serializedDict
+    dictBroadcast = source.dictBroadcast
   }
 
   /** Creates a copy of this DesqDataset with a deep copy of its dictionary. Useful when changes should be
@@ -30,35 +40,34 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
     * variable stores the dictionary in serialized form for memory efficiency. Use
     * <code>Dictionary.fromBytes(result.value)</code> to get the dictionary at workers.
     */
-  def broadcastSerializedDictionary(): Broadcast[Array[Byte]] = {
-    if (serializedDict == null) {
+  def broadcastDictionary(): Broadcast[Dictionary] = {
+    if (dictBroadcast == null) {
       val dict = this.dict
-      serializedDict = sequences.context.broadcast(dict.toBytes)
+      dictBroadcast = sequences.context.broadcast(dict)
     }
-    serializedDict
+    dictBroadcast
   }
 
   /** Returns an RDD that contains for each sequence an array of its string identifiers and its support. */
   //noinspection AccessorLikeMethodIsEmptyParen
   def toSidsSupportPairs(): RDD[(Array[String],Long)] = {
-    val serializedDictionary = broadcastSerializedDictionary()
+    val dictBroadcast = broadcastDictionary()
     val usesFids = this.usesFids // to localize
 
     sequences.mapPartitions(rows => {
       new Iterator[(Array[String],Long)] {
-        val dict = Dictionary.fromBytes(serializedDictionary.value)
+        val dict = dictBroadcast.value
 
         override def hasNext: Boolean = rows.hasNext
 
         override def next(): (Array[String], Long) = {
           val s = rows.next()
-          val items = s.items
-          val itemSids = new Array[String](items.size)
-          for (i <- Range(0,items.size)) {
+          val itemSids = new Array[String](s.size())
+          for (i <- Range(0,s.size())) {
             if (usesFids) {
-              itemSids(i) = dict.getItemByFid(items.get(i)).sid
+              itemSids(i) = dict.getItemByFid(s.getInt(i)).sid
             } else {
-              itemSids(i) = dict.getItemByGid(items.get(i)).sid
+              itemSids(i) = dict.getItemByGid(s.getInt(i)).sid
             }
           }
           (itemSids, s.support)
@@ -67,7 +76,7 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
     })
   }
 
-  /** Pretty prints up to <code>maxSequences</code> sequences contained in this dataset. */
+  /** Pretty prints up to <code>maxSequences</code> sequences contained in this dataset using their sid's. */
   def print(maxSequences: Int = -1): Unit = {
     val strings = toSidsSupportPairs().map(s => {
       val sidString = s._1.deep.mkString("[", " ", "]")
@@ -87,10 +96,10 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
   def copyWithRecomputedCountsAndFids(): DesqDataset = {
     // compute counts
     val usesFids = this.usesFids
-    val serializedDict = broadcastSerializedDictionary()
+    val dictBroadcast = broadcastDictionary()
     val totalItemCounts = sequences.mapPartitions(rows => {
       new Iterator[(Int, (Long,Long))] {
-        val dict = Dictionary.fromBytes(serializedDict.value)
+        val dict = dictBroadcast.value
         val itemCounts = new Int2IntOpenHashMap()
         var currentItemCountsIterator = itemCounts.int2IntEntrySet().fastIterator()
         var currentSupport = 0L
@@ -100,7 +109,7 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
           while (!currentItemCountsIterator.hasNext && rows.hasNext) {
             val sequence = rows.next()
             currentSupport = sequence.support
-            dict.computeItemFrequencies(sequence.items, itemCounts, ancItems, usesFids)
+            dict.computeItemFrequencies(sequence, itemCounts, ancItems, usesFids, 1)
             currentItemCountsIterator = itemCounts.int2IntEntrySet().fastIterator()
           }
           currentItemCountsIterator.hasNext
@@ -129,25 +138,25 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
     }
 
     // otherwise we need to relabel the fids
-    val newSerializedDict = sequences.context.broadcast(dict.toBytes)
+    val newDictBroadcast = sequences.context.broadcast(newDict)
     val newSequences = sequences.mapPartitions(rows => {
       new Iterator[WeightedSequence] {
-        val dict = Dictionary.fromBytes(serializedDict.value)
-        val newDict = Dictionary.fromBytes(newSerializedDict.value)
+        val dict = dictBroadcast.value
+        val newDict = newDictBroadcast.value
 
         override def hasNext: Boolean = rows.hasNext
 
         override def next(): WeightedSequence = {
-          val old = rows.next()
-          val newItems = new IntArrayList(old.items)
-          dict.fidsToGids(newItems)
-          newDict.gidsToFids(newItems)
-          new WeightedSequence(newItems, old.support)
+          val oldSeq = rows.next()
+          val newSeq = oldSeq.clone()
+          dict.fidsToGids(newSeq)
+          newDict.gidsToFids(newSeq)
+          newSeq
         }
       }
     })
     val newData = new DesqDataset(newSequences, newDict, true)
-    newData.serializedDict = newSerializedDict
+    newData.dictBroadcast = newDictBroadcast
     newData
   }
 
@@ -165,17 +174,134 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
     miner.mine(this)
   }
 
+  def save(outputPath: String): DesqDataset = {
+    val fileSystem = FileSystem.get(new URI(outputPath), sequences.context.hadoopConfiguration)
+
+    // write sequences
+    val sequencePath = s"$outputPath/sequences"
+    sequences.map(s => (NullWritable.get(),s)).saveAsSequenceFile(sequencePath)
+
+    // write dictionary
+    val dictPath = s"$outputPath/dict.avro.gz"
+    val dictOut = FileSystem.create(fileSystem, new Path(dictPath), FsPermission.getFileDefault)
+    dict.writeAvro(new GZIPOutputStream(dictOut))
+    dictOut.close()
+
+    // write descriptor
+    val descriptor = new AvroDesqDatasetDescriptor()
+    descriptor.setCreationTime(Calendar.getInstance().getTime.toString)
+    descriptor.setUsesFids(usesFids)
+    val descriptorPath = s"$outputPath/descriptor.json"
+    val descriptorOut = FileSystem.create(fileSystem, new Path(descriptorPath), FsPermission.getFileDefault)
+    val writer = new SpecificDatumWriter[AvroDesqDatasetDescriptor](classOf[AvroDesqDatasetDescriptor])
+    val encoder = EncoderFactory.get.jsonEncoder(descriptor.getSchema, descriptorOut)
+    writer.write(descriptor, encoder)
+    encoder.flush()
+    descriptorOut.close()
+
+    // return a new dataset for the just saved data
+    new DesqDataset(
+      sequences.context.sequenceFile(sequencePath, classOf[NullWritable], classOf[WeightedSequence]).map(kv => kv._2),
+      dict, usesFids)
+  }
 }
 
 object DesqDataset {
   /** Loads data from the specified del file */
-  def fromDelFile(delFile: RDD[String], dict: Dictionary, usesFids: Boolean): DesqDataset = {
-    val sequences = delFile.map(line => new WeightedSequence(DelSequenceReader.parseLine(line), 1))
+  def loadFromDelFile(delFile: RDD[String], dict: Dictionary, usesFids: Boolean): DesqDataset = {
+    val sequences = delFile.map(line => {
+      val s = new WeightedSequence(1L)
+      DelSequenceReader.parseLine(line, s)
+      s
+    })
+
     new DesqDataset(sequences, dict, usesFids)
   }
 
   /** Loads data from the specified del file */
-  def fromDelFile(delFile: String, dict: Dictionary, usesFids: Boolean = false)(implicit sc: SparkContext): DesqDataset = {
-    fromDelFile(sc.textFile(delFile), dict, usesFids)
+  def loadFromDelFile(delFile: String, dict: Dictionary, usesFids: Boolean = false)(implicit sc: SparkContext): DesqDataset = {
+    loadFromDelFile(sc.textFile(delFile), dict, usesFids)
+  }
+
+  /** Builds a DesqDataset from an RDD of string arrays. Every array corresponds to one sequence, every element to
+    * one item. The generated hierarchy is flat. */
+  def buildFromStrings(rawData: RDD[Array[String]]): DesqDataset = {
+    val parse = (strings: Array[String], seqBuilder: DesqBuilder) => {
+      seqBuilder.newSequence(1)
+      for (string <- strings) {
+        seqBuilder.appendItem(string)
+      }
+    }
+    build[Array[String]](rawData, parse)
+  }
+
+  /** Builds a DesqDataset from arbitrary input data. The dataset is linked to the original data and parses it again
+    * when used. For improved performance, save the dataset once created.
+    *
+    * @param rawData the input data as an RDD
+    * @param parse method that takes an input element, parses it, and registers the resulting items (and their parents)
+    *              with the provided DesqBuilder. Used to construct the dictionary and to translate the data.
+    * @tparam T type of input data elements
+    * @return the created DesqDataset
+    */
+  def build[T](rawData: RDD[T], parse: (T, DesqBuilder) => _): DesqDataset = {
+    // construct the dictionary
+    val dict = rawData.mapPartitions(rows => {
+      val dictBuilder = new DictionaryBuilder()
+      while (rows.hasNext) {
+        parse.apply(rows.next(), dictBuilder)
+      }
+      dictBuilder.newSequence(0) // flush last sequence
+      Iterator.single(dictBuilder.getDictionary)
+    }).treeReduce((d1, d2) => { d1.mergeWith(d2); d1 }, 3)
+    dict.recomputeFids()
+
+    // now convert the sequences (lazily)
+    val dictBroadcast = rawData.context.broadcast(dict)
+    val sequences = rawData.mapPartitions(rows => new Iterator[WeightedSequence] {
+      val dict = dictBroadcast.value
+      val seqBuilder = new SequenceBuilder(dict)
+
+      override def hasNext: Boolean = rows.hasNext
+
+      override def next(): WeightedSequence = {
+        parse.apply(rows.next(), seqBuilder)
+        val s = new WeightedSequence(seqBuilder.getCurrentGids, seqBuilder.getCurrentSupport)
+        dict.gidsToFids(s)
+        s
+      }
+    })
+
+    // return the dataset
+    val result = new DesqDataset(sequences, dict, true)
+    result.dictBroadcast = dictBroadcast
+    result
+  }
+
+  def load(inputPath: String)(implicit sc: SparkContext): DesqDataset = {
+    val fileSystem = FileSystem.get(new URI(inputPath), sc.hadoopConfiguration)
+
+    // read descriptor
+    var descriptor = new AvroDesqDatasetDescriptor()
+    val descriptorPath = s"$inputPath/descriptor.json"
+    val descriptorIn = fileSystem.open(new Path(descriptorPath))
+    val reader = new SpecificDatumReader[AvroDesqDatasetDescriptor](classOf[AvroDesqDatasetDescriptor])
+    val decoder = DecoderFactory.get.jsonDecoder(descriptor.getSchema, descriptorIn)
+    descriptor = reader.read(descriptor, decoder)
+    descriptorIn.close()
+
+    // read dictionary
+    val dictPath = s"$inputPath/dict.avro.gz"
+    val dictIn = fileSystem.open(new Path(dictPath))
+    val dict = new Dictionary()
+    dict.readAvro(new GZIPInputStream(dictIn))
+    dictIn.close()
+
+    // read sequences
+    val sequencePath = s"$inputPath/sequences"
+    val sequences = sc.sequenceFile(sequencePath, classOf[NullWritable], classOf[WeightedSequence]).map(kv => kv._2)
+
+    // return the dataset
+    new DesqDataset(sequences, dict, descriptor.getUsesFids)
   }
 }

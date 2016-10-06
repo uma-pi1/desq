@@ -5,7 +5,7 @@ import it.unimi.dsi.fastutil.ints.IntIterable;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 
-import java.util.*; // For HashMap, HashSet
+import java.util.NoSuchElementException;
 
 public final class DirectedGraph implements IntIterable {
     /* A map from nodes in the graph to sets of outgoing edges.  Each

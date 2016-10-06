@@ -1,14 +1,14 @@
 package de.uni_mannheim.desq.examples;
 
 
-import java.io.IOException;
-import java.net.URL;
-
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.patex.PatEx;
+
+import java.io.IOException;
+import java.net.URL;
 
 public class FstExample {
 

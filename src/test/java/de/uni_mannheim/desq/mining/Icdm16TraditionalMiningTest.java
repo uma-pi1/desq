@@ -9,7 +9,10 @@ import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Created by rgemulla on 18.07.2016.

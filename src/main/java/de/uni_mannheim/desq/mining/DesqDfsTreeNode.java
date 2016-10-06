@@ -1,11 +1,12 @@
 package de.uni_mannheim.desq.mining;
 
 //import java.util.Collections;
-import java.util.BitSet;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
+
+import java.util.BitSet;
 
 /**
  * DesqDfsTreeNode.java

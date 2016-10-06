@@ -7,7 +7,6 @@ import de.uni_mannheim.desq.util.IntArrayStrategy;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenCustomHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import org.apache.commons.configuration2.Configuration;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -132,7 +131,6 @@ public final class CSpadeMiner extends DesqMiner {
 
 	public static DesqProperties createConf(long sigma, int gamma, int lambda, boolean generalize) {
 		DesqProperties conf = new DesqProperties();
-		conf.setThrowExceptionOnMissing(true);
 		conf.setProperty("desq.mining.miner.class", CSpadeMiner.class.getCanonicalName());
 		conf.setProperty("desq.mining.min.support", sigma);
 		conf.setProperty("desq.mining.max.gap", gamma);
@@ -142,7 +140,7 @@ public final class CSpadeMiner extends DesqMiner {
 		return conf;
 	}
 
-	public void setParameters(Configuration conf) {
+	public void setParameters(DesqProperties conf) {
 		long sigma = conf.getLong("desq.mining.min.support");
 		int gamma = conf.getInt("desq.mining.max.gap");
 		int lambda = conf.getInt("desq.mining.max.length");

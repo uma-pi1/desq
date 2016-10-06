@@ -1,10 +1,10 @@
 package de.uni_mannheim.desq.io;
 
-import java.io.IOException;
-import java.util.List;
-
 import de.uni_mannheim.desq.mining.WeightedSequence;
 import it.unimi.dsi.fastutil.ints.IntList;
+
+import java.io.IOException;
+import java.util.List;
 
 public abstract class PatternReader extends WithDictionary {
     /** Reads next pattern stores the result in <code>items</code>. Depending on {@link #usesFids()},
@@ -50,7 +50,7 @@ public abstract class PatternReader extends WithDictionary {
      * @return <code>false</code> if there are no more patterns
      */
     public boolean read(WeightedSequence pattern) throws IOException {
-	    pattern.support = read(pattern.items);
+	    pattern.support = read((IntList)pattern);
         return pattern.support >= 0;
     }
 
@@ -59,7 +59,7 @@ public abstract class PatternReader extends WithDictionary {
      * @return <code>false</code> if there are no more patterns
      */
     public boolean readAsFids(WeightedSequence pattern) throws IOException {
-        pattern.support = readAsFids(pattern.items);
+        pattern.support = readAsFids((IntList)pattern);
         return pattern.support >= 0;
     }
 
@@ -69,7 +69,7 @@ public abstract class PatternReader extends WithDictionary {
      * @return <code>false</code> if there are no more patterns
      */
     public boolean readAsIds(WeightedSequence pattern) throws IOException {
-        pattern.support = readAsIds(pattern.items);
+        pattern.support = readAsIds((IntList)pattern);
         return pattern.support >= 0;
     }
 

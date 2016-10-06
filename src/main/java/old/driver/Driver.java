@@ -1,18 +1,13 @@
 package old.driver;
 
+import old.driver.DesqConfig.Match;
+import old.driver.DesqConfig.Method;
+import old.tools.EncodeData;
+import org.apache.commons.cli.*;
+
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-
-import old.tools.EncodeData;
-import old.driver.DesqConfig.Match;
-import old.driver.DesqConfig.Method;
 
 public class Driver {
 

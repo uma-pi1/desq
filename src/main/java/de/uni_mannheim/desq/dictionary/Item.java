@@ -9,8 +9,12 @@ import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificDatumWriter;
 
-import java.io.*;
-import java.util.*;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
 
 /** A single item in a dictionary.  */
 public final class Item {
@@ -33,21 +37,31 @@ public final class Item {
     public int dFreq = 0;
 
     /** Children of this item */
-	public final List<Item> children = new ArrayList<>();
+	public final List<Item> children;
 
     /** Parents of this item. */
-    public final List<Item> parents = new ArrayList<>();
+    public final List<Item> parents;
 
-    /** Other properties associated with this item */
-    public DesqProperties properties = new DesqProperties();
+    /** Other properties associated with this item. Can be null. */
+    public DesqProperties properties = null; // null default to save memory
 	
 	public Item(int gid, String sid) {
 		this.gid = gid;
 		this.sid = sid;
+		this.parents = new ArrayList<>(1);
+		this.children = new ArrayList<>(0);
 	}
-	
-	/** Connects child and parent. Modifies child.parents and parent.children. */ 
+
+	private Item(int gid, String sid, int noParents, int noChildren) {
+		this.gid = gid;
+		this.sid = sid;
+		this.parents = new ArrayList<>(noParents);
+		this.children = new ArrayList<>(noChildren);
+	}
+
+	/** Connects child and parent. Modifies child.parents and parent.children. */
 	public static void addParent(Item child, Item parent) {
+		if (child == null || parent == null) throw new IllegalArgumentException();
 		child.parents.add(parent);
 		parent.children.add(child);
 	}
@@ -102,6 +116,7 @@ public final class Item {
 		avroItem.setFid(fid);
 		avroItem.setCFreq(cFreq);
 		avroItem.setDFreq(dFreq);
+		avroItem.setNoChildren(children.size());
 
 		// parents
 		List<Integer> parentGids = avroItem.getParentGids();
@@ -122,11 +137,13 @@ public final class Item {
 		} else {
 			avroItemProperties.clear();
 		}
-		Iterator<String> keysIt = properties.getKeys();
-		while (keysIt.hasNext()) {
-			String key = keysIt.next();
-			String value = properties.getString(key, null);
-			avroItemProperties.add(new AvroItemProperties(key, value));
+		if (properties != null) {
+			Iterator<String> keysIt = properties.getKeys();
+			while (keysIt.hasNext()) {
+				String key = keysIt.next();
+				String value = properties.getString(key, null);
+				avroItemProperties.add(new AvroItemProperties(key, value));
+			}
 		}
 		avroItem.setProperties(avroItemProperties);
 
@@ -135,7 +152,9 @@ public final class Item {
 
 	public static Item fromAvroItem(AvroItem avroItem, Dictionary dict) {
 		// basic fields
-		Item item = new Item(avroItem.getGid(), avroItem.getSid().toString());
+		int noParents = avroItem.getParentGids().size();
+		int noChildren = avroItem.getNoChildren();
+		Item item = new Item(avroItem.getGid(), avroItem.getSid(), noParents, noChildren);
 		item.fid = avroItem.getFid();
 		item.cFreq = avroItem.getCFreq();
 		item.dFreq = avroItem.getDFreq();
@@ -150,10 +169,13 @@ public final class Item {
 		}
 
 		// properties
-		for (AvroItemProperties property : avroItem.getProperties()) {
-			String key = property.getKey().toString();
-			String value = property.getValue() != null ? property.getValue().toString() : null;
-			item.properties.setProperty(key, value);
+		if (avroItem.getProperties().size()>0) {
+			item.properties = new DesqProperties(avroItem.getProperties().size());
+			for (AvroItemProperties property : avroItem.getProperties()) {
+				String key = property.getKey();
+				String value = property.getValue() != null ? property.getValue() : null;
+				item.properties.setProperty(key, value);
+			}
 		}
 
 		return item;

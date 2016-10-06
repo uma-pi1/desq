@@ -1,16 +1,16 @@
 package de.uni_mannheim.desq.examples;
 
-import java.io.IOException;
-import java.util.Iterator;
-
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.dictionary.Item;
 import de.uni_mannheim.desq.fst.BasicTransition;
+import de.uni_mannheim.desq.fst.BasicTransition.InputLabelType;
+import de.uni_mannheim.desq.fst.BasicTransition.OutputLabelType;
 import de.uni_mannheim.desq.fst.ItemState;
 import de.uni_mannheim.desq.fst.State;
 import de.uni_mannheim.desq.fst.Transition;
-import de.uni_mannheim.desq.fst.BasicTransition.InputLabelType;
-import de.uni_mannheim.desq.fst.BasicTransition.OutputLabelType;
+
+import java.io.IOException;
+import java.util.Iterator;
 
 public class TransitionExample {
 

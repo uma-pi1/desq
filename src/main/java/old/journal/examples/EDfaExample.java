@@ -1,19 +1,17 @@
 package old.journal.examples;
 
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntList;
-
-import java.io.IOException;
-import java.net.URL;
-
-
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import old.de.uni_mannheim.desq.dictionary.DictionaryIO;
+import de.uni_mannheim.desq.fst.ExtendedDfa;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.SequenceReader;
-import de.uni_mannheim.desq.fst.ExtendedDfa;
 import de.uni_mannheim.desq.patex.PatEx;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
+import old.de.uni_mannheim.desq.dictionary.DictionaryIO;
+
+import java.io.IOException;
+import java.net.URL;
 
 public class EDfaExample {
 

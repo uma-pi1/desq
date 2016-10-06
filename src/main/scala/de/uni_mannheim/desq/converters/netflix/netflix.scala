@@ -5,6 +5,7 @@ import java.util.regex.Pattern
 
 import de.uni_mannheim.desq.dictionary.{Dictionary, Item}
 import de.uni_mannheim.desq.io.{DelSequenceWriter, SequenceReader}
+import de.uni_mannheim.desq.util.DesqProperties
 import it.unimi.dsi.fastutil.ints.{IntArrayList, IntList}
 
 import scala.collection.mutable
@@ -251,6 +252,7 @@ object CreateDeepDictionary extends App {
   for (movie <- Movie.readMovies) {
     yearStrings.add(movie.yearString)
     val item = new Item(movie.id, movie.unratedSid)
+    item.properties = new DesqProperties()
     item.properties.setProperty("type", "movie")
     dict.addItem(item)
     nextId = Math.max(nextId, movie.id)
@@ -260,12 +262,14 @@ object CreateDeepDictionary extends App {
   // create items for ratings and years
   for (yearString <- yearStrings) {
     val item = new Item(nextId, yearString)
+    item.properties = new DesqProperties()
     item.properties.setProperty("type", "year")
     dict.addItem(item)
     nextId = nextId + 1
   }
   for (rating <- Range.inclusive(1,5)) {
     val item = new Item(nextId, rating + "stars")
+    item.properties = new DesqProperties()
     item.properties.setProperty("type", "rating")
     dict.addItem(item)
     nextId = nextId + 1
@@ -279,6 +283,7 @@ object CreateDeepDictionary extends App {
 
     for (rating <- Range.inclusive(1,5)) {
       val newItem = new Item(nextId, movie.ratedSid(rating))
+      newItem.properties = new DesqProperties()
       newItem.properties.setProperty("type", "ratedMovie")
       nextId = nextId + 1
       dict.addItem(newItem)

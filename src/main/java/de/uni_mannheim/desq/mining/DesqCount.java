@@ -1,10 +1,6 @@
 package de.uni_mannheim.desq.mining;
 
-import de.uni_mannheim.desq.fst.Fst;
-import de.uni_mannheim.desq.fst.ItemState;
-import de.uni_mannheim.desq.fst.State;
-import de.uni_mannheim.desq.fst.ExtendedDfa;
-import de.uni_mannheim.desq.fst.ExtendedDfaState;
+import de.uni_mannheim.desq.fst.*;
 import de.uni_mannheim.desq.patex.PatEx;
 import de.uni_mannheim.desq.util.DesqProperties;
 import de.uni_mannheim.desq.util.PrimitiveUtils;
@@ -66,13 +62,13 @@ public final class DesqCount extends DesqMiner {
 
 	/** Stores all mined sequences along with their frequency. Each long is composed of a 32-bit integer storing the
 	 * actual count and a 32-bit integer storing the input id of the last input sequence that produced this output.  */
-	final Object2LongOpenHashMap<IntList> outputSequences = new Object2LongOpenHashMap<>();
+	final Object2LongOpenHashMap<Sequence> outputSequences = new Object2LongOpenHashMap<>();
 
 	/** Stores iterators over output item/next state pairs for reuse. Indexed by input position. */
 	final ArrayList<Iterator<ItemState>> itemStateIterators = new ArrayList<>();
 
 	/** Stores the part of the output sequence produced so far. */
-	final IntList prefix;
+	final Sequence prefix;
 
 
 	// -- helper variables for iterative processing -------------------------------------------------------------------
@@ -152,7 +148,7 @@ public final class DesqCount extends DesqMiner {
 		}
 
 		// initalize helper variable for FST simulation
-		prefix = new IntArrayList();
+		prefix = new Sequence();
 		outputSequences.defaultReturnValue(-1L);
 		if (iterative) {
 			prefixModified = new BooleanArrayList();
@@ -165,7 +161,6 @@ public final class DesqCount extends DesqMiner {
 
 	public static DesqProperties createConf(String patternExpression, long sigma) {
 		DesqProperties conf = new DesqProperties();
-		conf.setThrowExceptionOnMissing(true);
 		conf.setProperty("desq.mining.miner.class", DesqCount.class.getCanonicalName());
 		conf.setProperty("desq.mining.min.support", sigma);
 		conf.setProperty("desq.mining.pattern.expression", patternExpression);
@@ -231,7 +226,7 @@ public final class DesqCount extends DesqMiner {
 	public void mine() {
 		// by this time, the result is already stored in outputSequences. We only need to filter out the infrequent
 		// ones.
-		for(Object2LongMap.Entry<IntList> entry : outputSequences.object2LongEntrySet()) {
+		for(Object2LongMap.Entry<Sequence> entry : outputSequences.object2LongEntrySet()) {
 			long value = entry.getLongValue();
 			int support = PrimitiveUtils.getLeft(value);
 			if (support >= sigma) {
@@ -253,7 +248,7 @@ public final class DesqCount extends DesqMiner {
 	 * @param inputSequence
 	 * @return
 	 */
-	public ObjectSet<IntList> mine1(IntList inputSequence) {
+	public ObjectSet<Sequence> mine1(IntList inputSequence) {
 		outputSequences.clear();
 		addInputSequence(inputSequence);
 		return outputSequences.keySet();
@@ -542,12 +537,12 @@ public final class DesqCount extends DesqMiner {
 	}
 
 	/** Counts the provided output sequence. Avoids double-counting. */
-	private void countSequence(IntList sequence) {
+	private void countSequence(Sequence sequence) {
 		long supSid = outputSequences.getLong(sequence);
 
 		// add sequence if never mined before
 		if (supSid == -1) { // set as return value when key not present
-			outputSequences.put(new IntArrayList(sequence), PrimitiveUtils.combine(1, inputId)); // need to copy here
+			outputSequences.put(new Sequence(sequence), PrimitiveUtils.combine(1, inputId)); // need to copy here
 			return;
 		}
 

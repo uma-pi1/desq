@@ -1,32 +1,14 @@
 package de.uni_mannheim.desq.patex;
 
+import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.dictionary.Item;
 import de.uni_mannheim.desq.fst.*;
+import de.uni_mannheim.desq.fst.BasicTransition.InputLabelType;
+import de.uni_mannheim.desq.fst.BasicTransition.OutputLabelType;
+import de.uni_mannheim.desq.patex.PatExParser.*;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
-
-import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.fst.BasicTransition.InputLabelType;
-import de.uni_mannheim.desq.fst.BasicTransition.OutputLabelType;
-import de.uni_mannheim.desq.patex.PatExParser.CaptureContext;
-import de.uni_mannheim.desq.patex.PatExParser.ConcatContext;
-import de.uni_mannheim.desq.patex.PatExParser.ConcatExpressionContext;
-import de.uni_mannheim.desq.patex.PatExParser.NonWildCardContext;
-import de.uni_mannheim.desq.patex.PatExParser.ItemExpressionContext;
-import de.uni_mannheim.desq.patex.PatExParser.OptionalExpressionContext;
-import de.uni_mannheim.desq.patex.PatExParser.ParensContext;
-import de.uni_mannheim.desq.patex.PatExParser.PlusExpressionContext;
-import de.uni_mannheim.desq.patex.PatExParser.RepeatExpressionContext;
-import de.uni_mannheim.desq.patex.PatExParser.RepeatExactlyExpressionContext;
-import de.uni_mannheim.desq.patex.PatExParser.RepeatMaxExpressionContext;
-import de.uni_mannheim.desq.patex.PatExParser.RepeatMinExpressionContext;
-import de.uni_mannheim.desq.patex.PatExParser.RepeatMinMaxExpressionContext;
-import de.uni_mannheim.desq.patex.PatExParser.SimpleExpressionContext;
-import de.uni_mannheim.desq.patex.PatExParser.StarExpressionContext;
-import de.uni_mannheim.desq.patex.PatExParser.UnionContext;
-import de.uni_mannheim.desq.patex.PatExParser.UnionExpressionContext;
-import de.uni_mannheim.desq.patex.PatExParser.WildCardContext;
 
 
 public final class PatEx {

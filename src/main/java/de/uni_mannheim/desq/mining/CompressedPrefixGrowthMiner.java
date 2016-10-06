@@ -2,7 +2,6 @@ package de.uni_mannheim.desq.mining;
 
 import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.*;
-import org.apache.commons.configuration2.Configuration;
 
 /**
  * @author Kaustubh Beedkar (kbeedkar@uni-mannheim.de)
@@ -38,7 +37,6 @@ public class CompressedPrefixGrowthMiner extends CompressedMemoryDesqMiner {
 
     public static DesqProperties createConf(long sigma, int gamma, int lambda, boolean generalize) {
         DesqProperties conf = new DesqProperties();
-        conf.setThrowExceptionOnMissing(true);
         conf.setProperty("desq.mining.miner.class", CompressedPrefixGrowthMiner.class.getCanonicalName());
         conf.setProperty("desq.mining.min.support", sigma);
         conf.setProperty("desq.mining.max.gap", gamma);
@@ -48,7 +46,7 @@ public class CompressedPrefixGrowthMiner extends CompressedMemoryDesqMiner {
         return conf;
     }
 
-    public void setParameters(Configuration conf) {
+    public void setParameters(DesqProperties conf) {
         long sigma = conf.getLong("desq.mining.min.support");
         int gamma = conf.getInt("desq.mining.max.gap");
         int lambda = conf.getInt("desq.mining.max.length");

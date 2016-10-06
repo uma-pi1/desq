@@ -1,71 +1,130 @@
 package de.uni_mannheim.desq.mining;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import de.uni_mannheim.desq.util.Writable2Serializer;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.WritableUtils;
 
-import java.io.Externalizable;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
+import java.io.*;
+import java.util.List;
 
-/**
- * Created by rgemulla on 18.07.2016.
- */
-public final class WeightedSequence implements Comparable<WeightedSequence>, Externalizable {
-    public final IntList items;
+/** A sequence of integers plus a weight (support). */
+public final class WeightedSequence extends Sequence implements Externalizable, Writable {
     public long support;
 
     public WeightedSequence() {
-       this(new IntArrayList(), 0);
-   }
+       super();
+       support = 1;
+    }
 
     public WeightedSequence(long support) {
-       this(new IntArrayList(), support);
-   }
+       super();
+       this.support = support;
+    }
 
-    public WeightedSequence(IntList items, long support) {
-        this.items = items;
+    public WeightedSequence(IntList l, long support) {
+        super(l);
         this.support = support;
     }
 
-    public WeightedSequence clone() {
-        return new WeightedSequence(new IntArrayList(items), support);
+    protected WeightedSequence(int capacity) {
+        super(capacity);
+    }
+
+    public WeightedSequence(final int[] a, boolean dummy) {
+        super(a, dummy);
     }
 
     @Override
-    public int compareTo(WeightedSequence o) {
-        int cmp = Long.signum(o.support - support); // descending
-        if (cmp != 0)
-            return cmp;
-        else
-            return items.compareTo(o.items);
+    public WeightedSequence clone() {
+        WeightedSequence c = new WeightedSequence(size);
+        System.arraycopy(this.a, 0, c.a, 0, this.size);
+        c.size = this.size;
+        c.support = support;
+        return c;
+    }
+
+    @Override
+    public int compareTo(List<? extends Integer> o) {
+        if (o instanceof WeightedSequence) {
+            int cmp = Long.signum(((WeightedSequence)o).support - support); // descending
+            if (cmp != 0)
+                return cmp;
+        } else {
+            int cmp = Long.signum(1L - support);
+            if (cmp != 0)
+                return cmp;
+        }
+        return super.compareTo(o);
+    }
+
+    @Override
+    public int compareTo(IntArrayList o) {
+        if (o instanceof WeightedSequence) {
+            int cmp = Long.signum(((WeightedSequence)o).support - support); // descending
+            if (cmp != 0)
+                return cmp;
+        } else {
+            int cmp = Long.signum(1L - support);
+            if (cmp != 0)
+                return cmp;
+        }
+        return super.compareTo(o);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        WeightedSequence that = (WeightedSequence) o;
+        if (support != that.support) return false;
+        return super.equals(o);
+    }
+
+    @Override
+    public int hashCode() {
+        return 31 * super.hashCode() + (int) (support ^ (support >>> 32));
     }
 
     @Override
     public String toString() {
         if (support == 1) {
-            return items.toString();
+            return super.toString();
         } else {
-            return items.toString() + "@" + support;
+            return super.toString() + "@" + support;
         }
     }
 
-    // TODO: compress
+    @Override
+    public void write(DataOutput out) throws IOException {
+        WritableUtils.writeVLong(out, support);
+        super.write(out);
+    }
+
+    @Override
+    public void readFields(DataInput in) throws IOException {
+        support = WritableUtils.readVLong(in);
+        super.readFields(in);
+    }
+
     @Override
     public void writeExternal(ObjectOutput out) throws IOException {
-        out.writeLong(support);
-        out.writeInt(items.size());
-        for (int i=0; i<items.size(); i++) {
-            out.writeInt( items.getInt(i) );
-        }
+        write(out);
     }
 
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        support = in.readLong();
-        int size = in.readInt();
-        for (int i=0; i<size; i++) {
-            items.add( in.readInt() );
+        readFields(in);
+    }
+
+    public static final class KryoSerializer extends Writable2Serializer<WeightedSequence> {
+        @Override
+        public WeightedSequence newInstance(Kryo kryo, Input input, Class<WeightedSequence> type) {
+            return new WeightedSequence(null, true);
         }
     }
+
 }

@@ -1,22 +1,20 @@
 package old.journal.examples;
 
-import de.uni_mannheim.desq.util.DesqProperties;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntList;
-
-import java.io.IOException;
-import java.net.URL;
-
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import old.de.uni_mannheim.desq.dictionary.DictionaryIO;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.MemoryPatternWriter;
 import de.uni_mannheim.desq.io.SequenceReader;
-import old.journal.mining.DesqDfsWithPruning;
 import de.uni_mannheim.desq.mining.DesqMiner;
 import de.uni_mannheim.desq.mining.DesqMinerContext;
 import de.uni_mannheim.desq.mining.WeightedSequence;
-import org.apache.commons.configuration2.ConfigurationConverter;
+import de.uni_mannheim.desq.util.DesqProperties;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
+import old.de.uni_mannheim.desq.dictionary.DictionaryIO;
+import old.journal.mining.DesqDfsWithPruning;
+
+import java.io.IOException;
+import java.net.URL;
 
 public class DesqDfsWithPruningExample {
 	void icdm16() throws IOException {
@@ -54,7 +52,7 @@ public class DesqDfsWithPruningExample {
 		MemoryPatternWriter result = new MemoryPatternWriter();
 		ctx.patternWriter = result;
 		ctx.conf = new DesqProperties(DesqDfsWithPruning.createProperties(patternExpression, sigma));
-		System.out.println("\nPatterns " + ConfigurationConverter.getProperties(ctx.conf));
+		System.out.println("\nPatterns " + ctx.conf.toProperties());
 		
 		DesqMiner miner = new DesqDfsWithPruning(ctx);
 		miner.addInputSequences(dataReader);
@@ -64,7 +62,7 @@ public class DesqDfsWithPruningExample {
 		for (WeightedSequence pattern : result.getPatterns()) {
 			System.out.print(pattern.support);
 			System.out.print(": ");
-			System.out.println(dict.getItemsByFids(pattern.items));
+			System.out.println(dict.getItemsByFids(pattern));
 		}
 	}
 

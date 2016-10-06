@@ -1,10 +1,10 @@
 package de.uni_mannheim.desq.io;
 
+import it.unimi.dsi.fastutil.ints.IntList;
+
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Writer;
-
-import it.unimi.dsi.fastutil.ints.IntList;
 
 public class DelPatternWriter extends PatternWriter {
 	public enum TYPE { FID, GID, SID }

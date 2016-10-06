@@ -12,7 +12,6 @@ import de.uni_mannheim.desq.mining.WeightedSequence;
 import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
-import org.apache.commons.configuration2.ConfigurationConverter;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -29,7 +28,7 @@ public class ExampleUtils {
      */
     public static DesqMiner runMiner(SequenceReader dataReader, DesqMinerContext ctx) throws IOException {
         System.out.print("Miner properties: ");
-        System.out.println(ConfigurationConverter.getProperties(ctx.conf));
+        System.out.println(ctx.conf.toProperties());
 
         System.out.print("Creating miner... ");
         Stopwatch prepTime = Stopwatch.createStarted();
@@ -96,7 +95,7 @@ public class ExampleUtils {
         for (WeightedSequence pattern : result.getPatterns()) {
             System.out.print(pattern.support);
             System.out.print(": ");
-            System.out.println(dataReader.getDictionary().getItemsByFids(pattern.items));
+            System.out.println(dataReader.getDictionary().getItemsByFids(pattern));
         }
 
         return miner;
