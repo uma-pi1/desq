@@ -17,6 +17,18 @@ object MinerConfigurations {
                 toLetter(useTwoPass)
         (minerName, conf)
     }
+    
+    def desqDfs(sigma: Long, patternExpression: String, useFlist: Boolean, iterative: Boolean,
+                  pruneIrrelevantInputs: Boolean, useTwoPass: Boolean): (String, DesqProperties) = {
+        val conf = DesqDfs.createConf(patternExpression, sigma)
+        conf.setProperty("desq.mining.use.flist", useFlist)
+        conf.setProperty("desq.mining.iterative", iterative)
+        conf.setProperty("desq.mining.prune.irrelevant.inputs", pruneIrrelevantInputs)
+        conf.setProperty("desq.mining.use.two.pass", useTwoPass)
+        val minerName = "DesqCount-" + toLetter(useFlist) + toLetter(iterative) + toLetter(pruneIrrelevantInputs) +
+                toLetter(useTwoPass)
+        (minerName, conf)
+    }
 
     def desqCount(sigma: Long, gamma: Int, lambda: Int, generalize: Boolean, useFlist: Boolean, iterative: Boolean,
                   pruneIrrelevantInputs: Boolean, useTwoPass: Boolean): (String, DesqProperties) = {
@@ -45,6 +57,8 @@ object MinerConfigurations {
         allMiners.add(desqCount(sigma, patternExpression, useFlist = true, iterative = true, pruneIrrelevantInputs = false, useTwoPass = false))
         allMiners.add(desqCount(sigma, patternExpression, useFlist = true, iterative = true, pruneIrrelevantInputs = true, useTwoPass = false))
         allMiners.add(desqCount(sigma, patternExpression, useFlist = true, iterative = true, pruneIrrelevantInputs = true, useTwoPass = true))
+        // desqDfs test
+        allMiners.add(desqDfs(sigma, patternExpression, useFlist = true, iterative = false, pruneIrrelevantInputs = true, useTwoPass = true))
         allMiners
     }
 
