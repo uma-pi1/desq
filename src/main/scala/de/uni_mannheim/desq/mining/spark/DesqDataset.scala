@@ -211,11 +211,10 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
   def toFids() : DesqDataset = {
     val usesFids = this.usesFids
     val dictBroadcast = broadcastDictionary()
-    
-    if(usesFids) {
-      return this
-    }
-    else {
+
+    if (usesFids) {
+      this
+    } else {
       val newSequences = sequences.mapPartitions(rows => {
         new Iterator[WeightedSequence] {
           val dict = dictBroadcast.value
@@ -231,7 +230,7 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
         }
       })
       
-      new DesqDataset(newSequences, dict, true)
+      new DesqDataset(newSequences, this, true)
     }
   }
   
@@ -242,10 +241,9 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
     val usesFids = this.usesFids
     val dictBroadcast = broadcastDictionary()
     
-    if(!usesFids) {
-      return this
-    }
-    else {
+    if (!usesFids) {
+      this
+    } else {
       val newSequences = sequences.mapPartitions(rows => {
         new Iterator[WeightedSequence] {
           val dict = dictBroadcast.value
@@ -261,7 +259,7 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
         }
       })
       
-      new DesqDataset(newSequences, dict, false)
+      new DesqDataset(newSequences, this, false)
     }
   }
 }
