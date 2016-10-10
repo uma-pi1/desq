@@ -24,22 +24,22 @@ object ExampleUtils {
     ctx.conf.prettyPrint()
 
     print("Creating miner... ")
-    //val prepTime = Stopwatch.createStarted
+    var t1 = System.nanoTime // we are not using the Guava stopwatch here due to the packaging conflicts inside Spark (Guava 14)
     val miner = DesqMiner.create(ctx)
-    //prepTime.stop
-    //println(prepTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+    val prepTime = (System.nanoTime - t1) / 1e6d
+    println(prepTime + "ms")
 
     print("Mining (RDD construction)... ")
-   // val miningTime = Stopwatch.createStarted
+    t1 = System.nanoTime
     val result = miner.mine(data)
-    //miningTime.stop
-    //println(miningTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+    var miningTime = (System.nanoTime - t1) / 1e6d
+    println(miningTime + "ms")
 
-    print("Mining (persist)... ")
-    //val persistTime = Stopwatch.createStarted
+    //print("Mining (persist)... ")
+    //t1 = System.nanoTime
     //result.sequences.cache()
     //val (count, support) = result.sequences.map(ws => (1, ws.support)).reduce((cs1, cs2) => (cs1._1+cs2._1, cs1._2+cs2._2))
-   // persistTime.stop
+    //persistTime.stop
     //println(persistTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
     //println("Total time: " + (prepTime.elapsed(TimeUnit.MILLISECONDS)
