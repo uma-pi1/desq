@@ -204,6 +204,66 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
       sequences.context.sequenceFile(sequencePath, classOf[NullWritable], classOf[WeightedSequence]).map(kv => kv._2),
       dict, usesFids)
   }
+  
+  /** Returns dataset with sequences encoded as Fids. 
+   *  If sequences are encoded as gids, they are converted to fids. Otherwise, nothing is done. 
+   */
+  def toFids() : DesqDataset = {
+    val usesFids = this.usesFids
+    val dictBroadcast = broadcastDictionary()
+    
+    if(usesFids) {
+      return this
+    }
+    else {
+      val newSequences = sequences.mapPartitions(rows => {
+        new Iterator[WeightedSequence] {
+          val dict = dictBroadcast.value
+  
+          override def hasNext: Boolean = rows.hasNext
+  
+          override def next(): WeightedSequence = {
+            val oldSeq = rows.next()
+            val newSeq = oldSeq.clone()
+            dict.gidsToFids(newSeq)
+            newSeq
+          }
+        }
+      })
+      
+      new DesqDataset(newSequences, dict, true)
+    }
+  }
+  
+  /** Returns dataset with sequences encoded as Gids. 
+   *  If sequences are encoded as fids, they are converted to gids. Otherwise, nothing is done. 
+   */
+  def toGids() : DesqDataset = {
+    val usesFids = this.usesFids
+    val dictBroadcast = broadcastDictionary()
+    
+    if(!usesFids) {
+      return this
+    }
+    else {
+      val newSequences = sequences.mapPartitions(rows => {
+        new Iterator[WeightedSequence] {
+          val dict = dictBroadcast.value
+  
+          override def hasNext: Boolean = rows.hasNext
+  
+          override def next(): WeightedSequence = {
+            val oldSeq = rows.next()
+            val newSeq = oldSeq.clone()
+            dict.fidsToGids(newSeq)
+            newSeq
+          }
+        }
+      })
+      
+      new DesqDataset(newSequences, dict, false)
+    }
+  }
 }
 
 object DesqDataset {
