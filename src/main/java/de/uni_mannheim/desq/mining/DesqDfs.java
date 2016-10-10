@@ -7,6 +7,7 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
+
 import org.apache.log4j.Logger;
 
 import java.util.ArrayList;
@@ -78,6 +79,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 	/** pivot item of the currently mined partition */
 	private int pivotItem = 0;
+
+	/** Current prefix (used for finding the potential output items of one sequence) */
+	final Sequence prefix = new Sequence();
 
 
     // -- construction/clearing ---------------------------------------------------------------------------------------
@@ -194,18 +198,92 @@ public final class DesqDfs extends MemoryDesqMiner {
 	 * @param inputSequence
 	 * @return outputItems set of frequent output items of input sequence inputSequence
 	 */
-	// TODO: so far, this only works if two-pass=true or prune.irrelevant.inputs=true (otherwise, edfa is not produced)
-	// TODO: make this more intelligent
 	public IntSet getFreqOutputItemsOfOneSequence(IntList inputSequence) {
 		outputItems.clear();
 		this.inputSequence = inputSequence;
-
+		// TODO: one-pass probably won't work at the moment
 		// check whether sequence produces output at all. if yes, produce output items
-		if (edfa.isRelevant(inputSequence, 0, 0)) {
-			stepOnePass_OS(0, fst.getInitialState(), 0);
+		if(useTwoPass) {
+			// Run the DFA to find to determine whether the input has outputs and in which states
+			// Then walk backwards and collect the output items
+			if (edfa.isRelevant(inputSequence, 0, edfaStateSequence, finalPos)) {
+				// starting from all final states for all final positions, walk backwards
+				for (final int pos : finalPos) {
+					for (State fstFinalState : edfaStateSequence.get(pos).getFstFinalStates()) {
+						osCountStepTwoPass(pos-1, fstFinalState, 0);
+					}
+				}
+				finalPos.clear();
+			}
+			edfaStateSequence.clear();
+            finalPos.clear();
+			
+		} else { // one pass
+			//if (edfa.isRelevant(inputSequence, 0, 0)) {
+			//	stepOnePass_OS(0, fst.getInitialState(), 0);
+			//}
+			System.out.println("onePass doesn't work at the moment.");
+			System.exit(0);
+		}
+		return outputItems;
+	}
+	
+	/** Runs one step in the FST to produce the set of frequent output items for one sequence
+	 * 
+	 * @param pos
+	 * @param state
+	 * @param level
+	 */
+	private void osCountStepTwoPass(int pos, State state, int level) {
+		// check if we reached the beginning of the input sequence
+		if(pos == -1) {
+			// we consumed entire input in reverse -> we must have reached the inital state by two-pass correctness
+			assert state.getId() == 0;
+			if (!prefix.isEmpty()) {
+				//countSequence(prefix);
+				outputItems.add(pivot(prefix)); // version2: send to the pivot of each output sequence, implemented naively
+			}
+			return;
 		}
 
-		return outputItems;
+		// get iterator over next output item/state pairs; reuse existing ones if possible
+		// note that the reverse FST is used here (since we process inputs backwards)
+		// only iterates over states that we saw in the forward pass (the other ones can safely be skipped)
+		final int itemFid = inputSequence.getInt(pos);
+		Iterator<ItemState> itemStateIt;
+		if (level>=itemStateIterators.size()) {
+			itemStateIt = state.consume(itemFid, null, edfaStateSequence.get(pos).getFstStates());
+			itemStateIterators.add(itemStateIt);
+		} else {
+			itemStateIt = state.consume(itemFid, itemStateIterators.get(level),
+					edfaStateSequence.get(pos).getFstStates());
+		}
+
+		// iterate over output item/state pairs
+		while(itemStateIt.hasNext()) {
+			final ItemState itemState = itemStateIt.next();
+
+			// we need to process that state because we saw it in the forward pass (assertion checks this)
+			final State toState = itemState.state;
+			assert edfaStateSequence.get(pos).getFstStates().get(toState.getId());
+
+			final int outputItemFid = itemState.itemFid;
+			if(outputItemFid == 0) { // EPS output
+				// we did not get an output, so continue with the current prefix
+				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
+				osCountStepTwoPass(pos - 1, toState, newLevel);
+			} else {
+				// we got an output; check whether it is relevant
+				if (largestFrequentFid >= outputItemFid) {
+					// now append this item to the prefix, continue running the FST, and remove the item once done
+					prefix.add(outputItemFid);
+					//outputItems.add(outputItemFid); // this was version1 - output all output items
+					int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
+					osCountStepTwoPass(pos - 1, toState, newLevel);
+					prefix.removeInt(prefix.size() - 1);
+				}
+			}
+		}
 	}
 
 	/** Runs one step in the FST in order to produce the set of frequent output items
@@ -214,6 +292,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	 * @param state current state
 	 * @param level current level
 	 */
+	@Deprecated
 	private void stepOnePass_OS(int pos, State state, int level) {
 
 		// check if we already read the entire input
@@ -422,8 +501,10 @@ public final class DesqDfs extends MemoryDesqMiner {
                 // we did not get an output, so continue running the reverse FST
 				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
 				reachedInitialStateWithoutOutput |= incStepTwoPass(args, pos-1, toState, newLevel);
-			} else if (largestFrequentFid >= outputItemFid) {
+			} else if (largestFrequentFid >= outputItemFid && (pivotItem == 0 || pivotItem >= outputItemFid)) {
                 // we have an output and its frequent, so update the corresponding projected database
+				// if we are mining a pivot partition, we don't expand with items largerthan the pivot
+				
 				// Note: we do not store pos-1 in the projected database to having avoid write -1's when the
                 // position was 0. When we read the posting list later, we substract 1
 				args.node.expandWithItem(outputItemFid, args.inputId, args.inputSupport,
@@ -454,6 +535,12 @@ public final class DesqDfs extends MemoryDesqMiner {
 			// while we expand the child node, we also compute its actual support to determine whether or not
 			// to output it (and then output it if the support is large enough)
 			long support = 0;
+			
+			// check whether pivot expansion worked
+			// the idea is that we never expand a child>pivotItem at this point
+			if(pivotItem != 0) {
+				assert childNode.itemFid <= pivotItem;
+			}
 
 			// set up the expansion
 			assert childNode.prefixSupport >= sigma;

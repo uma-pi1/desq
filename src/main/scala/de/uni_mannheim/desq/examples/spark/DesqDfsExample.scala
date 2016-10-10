@@ -13,6 +13,7 @@ object DesqDfsExample {
     val sigma = 2
     val conf = DesqDfs.createConf(patternExpression, sigma)
     conf.setProperty("desq.mining.prune.irrelevant.inputs", "true")
+    conf.setProperty("desq.mining.use.two.pass", "true")
     ExampleUtils.runIcdm16(conf)
   }
 
