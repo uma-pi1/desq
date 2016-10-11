@@ -694,7 +694,7 @@ public final class Dictionary implements Externalizable, Writable {
 
 		// Build dictionary
 		Dictionary dict = new Dictionary();
-		dict.readJson(inputStream);
+		dict.read(fileName, inputStream);
 		return dict;
 	}
 
@@ -741,24 +741,24 @@ public final class Dictionary implements Externalizable, Writable {
 	}
 	
 	/** Reads a dictionary from a FSDataInputStream. Automatically determines the right format based on file extension. */
-	public void read(File file, FSDataInputStream inputStream) throws IOException {
-		if (file.getName().endsWith(".json")) {
+	public void read(String fileName, FSDataInputStream inputStream) throws IOException {
+		if (fileName.endsWith(".json")) {
 			readJson(inputStream);
 			return;
 		}
-		if (file.getName().endsWith(".json.gz")) {
+		if (fileName.endsWith(".json.gz")) {
 			readJson(new GZIPInputStream(inputStream));
 			return;
 		}
-		if (file.getName().endsWith(".avro")) {
+		if (fileName.endsWith(".avro")) {
 			readAvro(inputStream);
 			return;
 		}
-		if (file.getName().endsWith(".avro.gz")) {
+		if (fileName.endsWith(".avro.gz")) {
 			readAvro(new GZIPInputStream(inputStream));
 			return;
 		}
-		throw new IllegalArgumentException("unknown file extension: " + file.getName());
+		throw new IllegalArgumentException("unknown file extension: " + fileName);
 	}
 
 	public void write(String fileName) throws IOException {
