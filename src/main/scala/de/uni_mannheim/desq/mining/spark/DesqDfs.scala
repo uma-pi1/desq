@@ -103,7 +103,9 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
       // TODO: have an option to add many sequences at once?
       var s : IntList = new IntArrayList
       var fids : IntList = new IntArrayList
-      for(s <- sequencesIt) {
+      while(sequencesIt.hasNext) {
+      //for(s <- sequencesIt) {   // can't use this in Scala 2.10 (which is on the cluster)
+        s = sequencesIt.next()
         if(usesFids) {
           baseMiner.addInputSequence(s, 1)
         } else {
