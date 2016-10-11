@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.examples.spark
 
+import de.uni_mannheim.desq.Desq
 import de.uni_mannheim.desq.mining.spark.DesqDfs
 import de.uni_mannheim.desq.dictionary.Dictionary
 import de.uni_mannheim.desq.mining.spark.{DesqDataset, DesqMiner, DesqMinerContext}
@@ -19,6 +20,7 @@ object DesqDfsRunner {
   def main(args: Array[String]) {
     
     val sparkConf = new SparkConf().setAppName(getClass.getName).setMaster("local")
+    Desq.initDesq(sparkConf)
     implicit val sc = new SparkContext(sparkConf)
     
     //val patternExpression = "[c|d]([A^|B=^]+)e"
@@ -37,15 +39,24 @@ object DesqDfsRunner {
     //println("Dictionary")
     //data.dict.writeJson(System.out)
     
-    val dictFile = this.getClass.getResource("/icdm16-example/dict.json")
-    val dataFile = this.getClass.getResource("/icdm16-example/data.del")
+    
+    
+    //val dictFile = this.getClass.getResource("/icdm16-example/dict.json")
+    //val dataFile = this.getClass.getResource("/icdm16-example/data.del")
   
     // load the dictionary & update hierarchy
-    val dict = Dictionary.loadFrom(dictFile)
-    val delFile = sc.parallelize(Source.fromURL(dataFile).getLines.toSeq)
-    val data = DesqDataset.loadFromDelFile(delFile, dict, usesFids = false).copyWithRecomputedCountsAndFids()
+    //val dict = Dictionary.loadFrom(dictFile)
+    //val delFile = sc.parallelize(Source.fromURL(dataFile).getLines.toSeq)
+    //val data = DesqDataset.loadFromDelFile(delFile, dict, usesFids = false).copyWithRecomputedCountsAndFids()
+    
+    var path = "/home/alex/Data/prep/icdm16"
+    if(args.length >= 1) {
+      path = args(0)
+    }
+    val data = DesqDataset.load(path)
+    
     println("\nDictionary with frequencies:")
-    dict.writeJson(System.out)
+    data.dict.writeJson(System.out)
     println()
   
     // print sequences
@@ -60,10 +71,10 @@ object DesqDfsRunner {
     
     println("args.length="+args.length) 
     
-    if(args.length >=2) {
+    if(args.length >=3) {
       println("Using argument pattern expression and sigma")
-      sigma = args(0).toInt
-      patternExpression = args(1)
+      sigma = args(1).toInt
+      patternExpression = args(2) 
     }
     
     //val patternExpression = "(.)"
