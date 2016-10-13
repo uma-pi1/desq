@@ -9,6 +9,7 @@ import it.unimi.dsi.fastutil.ints.{IntArrayList, IntList, IntSet, IntIterator, I
 import it.unimi.dsi.fastutil.objects.{ObjectIterator, ObjectLists}
 import de.uni_mannheim.desq.io.MemoryPatternWriter;
 import scala.collection.JavaConverters._
+import org.apache.spark.rdd.RDD
 
 /**
   * Created by alexrenz on 05.10.2016.
@@ -21,8 +22,6 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     val usesFids = data.usesFids
     val minSupport = conf.getLong("desq.mining.min.support")
 
-      
-    
     // In a first step, we map over each input sequence and output (output item, input sequence) pairs
     //   for all possible output items in that input sequence
     // Second, we group these pairs by key [output item], so that we get an RDD like this:
@@ -73,10 +72,12 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
           // There is some weird behavior if we use itemFids here. So for now, let's just emit
           //   the sequene as is and convert it later, again.
           //   Not as bad as it sounds as we will mostly use fid-data sets
-          (outputItem, currentSequence)
+          (outputItem, currentSequence.clone()) 
+                // TODO: if we don't clone the sequence, the wrong sequences appear in the emits. but maybe there is a better way than cloning?
         }
       }
-    }).groupByKey()
+    }).groupByKey(256)   // hardcoded. TODO change this later
+    
     
     // Third, we flatMap over the (output item, Iterable[input sequences]) RDD to mine each partition,
     //   with respect to the pivot item (=output item) of each partition. 
@@ -123,6 +124,74 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     
     // all done, return result (last parameter is true because mining.DesqCount always produces fids)
     new DesqDataset(patterns, data, true)
+  }
+  
+  @Deprecated // diagnostic method to check the partitions
+  def minePart1(data: DesqDataset): RDD[(Int, IntList)] = {
+     // localize the variables we need in the RDD
+    val dictBroadcast = data.broadcastDictionary()
+    val conf = ctx.conf
+    val usesFids = data.usesFids
+    val minSupport = conf.getLong("desq.mining.min.support")
+
+    // In a first step, we map over each input sequence and output (output item, input sequence) pairs
+    //   for all possible output items in that input sequence
+    // Second, we group these pairs by key [output item], so that we get an RDD like this:
+    //   (output item, Iterable[input sequences])
+    // Third step: see below
+    val outputItemPartitions = data.sequences.mapPartitions(rows => {
+      
+      // for each row, determine the possible output elements from that input sequence and create 
+      //   a (output item, input sequence) pair for all of the possible output items
+      new Iterator[(Int, IntList)] {
+        // initialize the sequential desq miner
+        val dict = dictBroadcast.value
+        val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext()
+        baseContext.dict = dict
+        baseContext.conf = conf
+        val baseMiner = new de.uni_mannheim.desq.mining.DesqDfs(baseContext)
+        
+        var outputIterator: IntIterator = new IntArraySet(0).iterator
+        var currentSupport = 0L
+        var itemFids = new IntArrayList
+        var currentSequence : WeightedSequence = _
+
+        // We want to output all (output item, input sequence pairs for the current 
+        //   sequence. Once we are done, we move on to the next input sequence in this partition.
+        override def hasNext: Boolean = {
+          // do we still have pairs to output for this sequence?
+          while (!outputIterator.hasNext && rows.hasNext) {
+            // if not, go to the next input sequence
+            currentSequence = rows.next()
+            currentSupport = currentSequence.support
+
+            // for that new input sequence, find all possible output sequences and add them to the outputIterator
+            if (usesFids) {
+              outputIterator = baseMiner.getFreqOutputItemsOfOneSequence(currentSequence).iterator()
+            } else {
+              dict.gidsToFids(currentSequence, itemFids)
+              outputIterator = baseMiner.getFreqOutputItemsOfOneSequence(itemFids).iterator()
+            }
+            println("Starting to emit: " + currentSequence)
+          }
+
+          outputIterator.hasNext
+        }
+
+        // we simply output (output item, input sequence)
+        override def next(): (Int, IntList) = {
+          val outputItem = outputIterator.next()
+          
+          // There is some weird behavior if we use itemFids here. So for now, let's just emit
+          //   the sequene as is and convert it later, again.
+          //   Not as bad as it sounds as we will mostly use fid-data sets
+          println("Emitting: (" + outputItem + ", " +  currentSequence + ")")
+          (outputItem, currentSequence.clone())
+        }
+      }
+    })//.groupByKey()
+    
+    return outputItemPartitions
   }
 }
 
