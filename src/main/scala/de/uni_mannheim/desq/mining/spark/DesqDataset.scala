@@ -73,9 +73,8 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
     val newDict = dict.deepCopy()
     for (itemCount <- totalItemCounts) {
       val item = newDict.getItemByGid(itemCount._1)
-      // TODO: drop toInt once items support longs
-      item.dFreq = itemCount._2._1.toInt
-      item.cFreq = itemCount._2._2.toInt
+      item.dFreq = itemCount._2._1
+      item.cFreq = itemCount._2._2
     }
     newDict.recomputeFids()
 
@@ -112,7 +111,8 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
   /** Returns dataset with sequences encoded as Fids.
     *  If sequences are encoded as gids, they are converted to fids. Otherwise, nothing is done.
     */
-  def toFids() : DesqDataset = {
+  //noinspection AccessorLikeMethodIsEmptyParen
+  def toFids(): DesqDataset = {
     val usesFids = this.usesFids
     val dictBroadcast = broadcastDictionary()
 
@@ -141,7 +141,8 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
   /** Returns dataset with sequences encoded as Gids.
     *  If sequences are encoded as fids, they are converted to gids. Otherwise, nothing is done.
     */
-  def toGids() : DesqDataset = {
+  //noinspection AccessorLikeMethodIsEmptyParen
+  def toGids(): DesqDataset = {
     val usesFids = this.usesFids
     val dictBroadcast = broadcastDictionary()
 

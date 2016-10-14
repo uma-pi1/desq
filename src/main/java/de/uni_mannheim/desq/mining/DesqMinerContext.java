@@ -6,7 +6,7 @@ import de.uni_mannheim.desq.util.DesqProperties;
 
 public final class DesqMinerContext {
 	public Dictionary dict;
-	public PatternWriter patternWriter;
+	public PatternWriter patternWriter; 	// if null, patterns are mined but not collected
 	public DesqProperties conf;
 
 	public DesqMinerContext(DesqProperties conf, Dictionary dict, PatternWriter patternWriter) {

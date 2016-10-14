@@ -42,10 +42,10 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 
             // and run sequential DesqCount to get all output sequences produced by that input
             if (usesFids) {
-              outputIterator = baseMiner.mine1(s).iterator()
+              outputIterator = baseMiner.mine1(s, 1L).iterator()
             } else {
               dict.gidsToFids(s, itemFids)
-              outputIterator = baseMiner.mine1(itemFids).iterator()
+              outputIterator = baseMiner.mine1(itemFids, 1L).iterator()
             }
           }
 

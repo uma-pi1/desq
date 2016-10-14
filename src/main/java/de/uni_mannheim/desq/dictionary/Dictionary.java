@@ -512,7 +512,7 @@ public final class Dictionary implements Externalizable, Writable {
 		Collections.sort(items, (i1, i2) -> i1.fid-i2.fid );
 
 		int lastFid = Integer.MIN_VALUE;
-		int lastDFreq = Integer.MAX_VALUE;
+		long lastDFreq = Long.MAX_VALUE;
 		for (Item item : items) {
 			if (lastFid == item.fid || item.dFreq > lastDFreq) return false;
 			lastFid = item.fid;

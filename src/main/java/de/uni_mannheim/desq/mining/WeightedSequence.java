@@ -49,6 +49,16 @@ public final class WeightedSequence extends Sequence implements Externalizable, 
         return c;
     }
 
+    /** Returns a weigthed sequence with the same content and the specified support. Data copying is avoided to
+     * the extend possible, i.e., the returned sequence may share date with this sequence. */
+    @Override
+    public WeightedSequence withSupport(long support) {
+        if (this.support == support) return this;
+        WeightedSequence result = new WeightedSequence(a, support);
+        result.size = this.size;
+        return result;
+    }
+
     @Override
     public int compareTo(List<? extends Integer> o) {
         if (o instanceof WeightedSequence) {

@@ -71,9 +71,9 @@ public final class DictionaryIO {
 		sb.append(item.sid);
 		sb.append("\t");
 		if (withStatistics) {
-			sb.append(Integer.toString(item.cFreq));
+			sb.append(Long.toString(item.cFreq));
 			sb.append("\t");
-			sb.append(Integer.toString(item.dFreq));
+			sb.append(Long.toString(item.dFreq));
 			sb.append("\t");
 		}
 		sb.append(Integer.toString(useFids ? item.fid : item.gid));

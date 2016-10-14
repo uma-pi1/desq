@@ -60,6 +60,9 @@ public final class DesqCount extends DesqMiner {
 	/** The input sequence currenlty processed */
 	IntList inputSequence;
 
+	/** The support of the current input sequence */
+	long inputSupport;
+
 	/** Stores all mined sequences along with their frequency. Each long is composed of a 32-bit integer storing the
 	 * actual count and a 32-bit integer storing the input id of the last input sequence that produced this output.  */
 	final Object2LongOpenHashMap<Sequence> outputSequences = new Object2LongOpenHashMap<>();
@@ -175,15 +178,16 @@ public final class DesqCount extends DesqMiner {
 	// -- processing input sequences ---------------------------------------------------------------------------------
 
 	@Override
-	protected void addInputSequence(IntList inputSequence) {
+	protected void addInputSequence(IntList sequence, long support, boolean allowBuffering) {
 		assert prefix.isEmpty(); // will be maintained by stepOnePass()
-		this.inputSequence = inputSequence;
+		this.inputSequence = sequence;
+		this.inputSupport = support;
 
 		// two-pass version of DesqCount
 		if (useTwoPass) {
 			// run the input sequence through the EDFA and compute the state sequences as well as the positions before
 			// which a final FST state is reached
-			if (edfa.isRelevant(inputSequence, 0, edfaStateSequence, finalPos)) {
+			if (edfa.isRelevant(sequence, 0, edfaStateSequence, finalPos)) {
 				// we now know that the sequence is relevant; process it
 				if (iterative) {
 					// look at all positions before which a final FST state can be reached
@@ -210,7 +214,7 @@ public final class DesqCount extends DesqMiner {
 		}
 
 		// one-pass version of DesqCount
-		if (!pruneIrrelevantInputs || edfa.isRelevant(inputSequence, 0, 0)) {
+		if (!pruneIrrelevantInputs || edfa.isRelevant(sequence, 0, 0)) {
 			if (iterative) {
 				stepOnePassIterative();
 			} else {
@@ -248,9 +252,9 @@ public final class DesqCount extends DesqMiner {
 	 * @param inputSequence
 	 * @return
 	 */
-	public ObjectSet<Sequence> mine1(IntList inputSequence) {
+	public ObjectSet<Sequence> mine1(IntList inputSequence, long inputSupport) {
 		outputSequences.clear();
-		addInputSequence(inputSequence);
+		addInputSequence(inputSequence, inputSupport, true);
 		return outputSequences.keySet();
 	}
 
@@ -536,20 +540,22 @@ public final class DesqCount extends DesqMiner {
 		}
 	}
 
-	/** Counts the provided output sequence. Avoids double-counting. */
+	/** Counts the provided output sequence. Avoids double-counting.
+	 *
+	 * TODO: does not work correctly if supports grow beyond integer size
+	 */
 	private void countSequence(Sequence sequence) {
 		long supSid = outputSequences.getLong(sequence);
 
 		// add sequence if never mined before
 		if (supSid == -1) { // set as return value when key not present
-			outputSequences.put(new Sequence(sequence), PrimitiveUtils.combine(1, inputId)); // need to copy here
+			outputSequences.put(new Sequence(sequence), PrimitiveUtils.combine((int)inputSupport, inputId)); // need to copy here
 			return;
 		}
 
 		// otherwise increment frequency when if hasn't been mined from the current input sequence already
 		if (PrimitiveUtils.getRight(supSid) != inputId) {
-		    // TODO: can overflow
-			int newCount = PrimitiveUtils.getLeft(supSid) + 1;
+			int newCount = PrimitiveUtils.getLeft(supSid) + (int)inputSupport;
 			outputSequences.put(sequence, PrimitiveUtils.combine(newCount, inputId));
 		}
 	}
