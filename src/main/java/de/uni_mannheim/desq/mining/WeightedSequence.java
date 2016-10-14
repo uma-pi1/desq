@@ -32,10 +32,12 @@ public final class WeightedSequence extends Sequence implements Externalizable, 
 
     protected WeightedSequence(int capacity) {
         super(capacity);
+        support = 1;
     }
 
-    public WeightedSequence(final int[] a, boolean dummy) {
-        super(a, dummy);
+    public WeightedSequence(final int[] a, long support) {
+        super(a, true);
+        this.support = support;
     }
 
     @Override
@@ -123,7 +125,7 @@ public final class WeightedSequence extends Sequence implements Externalizable, 
     public static final class KryoSerializer extends Writable2Serializer<WeightedSequence> {
         @Override
         public WeightedSequence newInstance(Kryo kryo, Input input, Class<WeightedSequence> type) {
-            return new WeightedSequence(null, true);
+            return new WeightedSequence((int[])null, 1L);
         }
     }
 

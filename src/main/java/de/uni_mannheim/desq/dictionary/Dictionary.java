@@ -4,6 +4,7 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import de.uni_mannheim.desq.avro.AvroItem;
 import de.uni_mannheim.desq.io.SequenceReader;
+import de.uni_mannheim.desq.util.DataInput2InputStreamWrapper;
 import de.uni_mannheim.desq.util.IntSetUtils;
 import de.uni_mannheim.desq.util.Writable2Serializer;
 import it.unimi.dsi.fastutil.ints.*;
@@ -454,11 +455,11 @@ public final class Dictionary implements Externalizable, Writable {
 	}
 
 	public void gidsToFids(IntList ids, IntList fids) {
-		fids.size(0);
+		fids.size(ids.size());
 		for (int i=0; i<ids.size(); i++) {
 			int gid = ids.getInt(i);
 			int fid = getItemByGid(gid).fid;
-			fids.add(fid);
+			fids.set(i, fid);
 		}
 	}
 
@@ -472,11 +473,11 @@ public final class Dictionary implements Externalizable, Writable {
 	}
 
 	public void fidsToGids(IntList fids, IntList ids) {
-		ids.size(0);
+		ids.size(fids.size());
 		for (int i=0; i<fids.size(); i++) {
 			int fid = fids.getInt(i);
 			int gid = getItemByFid(fid).gid;
-			ids.add(gid);
+			ids.set(i, gid);
 		}
 	}
 	
@@ -806,13 +807,13 @@ public final class Dictionary implements Externalizable, Writable {
 		}
 	}
 
-	public byte[] toBytes() throws IOException {
+	private byte[] toBytes() throws IOException {
 		ByteArrayOutputStream bytesOut = new ByteArrayOutputStream(itemsByFid.size()*50);
 		writeAvro(bytesOut);
 		return bytesOut.toByteArray();
 	}
 
-	public static Dictionary fromBytes(byte[] bytes) throws IOException {
+	private static Dictionary fromBytes(byte[] bytes) throws IOException {
 		Dictionary dict = new Dictionary();
 		dict.readAvro(new ByteArrayInputStream(bytes));
 		return dict;
@@ -830,6 +831,7 @@ public final class Dictionary implements Externalizable, Writable {
 
 	@Override
 	public void write(DataOutput out) throws IOException {
+		// not very efficient to write, but allows for fast reads
 		byte[] bytes = toBytes();
 		out.writeInt(bytes.length);
 		out.write(bytes);
@@ -838,9 +840,9 @@ public final class Dictionary implements Externalizable, Writable {
 	@Override
 	public void readFields(DataInput in) throws IOException {
 		int length = in.readInt();
-		byte[] bytes = new byte[length];
-		in.readFully(bytes);
-		readAvro(new ByteArrayInputStream(bytes));
+		readAvro(new DataInput2InputStreamWrapper(in, length));
+		// since Avro internally prereads the input stream beyond its actually serialized size, we need to limit
+		// the number of bytes to be read above
 	}
 
 	public static final class KryoSerializer extends Writable2Serializer<Dictionary> {

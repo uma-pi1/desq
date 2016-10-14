@@ -2,8 +2,7 @@ package de.uni_mannheim.desq.mining.spark
 
 import java.util.Collections
 
-import de.uni_mannheim.desq.dictionary.Dictionary
-import de.uni_mannheim.desq.mining.{Sequence, WeightedSequence}
+import de.uni_mannheim.desq.mining.Sequence
 import de.uni_mannheim.desq.util.DesqProperties
 import it.unimi.dsi.fastutil.ints.IntArrayList
 import it.unimi.dsi.fastutil.objects.{ObjectIterator, ObjectLists}
@@ -25,13 +24,11 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
       new Iterator[(Sequence,Long)] {
         // initialize the sequential desq miner
         val dict = dictBroadcast.value
-        val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext()
-        baseContext.dict = dict
-        baseContext.conf = conf
+        val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext(conf, dict)
         val baseMiner = new de.uni_mannheim.desq.mining.DesqCount(baseContext)
         var outputIterator: ObjectIterator[Sequence] = ObjectLists.emptyList[Sequence].iterator()
         var currentSupport = 0L
-        val itemFids = new IntArrayList
+        val itemFids = new IntArrayList()
         val reversedOutput = baseMiner.mine1reversedOutput()
 
         // here we check if we have an output sequence from the current row; if not, we more to the next row
@@ -66,7 +63,7 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
       }
     }).reduceByKey(_ + _) // now sum up count
       .filter(_._2 >= minSupport) // and drop infrequent output sequences
-      .map(s => new WeightedSequence(s._1, s._2)) // and pack the remaining sequences into a WeightedSequence
+      .map(s => s._1.withSupport(s._2)) // and pack the remaining sequences into a WeightedSequence
 
     // all done, return result (last parameter is true because mining.DesqCount always produces fids)
     new DesqDataset(patterns, data, true)

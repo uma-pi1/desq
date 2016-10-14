@@ -110,4 +110,12 @@ public final class DictionaryIO {
 		}
 		writer.flush();
 	}
+
+	/** Conversion from old del format to new formats */
+	public static void main(String[] args) throws IOException {
+		String base = "data-local/nyt-1991-dict";
+		Dictionary dict = loadFromDel(new FileInputStream(base+".del"), true);
+		dict.write(base+".avro.gz");
+		dict.write(base+".json");
+	}
 }

@@ -7,7 +7,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 /** Wraps a DataOutput around an Output. */
-public class Output2DataOutputWrapper implements DataOutput {
+public final class Output2DataOutputWrapper implements DataOutput {
     public Output output;
 
     @Override
