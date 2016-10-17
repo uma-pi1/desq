@@ -38,7 +38,7 @@ object DesqRunner {
     //data.print()
     
     val sigma = args(3).toInt
-    val patternExpression = args(4) 
+    val patternExpression = args(4)
     
     // Build miner conf
     var minerConf = DesqDfs.createConf(patternExpression, sigma)
@@ -46,7 +46,7 @@ object DesqRunner {
       minerConf = DesqCount.createConf(patternExpression, sigma)
     }
     minerConf.setProperty("desq.mining.prune.irrelevant.inputs", "true")
-    minerConf.setProperty("desq.mining.use.two.pass", "true")
+    minerConf.setProperty("desq.mining.use.two.pass", "false")
     minerConf.setProperty("desq.mining.use.flist", "true")
     
     // Build miner
@@ -60,8 +60,8 @@ object DesqRunner {
     print("Mining (RDD construction)... ")
     val result = miner.mine(data)
     result.sequences.saveAsTextFile(args(2))
+    //result.toSidsSupportPairs().saveAsTextFile(args(2))
     val mineAndOutputTime = (System.nanoTime - t1) / 1e6d
     logger.fatal("mineAndOutputTime: " + mineAndOutputTime + "ms")
-    
   }
 }

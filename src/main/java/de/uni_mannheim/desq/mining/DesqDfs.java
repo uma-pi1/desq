@@ -3,10 +3,7 @@ package de.uni_mannheim.desq.mining;
 import de.uni_mannheim.desq.fst.*;
 import de.uni_mannheim.desq.patex.PatEx;
 import de.uni_mannheim.desq.util.DesqProperties;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntList;
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.ints.*;
 
 import org.apache.log4j.Logger;
 
@@ -195,6 +192,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** Produces set of frequent output elements created by one input sequence by running the FST 
 	 * and storing all frequent output items
 	 *
+	 * We are using one pass for this for now, as it is generally safer to use.
+	 *
 	 * @param inputSequence
 	 * @return outputItems set of frequent output items of input sequence inputSequence
 	 */
@@ -204,9 +203,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 		// TODO: one-pass probably won't work at the moment
 		// check whether sequence produces output at all. if yes, produce output items
 		if(useTwoPass) {
+			System.out.println("Please use onePass with DesqDfs distributed. Exiting.");
+			System.exit(0);
 			// Run the DFA to find to determine whether the input has outputs and in which states
 			// Then walk backwards and collect the output items
-			if (edfa.isRelevant(inputSequence, 0, edfaStateSequence, finalPos)) {
+			/*if (edfa.isRelevant(inputSequence, 0, edfaStateSequence, finalPos)) {
 				// starting from all final states for all final positions, walk backwards
 				for (final int pos : finalPos) {
 					for (State fstFinalState : edfaStateSequence.get(pos).getFstFinalStates()) {
@@ -216,16 +217,73 @@ public final class DesqDfs extends MemoryDesqMiner {
 				finalPos.clear();
 			}
 			edfaStateSequence.clear();
-            finalPos.clear();
+            finalPos.clear();*/
 			
 		} else { // one pass
-			//if (edfa.isRelevant(inputSequence, 0, 0)) {
-			//	stepOnePass_OS(0, fst.getInitialState(), 0);
-			//}
-			System.out.println("onePass doesn't work at the moment.");
-			System.exit(0);
+			if (edfa.isRelevant(inputSequence, 0, 0)) {
+				osCountStepOnePass(0, 0, fst.getInitialState(), 0, 0);
+			}
 		}
 		return outputItems;
+	}
+
+
+	/** Runs one step in the FST in order to produce the set of frequent output items
+	 *
+	 * @param pos   current position
+	 * @param state current state
+	 * @param level current level
+	 */
+
+	private void osCountStepOnePass(int pivot, int pos, State state, int level, int level2) {
+		// if we reached a final state, we count the current sequence (if any)
+		if(state.isFinal() && pivot != 0 && (!fst.getRequireFullMatch() || pos==inputSequence.size())) {
+			//countSequence(prefix);
+			outputItems.add(pivot);
+		}
+
+		// check if we already read the entire input
+		if (pos == inputSequence.size()) {
+			return;
+		}
+
+		// get iterator over next output item/state pairs; reuse existing ones if possible
+		final int itemFid = inputSequence.getInt(pos); // the current input item
+		Iterator<ItemState> itemStateIt;
+		if(level >= itemStateIterators.size()) {
+			itemStateIt = state.consume(itemFid);
+			itemStateIterators.add(itemStateIt);
+		} else {
+			itemStateIt = state.consume(itemFid, itemStateIterators.get(level));
+		}
+
+		// iterate over output item/state pairs
+		while(itemStateIt.hasNext()) {
+			final ItemState itemState = itemStateIt.next();
+			final int outputItemFid = itemState.itemFid;
+			final State toState = itemState.state;
+
+			if(outputItemFid == 0) { // EPS output
+				// we did not get an output, so continue with the current prefix
+				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
+				osCountStepOnePass(pivot, pos + 1, toState, newLevel, level2+1);
+			} else {
+				// we got an output; check whether it is relevant
+				if (largestFrequentFid >= outputItemFid) {
+					// now append this item to the prefix, continue running the FST, and remove the item once done
+					//prefix.add(outputItemFid);
+					int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
+
+					if(outputItemFid > pivot) { // we have a new pivot item
+						osCountStepOnePass(outputItemFid, pos + 1, toState, newLevel, level2+1);
+					} else { // keep the old pivot
+						osCountStepOnePass(pivot, pos + 1, toState, newLevel, level2 + 1);
+					}
+
+					//prefix.removeInt(prefix.size() - 1);
+				}
+			}
+		}
 	}
 	
 	/** Runs one step in the FST to produce the set of frequent output items for one sequence
@@ -234,6 +292,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	 * @param state
 	 * @param level
 	 */
+	@Deprecated
 	private void osCountStepTwoPass(int pivot, int pos, State state, int level) {
 		// check if we reached the beginning of the input sequence
 		if(pos == -1) {
@@ -353,51 +412,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 	}
 
-	/** Runs one step in the FST in order to produce the set of frequent output items
-	 *
-	 * @param pos   current position
-	 * @param state current state
-	 * @param level current level
-	 */
-	@Deprecated
-	private void stepOnePass_OS(int pos, State state, int level) {
 
-		// check if we already read the entire input
-		if (pos == inputSequence.size()) {
-			return;
-		}
-
-		// get iterator over next output item/state pairs; reuse existing ones if possible
-		final int itemFid = inputSequence.getInt(pos); // the current input item
-		Iterator<ItemState> itemStateIt;
-		if(level >= itemStateIterators.size()) {
-			itemStateIt = state.consume(itemFid);
-			itemStateIterators.add(itemStateIt);
-		} else {
-			itemStateIt = state.consume(itemFid, itemStateIterators.get(level));
-		}
-
-		// iterate over output item/state pairs
-        while(itemStateIt.hasNext()) {
-            final ItemState itemState = itemStateIt.next();
-			final int outputItemFid = itemState.itemFid;
-			final State toState = itemState.state;
-
-			if(outputItemFid == 0) { // EPS output
-				// we did not get an output, so continue with the current prefix
-				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
-				stepOnePass_OS(pos + 1, toState, newLevel);
-			} else {
-				// We only add the output item if it is frequent, as we don't want to create partitions for infrequent items
-				if (largestFrequentFid >= outputItemFid) {
-					// add item to the set of output items generated by this sequence
-					outputItems.add(outputItemFid);
-					int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
-					stepOnePass_OS(pos + 1, toState, newLevel);
-				}
-			}
-		}
-	}
 
 
     // -- de.uni_mannheim.desq.old.mining ------------------------------------------------------------------------------------------------------

@@ -58,7 +58,7 @@ object MinerConfigurations {
         allMiners.add(desqCount(sigma, patternExpression, useFlist = true, iterative = true, pruneIrrelevantInputs = true, useTwoPass = false))
         allMiners.add(desqCount(sigma, patternExpression, useFlist = true, iterative = true, pruneIrrelevantInputs = true, useTwoPass = true))
         // desqDfs test
-        allMiners.add(desqDfs(sigma, patternExpression, useFlist = true, iterative = false, pruneIrrelevantInputs = true, useTwoPass = true))
+        allMiners.add(desqDfs(sigma, patternExpression, useFlist = true, iterative = false, pruneIrrelevantInputs = true, useTwoPass = false))
         allMiners
     }
 
