@@ -27,7 +27,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     // Second, we group these pairs by key [output item], so that we get an RDD like this:
     //   (output item, Iterable[input sequences])
     // Third step: see below
-    val outputItemPartitions = data.sequences.mapPartitions(rows => {
+    val outputItemPartitions = data.sequences.repartition(128).mapPartitions(rows => {
       
       // for each row, determine the possible output elements from that input sequence and create 
       //   a (output item, input sequence) pair for all of the possible output items
@@ -76,7 +76,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
                 // TODO: if we don't clone the sequence, the wrong sequences appear in the emits. but maybe there is a better way than cloning?
         }
       }
-    }).groupByKey(256)   // hardcoded. TODO change this later
+    }).groupByKey()   // hardcoded. TODO change this later
     
     
     // Third, we flatMap over the (output item, Iterable[input sequences]) RDD to mine each partition,

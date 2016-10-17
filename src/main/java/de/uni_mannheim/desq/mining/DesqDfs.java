@@ -210,7 +210,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				// starting from all final states for all final positions, walk backwards
 				for (final int pos : finalPos) {
 					for (State fstFinalState : edfaStateSequence.get(pos).getFstFinalStates()) {
-						osCountStepTwoPass(pos-1, fstFinalState, 0);
+						osCountStepTwoPass(0, pos-1, fstFinalState, 0);
 					}
 				}
 				finalPos.clear();
@@ -234,7 +234,74 @@ public final class DesqDfs extends MemoryDesqMiner {
 	 * @param state
 	 * @param level
 	 */
-	private void osCountStepTwoPass(int pos, State state, int level) {
+	private void osCountStepTwoPass(int pivot, int pos, State state, int level) {
+		// check if we reached the beginning of the input sequence
+		if(pos == -1) {
+			// we consumed entire input in reverse -> we must have reached the inital state by two-pass correctness
+			assert state.getId() == 0;
+			//if (!prefix.isEmpty()) {
+				//countSequence(prefix);
+				//outputItems.add(pivot(prefix)); // version2: send to the pivot of each output sequence, implemented naively
+			//}
+			if(pivot != 0) {
+				outputItems.add(pivot);
+			}
+			return;
+		}
+
+		// get iterator over next output item/state pairs; reuse existing ones if possible
+		// note that the reverse FST is used here (since we process inputs backwards)
+		// only iterates over states that we saw in the forward pass (the other ones can safely be skipped)
+		final int itemFid = inputSequence.getInt(pos);
+		Iterator<ItemState> itemStateIt;
+		if (level>=itemStateIterators.size()) {
+			itemStateIt = state.consume(itemFid, null, edfaStateSequence.get(pos).getFstStates());
+			itemStateIterators.add(itemStateIt);
+		} else {
+			itemStateIt = state.consume(itemFid, itemStateIterators.get(level),
+					edfaStateSequence.get(pos).getFstStates());
+		}
+
+		// iterate over output item/state pairs
+		while(itemStateIt.hasNext()) {
+			final ItemState itemState = itemStateIt.next();
+
+			// we need to process that state because we saw it in the forward pass (assertion checks this)
+			final State toState = itemState.state;
+			assert edfaStateSequence.get(pos).getFstStates().get(toState.getId());
+
+			final int outputItemFid = itemState.itemFid;
+			if(outputItemFid == 0) { // EPS output
+				// we did not get an output, so continue with the current prefix
+				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
+				osCountStepTwoPass(pivot, pos - 1, toState, newLevel);
+			} else {
+				// we got an output; check whether it is relevant
+				if (largestFrequentFid >= outputItemFid) {
+					
+					// now append this item to the prefix, continue running the FST, and remove the item once done
+					// but: we only append this item if it is the new pivot
+					//prefix.add(outputItemFid);
+					//outputItems.add(outputItemFid); // this was version1 - output all output items
+					
+					int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
+					
+					// version3: instead of storing all elements seen so far, we only keep track of the current pivot
+					if(outputItemFid > pivot) {
+						// we have a new pivot, pass it on
+						osCountStepTwoPass(outputItemFid, pos - 1, toState, newLevel);
+					} else {
+						// the old element stays the pivot, keep it
+						osCountStepTwoPass(pivot, pos - 1, toState, newLevel);
+					}
+					//prefix.removeInt(prefix.size() - 1);
+				}
+			}
+		}
+	}
+	
+	@Deprecated
+	private void osCountStepTwoPassV2(int pos, State state, int level) {
 		// check if we reached the beginning of the input sequence
 		if(pos == -1) {
 			// we consumed entire input in reverse -> we must have reached the inital state by two-pass correctness
@@ -271,7 +338,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			if(outputItemFid == 0) { // EPS output
 				// we did not get an output, so continue with the current prefix
 				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
-				osCountStepTwoPass(pos - 1, toState, newLevel);
+				osCountStepTwoPassV2(pos - 1, toState, newLevel);
 			} else {
 				// we got an output; check whether it is relevant
 				if (largestFrequentFid >= outputItemFid) {
@@ -279,7 +346,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 					prefix.add(outputItemFid);
 					//outputItems.add(outputItemFid); // this was version1 - output all output items
 					int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
-					osCountStepTwoPass(pos - 1, toState, newLevel);
+					osCountStepTwoPassV2(pos - 1, toState, newLevel);
 					prefix.removeInt(prefix.size() - 1);
 				}
 			}
