@@ -8,6 +8,8 @@ import it.unimi.dsi.fastutil.ints.*;
 import org.apache.log4j.Logger;
 
 import java.util.ArrayList;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.Iterator;
 
 public final class DesqDfs extends MemoryDesqMiner {
@@ -79,6 +81,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 	/** Current prefix (used for finding the potential output items of one sequence) */
 	final Sequence prefix = new Sequence();
+
+	/* For each current recursion level, a set of to-states that already have been visited by a non-pivot transition */
+	final ArrayList<Set<State>> nonPivotExpandedToStates = new ArrayList<>();
 
 
     // -- construction/clearing ---------------------------------------------------------------------------------------
@@ -257,6 +262,16 @@ public final class DesqDfs extends MemoryDesqMiner {
 			itemStateIt = state.consume(itemFid, itemStateIterators.get(level));
 		}
 
+		// get an empty set to maintain the states to-states that we have already visited with non-pivot transitions
+		Set<State> visitedToStates;
+		if(level2 >= nonPivotExpandedToStates.size()) {
+			visitedToStates = new HashSet();
+			nonPivotExpandedToStates.add(visitedToStates);
+		} else {
+			visitedToStates = nonPivotExpandedToStates.get(level2);
+			visitedToStates.clear();
+		}
+
 		// iterate over output item/state pairs
 		while(itemStateIt.hasNext()) {
 			final ItemState itemState = itemStateIt.next();
@@ -277,7 +292,13 @@ public final class DesqDfs extends MemoryDesqMiner {
 					if(outputItemFid > pivot) { // we have a new pivot item
 						osCountStepOnePass(outputItemFid, pos + 1, toState, newLevel, level2+1);
 					} else { // keep the old pivot
-						osCountStepOnePass(pivot, pos + 1, toState, newLevel, level2 + 1);
+						if(!visitedToStates.contains(toState)) { // we go to each toState only once with non-pivot transitions
+							osCountStepOnePass(pivot, pos + 1, toState, newLevel, level2 + 1);
+							visitedToStates.add(toState);
+						//	System.out.println("(Non-pivot item " + outputItemFid + " (pivot + " + pivot + ")): Visiting state " + toState.getId() + " for the first time from state " + state.getId() + " at level " + level2);
+						} //else {
+							//System.out.println("Non-pivot item " + outputItemFid + " (pivot + " + pivot + ")): State " + toState.getId() + " visited already from state " + state.getId() + " at level " + level2 + ". Skipping");
+						//}
 					}
 
 					//prefix.removeInt(prefix.size() - 1);
