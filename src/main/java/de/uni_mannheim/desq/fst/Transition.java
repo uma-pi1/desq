@@ -24,4 +24,8 @@ public abstract class Transition {
 	public State getToState() {
 		return toState;
 	}
+
+	public abstract String labelString();
+
+	public abstract String toPatternExpression();
 }

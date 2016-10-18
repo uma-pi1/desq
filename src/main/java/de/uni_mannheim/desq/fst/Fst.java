@@ -1,8 +1,11 @@
 package de.uni_mannheim.desq.fst;
 
 
-import de.uni_mannheim.desq.visual.FstVisualizer;
+import com.google.common.base.Strings;
+import de.uni_mannheim.desq.fst.graphviz.FstVisualizer;
+import org.apache.commons.io.FilenameUtils;
 
+import java.io.PrintStream;
 import java.util.*;
 
 
@@ -108,22 +111,62 @@ public final class Fst {
 		}
 		return fstCopy;
 	}
+
+	public void print() {
+		print(System.out, 2);
+	}
+
+	public void print(PrintStream out, int indent) {
+		String indentString = Strings.repeat(" ", indent);
+
+		out.print(indentString);
+		out.print("States : ");
+		out.print(numStates());
+		out.print(" states, initial=");
+		out.print(getInitialState().id);
+		out.print(", final=[");
+		String separator = "";
+		for (State state : getFinalStates()) {
+			out.print(separator);
+			out.print(state.id);
+			separator = ",";
+		}
+		out.println("]");
+
+		out.print(indentString);
+		out.print("Trans. : ");
+		String newIndent = "";
+		for (State state : getStates()) {
+			out.print(newIndent);
+			newIndent = "         " + indentString;
+
+			out.print(state.id);
+			out.print(": ");
+
+			separator = "";
+			for (Transition t : state.getTransitions()) {
+				out.print(separator);
+				out.print(t.toString());
+				separator = ", ";
+			}
+			out.println();
+		}
+	}
 	
-	
-	// print the de.uni_mannheim.desq.old.fst to a file
-	public void print(String file) {
-		FstVisualizer fstVisualizer = new FstVisualizer(file);
+	/** Exports the fst using graphviz (type bsed on extension, e.g., "gv" (source file), "pdf", ...) */
+	public void exportGraphViz(String file) {
+		FstVisualizer fstVisualizer = new FstVisualizer(FilenameUtils.getExtension(file), FilenameUtils.getBaseName(file));
 		fstVisualizer.beginGraph();
 		for(State s : states) {
 			for(Transition t : s.transitionList)
-                fstVisualizer.add(String.valueOf(s.id), t.toString(), String.valueOf(t.getToState().id));
+                fstVisualizer.add(String.valueOf(s.id), t.labelString(), String.valueOf(t.getToState().id));
 			if(s.isFinal)
 				fstVisualizer.addAccepted(String.valueOf(s.id));
 		}
 		fstVisualizer.endGraph();
 	}
 	
-	// reverses the edges of the de.uni_mannheim.desq.old.fst and creates one initial state
+	// reverses the edges of the fst and creates one initial state
 	// uptates state ids
 	public List<State> reverse() {
 		return reverse(true);

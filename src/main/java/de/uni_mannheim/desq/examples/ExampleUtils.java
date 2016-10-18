@@ -70,7 +70,7 @@ public class ExampleUtils {
         // perform the mining
         DesqMiner miner = ExampleUtils.runMiner(dataReader, ctx);
 
-        // print results
+        // exportGraphViz results
         System.out.println("Number of patterns: " + result.getCount());
         System.out.println("Total frequency of all patterns: " + result.getTotalFrequency());
         return miner;
@@ -90,7 +90,7 @@ public class ExampleUtils {
         // perform the mining
         DesqMiner miner = ExampleUtils.runMiner(dataReader, ctx);
 
-        // print results
+        // exportGraphViz results
         System.out.println("Patterns:");
         for (WeightedSequence pattern : result.getPatterns()) {
             System.out.print(pattern.support);
@@ -147,7 +147,7 @@ public class ExampleUtils {
         dict.writeJson(System.out);
         System.out.println();
 
-        // print sequences
+        // exportGraphViz sequences
         System.out.println("Input sequences:");
         dataReader = new DelSequenceReader(dataFile.openStream(), false);
         dataReader.setDictionary(dict);

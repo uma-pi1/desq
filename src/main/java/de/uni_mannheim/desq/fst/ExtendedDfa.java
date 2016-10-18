@@ -19,7 +19,7 @@ public final class ExtendedDfa {
 	Fst fst;
 	Dictionary dict;
 	
-	// an index of eDfa stateIds for de.uni_mannheim.desq.old.fst stateIds
+	// an index of eDfa stateIds for fst stateIds
 	ExtendedDfaState[] eDfaStateIdForFstStateId;
 	
 	
@@ -60,12 +60,12 @@ public final class ExtendedDfa {
 		
 		
 		// Initialize newStateForStateIdSet
-		// Initially old states contain all de.uni_mannheim.desq.old.fst state as potential initial states
+		// Initially old states contain all fst state as potential initial states
 		for(int fstStateId = 0; fstStateId < eDfaStateIdForFstStateId.length; fstStateId++) {
 			//ExtendedDfaState eDfaState = new ExtendedDfaState();
 			IntSet initialStateIdSet = IntSets.singleton(fstStateId);
 			newStateForStateIdSet.put(initialStateIdSet, eDfaStateIdForFstStateId[fstStateId]);
-			//eDfaStateIdForFstStateId[fstStateId].setFstStates(initialStateIdSet, de.uni_mannheim.desq.old.fst);
+			//eDfaStateIdForFstStateId[fstStateId].setFstStates(initialStateIdSet, fst);
 			
 			// add to unprocessed states
 			unprocessedStateIdSets.push(initialStateIdSet);
@@ -74,7 +74,7 @@ public final class ExtendedDfa {
 		}
 		
 		while(!unprocessedStateIdSets.isEmpty()) {
-			// process de.uni_mannheim.desq.old.fst states
+			// process fst states
 			IntSet stateIdSet = unprocessedStateIdSets.pop();
 			boolean isFinal = false;
 			
@@ -129,7 +129,7 @@ public final class ExtendedDfa {
 					if(toEDfaState == null) {
 						toEDfaState = new ExtendedDfaState(reachableStateIds, fst);
 						newStateForStateIdSet.put(reachableStateIds, toEDfaState);
-						//toEDfaState.setFstStates(reachableStateIds, de.uni_mannheim.desq.old.fst);
+						//toEDfaState.setFstStates(reachableStateIds, fst);
 					}
 					
 					ExtendedDfaTransition eDfaTransition = 
@@ -159,7 +159,7 @@ public final class ExtendedDfa {
 
 	
 	/**
-	 * Returns true if the de.uni_mannheim.desq.old.fst snapshot is relevant, i.e., leads to a final state
+	 * Returns true if the fst snapshot is relevant, i.e., leads to a final state
 	 * otherwise returns false
 	 */
 	public boolean isRelevant(IntList inputSequence, int position, int fstStateId) {
@@ -178,7 +178,7 @@ public final class ExtendedDfa {
 	}
 
 	/**
-	 * Returns true if the de.uni_mannheim.desq.old.fst snapshot is relevant, i.e., leads to a final state
+	 * Returns true if the fst snapshot is relevant, i.e., leads to a final state
 	 * otherwise returns false
 	 *
 	 * Also adds to the given list with the sequence of states being visited before consuming each item + final one
@@ -206,7 +206,7 @@ public final class ExtendedDfa {
 	 * @param inputSequence
 	 * @param initialFstStateId
 	 * @param posStateIndex An array of bitsets; posStateIndex[pos].get(stateId) is true then stateId is reachable after cosuming intputSequence[pos]
-	 * @param finalPos List of positions for which de.uni_mannheim.desq.old.fst reached a final state
+	 * @param finalPos List of positions for which fst reached a final state
 	 * @return true is the input sequence has an accepting run 
 	 */
 	@Deprecated

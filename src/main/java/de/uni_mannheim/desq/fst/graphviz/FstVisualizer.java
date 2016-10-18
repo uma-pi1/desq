@@ -1,4 +1,4 @@
-package de.uni_mannheim.desq.visual;
+package de.uni_mannheim.desq.fst.graphviz;
 
 import java.io.File;
 
@@ -23,7 +23,8 @@ public class FstVisualizer {
 	public void beginGraph() {
 		gv.addln(gv.start_graph());
 		gv.addln("rankdir=\"LR\";");
-		gv.addln("node [shape=circle];");
+		gv.addln("node [shape=circle, fontsize=12, fixedsize=true, width=0.3];");
+		gv.addln("edge [fontsize=8, penwidth=0.75, arrowsize=0.5];");
 	}
 
 	public void endGraph() {

@@ -13,12 +13,12 @@ import java.util.Iterator;
 public final class DesqDfs extends MemoryDesqMiner {
 	private static final Logger logger = Logger.getLogger(DesqDfs.class);
 
-	// -- parameters for de.uni_mannheim.desq.old.mining ---------------------------------------------------------------------------------------
+	// -- parameters for mining ---------------------------------------------------------------------------------------
 
 	/** Minimum support */
     final long sigma;
 
-    /** The pattern expression used for de.uni_mannheim.desq.old.mining */
+    /** The pattern expression used for mining */
 	final String patternExpression;
 
     /** If true, input sequences that do not match the pattern expression are pruned */
@@ -86,7 +86,7 @@ public final class DesqDfs extends MemoryDesqMiner {
             // two-pass will always prune irrelevant input sequences, so notify the user when the corresponding
             // property is not set
 			if (!pruneIrrelevantInputs) {
-				logger.warn("property desq.de.uni_mannheim.desq.old.mining.prune.irrelevant.inputs=false will be ignored because " +
+				logger.warn("property desq.mining.prune.irrelevant.inputs=false will be ignored because " +
 						"desq.mining.use.two.pass=true");
 			}
 
@@ -94,7 +94,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			this.edfa = new ExtendedDfa(tempFst, ctx.dict);
 
             // and then reverse the FST (which we now only need for the backward pass)
-            tempFst.reverse(false); // here we need the reverse de.uni_mannheim.desq.old.fst
+            tempFst.reverse(false); // here we need the reverse fst
 			fst = null;
 			reverseFst = tempFst;
 
@@ -173,7 +173,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	}
 
 
-    // -- de.uni_mannheim.desq.old.mining ------------------------------------------------------------------------------------------------------
+    // -- mining ------------------------------------------------------------------------------------------------------
 
 	@Override
 	public void mine() {

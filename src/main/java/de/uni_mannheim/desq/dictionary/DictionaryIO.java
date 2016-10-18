@@ -1,7 +1,5 @@
-package old.de.uni_mannheim.desq.dictionary;
+package de.uni_mannheim.desq.dictionary;
 
-import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.dictionary.Item;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
