@@ -21,21 +21,20 @@ public class MinerConfigurations {
     }
 
     public static Pair<String, DesqProperties> desqCount(long sigma, String patternExpression, boolean useFlist,
-                                                        boolean iterative, boolean pruneIrrelevantInputs, boolean useTwoPass) {
+                                                        boolean pruneIrrelevantInputs, boolean useTwoPass) {
         DesqProperties conf = DesqCount.createConf(patternExpression, sigma);
         conf.setProperty("desq.mining.use.flist", useFlist);
-        conf.setProperty("desq.mining.iterative", iterative);
         conf.setProperty("desq.mining.prune.irrelevant.inputs", pruneIrrelevantInputs);
         conf.setProperty("desq.mining.use.two.pass", useTwoPass);
-        String minerName = "DesqCount-" + toLetter(useFlist) + toLetter(iterative) + toLetter(pruneIrrelevantInputs)
+        String minerName = "DesqCount-" + toLetter(useFlist) + toLetter(pruneIrrelevantInputs)
                 + toLetter(useTwoPass);
         return Pair.of(minerName, conf);
     }
 
     public static Pair<String, DesqProperties> desqCount(long sigma, int gamma, int lambda, boolean generalize, boolean useFlist,
-                                          boolean iterative, boolean pruneIrrelevantInputs, boolean useTwoPass) {
+                                          boolean pruneIrrelevantInputs, boolean useTwoPass) {
         String patternExpression = DesqMiner.patternExpressionFor(gamma, lambda, generalize);
-        return desqCount(sigma, patternExpression, useFlist, iterative, pruneIrrelevantInputs, useTwoPass);
+        return desqCount(sigma, patternExpression, useFlist, pruneIrrelevantInputs, useTwoPass);
     }
 
     public static Pair<String, DesqProperties> desqDfs(long sigma, String patternExpression,
@@ -64,18 +63,12 @@ public class MinerConfigurations {
 
     public static List<Pair<String, DesqProperties>> all(long sigma, String patternExpression) {
         List<Pair<String, DesqProperties>> allMiners = new ArrayList<>();
-        allMiners.add(desqCount(sigma, patternExpression, false, false, false, false));
-        allMiners.add(desqCount(sigma, patternExpression, false, false, true, false));
-        allMiners.add(desqCount(sigma, patternExpression, false, false, true, true));
-        allMiners.add(desqCount(sigma, patternExpression, false, true, false, false));
-        allMiners.add(desqCount(sigma, patternExpression, false, true, true, false));
-        allMiners.add(desqCount(sigma, patternExpression, false, true, true, true));
-        allMiners.add(desqCount(sigma, patternExpression, true, false, false, false));
-        allMiners.add(desqCount(sigma, patternExpression, true, false, true, false));
-        allMiners.add(desqCount(sigma, patternExpression, true, false, true, true));
-        allMiners.add(desqCount(sigma, patternExpression, true, true, false, false));
-        allMiners.add(desqCount(sigma, patternExpression, true, true, true, false));
-        allMiners.add(desqCount(sigma, patternExpression, true, true, true, true));
+        allMiners.add(desqCount(sigma, patternExpression, false, false, false));
+        allMiners.add(desqCount(sigma, patternExpression, false, true, false));
+        allMiners.add(desqCount(sigma, patternExpression, false, true, true));
+        allMiners.add(desqCount(sigma, patternExpression, true, false, false));
+        allMiners.add(desqCount(sigma, patternExpression, true, true, false));
+        allMiners.add(desqCount(sigma, patternExpression, true, true, true));
         allMiners.add(desqDfs(sigma, patternExpression, false, false));
         allMiners.add(desqDfs(sigma, patternExpression, true, false));
         allMiners.add(desqDfs(sigma, patternExpression, true, true));
