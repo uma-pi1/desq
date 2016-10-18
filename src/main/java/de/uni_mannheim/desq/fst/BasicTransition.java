@@ -182,7 +182,7 @@ public final class BasicTransition extends Transition {
 			sb.append("$");
 			break;
 		case SELF_ASCENDANTS:
-			sb.append("$-" + outputLabelSid);
+			sb.append("$-" + (outputLabelSid != null ? outputLabelSid : ""));
 			break;
 		case CONSTANT:
 			sb.append(outputLabelSid);

@@ -87,7 +87,7 @@ object ExampleUtils {
     dict.writeJson(System.out)
     println()
 
-    // exportGraphViz sequences
+    // print sequences
     System.out.println("\nInput sequences:")
     data.print()
     println()
