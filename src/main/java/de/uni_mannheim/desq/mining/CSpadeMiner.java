@@ -5,6 +5,8 @@ import de.uni_mannheim.desq.dictionary.Item;
 import de.uni_mannheim.desq.util.DesqProperties;
 import de.uni_mannheim.desq.util.IntArrayStrategy;
 import it.unimi.dsi.fastutil.ints.*;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongList;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenCustomHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 
@@ -95,16 +97,16 @@ public final class CSpadeMiner extends DesqMiner {
 	 * sequence has support larger than one, is it treated as if it had occured
 	 * in the data as many times as given by its support value.
 	 */
-	protected final IntList inputSupports = new IntArrayList();
+	protected final LongList inputSupports = new LongArrayList();
 
 	/**
 	 * Total support for each sequence in kSequences. Identical to the sum of the
 	 * supports of each input sequence that occurs in the posting list.
 	 */
-	protected IntList kTotalSupports = new IntArrayList();
+	protected LongList kTotalSupports = new LongArrayList();
 
     /** Stores frequency of individual items (only needed when generalize = false) */
-    protected final Int2IntMap itemDFreqs = new Int2IntOpenHashMap();
+    protected final Int2LongMap itemDFreqs = new Int2LongOpenHashMap();
 
     /** IntSets for temporary use */
     final IntSet itemFids = new IntAVLTreeSet();
@@ -182,12 +184,9 @@ public final class CSpadeMiner extends DesqMiner {
 
 	// -- input phase -------------------------------------------------------------------------------
 
-	@Override
-    public void addInputSequence(IntList inputSequence) {
-	    addInputSequence(inputSequence, 1);
-    }
 
-	public void addInputSequence(IntList inputSequence, int inputSupport) {
+	@Override
+	public void addInputSequence(IntList inputSequence, long inputSupport, boolean allowBuffering) {
 		// only valid during data input phase
 		assert k <= 2;
 		assert kSequences.size() == twoSequenceIndex.size();
@@ -281,7 +280,7 @@ public final class CSpadeMiner extends DesqMiner {
 
 		// update 1-item counts
 		for (int itemFid : itemFids) {
-            int count = inputSupport;
+            long count = inputSupport;
             if (itemDFreqs.containsKey(itemFid)) {
                 count += itemDFreqs.get(itemFid);
             }
@@ -294,7 +293,7 @@ public final class CSpadeMiner extends DesqMiner {
 	 * 2-sequences during the input phase. The provided kSequence is not stored,
 	 * i.e., can be reused.
 	 */
-	protected void addPosting(int[] kSequence, int inputId, int inputSupport, int position) {
+	protected void addPosting(int[] kSequence, int inputId, long inputSupport, int position) {
 		// get the posting list for the current sequence
 		// if the sequence has not seen before, create a new posting list
 		KPatternIndexEntry entry = twoSequenceIndex.get(kSequence);
@@ -380,11 +379,11 @@ public final class CSpadeMiner extends DesqMiner {
             IntList itemFids = new IntArrayList();
             itemFids.add(-1); // place holder
             if (!generalize) {
-                for (Int2IntMap.Entry entry : itemDFreqs.int2IntEntrySet()) {
-                    int dFreq = entry.getIntValue();
+                for (Int2LongMap.Entry entry : itemDFreqs.int2LongEntrySet()) {
+                    long dFreq = entry.getLongValue();
                     if (dFreq >= sigma) {
                         itemFids.set(0, entry.getIntKey());
-                        ctx.patternWriter.write(itemFids, entry.getIntValue());
+                        ctx.patternWriter.write(itemFids, dFreq);
                     }
                 }
             } else {
@@ -478,7 +477,7 @@ public final class CSpadeMiner extends DesqMiner {
 		int k1 = k + 1;
 		ArrayList<int[]> k1Sequences = new ArrayList<>();
 		ArrayList<PostingList> k1PostingLists = new ArrayList<>();
-		IntArrayList k1TotalSupports = new IntArrayList();
+		LongArrayList k1TotalSupports = new LongArrayList();
 
 		// temporary variables
 		PostingList postingList = new PostingList(); // list of postings for a new (k+1) sequence
@@ -515,7 +514,7 @@ public final class CSpadeMiner extends DesqMiner {
 				for (int j = 0; j < rightSequences.size(); j++) {
 					// initialize
 					postingList.clear();
-					int totalSupport = 0; // of the current posting list
+					long  totalSupport = 0; // of the current posting list
 					leftPostingList.offset = 0;
 					rightPostingList.reset( kPostingLists.get(rightSequences.getInt(j)) );
 					rightPostingList.offset = 0;

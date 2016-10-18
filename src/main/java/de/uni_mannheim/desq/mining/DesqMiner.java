@@ -1,28 +1,34 @@
 package de.uni_mannheim.desq.mining;
 
 import de.uni_mannheim.desq.io.SequenceReader;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 
 public abstract class DesqMiner {
-	// if null, patterns are mined but not collected
 	protected final DesqMinerContext ctx;
 	
 	protected DesqMiner(DesqMinerContext ctx) {
 		this.ctx = ctx;
 	}
-	
-	/** Adds a new input sequence (composed of fids). The provided sequence must 
-	 * not be buffered by this miner. */
-	protected abstract void addInputSequence(IntList inputSequence);
+
+	/** Adds a new input sequence (composed of fids).
+	 *
+ 	 * @param sequence the new input sequence
+	 * @param support the support of the input sequence
+	 * @param allowBuffering if true, the miner is allowed to buffer the input sequence internally
+	 */
+	protected abstract void addInputSequence(IntList sequence, long support, boolean allowBuffering);
+
+	protected void addInputSequence(WeightedSequence sequence, boolean allowBuffering) {
+		addInputSequence(sequence, sequence.support, allowBuffering);
+	}
 	
 	public void addInputSequences(SequenceReader in) throws IOException {
-		IntList inputSequence = new IntArrayList();
+		Sequence inputSequence = new Sequence();
 		while (in.readAsFids(inputSequence)) {
-			addInputSequence(inputSequence);
+			addInputSequence(inputSequence, 1, false);
 		}
 	}
 

@@ -2,9 +2,7 @@ package de.uni_mannheim.desq
 
 import org.apache.spark.SparkConf
 
-/**
-  * Created by rgemulla on 05.10.2016.
-  */
+/** Entry & utility methods for Desq. */
 object Desq {
   def initDesq(conf: SparkConf) {
     conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")

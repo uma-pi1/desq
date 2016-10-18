@@ -7,7 +7,7 @@ import java.io.DataInput;
 import java.io.IOException;
 
 /** Wraps a DataInput around a Input. */
-public class Input2DataInputWrapper implements DataInput {
+public final class Input2DataInputWrapper implements DataInput {
     public Input input;
 
     @Override

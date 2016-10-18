@@ -35,10 +35,9 @@ public final class PrefixGrowthMiner extends MemoryDesqMiner {
 		setParameters(ctx.conf);
 	}
 
-	// TODO: move up to DesqMiner
+	// TODO: move up to DesqMiner?
 	public void clear() {
 		inputSequences.clear();
-		inputSupports.clear();
 	}
 
     public static DesqProperties createConf(long sigma, int gamma, int lambda, boolean generalize) {
@@ -88,10 +87,9 @@ public final class PrefixGrowthMiner extends MemoryDesqMiner {
 
             // first runMiner through all data and create single-item posting lists
             for (int inputId=0; inputId<inputSequences.size(); inputId++) {
-                final int[] inputSequence = inputSequences.get(inputId);
-                final int inputSupport = inputSupports.get(inputId);
-                for (int pos = 0; pos < inputSequence.length; pos++) {
-                    int itemFid = inputSequence[pos];
+                final WeightedSequence inputSequence = inputSequences.get(inputId);
+                for (int pos = 0; pos < inputSequence.size(); pos++) {
+                    int itemFid = inputSequence.getInt(pos);
                     assert itemFid <= endItem;
 
                     // ignore gaps
@@ -101,7 +99,7 @@ public final class PrefixGrowthMiner extends MemoryDesqMiner {
 
                     // process item
                     if (largestFrequentFid >= itemFid) {
-                        root.expandWithItem(itemFid, inputId, inputSupport, pos);
+                        root.expandWithItem(itemFid, inputId, inputSequence.support, pos);
                     }
                     if (generalize) {
                         ascendants.clear();
@@ -110,7 +108,7 @@ public final class PrefixGrowthMiner extends MemoryDesqMiner {
                         while (itemFidIt.hasNext()) {
                             itemFid = itemFidIt.nextInt();
                             if (largestFrequentFid >= itemFid) {
-                                root.expandWithItem(itemFid, inputId, inputSupport, pos);
+                                root.expandWithItem(itemFid, inputId, inputSequence.support, pos);
                             }
                         }
                     }
@@ -164,8 +162,7 @@ public final class PrefixGrowthMiner extends MemoryDesqMiner {
             projectedDatabaseIt.reset(childNode.projectedDatabase);
             do {
                 inputId += projectedDatabaseIt.nextNonNegativeInt();
-                final int[] inputSequence = inputSequences.get(inputId);
-                final int inputSupport = inputSupports.get(inputId);
+                final WeightedSequence inputSequence = inputSequences.get(inputId);
 
                 // iterator over all positions
                 int position = 0;
@@ -174,9 +171,9 @@ public final class PrefixGrowthMiner extends MemoryDesqMiner {
 
                     // Add items in the right gamma+1 neighborhood
                     int gap = 0;
-                    for (int newPosition = position+1; gap <= gamma && newPosition < inputSequence.length; newPosition++) {
+                    for (int newPosition = position+1; gap <= gamma && newPosition < inputSequence.size(); newPosition++) {
                         // process gaps
-                        int itemFid = inputSequence[newPosition];
+                        int itemFid = inputSequence.getInt(newPosition);
                         if (itemFid < 0) {
                             gap -= itemFid;
                             continue;
@@ -185,7 +182,7 @@ public final class PrefixGrowthMiner extends MemoryDesqMiner {
 
                         // process item
                         if (largestFrequentFid >= itemFid) {
-                            childNode.expandWithItem(itemFid, inputId, inputSupport, newPosition);
+                            childNode.expandWithItem(itemFid, inputId, inputSequence.support, newPosition);
                         }
                         if (generalize) {
                             ascendants.clear();
@@ -194,7 +191,7 @@ public final class PrefixGrowthMiner extends MemoryDesqMiner {
                             while (itemFidIt.hasNext()) {
                                 itemFid = itemFidIt.nextInt();
                                 if(largestFrequentFid >= itemFid) {
-                                    childNode.expandWithItem(itemFid, inputId, inputSupport, newPosition);
+                                    childNode.expandWithItem(itemFid, inputId, inputSequence.support, newPosition);
                                 }
                             }
                         }

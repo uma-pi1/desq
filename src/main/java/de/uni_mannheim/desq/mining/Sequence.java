@@ -20,12 +20,22 @@ public class Sequence extends IntArrayList implements Externalizable, Writable {
         super(capacity);
     }
 
+    /** copies */
     public Sequence(final IntList l) {
         super(l);
     }
 
+    /** does not copy */
     public Sequence(final int[] a, boolean dummy) {
         super(a, dummy);
+    }
+
+    /** Wraps this sequence into a WeightedSequence with the specified support. No data is copied, i.e., this
+     * sequence and the returned sequence share the same backing array. */
+    public WeightedSequence withSupport(long support) {
+        WeightedSequence result = new WeightedSequence(a, support);
+        result.size = this.size;
+        return result;
     }
 
     @Override
@@ -55,12 +65,10 @@ public class Sequence extends IntArrayList implements Externalizable, Writable {
     @Override
     public void readFields(DataInput in) throws IOException {
         int size = WritableUtils.readVInt(in);
-        if (a == null) {
+        if (a == null || a.length < size) {
             a = new int[size];
-            this.size = size;
-        } else {
-            this.size(size);
         }
+        this.size = size;
         for (int i=0; i<size; i++) {
             a[i] = WritableUtils.readVInt(in);
         }
