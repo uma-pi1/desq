@@ -32,10 +32,12 @@ public final class WeightedSequence extends Sequence implements Externalizable, 
 
     protected WeightedSequence(int capacity) {
         super(capacity);
+        support = 1;
     }
 
-    public WeightedSequence(final int[] a, boolean dummy) {
-        super(a, dummy);
+    public WeightedSequence(final int[] a, long support) {
+        super(a, true);
+        this.support = support;
     }
 
     @Override
@@ -45,6 +47,16 @@ public final class WeightedSequence extends Sequence implements Externalizable, 
         c.size = this.size;
         c.support = support;
         return c;
+    }
+
+    /** Returns a weigthed sequence with the same content and the specified support. Data copying is avoided to
+     * the extend possible, i.e., the returned sequence may share date with this sequence. */
+    @Override
+    public WeightedSequence withSupport(long support) {
+        if (this.support == support) return this;
+        WeightedSequence result = new WeightedSequence(a, support);
+        result.size = this.size;
+        return result;
     }
 
     @Override
@@ -123,7 +135,7 @@ public final class WeightedSequence extends Sequence implements Externalizable, 
     public static final class KryoSerializer extends Writable2Serializer<WeightedSequence> {
         @Override
         public WeightedSequence newInstance(Kryo kryo, Input input, Class<WeightedSequence> type) {
-            return new WeightedSequence(null, true);
+            return new WeightedSequence((int[])null, 1L);
         }
     }
 

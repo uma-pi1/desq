@@ -31,10 +31,10 @@ public final class Item {
 	public int fid = -1;
 
 	/** Collection frequency of this item and its ascendants */
-	public int cFreq = 0;
+	public long cFreq = 0;
 
     /** Document frequency of this item and its ascendants */
-    public int dFreq = 0;
+    public long dFreq = 0;
 
     /** Children of this item */
 	public final List<Item> children;
@@ -98,7 +98,7 @@ public final class Item {
 	 * then by gid ascending. */
 	public static Comparator<Item> dfreqDecrComparator() {
 		return (o1, o2) -> {
-            int freqDif = o2.dFreq - o1.dFreq;
+            int freqDif = Long.compare(o2.dFreq, o1.dFreq);
             if (freqDif != 0) return freqDif;
             return o1.gid - o2.gid;
         };

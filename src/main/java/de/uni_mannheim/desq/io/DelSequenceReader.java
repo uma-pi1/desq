@@ -34,8 +34,10 @@ public class DelSequenceReader extends SequenceReader {
 	}
 
 	public static void parseLine(String line, IntList items) {
+		String[] tokens = line.split("[\t ]");
+		items.size(tokens.length);
 		items.clear();
-		for (String token : line.split("[\t ]")) {
+		for (String token : tokens) {
 			if (token.isEmpty()) continue;
 			items.add(Integer.parseInt(token));
 		}

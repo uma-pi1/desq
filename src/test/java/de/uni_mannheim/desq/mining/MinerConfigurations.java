@@ -14,12 +14,6 @@ public class MinerConfigurations {
         return Pair.of(minerName, conf);
     }
 
-    public static Pair<String, DesqProperties> compressedPrefixGrowth(long sigma, int gamma, int lambda, boolean generalize) {
-        String minerName = "CompressedPrefixGrowth";
-        DesqProperties conf = CompressedPrefixGrowthMiner.createConf(sigma, gamma, lambda, generalize);
-        return Pair.of(minerName, conf);
-    }
-
     public static Pair<String, DesqProperties> cSpade(long sigma, int gamma, int lambda, boolean generalize) {
         String minerName = "CSpade";
         DesqProperties conf = CSpadeMiner.createConf(sigma, gamma, lambda, generalize);
@@ -62,7 +56,6 @@ public class MinerConfigurations {
     public static List<Pair<String, DesqProperties>> all(long sigma, int gamma, int lambda, boolean generalize) {
         List<Pair<String, DesqProperties>> allMiners = new ArrayList<>();
         allMiners.add(prefixGrowth(sigma, gamma, lambda, generalize));
-        allMiners.add(compressedPrefixGrowth(sigma, gamma, lambda, generalize));
         allMiners.add(cSpade(sigma, gamma, lambda, generalize));
         String patternExpression = DesqMiner.patternExpressionFor(gamma, lambda, generalize);
         allMiners.addAll(all(sigma, patternExpression));

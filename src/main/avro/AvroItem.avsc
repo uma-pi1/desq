@@ -18,11 +18,11 @@
     },
     {
       "name": "cFreq",
-      "type": "int"
+      "type": "long"
     },
     {
       "name": "dFreq",
-      "type": "int"
+      "type": "long"
     },
     {
       "name": "parentGids",

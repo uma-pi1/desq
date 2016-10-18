@@ -71,9 +71,9 @@ public final class DictionaryIO {
 		sb.append(item.sid);
 		sb.append("\t");
 		if (withStatistics) {
-			sb.append(Integer.toString(item.cFreq));
+			sb.append(Long.toString(item.cFreq));
 			sb.append("\t");
-			sb.append(Integer.toString(item.dFreq));
+			sb.append(Long.toString(item.dFreq));
 			sb.append("\t");
 		}
 		sb.append(Integer.toString(useFids ? item.fid : item.gid));
@@ -109,5 +109,13 @@ public final class DictionaryIO {
 			writer.write("\n");
 		}
 		writer.flush();
+	}
+
+	/** Conversion from old del format to new formats */
+	public static void main(String[] args) throws IOException {
+		String base = "data-local/nyt-1991-dict";
+		Dictionary dict = loadFromDel(new FileInputStream(base+".del"), true);
+		dict.write(base+".avro.gz");
+		dict.write(base+".json");
 	}
 }

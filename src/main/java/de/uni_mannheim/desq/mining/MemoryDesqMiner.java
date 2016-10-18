@@ -1,13 +1,11 @@
 package de.uni_mannheim.desq.mining;
 
-import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 import java.util.ArrayList;
 
 public abstract class MemoryDesqMiner extends DesqMiner {
-	protected final ArrayList<int[]> inputSequences = new ArrayList<>();
-	protected final IntList inputSupports = new IntArrayList();
+	protected final ArrayList<WeightedSequence> inputSequences = new ArrayList<>();
 	long sumInputSupports = 0;
 
 	protected MemoryDesqMiner(DesqMinerContext ctx) {
@@ -15,14 +13,14 @@ public abstract class MemoryDesqMiner extends DesqMiner {
 	}
 	
 	@Override
-	public void addInputSequence(IntList inputSequence) {
-		addInputSequence(inputSequence, 1);
-	}
-
-	// TODO: Move up to DesqMiner
-	public void addInputSequence(IntList inputSequence, int inputSupport) {
-		inputSequences.add( inputSequence.toIntArray() );
-		inputSupports.add( inputSupport );
-		sumInputSupports += inputSupport;
+	public void addInputSequence(IntList sequence, long support, boolean allowBuffering) {
+		if (allowBuffering && sequence instanceof Sequence) {
+			Sequence s = (Sequence)sequence;
+			inputSequences.add(s.withSupport(support));
+		} else {
+			// otherwise we need to copy
+			inputSequences.add(new WeightedSequence(sequence, support));
+		}
+		sumInputSupports += support;
 	}
 }
