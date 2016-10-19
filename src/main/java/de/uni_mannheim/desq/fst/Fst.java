@@ -192,29 +192,29 @@ public final class Fst {
 	public String toPatternExpression() {
 		// we do this via a variant of the Brzozowski and McCluskey state elimination algorithm
 
-		// first we collect all edges plus edges from all final states to a new dummy state (id -1)
+		// first we collect all edges
+		// we add a new dummy-initial state with an edge to the initial state (-2)
+		// and another dummy-final state with edges from all final states (-1)
 		List<Edge> edges = new LinkedList<>();
 		for (State s : getStates()) {
 			for (Transition t : s.getTransitions()) {
 				edges.add(new Edge(s.id, t.toState.id, t.toPatternExpression()));
 			}
 			if (s.isFinal()) {
-				edges.add(new Edge(s.id, -1, "")); // dummy edge to new state
+				edges.add(new Edge(s.id, -1, "")); // from final to dummy-final
+			}
+			if (s == initialState) {
+				edges.add(new Edge(-2, s.id, "")); // from dummy-initial to initial
 			}
 		}
 
-		// now eliminate all but the initial and the dummy state
-		Map<Integer, List<Edge>> inEdgesMap = new HashMap<>(); // indexed by fromState
-		List<Edge> loopEdges = new ArrayList<>();
-		Map<Integer, List<Edge>> outEdgesMap = new HashMap<>(); // indexed by toState
+		// now eliminate all but the dummy states
 		for (State s : getStates()) {
-			if (s == initialState)
-				continue;
-
-			// collect incoming, loop, and outgoing edges for s
-			inEdgesMap.clear();
-			loopEdges.clear();
-			outEdgesMap.clear();
+			// collect incoming, loop, and outgoing edges for s and remove them from the edge list
+			// after this step, s has not more edges
+			Map<Integer, List<Edge>> inEdgesMap = new HashMap<>(); // indexed by fromState
+			List<Edge> loopEdges = new ArrayList<>();
+			Map<Integer, List<Edge>> outEdgesMap = new HashMap<>(); // indexed by toState
 			Iterator<Edge> it = edges.iterator();
 			while (it.hasNext()) {
 				Edge e = it.next();
@@ -237,8 +237,8 @@ public final class Fst {
 				}
 			}
 
-			// create new edges to skip over s
-			String loopExp = loopEdges.isEmpty() ? " " : (combinedExp(loopEdges) + "* ");
+			// create new edges to skip over s; after this, s is eliminated
+			String loopExp = loopEdges.isEmpty() ? " " : ("[" + combinedExp(loopEdges) + "]* ");
 			for (List<Edge> inEdges : inEdgesMap.values()) {
 				String inExp = combinedExp(inEdges);
 				for (List<Edge> outEdges : outEdgesMap.values()) {
@@ -248,24 +248,9 @@ public final class Fst {
 			}
 		}
 
-		// now we are ready to create the pattern expression
-		loopEdges.clear();
-		List<Edge> outEdges = new ArrayList<>();
-		for (Edge e : edges) {
-			assert e.from == getInitialState().id;
-			if (e.to == -1) { // to dummy state
-				outEdges.add(e);
-			} else { // loop to initial stte
-				assert e.to == getInitialState().id;
-				loopEdges.add(e);
-			}
-		}
-
-		// create the final pattern expression
-		String patternExpression = loopEdges.isEmpty() ? "" : (combinedExp(loopEdges) + "* ");
-		patternExpression += combinedExp(outEdges);
-
-		return patternExpression;
+		// now we have the desired pattern expression
+		assert edges.size() == 1; // from dummy-initial to dummy-final
+		return edges.get(0).label; // this edge's label is the result
 	}
 
 
