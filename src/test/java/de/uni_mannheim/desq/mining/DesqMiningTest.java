@@ -17,7 +17,7 @@ import java.lang.reflect.InvocationTargetException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** A test for traditional frequent sequence de.uni_mannheim.desq.old.mining. Datasets and parameters are set by implementing classes.
+/** A test for traditional frequent sequence mining. Datasets and parameters are set by implementing classes.
  *
  * Created by rgemulla on 18.07.2016.
  */
@@ -82,7 +82,7 @@ public abstract class DesqMiningTest {
             dict.recomputeFids();
         }
 
-        // Perform pattern de.uni_mannheim.desq.old.mining into del file
+        // Perform pattern mining into del file
         SequenceReader dataReader = getSequenceReader();
         dataReader.setDictionary(dict);
         DesqMinerContext ctx = new DesqMinerContext();

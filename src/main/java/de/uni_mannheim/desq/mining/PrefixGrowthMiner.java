@@ -8,7 +8,7 @@ import it.unimi.dsi.fastutil.ints.*;
  * @author Rainer Gemulla (rgemulla@uni-mannheim.de)
  */
 public final class PrefixGrowthMiner extends MemoryDesqMiner {
-	// parameters for de.uni_mannheim.desq.old.mining
+	// parameters for mining
     private long sigma;
     private int gamma;
     private int lambda;

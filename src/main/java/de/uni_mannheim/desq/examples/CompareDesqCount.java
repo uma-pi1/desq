@@ -27,19 +27,18 @@ public class CompareDesqCount {
 	String outputFile = "tmp/output";
 
 
-	public void run(boolean iterative, boolean pruneIrrelevantInputs, boolean useTwoPass) throws IOException {
+	public void run(boolean pruneIrrelevantInputs, boolean useTwoPass) throws IOException {
 		Dictionary dict = Dictionary.loadFrom(dictFile);
 		SequenceReader dataReader = new DelSequenceReader(new FileInputStream(inputFile), true);
 		dataReader.setDictionary(dict);
 		DesqMinerContext ctx = new DesqMinerContext();
 		ctx.dict = dict;
 		DelPatternWriter patternWriter = new DelPatternWriter(
-		        new FileOutputStream(outputFile+"-DesqCount-"+iterative+"-"+pruneIrrelevantInputs+"-"+useTwoPass),
+		        new FileOutputStream(outputFile+"-DesqCount-"+pruneIrrelevantInputs+"-"+useTwoPass),
 				DelPatternWriter.TYPE.SID);
 		patternWriter.setDictionary(dict);
 		ctx.patternWriter = patternWriter;
 		ctx.conf = DesqCount.createConf(patternExpression, sigma);
-		ctx.conf.setProperty("desq.mining.iterative", iterative);
 		ctx.conf.setProperty("desq.mining.prune.irrelevant.inputs", pruneIrrelevantInputs);
 		ctx.conf.setProperty("desq.mining.use.two.pass", useTwoPass);
 
@@ -51,13 +50,8 @@ public class CompareDesqCount {
 	public static void main(String[] args) throws Exception {
 		CompareDesqCount cdc = new CompareDesqCount();
 
-		cdc.run(false, false, false);
-		cdc.run(false, true, false);
-		cdc.run(false, true, true);
-		cdc.run(true, false, false);
-		cdc.run(true, true, false);
-		cdc.run(true, true, true);
+		cdc.run(false, false);
+		cdc.run(true, false);
+		cdc.run(true, true);
 	}
-	
-	
 }

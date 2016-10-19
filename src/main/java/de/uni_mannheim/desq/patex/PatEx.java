@@ -180,7 +180,7 @@ public final class PatEx {
 				if(generalize) {
 					t = new BasicTransition(0, InputLabelType.SELF, 0, OutputLabelType.SELF_ASCENDANTS, new State(true), dict);
 				} else {
-					t = new BasicTransition(0, InputLabelType.SELF, -1, OutputLabelType.SELF, new State(true), dict);	
+					t = new BasicTransition(0, InputLabelType.SELF, -1, OutputLabelType.SELF, new State(true), dict);
 				}
 			} else {
 				t = new BasicTransition(0, InputLabelType.SELF, -1, OutputLabelType.EPSILON, new State(true), dict);
@@ -207,7 +207,6 @@ public final class PatEx {
 						+ ":" + ctx.item().getStart().getCharPositionInLine());
 			}
 			int inputLabel = item.fid;
-			
 			int opCount = ctx.getChildCount();
 			if (opCount == 2) {
 				if (ctx.getChild(1).getText().equals("=")) {

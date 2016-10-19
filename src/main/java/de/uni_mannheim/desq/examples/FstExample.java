@@ -29,14 +29,29 @@ public class FstExample {
 		//String patternExpression = DesqMiner.patternExpressionFor(0, 3, true);
 		//String patternExpression = "([A|B]c*[d|e])";
 		//String patternExpression = "([A|B]c+[d|e])";
-		
-		// create de.uni_mannheim.desq.old.fst
+		System.out.println(patternExpression);
+
+		// create fst
 		PatEx patEx = new PatEx(patternExpression, dict);
 		Fst fst = patEx.translate();
-		fst.print("fst");
-		
+		System.out.println("FST");
+		fst.print();
+		fst.exportGraphViz("fst-example.gv");
+		fst.exportGraphViz("fst-example.pdf"); // graphviz needs to be installed
+		String synPatternExpression = fst.toPatternExpression(); // synthesize a pattern expression for the FST
+
+		// and minimize it
 		fst.minimize();
-		fst.print("fst-min");
+		System.out.println("Minimized FST");
+		fst.print();
+		fst.exportGraphViz("fst-example-minimized.gv");
+		fst.exportGraphViz("fst-example-minimized.pdf"); // graphviz needs to be installed
+
+		// now use the synthesized pattern experssion and minimize it
+		System.out.println("Minimized FST for synthesized pattern expression");
+		fst = new PatEx(synPatternExpression, dict).translate();
+		fst.minimize();
+		fst.print();
 	}
 	
 	public static void main(String[] args) throws IOException {

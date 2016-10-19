@@ -15,6 +15,8 @@ public final class BasicTransition extends Transition {
 	final InputLabelType inputLabelType;
 	final int outputLabel; // only when outputlabel = constant or self_gen
 	final OutputLabelType outputLabelType;
+	final String inputLabelSid;
+	final String outputLabelSid;
 
 	// internal indexes
 	final IntSet inputFids;
@@ -26,6 +28,8 @@ public final class BasicTransition extends Transition {
 		this.inputLabelType = other.inputLabelType;
 		this.outputLabel = other.outputLabel;
 		this.outputLabelType = other.outputLabelType;
+		this.inputLabelSid = other.inputLabelSid;
+		this.outputLabelSid = other.outputLabelSid;
 		this.inputFids = other.inputFids;
 		this.outputDict = other.outputDict;
 		this.isForest = other.isForest;
@@ -39,6 +43,8 @@ public final class BasicTransition extends Transition {
 		this.inputLabelType = inputLabelType;
 		this.outputLabel = outputLabel;
 		this.outputLabelType = outputLabelType;
+		this.inputLabelSid = inputLabel > 0 ? dict.getItemByFid(inputLabel).sid : ".";
+		this.outputLabelSid = outputLabel > 0 ? dict.getItemByFid(outputLabel).sid : null;
 		this.toState = toState;
 
 		if (inputLabel == 0)
@@ -50,7 +56,7 @@ public final class BasicTransition extends Transition {
 		case SELF_DESCENDANTS:
 			inputFids = dict.descendantsFids(inputLabel);
 			break;
-		default:
+		default: // unreachable
 			 inputFids = null;
 		}
 
@@ -155,12 +161,39 @@ public final class BasicTransition extends Transition {
 	}
 
 	@Override
-	public String toString() {
+	public String toPatternExpression() {
+		String patternExpression;
+		if(inputLabel == 0)
+			patternExpression = ".";
+		else {
+			patternExpression = "\"" + inputLabelSid + "\"";
+			if(inputLabelType == InputLabelType.SELF)
+				patternExpression += "=";
+		}
+		switch(outputLabelType) {
+			case SELF:
+				patternExpression = "("+patternExpression+")";
+				break;
+			case SELF_ASCENDANTS:
+				patternExpression = "("+patternExpression+"^"+")";
+				break;
+			case CONSTANT:
+				patternExpression = "("+patternExpression+"=^"+")";
+				break;
+			case EPSILON:
+				break;
+
+		}
+		return patternExpression;
+	}
+
+	@Override
+	public String labelString() {
 		StringBuilder sb = new StringBuilder();
 		if(inputLabel == 0)
 			sb.append(".");
 		else {
-			sb.append(inputLabel);
+			sb.append(inputLabelSid);
 			if(inputLabelType == InputLabelType.SELF) 
 				sb.append("=");
 		}
@@ -170,16 +203,21 @@ public final class BasicTransition extends Transition {
 			sb.append("$");
 			break;
 		case SELF_ASCENDANTS:
-			sb.append("$-" + outputLabel);
+			sb.append("$-" + (outputLabelSid != null ? outputLabelSid : ""));
 			break;
 		case CONSTANT:
-			sb.append(outputLabel);
+			sb.append(outputLabelSid);
 			break;
 		case EPSILON:
-			sb.append("EPS");
+			sb.append("ε");
 			
 		}
 		return sb.toString();
+	}
+
+	@Override
+	public String toString() {
+		return labelString() + " -> " + toState.id;
 	}
 
 	@Override
