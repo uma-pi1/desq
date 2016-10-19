@@ -11,14 +11,16 @@ import java.util.*;
 
  
 public final class Fst {
-	// initial state
+	/** initial state */
 	State initialState;
 	
-	// list of states; initialized only after state numbers are updated; see updateStates()
+	/** list of states; initialized only after state numbers are updated; see updateStates() */
 	List<State> states = new ArrayList<>();
     List<State> finalStates = new ArrayList<>();
 
-	// flag indicating whether full input must be consumed
+	/** flag indicating whether full input must be consumed
+	 * TODO: remove once we annotate states with isComplete
+	 */
 	boolean requireFullMatch = false;
 
     public Fst() {
@@ -46,7 +48,6 @@ public final class Fst {
 	public void setInitialState(State state) {
 		this.initialState = state;
 	}
-	
 	
 	public Collection<State> getFinalStates() {
 		return finalStates;
@@ -88,7 +89,7 @@ public final class Fst {
 		return states.size();
 	}
 	
-	// returns a copy of FST with shallow copy of its transitions
+	/* Returns a copy of FST with shallow copy of its transitions */
 	public Fst shallowCopy() {
 		Fst fstCopy = new Fst();
 		Map<State, State> stateMap = new HashMap<>();
@@ -111,6 +112,22 @@ public final class Fst {
 		}
 		return fstCopy;
 	}
+
+	/** Reverses the edges of this FST and returns a list of new initial states.
+	 *
+	 * @param createNewInitialState if true, the reversed FST will have just one initial state
+	 * @return the list of initial states of the reversed FST
+	 */
+	public List<State> reverse(boolean createNewInitialState) {
+		return FstOperations.reverse(this, createNewInitialState);
+	}
+
+	/** Minimizes this FST to the extent possible */
+	public void minimize() {
+		FstOperations.minimize(this);
+	}
+
+	// -- printing ----------------------------------------------------------------------------------------------------
 
 	public void print() {
 		print(System.out, 2);
@@ -151,6 +168,10 @@ public final class Fst {
 			}
 			out.println();
 		}
+
+		out.print(indentString);
+		out.print("PatEx  : ");
+		out.println(toPatternExpression());
 	}
 	
 	/** Exports the fst using graphviz (type bsed on extension, e.g., "gv" (source file), "pdf", ...) */
@@ -165,18 +186,113 @@ public final class Fst {
 		}
 		fstVisualizer.endGraph();
 	}
-	
-	// reverses the edges of the fst and creates one initial state
-	// uptates state ids
-	public List<State> reverse() {
-		return reverse(true);
+
+	/** Creates a pattern expression that is equivalent to this FST. In general, the resulting pattern experssions
+	 * are quite long (they are not "minimized" in any way). */
+	public String toPatternExpression() {
+		// we do this via a variant of the Brzozowski and McCluskey state elimination algorithm
+
+		// first we collect all edges plus edges from all final states to a new dummy state (id -1)
+		List<Edge> edges = new LinkedList<>();
+		for (State s : getStates()) {
+			for (Transition t : s.getTransitions()) {
+				edges.add(new Edge(s.id, t.toState.id, t.toPatternExpression()));
+			}
+			if (s.isFinal()) {
+				edges.add(new Edge(s.id, -1, "")); // dummy edge to new state
+			}
+		}
+
+		// now eliminate all but the initial and the dummy state
+		Map<Integer, List<Edge>> inEdgesMap = new HashMap<>(); // indexed by fromState
+		List<Edge> loopEdges = new ArrayList<>();
+		Map<Integer, List<Edge>> outEdgesMap = new HashMap<>(); // indexed by toState
+		for (State s : getStates()) {
+			if (s == initialState)
+				continue;
+
+			// collect incoming, loop, and outgoing edges for s
+			inEdgesMap.clear();
+			loopEdges.clear();
+			outEdgesMap.clear();
+			Iterator<Edge> it = edges.iterator();
+			while (it.hasNext()) {
+				Edge e = it.next();
+				if (e.to == s.id) {
+					if (e.from == s.id) {
+						loopEdges.add(e);
+					} else {
+						List inEdges = inEdgesMap.get(e.from);
+						if (inEdges == null) inEdges = new ArrayList<>();
+						inEdges.add(e);
+						inEdgesMap.put(e.from, inEdges);
+					}
+					it.remove();
+				} else if (e.from == s.id) {
+					List outEdges = outEdgesMap.get(e.to);
+					if (outEdges ==null) outEdges = new ArrayList<>();
+					outEdges.add(e);
+					outEdgesMap.put(e.to, outEdges);
+					it.remove();
+				}
+			}
+
+			// create new edges to skip over s
+			String loopExp = loopEdges.isEmpty() ? " " : (combinedExp(loopEdges) + "* ");
+			for (List<Edge> inEdges : inEdgesMap.values()) {
+				String inExp = combinedExp(inEdges);
+				for (List<Edge> outEdges : outEdgesMap.values()) {
+					String outExp = combinedExp(outEdges);
+					edges.add(new Edge(inEdges.get(0).from, outEdges.get(0).to, inExp+loopExp+outExp));
+				}
+			}
+		}
+
+		// now we are ready to create the pattern expression
+		loopEdges.clear();
+		List<Edge> outEdges = new ArrayList<>();
+		for (Edge e : edges) {
+			assert e.from == getInitialState().id;
+			if (e.to == -1) { // to dummy state
+				outEdges.add(e);
+			} else { // loop to initial stte
+				assert e.to == getInitialState().id;
+				loopEdges.add(e);
+			}
+		}
+
+		// create the final pattern expression
+		String patternExpression = loopEdges.isEmpty() ? "" : (combinedExp(loopEdges) + "* ");
+		patternExpression += combinedExp(outEdges);
+
+		return patternExpression;
 	}
-	
-	public List<State> reverse(boolean createNewInitialState) {
-		return FstOperations.reverse(this, createNewInitialState);
+
+
+	/** Helper class for storing edges in {@link #toPatternExpression()} */
+	private static class Edge {
+		int from;
+		int to;
+		String label;
+
+		Edge(int from, int to, String label) {
+			this.from = from;
+			this.to = to;
+			this.label = label;
+		}
 	}
-	
-	public void minimize() {
-		FstOperations.minimize(this);
+
+	/** Returns a pattern experssion that combines all edge labels via an alternativ (|) */
+	private static String combinedExp(List<Edge> edges) {
+		Collections.sort(edges, (o1, o2) -> o1.label.compareTo(o2.label)); // just to make output more readable
+		String exp = edges.size() > 1 ? "[" : "";
+		String sep = "";
+		for (Edge e : edges) {
+			exp += sep + e.label;
+			sep = "|";
+		}
+		if (edges.size()>1)
+			exp += "]";
+		return exp;
 	}
 }

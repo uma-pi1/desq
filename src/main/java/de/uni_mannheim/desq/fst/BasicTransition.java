@@ -2,7 +2,6 @@ package de.uni_mannheim.desq.fst;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import it.unimi.dsi.fastutil.ints.*;
-import org.apache.commons.lang.NotImplementedException;
 
 import java.util.Iterator;
 
@@ -163,7 +162,29 @@ public final class BasicTransition extends Transition {
 
 	@Override
 	public String toPatternExpression() {
-		throw new NotImplementedException();
+		String patternExpression;
+		if(inputLabel == 0)
+			patternExpression = ".";
+		else {
+			patternExpression = "\"" + inputLabelSid + "\"";
+			if(inputLabelType == InputLabelType.SELF)
+				patternExpression += "=";
+		}
+		switch(outputLabelType) {
+			case SELF:
+				patternExpression = "("+patternExpression+")";
+				break;
+			case SELF_ASCENDANTS:
+				patternExpression = "("+patternExpression+"^"+")";
+				break;
+			case CONSTANT:
+				patternExpression = "("+patternExpression+"=^"+")";
+				break;
+			case EPSILON:
+				break;
+
+		}
+		return patternExpression;
 	}
 
 	@Override

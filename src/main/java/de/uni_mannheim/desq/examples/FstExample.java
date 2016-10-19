@@ -38,6 +38,7 @@ public class FstExample {
 		fst.print();
 		fst.exportGraphViz("fst-example.gv");
 		fst.exportGraphViz("fst-example.pdf"); // graphviz needs to be installed
+		String synPatternExpression = fst.toPatternExpression(); // synthesize a pattern expression for the FST
 
 		// and minimize it
 		fst.minimize();
@@ -45,6 +46,12 @@ public class FstExample {
 		fst.print();
 		fst.exportGraphViz("fst-example-minimized.gv");
 		fst.exportGraphViz("fst-example-minimized.pdf"); // graphviz needs to be installed
+
+		// now use the synthesized pattern experssion and minimize it
+		System.out.println("Minimized FST for synthesized pattern expression");
+		fst = new PatEx(synPatternExpression, dict).translate();
+		fst.minimize();
+		fst.print();
 	}
 	
 	public static void main(String[] args) throws IOException {
