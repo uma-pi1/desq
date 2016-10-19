@@ -21,7 +21,7 @@ public final class DataInput2InputStreamWrapper extends InputStream {
     public int read() throws IOException {
         remainingBytes--;
         try {
-            return (remainingBytes >= 0) ? in.readByte() : -1;
+            return (remainingBytes >= 0) ? in.readUnsignedByte() : -1;
         } catch (EOFException e) {
             remainingBytes = 0;
             return -1;
