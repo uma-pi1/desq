@@ -64,7 +64,7 @@ public final class PrefixGrowthMiner extends MemoryDesqMiner {
 		this.gamma = gamma;
 		this.lambda = lambda;
 		this.generalize = generalize;
-        this.largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
+        this.largestFrequentFid = ctx.dict.getLargestFidAboveSupport(sigma);
         this.ascendants = ctx.dict.isForest() ? new IntArrayList() : new IntAVLTreeSet();
         clear();
 	}

@@ -19,7 +19,7 @@ import java.util.Iterator;
 import java.util.List;
 
 /** A single item in a dictionary.  */
-public final class Item implements WithSizeEstimation {
+final class Item implements WithSizeEstimation {
 	/** Stable global identifier of this item */
 	public final int gid;
 
@@ -46,7 +46,7 @@ public final class Item implements WithSizeEstimation {
 
     /** Other properties associated with this item. Can be null. */
     public DesqProperties properties = null; // null default to save memory
-	
+
 	public Item(int gid, String sid) {
 		this.gid = gid;
 		this.sid = sid;

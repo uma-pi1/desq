@@ -155,7 +155,7 @@ public final class CSpadeMiner extends DesqMiner {
         this.gamma = gamma;
         this.lambda = lambda;
         this.generalize = generalize;
-        this.largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
+        this.largestFrequentFid = ctx.dict.getLargestFidAboveSupport(sigma);
         clear();
     }
 
