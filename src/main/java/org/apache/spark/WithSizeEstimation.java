@@ -4,5 +4,5 @@ import org.apache.spark.util.KnownSizeEstimation;
 
 /** A hack to get KnownSizeEstimation into {@link de.uni_mannheim.desq.dictionary.Item}. We need this
  * because Spark's size estimation for Dictionaries is horribly off. */
-public abstract class ItemWithKnownSizeEstimation implements KnownSizeEstimation {
+public interface WithSizeEstimation extends KnownSizeEstimation {
 }

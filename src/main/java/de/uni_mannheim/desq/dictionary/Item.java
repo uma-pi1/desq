@@ -8,7 +8,7 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificDatumWriter;
-import org.apache.spark.ItemWithKnownSizeEstimation;
+import org.apache.spark.WithSizeEstimation;
 import org.apache.spark.util.SizeEstimator;
 
 import java.io.ByteArrayOutputStream;
@@ -19,7 +19,7 @@ import java.util.Iterator;
 import java.util.List;
 
 /** A single item in a dictionary.  */
-public final class Item extends ItemWithKnownSizeEstimation {
+public final class Item implements WithSizeEstimation {
 	/** Stable global identifier of this item */
 	public final int gid;
 
@@ -213,8 +213,8 @@ public final class Item extends ItemWithKnownSizeEstimation {
 		int fid;
 		long cFreq;
 		long dFreq;
-		List<Object> children;
-		List<Object> parents;
+		List<Item> children;
+		List<Item> parents;
 		DesqProperties properties;
 	}
 }
