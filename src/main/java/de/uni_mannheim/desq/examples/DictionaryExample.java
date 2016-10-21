@@ -1,11 +1,9 @@
 package de.uni_mannheim.desq.examples;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.dictionary.Item;
+import de.uni_mannheim.desq.dictionary.RestrictedDictionary;
 import de.uni_mannheim.desq.io.DelSequenceReader;
-import de.uni_mannheim.desq.io.DelSequenceWriter;
 import de.uni_mannheim.desq.io.SequenceReader;
-import de.uni_mannheim.desq.io.SequenceWriter;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntSet;
@@ -16,45 +14,38 @@ import java.net.URL;
 
 public class DictionaryExample {
 	static void nyt() throws IOException {
-		// use to convert old file to new format
-		//Dictionary dict = DictionaryIO.loadFromDel(new FileInputStream("data-local/nyt-1991-dict.del"), true);
-		//dict.write("data-local/nyt-1991-dict.json");
-		//dict.write("data-local/nyt-1991-dict.avro.gz");
-
 		// load the dictionary
 		Dictionary dict = Dictionary.loadFrom("data-local/nyt-1991-dict.avro.gz");
 
-		Item item;
+		int fid;
 		IntSet fids;
 
 		// compute ascendants
-		//item = dict.getItemBySid("was@be@VB@");
-		item = dict.getItemBySid("vice@NN@");
-		System.out.println(item);
-		fids = dict.ascendantsFids(item.fid);
-		System.out.println("Asc: " + dict.getItemsByFids(fids));
+		fid = dict.fidOf("vice@NN@");
+		System.out.println(dict.toJson(fid));
+		fids = dict.ascendantsFids(fid);
+		System.out.println("Asc: " + dict.sidsOfFids(fids));
 
 		// compute descendants
-		item = dict.getItemBySid("be@VB@");
-		System.out.println(item);
-		fids = dict.descendantsFids(item.fid);
-		System.out.println("Desc: " + dict.getItemsByFids(fids));
+		fid = dict.fidOf("be@VB@");
+		System.out.println(dict.toJson(fid));
+		fids = dict.descendantsFids(fid);
+		System.out.println("Desc: " + dict.sidsOfFids(fids));
 
 		// restrict the dictionary to specified subset
-		Dictionary restricted = dict.restrictedCopy(
-				dict.descendantsFids(dict.getItemBySid("DT@").fid));
+		Dictionary restricted = new RestrictedDictionary(dict, dict.descendantsFids(dict.fidOf("DT@")));
 		restricted.writeJson(System.out);
 		System.out.println();
 	
 		// clear the counts in the dictionary and recopute
 		System.out.println("Recomputing counts");
-		System.out.println(dict.getItemBySid("be@VB@").toJson());
-		dict.clearCountsAndFids();
-		System.out.println(dict.getItemBySid("be@VB@").toJson());
+		System.out.println(dict.toJson(dict.fidOf("be@VB@")));
+		dict.clearFreqs();
+		System.out.println(dict.toJson(dict.fidOf("be@VB@")));
 		SequenceReader dataReader = new DelSequenceReader(
 				new FileInputStream("data-local/nyt-1991-data.del"), false);
-		dict.incCounts(dataReader);
-		System.out.println(dict.getItemBySid("be@VB@").toJson());
+		dict.incFreqs(dataReader);
+		System.out.println(dict.toJson(dict.fidOf("be@VB@")));
 	}
 
 	static void icdm16() throws IOException {
@@ -63,22 +54,26 @@ public class DictionaryExample {
 
 		// load the dictionary
 		Dictionary dict = Dictionary.loadFrom(dictFile);
-		System.out.println("All items: " + dict.getItems());
-
+		System.out.println("All items: " + dict.sids());
+		System.out.println("isForest: " + dict.isForest());
+		System.out.println();
 
 		// print data
-		System.out.println("Input sequences:");
+		System.out.println("Input sequences (gids->sids):");
 		SequenceReader dataReader = new DelSequenceReader(dataFile.openStream(), false);
 		IntList inputSequence = new IntArrayList();
-		while (dataReader.readAsIds(inputSequence)) {
-			System.out.println(dict.getItemsByIds(inputSequence));
+		while (dataReader.readAsGids(inputSequence)) {
+			System.out.println(dict.sidsOfGids(inputSequence));
 		}
-		
+		System.out.println();
+
 		// update hierarchy
 		dataReader = new DelSequenceReader(dataFile.openStream(), false);
-		dict.incCounts(dataReader);
+		dict.incFreqs(dataReader);
 		System.out.println("Dictionary with counts: ");
 		dict.writeJson(System.out);
+		System.out.println();
+		System.out.println("hasConsistentFids: " + dict.hasConsistentFids());
 		System.out.println();
 
 		// update fids
@@ -86,19 +81,19 @@ public class DictionaryExample {
 		dict.recomputeFids();
 		dict.writeJson(System.out);
 		System.out.println();
+		System.out.println();
 
 		// show converted input sequences
-		dataReader = new DelSequenceReader(dataFile.openStream(), false);
-		SequenceWriter dataWriter = new DelSequenceWriter(System.out, false);
-		while (dataReader.readAsIds(inputSequence)) {
-			dict.gidsToFids(inputSequence);
-			dataWriter.write(inputSequence);
+		System.out.println("Converted sequences (gids->new fids->sids): ");
+		dataReader = new DelSequenceReader(dict, dataFile.openStream(), false);
+		while (dataReader.readAsFids(inputSequence)) {
+			System.out.println(dict.sidsOfFids(inputSequence));
 		}
 	}
 	
 	
 	public static void main(String[] args) throws IOException {
-		//nyt();
-		icdm16();
+		nyt();
+		//icdm16();
 	}
 }

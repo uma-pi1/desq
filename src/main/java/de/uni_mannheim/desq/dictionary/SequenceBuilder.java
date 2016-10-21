@@ -9,9 +9,9 @@ import org.apache.commons.lang3.tuple.Pair;
  * Builds a sequence consisting of {@link Item#gid}s given a dictionary.
  */
 public class SequenceBuilder implements DesqBuilder {
-    private int currentSupport = 0;
+    private long currentWeight = 0;
     private IntList currentGids = new IntArrayList();
-    private MutablePair<Item,Boolean> pair = new MutablePair<>(null, false);
+    private MutablePair<Integer,Boolean> pair = new MutablePair<>(null, false);
     private Dictionary dict;
 
     public SequenceBuilder(Dictionary dict) {
@@ -24,26 +24,27 @@ public class SequenceBuilder implements DesqBuilder {
     }
 
     @Override
-    public void newSequence(int support) {
-        currentSupport = support;
+    public void newSequence(long weight) {
+        currentWeight = weight;
         currentGids.clear();
     }
 
     @Override
-    public Pair<Item, Boolean> appendItem(String sid) {
-        Item item = dict.getItemBySid(sid);
-        currentGids.add(item.gid);
-        pair.setLeft(item);
+    public Pair<Integer, Boolean> appendItem(String sid) {
+        int gid = dict.gidOf(sid);
+        if (gid<0) throw new IllegalStateException("unknown sid " + sid);
+        currentGids.add(gid);
+        pair.setLeft(gid);
         return pair;
     }
 
     @Override
-    public Pair<Item, Boolean> addParent(Item child, String parentSid) {
+    public Pair<Integer, Boolean> addParent(int childFid, String parentSid) {
         throw new UnsupportedOperationException();
     }
 
-    public int getCurrentSupport() {
-        return currentSupport;
+    public long getCurrentWeight() {
+        return currentWeight;
     }
 
     /** The returned list is reused so make sure to create a copy it if it needs to be retained. */

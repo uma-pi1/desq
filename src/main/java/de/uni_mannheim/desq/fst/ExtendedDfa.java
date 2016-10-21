@@ -1,7 +1,6 @@
 package de.uni_mannheim.desq.fst;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.dictionary.Item;
 import it.unimi.dsi.fastutil.ints.*;
 
 import java.util.*;
@@ -93,8 +92,9 @@ public final class ExtendedDfa {
 				}
 				
 				//for all items, for all transitions
-				for(Item item : dict.getItems()) {
-					int itemFid = item.fid;
+				IntIterator it = dict.fids().iterator();
+				while (it.hasNext()) {
+					int itemFid = it.nextInt();
 					
 					for(Transition t : transitionList){
 						if(t.matches(itemFid)) {
@@ -112,7 +112,7 @@ public final class ExtendedDfa {
 					IntSet reachableStates = reachableStatesFromItemId.get(itemFid);
 					BitSet eDfaTransition = incTransitionToStates.get(reachableStates);
 					if(eDfaTransition == null) {
-						eDfaTransition = new BitSet(dict.getItems().size() + 1);
+						eDfaTransition = new BitSet(dict.size() + 1);
 						incTransitionToStates.put(reachableStates, eDfaTransition);
 					}
 					eDfaTransition.set(itemFid);

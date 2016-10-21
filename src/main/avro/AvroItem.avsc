@@ -4,6 +4,10 @@
   "type": "record",
   "fields": [
     {
+      "name": "fid",
+      "type": "int"
+    },
+    {
       "name": "gid",
       "type": "int"
     },
@@ -12,16 +16,11 @@
       "type": "string"
     },
     {
-      "name": "fid",
-      "type": "int",
-      "default": -1
-    },
-    {
-      "name": "cFreq",
+      "name": "dfreq",
       "type": "long"
     },
     {
-      "name": "dFreq",
+      "name": "cfreq",
       "type": "long"
     },
     {

@@ -13,31 +13,31 @@ import java.util.List;
 
 /** A sequence of integers plus a weight (support). */
 public final class WeightedSequence extends Sequence implements Externalizable, Writable {
-    public long support;
+    public long weight;
 
     public WeightedSequence() {
        super();
-       support = 1;
+       weight = 1;
     }
 
     public WeightedSequence(long support) {
        super();
-       this.support = support;
+       this.weight = support;
     }
 
     public WeightedSequence(IntList l, long support) {
         super(l);
-        this.support = support;
+        this.weight = support;
     }
 
     protected WeightedSequence(int capacity) {
         super(capacity);
-        support = 1;
+        weight = 1;
     }
 
     public WeightedSequence(final int[] a, long support) {
         super(a, true);
-        this.support = support;
+        this.weight = support;
     }
 
     @Override
@@ -45,7 +45,7 @@ public final class WeightedSequence extends Sequence implements Externalizable, 
         WeightedSequence c = new WeightedSequence(size);
         System.arraycopy(this.a, 0, c.a, 0, this.size);
         c.size = this.size;
-        c.support = support;
+        c.weight = weight;
         return c;
     }
 
@@ -53,7 +53,7 @@ public final class WeightedSequence extends Sequence implements Externalizable, 
      * the extend possible, i.e., the returned sequence may share date with this sequence. */
     @Override
     public WeightedSequence withSupport(long support) {
-        if (this.support == support) return this;
+        if (this.weight == support) return this;
         WeightedSequence result = new WeightedSequence(a, support);
         result.size = this.size;
         return result;
@@ -62,11 +62,11 @@ public final class WeightedSequence extends Sequence implements Externalizable, 
     @Override
     public int compareTo(List<? extends Integer> o) {
         if (o instanceof WeightedSequence) {
-            int cmp = Long.signum(((WeightedSequence)o).support - support); // descending
+            int cmp = Long.signum(((WeightedSequence)o).weight - weight); // descending
             if (cmp != 0)
                 return cmp;
         } else {
-            int cmp = Long.signum(1L - support);
+            int cmp = Long.signum(1L - weight);
             if (cmp != 0)
                 return cmp;
         }
@@ -76,11 +76,11 @@ public final class WeightedSequence extends Sequence implements Externalizable, 
     @Override
     public int compareTo(IntArrayList o) {
         if (o instanceof WeightedSequence) {
-            int cmp = Long.signum(((WeightedSequence)o).support - support); // descending
+            int cmp = Long.signum(((WeightedSequence)o).weight - weight); // descending
             if (cmp != 0)
                 return cmp;
         } else {
-            int cmp = Long.signum(1L - support);
+            int cmp = Long.signum(1L - weight);
             if (cmp != 0)
                 return cmp;
         }
@@ -92,33 +92,33 @@ public final class WeightedSequence extends Sequence implements Externalizable, 
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         WeightedSequence that = (WeightedSequence) o;
-        if (support != that.support) return false;
+        if (weight != that.weight) return false;
         return super.equals(o);
     }
 
     @Override
     public int hashCode() {
-        return 31 * super.hashCode() + (int) (support ^ (support >>> 32));
+        return 31 * super.hashCode() + (int) (weight ^ (weight >>> 32));
     }
 
     @Override
     public String toString() {
-        if (support == 1) {
+        if (weight == 1) {
             return super.toString();
         } else {
-            return super.toString() + "@" + support;
+            return super.toString() + "@" + weight;
         }
     }
 
     @Override
     public void write(DataOutput out) throws IOException {
-        WritableUtils.writeVLong(out, support);
+        WritableUtils.writeVLong(out, weight);
         super.write(out);
     }
 
     @Override
     public void readFields(DataInput in) throws IOException {
-        support = WritableUtils.readVLong(in);
+        weight = WritableUtils.readVLong(in);
         super.readFields(in);
     }
 

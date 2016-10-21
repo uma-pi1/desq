@@ -38,7 +38,7 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
           while (!outputIterator.hasNext && rows.hasNext) {
             // if not, go to the next input sequence
             val s = rows.next()
-            currentSupport = s.support
+            currentSupport = s.weight
 
             // and run sequential DesqCount to get all output sequences produced by that input
             if (usesFids) {

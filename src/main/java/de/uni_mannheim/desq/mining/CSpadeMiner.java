@@ -1,7 +1,6 @@
 package de.uni_mannheim.desq.mining;
 
 
-import de.uni_mannheim.desq.dictionary.Item;
 import de.uni_mannheim.desq.util.DesqProperties;
 import de.uni_mannheim.desq.util.IntArrayStrategy;
 import it.unimi.dsi.fastutil.ints.*;
@@ -155,7 +154,7 @@ public final class CSpadeMiner extends DesqMiner {
         this.gamma = gamma;
         this.lambda = lambda;
         this.generalize = generalize;
-        this.largestFrequentFid = ctx.dict.getLargestFidAboveSupport(sigma);
+        this.largestFrequentFid = ctx.dict.lastFidAbove(sigma);
         clear();
     }
 
@@ -387,12 +386,15 @@ public final class CSpadeMiner extends DesqMiner {
                     }
                 }
             } else {
-                for (Item item : ctx.dict.getItems()) {
-                    if (item.dFreq >= sigma) {
-                        itemFids.set(0, item.fid);
-                        ctx.patternWriter.write(itemFids, item.dFreq);
-                    }
-                }
+				IntIterator fids = ctx.dict.fids().iterator();
+				while (fids.hasNext()) {
+					int fid = fids.nextInt();
+					long dfreq = ctx.dict.dfreqOf(fid);
+					if (dfreq>=sigma) {
+						itemFids.set(0, fid);
+						ctx.patternWriter.write(itemFids, dfreq);
+					}
+				}
             }
         }
 

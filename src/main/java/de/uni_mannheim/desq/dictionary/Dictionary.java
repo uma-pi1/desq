@@ -25,74 +25,126 @@ import java.util.*;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-/** A set of items arranged in a hierarchy. Each item is associated with a gid (stable numeric item identifier),
- * a sid (stable string item identifier) and a fid (variable frequency identifier / position). */
-public final class Dictionary implements Externalizable, Writable {
+/** A set of items arranged in a hierarchy.
+ *
+ * Each item is associated with two stable unique identifiers: its gid (non-negative integer) and its sid (string). These
+ * identifiers are set by the underlying application and do not need to fulfil any requirements (and, in particular,
+ * they do not need to be dense).
+ *
+ * Each item is also associated with an internal positive numeric identifier, its fid. The fid is not stable and may change
+ * when the dictionary is changed. Generally, fids should be dense. For many mining tasks, they also need to
+ * satisfy additional properties; see {@link #hasConsistentFids}.
+*/
+public class Dictionary implements Externalizable, Writable {
 
 	// -- information about items -------------------------------------------------------------------------------------
 
-	/** Stable global identifiers of this dictionary's items. The position of an item in this list is its fid. */
-	private final IntArrayList gids = new IntArrayList();
+	/** The number of items in this dictionary. */
+	protected int size = 0;
 
-	/** Stable unique item names of this dictionary's items. Indexed as {@link #gids}. */
-	private final ArrayList<String> sids = new ArrayList<>();
+	/** Stable global identifiers of this dictionary's items. Indexed by fid; -1 if fid not present.  */
+	protected final IntArrayList gids;
 
-	/** The supports (document frequencies) of this dictionary's items. Indexed as {@link #gids}. */
-	private final LongArrayList supports = new LongArrayList();
+	/** Stable unique item names of this dictionary's items. Indexed by fid; null if fid not present. */
+	protected final ArrayList<String> sids;
 
-	/** The collection supports (collection frequencies) of this dictionary's items. Indexed as {@link #gids}. */
-	private final LongArrayList cSupports = new LongArrayList();
+	/** The document frequencies of this dictionary's items. Indexed by fid; -1 if fid not present. */
+	protected final LongArrayList dfreqs;
 
-	/** The positions of the parents of this dictionary's items. Indexed as {@link #gids}. */
-	private final ArrayList<IntArrayList> parents = new ArrayList<>();
+	/** The collection frequencies of this dictionary's items. Indexed by fid; -1 if fid not present. */
+	protected final LongArrayList cfreqs;
 
-	/** The positions of the children of this dictionary's items. Indexed as {@link #gids}. */
-	private final ArrayList<IntArrayList> children = new ArrayList<>();
+	/** The fids of the parents of this dictionary's items. Indexed by fid; null if fid not present. */
+	protected final ArrayList<IntArrayList> parents;
 
-	/** Properties associated with this dictionary's items. Indexed as {@link #gids}. */
-	private final ArrayList<DesqProperties> properties = new ArrayList<>();
+	/** The fids of the children of this dictionary's items. Indexed by fid; null if fid not present. */
+	protected final ArrayList<IntArrayList> children;
+
+	/** Properties associated with this dictionary's items. Indexed by fid; null if fid not present. */
+	protected final ArrayList<DesqProperties> properties;
 
 
 	// -- indexes -----------------------------------------------------------------------------------------------------
 
-	/** Maps a gid to a fid */
-	private final Int2IntOpenHashMap gidIndex = new Int2IntOpenHashMap();
+	/** Maps gids to fids. */
+	protected final Int2IntOpenHashMap gidIndex;
 
-	/** Maps a sid to a fid */
-	private final Object2IntOpenHashMap<String> sidIndex = new Object2IntOpenHashMap<>();
+	/** Maps sids to fids. */
+	protected final Object2IntOpenHashMap<String> sidIndex;
 
 
 	// -- information about this dictionary ---------------------------------------------------------------------------
 
 	/** Whether this dictionary is a forest or <code>null</code> if unknown. See {@link #isForest()}. */
-    private Boolean isForest = null;
+	protected Boolean isForest = null;
 
-	/** Whether the fids in this dictionary are valid  <code>null</code> if unknown. See {@link #hasValidFids()}. */
-	private Boolean hasValidFids = null;
+	/** Whether the fids in this dictionary are consistent or <code>null</code> if unknown. See {@link #hasConsistentFids()}. */
+	protected Boolean hasConsistentFids = null;
 
 
 	// -- construction and modification -------------------------------------------------------------------------------
 
 	public Dictionary() {
+		gids = new IntArrayList();
+		sids = new ArrayList<>();
+		dfreqs = new LongArrayList();
+		cfreqs = new LongArrayList();
+		parents = new ArrayList<>();
+		children = new ArrayList<>();
+		properties = new ArrayList<>();
+		gidIndex = new Int2IntOpenHashMap();
 		gidIndex.defaultReturnValue(-1);
+		sidIndex = new Object2IntOpenHashMap<>();
 		sidIndex.defaultReturnValue(-1);
 	}
 
-	/** Adds an item and returns the (preliminary) fid assigned to the added item. */
-	private int setItem(int fid, int gid, String sid, long support, long cSupport,
+	/** Creates a new dictionary backed by given dictionary, except parents and children. Used
+	 * for {@link RestrictedDictionary}. */
+	protected Dictionary(Dictionary dict) {
+		gids = dict.gids;
+		sids = dict.sids;
+		dfreqs = dict.dfreqs;
+		cfreqs = dict.cfreqs;
+		parents = new ArrayList<>();
+		children = new ArrayList<>();
+		properties = dict.properties;
+		gidIndex = dict.gidIndex;
+		sidIndex = dict.sidIndex;
+	}
+
+	/** Always false. Subclasses may override. */
+	public boolean isReadOnly() {
+		return false;
+	}
+
+	protected void ensureWritable() {
+		if (isReadOnly())
+			throw new UnsupportedOperationException("dictionary is read only");
+	}
+
+	/** Adds a new item to this dictionary. */
+	public void addItem(int fid, int gid, String sid, long dfreq, long cfreq,
 					   IntArrayList parents, IntArrayList children, DesqProperties properties) {
-		if (gidIndex.containsKey(gid))
+		ensureWritable();
+		if (fid <= 0)
+			throw new IllegalArgumentException("fid '" + fid + "' is not positive");
+		if (containsFid(fid))
+			throw new IllegalArgumentException("Item fid '" + fid + "' exists already");
+		if (gid < 0)
+			throw new IllegalArgumentException("gid '" + gid + "' is negative");
+		if (containsGid(gid))
 			throw new IllegalArgumentException("Item gid '" + gid + "' exists already");
-		if (sidIndex.containsKey(sid))
+		if (sid == null)
+			throw new IllegalArgumentException("sid for item with '" + gid + "' is null");
+		if (containsSid(sid))
 			throw new IllegalArgumentException("Item sid '" + sid + "' exists already");
 
-		// create enough space by inserting invalid values (need to be set later)
-		ensureCapacity(fid+1);
-		while (size() <= fid) {
+		// create enough space by inserting dummy values
+		while (gids.size() <= fid) {
 			gids.add(-1);
 			sids.add(null);
-			supports.add(-1);
-			cSupports.add(-1);
+			dfreqs.add(-1);
+			cfreqs.add(-1);
 			this.parents.add(null);
 			this.children.add(null);
 			this.properties.add(null);
@@ -101,34 +153,39 @@ public final class Dictionary implements Externalizable, Writable {
 		// now put the item
 		gids.set(fid, gid);
 		sids.set(fid, sid);
-		supports.set(fid, support);
-		cSupports.set(fid, cSupport);
+		dfreqs.set(fid, dfreq);
+		cfreqs.set(fid, cfreq);
 		this.parents.set(fid, parents);
 		this.children.set(fid, children);
 		this.properties.set(fid, properties);
 		gidIndex.put(gid, fid);
 		sidIndex.put(sid, fid);
 
-		// invalidate cached information
+		// update cached information
+		size += 1;
 		isForest = null;
-		hasValidFids = null;
-
-		return fid;
+		hasConsistentFids = null;
 	}
 
 	/** Adds an item and returns the fid assigned to the added item. */
-	public int addItem(int gid, String sid, long support, long cSupport,
+	public int addItem(int gid, String sid, long dfreq, long cfreq,
 					   IntArrayList parents, IntArrayList children, DesqProperties properties) {
-		return setItem(size(), gid, sid, support, cSupport, parents, children, properties);
+		int fid = lastFid()+1;
+		if (fid == 0) fid=1;
+		addItem(fid, gid, sid, dfreq, cfreq, parents, children, properties);
+		return fid;
 	}
 
+	/** Adds childFid as a descendant of parentFid. No duplicate checking is performed. */
 	public void addParent(int childFid, int parentFid) {
-		if (childFid < 0 || childFid > size() || parentFid < 0 || parentFid > size())
+		ensureWritable();
+		if (!containsFid(childFid) || !containsFid(parentFid))
 			throw new IllegalArgumentException();
-		parents(childFid).add(parentFid);
-		children(parentFid).add(childFid);
+		parentsOf(childFid).add(parentFid);
+		childrenOf(parentFid).add(childFid);
 	}
 
+	/** Adds a new item to this dictionary. */
 	private void addItem(AvroItem avroItem) {
 		// properties
 		DesqProperties properties = null;
@@ -144,12 +201,12 @@ public final class Dictionary implements Externalizable, Writable {
 		// create the item
 		int noParents = avroItem.getParentGids().size();
 		int noChildren = avroItem.getNoChildren();
-		setItem(
+		addItem(
 				avroItem.getFid(),
 				avroItem.getGid(),
 				avroItem.getSid(),
-				avroItem.getDFreq(),
-				avroItem.getCFreq(),
+				avroItem.getDfreq(),
+				avroItem.getCfreq(),
 				new IntArrayList(noParents),
 				new IntArrayList(noChildren),
 				properties
@@ -158,7 +215,7 @@ public final class Dictionary implements Externalizable, Writable {
 		// and add parents
 		int fid = avroItem.getFid();
 		for (Integer parentGid : avroItem.getParentGids()) {
-			int parentFid = fid(parentGid);
+			int parentFid = fidOf(parentGid);
 			if (parentFid == -1) {
 				throw new RuntimeException("parent item with gid=" + parentGid + " not present");
 			}
@@ -167,46 +224,104 @@ public final class Dictionary implements Externalizable, Writable {
 	}
 
 	/** Adds an item and returns the (preliminary) fid assigned to the added item. */
+	public void addItem(int fid, int gid, String sid, long dfreq, long cfreq) {
+		addItem(fid, gid, sid, dfreq, cfreq, new IntArrayList(1), new IntArrayList(0), null);
+	}
+
+	/** Adds an item and returns the (preliminary) fid assigned to the added item. */
+	public void addItem(int fid, int gid, String sid) {
+		addItem(fid, gid, sid, 0L, 0L);
+	}
+
+	/** Adds an item and returns the (preliminary) fid assigned to the added item. */
+	public int addItem(int gid, String sid, DesqProperties properties) {
+		return addItem(gid, sid, 0L, 0L, new IntArrayList(1), new IntArrayList(0), properties);
+	}
+
+	/** Adds an item and returns the (preliminary) fid assigned to the added item. */
 	public int addItem(int gid, String sid) {
-		return addItem(gid, sid, 0L, 0L, new IntArrayList(1), new IntArrayList(0), null);
+		return addItem(gid, sid, null);
 	}
 
 	/** Clears everything */
 	public void clear() {
+		ensureWritable();
+		size = 0;
 		gids.clear();
 		sids.clear();
-		supports.clear();
-		cSupports.clear();
+		dfreqs.clear();
+		cfreqs.clear();
 		parents.clear();
 		children.clear();
 		properties.clear();
 		gidIndex.clear();
 		sidIndex.clear();
 		isForest = null;
-		hasValidFids = null;
+		hasConsistentFids = null;
 	}
 
-	public void clearCounts() {
+	/** Clears item frequencies */
+	public void clearFreqs() {
+		ensureWritable();
 		for (int i=0; i<size(); i++) {
-			supports.set(i, 0L);
-			cSupports.set(i, 0L);
-			// isForest and hasValidFids can remain unchanged
+			dfreqs.set(i, 0L);
+			cfreqs.set(i, 0L);
+			// isForest and hasConsistentFids can remain unchanged
 		}
 	}
 
+	/** Ensures sufficent storage for capacity items */
 	public void ensureCapacity(int capacity) {
-		gids.ensureCapacity(capacity);
-		sids.ensureCapacity(capacity);
-		supports.ensureCapacity(capacity);
-		cSupports.ensureCapacity(capacity);
-		parents.ensureCapacity(capacity);
-		children.ensureCapacity(capacity);
-		properties.ensureCapacity(capacity);
+		ensureWritable();
+		gids.ensureCapacity(capacity+1);
+		sids.ensureCapacity(capacity+1);
+		dfreqs.ensureCapacity(capacity+1);
+		cfreqs.ensureCapacity(capacity+1);
+		parents.ensureCapacity(capacity+1);
+		children.ensureCapacity(capacity+1);
+		properties.ensureCapacity(capacity+1);
 		// unfortunately, fastutils doesn't allow us to specify the capacity for its hash maps
 	}
 
+	/** Reduces the memory footprint of this dictionary as much as possible. */
+	public void trim() {
+		int newSize = lastFid()+1;
+		trim(gids, newSize);
+		trim(sids, newSize);
+		trim(dfreqs, newSize);
+		trim(cfreqs, newSize);
+		trim(parents, newSize);
+		trim(children, newSize);
+		trim(properties, newSize);
+		gidIndex.trim();
+		sidIndex.trim();
+
+		for (int fid=firstFid(); fid>=0; fid=nextFid(fid)) {
+			parentsOf(fid).trim();
+			childrenOf(fid).trim();
+		}
+	}
+
+	private static <T> void trim(ArrayList<T> l, int newSize) {
+		while (l.size() > newSize) {
+			l.remove(l.size()-1);
+		}
+		l.trimToSize();
+	}
+
+	private static void trim(IntArrayList l, int newSize) {
+		l.size(newSize);
+		l.trim();
+	}
+
+	private static void trim(LongArrayList l, int newSize) {
+		l.size(newSize);
+		l.trim();
+	}
+
+	/** Returns a copy of this dictionary. */
 	public Dictionary deepCopy() {
-		// this could be made more efficient with more lines of code
+		// TODO: this could be made more efficient with more lines of code
 		try {
 			byte[] bytes = toBytes();
 			return Dictionary.fromBytes(bytes);
@@ -217,53 +332,158 @@ public final class Dictionary implements Externalizable, Writable {
 
 	// -- querying ----------------------------------------------------------------------------------------------------
 
+	/** The number of items in this dictionary. */
 	public int size() {
-		return gids.size();
+		return size;
 	}
 
-	/** -1 if not present */
-	public int fid(int gid) {
+	public boolean containsFid(int fid) {
+		return fid < gids.size() && gids.getInt(fid) >= 0;
+	}
+
+	public boolean containsGid(int gid) {
+		return gidIndex.containsKey(gid);
+	}
+
+	public boolean containsSid(String sid) {
+		return sidIndex.containsKey(sid);
+	}
+
+	/** Returns the smallest fid or -1 if the dictionary is empty. */
+	public int firstFid() {
+		return nextFid(0);
+	}
+
+	/** Returns the next-largest fid to the provided one or -1 if no more fids exist. */
+	public int nextFid(int fid) {
+		do {
+			fid++;
+			if (fid >= gids.size()) return -1;
+			if (gids.getInt(fid) >= 0) return fid;
+		} while (true);
+	}
+
+	/** Returns the next-smallest fid to the provided one or -1 if no more fids exist. */
+	public int prevFid(int fid) {
+		do {
+			fid--;
+			if (fid < 0) return -1;
+			if (gids.getInt(fid) >= 0) return fid;
+		} while (true);
+	}
+
+	/** Returns the largest fid or -1 if the dictionary is empty. */
+	public int lastFid() {
+		int fid = gids.size()-1;
+		while (fid>=0) {
+			if (gids.getInt(fid) >= 0) return fid;
+			fid--;
+		}
+		return -1;
+	}
+
+	/** Returns the fid for the specified gid or -1 if not present */
+	public int fidOf(int gid) {
 		return gidIndex.get(gid);
 	}
 
-	/** -1 if not present */
-	public int fid(String sid) {
+	/** Returns the fid for the specified sid or -1 if not present */
+	public int fidOf(String sid) {
 		return sidIndex.getInt(sid);
 	}
 
-	/** error if out of bounds */
-	public int gid(int fid) {
-		return gids.getInt(fid);
+	/** Returns the gid for the specified fid or -1 if not present */
+	public int gidOf(int fid) {
+		return fid<gids.size() ? gids.getInt(fid) : -1;
 	}
 
-	/** error if out of bounds */
-	public int gid(String sid) {
-		int fid = fid(sid);
-		return fid < 0 ? fid : gid(fid);
-
+	/** Returns the gid for the specified sid or -1 if not present */
+	public int gidOf(String sid) {
+		int fid = fidOf(sid);
+		return fid < 0 ? fid : gidOf(fid);
 	}
 
-	public String sidForFid(int fid) {
-		return sids.get(fid);
+	/** Returns the sid for the specified fid or null if not present */
+	public String sidOfFid(int fid) {
+		return fid<sids.size() ? sids.get(fid) : null;
 	}
 
-	public long support(int fid) {
-		return supports.getLong(fid);
+	/** Returns the sids for the specified fids (or null if not present) */
+	public List<String> sidsOfFids(IntCollection fids) {
+		List<String> result = new ArrayList<>(fids.size());
+		IntIterator it = fids.iterator();
+		while (it.hasNext())  {
+			int fid = it.nextInt();
+			result.add(sidOfFid(fid));
+		}
+		return result;
 	}
 
-	public long cSupport(int fid) {
-		return cSupports.getLong(fid);
+	/** Returns the sids for the specified gids (or null if not present) */
+	public List<String> sidsOfGids(IntCollection gids) {
+		List<String> result = new ArrayList<>(gids.size());
+		IntIterator it = gids.iterator();
+		while (it.hasNext())  {
+			int gid = it.nextInt();
+			result.add(sidOfGid(gid));
+		}
+		return result;
 	}
 
-	public IntList children(int fid) {
+	/** Returns all fids. */
+	public IntCollection fids() {
+		return gidIndex.values();
+	}
+
+	/** Returns all gids. */
+	public IntCollection gids() {
+		return gidIndex.keySet();
+	}
+
+	/** Returns all sids. */
+	public Set<String> sids() {
+		return sidIndex.keySet();
+	}
+
+	/** Returns the sid for the specified gid or null if not present */
+	public String sidOfGid(int gid) {
+		int fid = fidOf(gid);
+		return fid < 0 ? null : sidOfFid(fid);
+	}
+
+	/** Returns the document frequency of the specified fid or -1 if not present */
+	public long dfreqOf(int fid) {
+		return dfreqs.getLong(fid);
+	}
+
+	public void setDfreqOf(int fid, long dfreq) {
+		ensureWritable();
+		dfreqs.set(fid, dfreq);
+		hasConsistentFids = null;
+	}
+
+	public void setCfreqOf(int fid, long cfreq) {
+		ensureWritable();
+		cfreqs.set(fid, cfreq);
+	}
+
+	/** Returns the collection frequency of the specified fid or -1 if not present */
+	public long cfreqOf(int fid) {
+		return cfreqs.getLong(fid);
+	}
+
+	/** Returns the fids of the children of the specified fid or -1 if not present */
+	public IntArrayList childrenOf(int fid) {
 		return children.get(fid);
 	}
 
-	public IntList parents(int fid) {
+	/** Returns the fids of the parents of the specified fid or -1 if not present */
+	public IntArrayList parentsOf(int fid) {
 		return parents.get(fid);
 	}
 
-	public DesqProperties properties(int fid) {
+	/** Returns the properties of the specified fid (can be null) or null if not present */
+	public DesqProperties propertiesOf(int fid) {
 		return properties.get(fid);
 	}
 
@@ -273,8 +493,8 @@ public final class Dictionary implements Externalizable, Writable {
 			return isForest;
 		}
 		isForest = true;
-		for (int i=0; i<size(); i++) {
-			if (parents.get(i).size() > 1) {
+		for (int fid=firstFid(); fid >= 0; fid=nextFid(fid)) {
+			if (parentsOf(fid).size() > 1) {
 				isForest = false;
 				break;
 			}
@@ -282,47 +502,47 @@ public final class Dictionary implements Externalizable, Writable {
 		return isForest;
 	}
 
-	/** Checks if fids are assigned and indexed correctly. Returns true when (1) items with higher support have
+	/** Checks whether fids are assigned such that: (1) items with higher document frequency have
 	 * lower fid and * (2) parents have lower fids than their children. Assumes that supports are consistent
-	 * (i.e., parents never have lower support than one of their children).
+	 * (i.e., parents never have lower document frequency than one of their children).
 	 *
-	 * If this method returns false, use use {@link #recomputeFids()}.
+	 * If this method returns false, use {@link #recomputeFids()} to change the fids accordingly.
 	 */
-	public boolean hasValidFids() {
-		if (hasValidFids != null) {
-			return hasValidFids;
+	public boolean hasConsistentFids() {
+		if (hasConsistentFids != null) {
+			return hasConsistentFids;
 		}
 
-		hasValidFids = true;
-		long lastSupport = Long.MAX_VALUE;
+		hasConsistentFids = true;
+		long lastDfreq = Long.MAX_VALUE;
 
 		loop:
-		for (int fid=0; fid<size(); fid++) {
-			// check support
-			long support = support(fid);
-			if (support > lastSupport) {
-				hasValidFids = false;
+		for (int fid=firstFid(); fid >= 0; fid=nextFid(fid)) {
+			// check frequency
+			long dfreq = dfreqOf(fid);
+			if (dfreq > lastDfreq) {
+				hasConsistentFids = false;
 				break loop;
 			}
-			lastSupport = support;
+			lastDfreq = dfreq;
 
 			// check parents
-			IntList parents = parents(fid);
+			IntList parents = parentsOf(fid);
 			for (int i=0; i<parents.size(); i++) {
-				if (parents.getInt(i) <= fid) {
-					hasValidFids = false;
+				if (parents.getInt(i) >= fid) {
+					hasConsistentFids = false;
 					break loop;
 				}
 			}
 		}
-		return hasValidFids;
+		return hasConsistentFids;
 	}
 
 	/** Gets the largest fid of in item with document frequency at least as large as specified. Returns -1 if
 	 * there is no such item. */
-	public int getLargestFidAboveSupport(long support) {
-		for (int fid = size()-1; fid >= 0; fid --) {
-			if (supports.getLong(fid)>=support) return fid;
+	public int lastFidAbove(long dfreq) {
+		for (int fid = lastFid(); fid >= 0; fid=prevFid(fid)) {
+			if (dfreqs.getLong(fid)>=dfreq) return fid;
 		}
 		return -1;
 	}
@@ -333,7 +553,7 @@ public final class Dictionary implements Externalizable, Writable {
 	public void gidsToFids(IntList items) {
 		for (int i=0; i<items.size(); i++) {
 			int gid = items.getInt(i);
-			int fid = fid(gid);
+			int fid = fidOf(gid);
 			items.set(i, fid);
 		}
 	}
@@ -342,7 +562,7 @@ public final class Dictionary implements Externalizable, Writable {
 		fids.size(gids.size());
 		for (int i=0; i<gids.size(); i++) {
 			int gid = gids.getInt(i);
-			int fid = fid(gid);
+			int fid = fidOf(gid);
 			fids.set(i, fid);
 		}
 	}
@@ -351,7 +571,7 @@ public final class Dictionary implements Externalizable, Writable {
 	public void fidsToGids(IntList items) {
 		for (int i=0; i<items.size(); i++) {
 			int fid = items.getInt(i);
-			int gid = gid(fid);
+			int gid = gidOf(fid);
 			items.set(i, gid);
 		}
 	}
@@ -360,7 +580,7 @@ public final class Dictionary implements Externalizable, Writable {
 		gids.size(fids.size());
 		for (int i=0; i<fids.size(); i++) {
 			int fid = fids.getInt(i);
-			int gid = gid(fid);
+			int gid = gidOf(fid);
 			gids.set(i, gid);
 		}
 	}
@@ -399,9 +619,9 @@ public final class Dictionary implements Externalizable, Writable {
 	/** Adds all descendants of the specified item to fids, excluding the given item and all
 	 * descendants of items already present in itemFids. */
 	public void addDescendantFids(int fid, IntSet fids) {
-		IntList children = children(fid);
+		IntList children = childrenOf(fid);
 		for (int i=0; i<children.size(); i++) {
-			int childFid = children.get(i);
+			int childFid = children.getInt(i);
 			if (fids.add(childFid)) {
 				addDescendantFids(childFid, fids);
 			}
@@ -446,9 +666,9 @@ public final class Dictionary implements Externalizable, Writable {
 	// minFidInItemFids is a lowerbound of the smallest fid currently in the set. This method makes use of the
 	// fact that parents have smaller fids than their children.
 	private int addAscendantFids(int fid, IntCollection fids, int minFidInFids) {
-		IntList parents = parents(fid);
+		IntList parents = parentsOf(fid);
 		for (int i=0; i<parents.size(); i++) {
-			int parentFid = parents.get(i);
+			int parentFid = parents.getInt(i);
 			if (parentFid < minFidInFids) { // must be new
 				fids.add(parentFid);
 				minFidInFids = parentFid;
@@ -464,14 +684,14 @@ public final class Dictionary implements Externalizable, Writable {
 	/** Adds all ascendants of the specified item to gids, excluding the given item and all
 	 * ascendants of items already present in gids. */
 	public void addAscendantGids(int gid, IntSet gids) {
-		addAscendantGidsFromFid(fid(gid), gids);
+		addAscendantGidsFromFid(fidOf(gid), gids);
 	}
 
 	private void addAscendantGidsFromFid(int fid, IntSet gids) {
-		IntList parents = parents(fid);
+		IntList parents = parentsOf(fid);
 		for (int i=0; i<parents.size(); i++) {
 			int parentFid = parents.getInt(i);
-			if (gids.add(gid(parentFid))) {
+			if (gids.add(gidOf(parentFid))) {
 				addAscendantGidsFromFid(parentFid, gids);
 			}
 		}
@@ -480,17 +700,17 @@ public final class Dictionary implements Externalizable, Writable {
 
 	// -- computing supports ------------------------------------------------------------------------------------------
 	
-	/** Computes the item frequencies of the items in a sequence (including ancestors).
+	/** Computes the item collection frequencies of the items in a sequence (including ancestors).
 	 *
 	 * @param sequence the input sequence
-	 * @param itemCounts stores the result (map from item identifier to frequency)
+	 * @param itemCfreqs stores the result (map from item identifier to frequency)
 	 * @param ancItems a temporary set used by this method (for reuse; won't be read but is modified)
 	 * @param usesFids whether the input sequence consists of gid or fid item identifiers
-	 * @param support the support of the sequence
+	 * @param weight the weight (frequency) of the sequence
 	 */
-	public void computeItemFrequencies(IntCollection sequence, Int2LongMap itemCounts, IntSet ancItems, boolean usesFids, long support) {
-		assert itemCounts.defaultReturnValue() <= 0;
-		itemCounts.clear();
+	public void computeItemCfreqs(IntCollection sequence, Int2LongMap itemCfreqs, IntSet ancItems, boolean usesFids, long weight) {
+		assert itemCfreqs.defaultReturnValue() <= 0;
+		itemCfreqs.clear();
 		IntIterator it = sequence.iterator();
 		while(it.hasNext()) {
 			int ii = it.nextInt();
@@ -502,85 +722,88 @@ public final class Dictionary implements Externalizable, Writable {
 				addAscendantGids(ii, ancItems);
 			}
 			for (int item : ancItems) {
-				long oldValue = itemCounts.put(item, support);
+				long oldValue = itemCfreqs.put(item, weight);
 				if (oldValue > 0) {
-					itemCounts.put(item, oldValue + support);
+					itemCfreqs.put(item, oldValue + weight);
 				}
 			}
 		}
 	}
 
-	/** Updates the counts of the hierarchy by adding the given input sequence. Does
+	/** Updates the item frequencies in this dictionary by adding weight copies of the given input sequence. Does
 	 * not modify fids, so those may be inconsistent afterwards. <code>itemCounts</code> and
 	 * <code>ancItems</code> are temporary variables.
 	 */
-	public void incCounts(IntCollection inputSequence, Int2LongMap itemCounts, IntSet ancItems, boolean usesFids, int support) {
-		computeItemFrequencies(inputSequence, itemCounts, ancItems, usesFids, support);
-		for (Int2LongMap.Entry entry : itemCounts.int2LongEntrySet()) {
-			int fid = usesFids ? entry.getIntKey() : fid(entry.getIntKey());
-			incCounts(fid, support, entry.getLongValue());
+	public void incFreqs(IntCollection inputSequence, Int2LongMap itemCfreqs, IntSet ancItems, boolean usesFids, long weight) {
+		ensureWritable();
+		computeItemCfreqs(inputSequence, itemCfreqs, ancItems, usesFids, weight);
+		for (Int2LongMap.Entry entry : itemCfreqs.int2LongEntrySet()) {
+			int fid = usesFids ? entry.getIntKey() : fidOf(entry.getIntKey());
+			incFreqs(fid, weight, entry.getLongValue());
 		}
-		hasValidFids = null;
+		hasConsistentFids = null;
 	}
 
-	/** Updates the counts of the hierarchy by adding the given input sequences. Does
+	/** Updates the frequencies in this dictionary adding the given input sequences. Does
 	 * not modify fids, so those may be inconsistent afterwards.  */
-	public void incCounts(SequenceReader reader) throws IOException {
+	public void incFreqs(SequenceReader reader) throws IOException {
 		boolean usesFids = reader.usesFids();
 		IntList inputSequence = new IntArrayList();
 		Int2LongMap itemCounts = new Int2LongOpenHashMap();
 		itemCounts.defaultReturnValue(0);
 		IntSet ancItems = new IntOpenHashSet();
 		while (reader.read(inputSequence)) {
-			incCounts(inputSequence, itemCounts, ancItems, usesFids, 1);
+			incFreqs(inputSequence, itemCounts, ancItems, usesFids, 1);
 		}
 	}
 
-	public void incCounts(int fid, long support, long csupport) {
-		long temp = supports.getLong(fid);
-		supports.set(fid, temp+support);
-		temp = cSupports.getLong(fid);
-		cSupports.set(fid, temp+csupport);
+	public void incFreqs(int fid, long dfreq, long cfreq) {
+		ensureWritable();
+		long temp = dfreqs.getLong(fid);
+		dfreqs.set(fid, temp+dfreq);
+		temp = cfreqs.getLong(fid);
+		cfreqs.set(fid, temp+cfreq);
 	}
 
 	/** Merges the provided dictionary (including counts) into this dictionary. Items are matched based on
-	 * {@link Item#sid}. The provided dictionary must be consistent with this one in that every item that occurs
+	 * their sids. The provided dictionary must be consistent with this one in that every item that occurs
 	 * in both dictionaries must have matching parents. Item properties and identifiers are retained from this
 	 * dictionary if present; otherwise, they are taken from the other dictionary (if possible without conflict).
-	 * Fids are likely to be inconsistent after merging and need to be recomputed (see {@link #hasValidFids()}).
+	 * Fids are likely to be inconsistent after merging and need to be recomputed (see {@link #hasConsistentFids()}).
 	 *
 	 * @throws IllegalArgumentException if other is inconsistent with this dictionary (both dictionary should then be
 	 *                                  considered destroyed)
 	 */
 	public void mergeWith(Dictionary other) {
+		ensureWritable();
 		int maxGid = Collections.max(gids);
 		Set<String> thisParentSids = new HashSet<>();
 		Set<String> otherParentSids = new HashSet<>();
 
 		for (int otherFid : other.topologicalSort()) {
-			String sid = other.sidForFid(otherFid);
-			int thisFid = fid(sid);
+			String sid = other.sidOfFid(otherFid);
+			int thisFid = fidOf(sid);
 
 			if (thisFid < 0) {
 				// a new item: copy item from other and retain what's possible to retain
-				int gid = other.gid(otherFid);
-				if (fid(gid) >= 0) { // we give the other item a new gid
+				int gid = other.gidOf(otherFid);
+				if (fidOf(gid) >= 0) { // we give the other item a new gid
 					maxGid++;
 					gid = maxGid;
 				} else {
 					maxGid = Math.max(maxGid, gid);
 				}
 
-				int fid = addItem(gid, sid, other.support(otherFid), other.cSupport(otherFid),
-						new IntArrayList(other.parents(otherFid).size()),
-						new IntArrayList(other.children(otherFid).size()),
-						other.properties(otherFid));
+				int fid = addItem(gid, sid, other.dfreqOf(otherFid), other.cfreqOf(otherFid),
+						new IntArrayList(other.parentsOf(otherFid).size()),
+						new IntArrayList(other.childrenOf(otherFid).size()),
+						other.propertiesOf(otherFid));
 
 				// add parents
-				IntList otherParentFids = other.parents(otherFid);
+				IntList otherParentFids = other.parentsOf(otherFid);
 				for (int i=0; i<otherParentFids.size(); i++) {
-					int otherParentFid = otherParentFids.get(i);
-					int thisParentFid = fid(other.sidForFid(otherParentFid));
+					int otherParentFid = otherParentFids.getInt(i);
+					int thisParentFid = fidOf(other.sidOfFid(otherParentFid));
 					if (thisParentFid == -1) {
 						throw new IllegalArgumentException("parents don't match for sid " + sid);
 					}
@@ -589,52 +812,18 @@ public final class Dictionary implements Externalizable, Writable {
 			} else {
 				// check parents
 				thisParentSids.clear();
-				for (int parentFid : parents(thisFid)) thisParentSids.add(sidForFid(parentFid));
+				for (int parentFid : parentsOf(thisFid)) thisParentSids.add(sidOfFid(parentFid));
 				otherParentSids.clear();
-				for (int parentFid : other.parents(otherFid)) otherParentSids.add(other.sidForFid(parentFid));
+				for (int parentFid : other.parentsOf(otherFid)) otherParentSids.add(other.sidOfFid(parentFid));
 				if (!thisParentSids.equals(otherParentSids))
-					throw new IllegalArgumentException("parents of item sid=" + sidForFid(thisFid) + " disagree");
+					throw new IllegalArgumentException("parents of item sid=" + sidOfFid(thisFid) + " disagree");
 
 				// fine; we only need to merge counts
-				incCounts(thisFid, other.support(otherFid), other.cSupport(otherFid));
+				incFreqs(thisFid, other.dfreqOf(otherFid), other.cfreqOf(otherFid));
 			}
 		}
 	}
 
-
-	/** Returns a copy of this dictionary that contains only the specified items (including
-	 * the *direct* links between these items).
-	 * 
-	 * TODO: also add indirect links? (takes some thought to figure out which links to acutally add and how to do this 
-	 *       reasonably efficiently. One option: compute transitive closure, drop items to be removed, then compute
-	 *       transitive reduction.)
-	 */
-	public Dictionary restrictedCopy(IntSet itemFids) {
-		// copy the relevant items
-		Dictionary dict = new Dictionary();
-		for (Item item : itemsByFid.values()) {
-			if (!itemFids.contains(item.fid)) continue;
-			Item copiedItem = item.shallowCopyWithoutEdges();
-			dict.addItem(copiedItem);
-		}
-		
-		// add indirect links
-		for (Item copiedItem : dict.itemsById.values()) {
-			Item item = getItemByFid(copiedItem.fid);
-			for (Item child : item.children) {
-				if (itemFids.contains(child.fid)) {
-					Item copiedChild = dict.getItemByFid(child.fid);
-					Item.addParent(copiedChild, copiedItem);
-				}
-			}
-		}
-
-		// compute fid index for restricted dictionary
-        dict.indexParentFids();
-
-		return dict;
-	}
-	
 
 	// -- computing fids --------------------------------------------------------------------------
 
@@ -643,30 +832,52 @@ public final class Dictionary implements Externalizable, Writable {
 	 * consistent (i.e., parents never have lower document frequency than one of their children).
 	 */
 	public void recomputeFids() {
+		ensureWritable();
 		// compute a topological sort; also respects document frequencies
-		IntList order = topologicalSort();
+		IntList oldFidOf = topologicalSort();
 
-		// we now want item order(i) at position i
-		// set fids and index all items based on sort order
-		for (int i=0; i<order.size(); i++) {
-			int j=i;
-			while (order.get(j) != -1 && order.get(j) != i) {
-				swap(i,j);
-				order.set(j, -1);
-			}
-			order.set(i, -1);
+		// compute a list that lets us get the new fid -1 for each old fid
+		IntList newFidOf = new IntArrayList();
+		newFidOf.size(gids.size());
+		for (int i=0; i<oldFidOf.size(); i++) {
+			newFidOf.set(oldFidOf.getInt(i)-1, i+1);
 		}
 
-		// finally, let's compute the indexes
+		// we now want item oldFidOf(i-1) at position i
+		// set fids and index all items based on sort order
+		for (int firstPos=1; firstPos<=oldFidOf.size(); firstPos++) {
+			int pos = firstPos;
+			int swapPos = oldFidOf.getInt(pos-1);
+			if (swapPos == -1) continue;
+			while (pos != swapPos && swapPos != firstPos) {
+				swap(pos, swapPos); // now pos has the right item
+				oldFidOf.set(pos-1, -1);
+				pos = newFidOf.getInt(pos-1);
+
+			}
+			oldFidOf.set(pos-1, -1);
+		}
+
+
+		// finally, let's compute the indexes and children/parents
 		gidIndex.clear();
 		sidIndex.clear();
-		for (int i=0; i<size(); i++) {
+		for (int i=1; i<=size(); i++) {
+			assert containsFid(i); // because all valid items must now be at beginning
+			IntList l = children.get(i);
+			for (int j=0; j<l.size(); j++) {
+				l.set(j, newFidOf.getInt(l.getInt(j)-1));
+			}
+			l = parents.get(i);
+			for (int j=0; j<l.size(); j++) {
+				l.set(j, newFidOf.getInt(l.getInt(j)-1));
+			}
 			gidIndex.put(gids.getInt(i), i);
 			sidIndex.put(sids.get(i), i);
 		}
 
 		// remember that the fids are valid
-		hasValidFids = true;
+		hasConsistentFids = true;
 	}
 
 	private void swap(int fid1, int fid2) {
@@ -680,15 +891,15 @@ public final class Dictionary implements Externalizable, Writable {
 		sids.set(fid1, sid2);
 		sids.set(fid2, sid1);
 
-		long s1 = supports.getLong(fid1);
-		long s2 = supports.getLong(fid2);
-		supports.set(fid1, s2);
-		supports.set(fid2, s1);
+		long s1 = dfreqs.getLong(fid1);
+		long s2 = dfreqs.getLong(fid2);
+		dfreqs.set(fid1, s2);
+		dfreqs.set(fid2, s1);
 
-		s1 = cSupports.getLong(fid1);
-		s2 = cSupports.getLong(fid2);
-		cSupports.set(fid1, s2);
-		cSupports.set(fid2, s1);
+		s1 = cfreqs.getLong(fid1);
+		s2 = cfreqs.getLong(fid2);
+		cfreqs.set(fid1, s2);
+		cfreqs.set(fid2, s1);
 
 		IntArrayList l1 = parents.get(fid1);
 		IntArrayList l2 = parents.get(fid2);
@@ -717,52 +928,53 @@ public final class Dictionary implements Externalizable, Writable {
          * added a node to the list, we don't label it again), and a list of
          * nodes that actually holds the topological ordering.
          */
-    	IntList resultIds = new IntArrayList();
-        IntSet visitedIds = new IntOpenHashSet();
+    	IntList resultFids = new IntArrayList();
+        IntSet visitedFids = new IntOpenHashSet();
 
         /* We'll also maintain a third set consisting of all nodes that have
          * been fully expanded.  If the graph contains a cycle, then we can
          * detect this by noting that a node has been explored but not fully
          * expanded.
          */
-        IntSet expandedIds = new IntOpenHashSet();
+        IntSet expandedFids = new IntOpenHashSet();
 
         // Sort the all items by decreasing support. This way,
         // items with a higher frequency will always appear before items
         // with lower frequency (under the assumption that document frequencies
         // are valid).
-        IntList ids = new IntArrayList(size());
-		for (int i=0; i<size(); i++) {
-			ids.add(i);
+        IntList fids = new IntArrayList(size());
+		for (int fid = firstFid(); fid >= 0; fid = nextFid(fid)) {
+			fids.add(fid);
 		}
-        Collections.sort(ids, (id1,id2) -> Long.compare(supports.getLong(id2), supports.getLong(id1)));
+        Collections.sort(fids, (fid1,fid2) -> Long.compare(dfreqOf(fid2), dfreqOf(fid1)));
 
         /* Fire off a DFS from each node in the graph. */
-        for (int id=0; i<ids.size(); id++) {
-			explore(id, resultIds, visitedIds, expandedIds);
+        IntListIterator it = fids.iterator();
+        while (it.hasNext()) {
+			explore(it.nextInt(), resultFids, visitedFids, expandedFids);
 		}
 
         /* Hand back the resulting ordering. */
-        return resultIds;
+        return resultFids;
     }
 
     /**
      * Recursively performs a DFS from the specified node, marking all nodes
      * encountered by the search.
      *
-     * @param id The node to begin the search from.
-     * @param orderingIds A list holding the topological sort of the graph.
-     * @param visitedIds A set of nodes that have already been visited.
-     * @param expandedIds A set of nodes that have been fully expanded.
+     * @param fid The node to begin the search from.
+     * @param orderingFids A list holding the topological sort of the graph.
+     * @param visitedFids A set of nodes that have already been visited.
+     * @param expandedFids A set of nodes that have been fully expanded.
 	 *
      * @author Keith Schwarz (htiek@cs.stanford.edu) 
      */
-    private void explore(int id, IntList orderingIds, IntSet visitedIds,
-                                    IntSet expandedIds) {
+    private void explore(int fid, IntList orderingFids, IntSet visitedFids,
+                                    IntSet expandedFids) {
         /* Check whether we've been here before.  If so, we should stop the
          * search.
          */
-        if (visitedIds.contains(id)) {
+        if (visitedFids.contains(fid)) {
             /* There are two cases to consider.  First, if this node has
              * already been expanded, then it's already been assigned a
              * position in the final topological sort and we don't need to
@@ -771,25 +983,25 @@ public final class Dictionary implements Externalizable, Writable {
              * and therefore is part of a cycle.  In that case, we should 
              * report an error.
              */
-            if (expandedIds.contains(id)) return;
+            if (expandedFids.contains(fid)) return;
             throw new IllegalArgumentException("Graph contains a cycle.");
         }
         
         /* Mark that we've been here */
-        visitedIds.add(id);
+        visitedFids.add(fid);
 
         /* Recursively explore all of the node's predecessors. */
-        IntList parents = parents(id);
+        IntList parents = parentsOf(fid);
 		for (int i=0; i<parents.size(); i++)
-            explore(parents.get(i), orderingIds, visitedIds, expandedIds);
+            explore(parents.get(i), orderingFids, visitedFids, expandedFids);
 
         /* Having explored all of the node's predecessors, we can now add this
          * node to the sorted ordering.
          */
-        orderingIds.add(id);
+        orderingFids.add(fid);
 
         /* Similarly, mark that this node is done being expanded. */
-        expandedIds.add(id);
+        expandedFids.add(fid);
     }
 
 
@@ -813,6 +1025,7 @@ public final class Dictionary implements Externalizable, Writable {
 
 	/** Reads a dictionary from a file. Automatically determines the right format based on file extension. */
 	public void read(File file) throws IOException {
+		ensureWritable();
 		if (file.getName().endsWith(".json")) {
 			readJson(new FileInputStream(file));
 			return;
@@ -834,6 +1047,7 @@ public final class Dictionary implements Externalizable, Writable {
 
 	/** Reads a dictionary from an URL. Automatically determines the right format based on file extension. */
 	public void read(URL url) throws IOException {
+		ensureWritable();
 		if (url.getFile().endsWith(".json")) {
 			readJson(url.openStream());
 			return;
@@ -884,11 +1098,11 @@ public final class Dictionary implements Externalizable, Writable {
 
 		// basic fields
 		avroItem.setFid(fid);
-		avroItem.setGid(gid(fid));
-		avroItem.setSid(sidForFid(fid));
-		avroItem.setCFreq(support(fid));
-		avroItem.setDFreq(cSupport(fid));
-		avroItem.setNoChildren(children(fid).size());
+		avroItem.setGid(gidOf(fid));
+		avroItem.setSid(sidOfFid(fid));
+		avroItem.setDfreq(dfreqOf(fid));
+		avroItem.setCfreq(cfreqOf(fid));
+		avroItem.setNoChildren(childrenOf(fid).size());
 
 		// parents
 		List<Integer> parentGids = avroItem.getParentGids();
@@ -897,9 +1111,10 @@ public final class Dictionary implements Externalizable, Writable {
 		} else {
 			parentGids.clear();
 		}
-		IntList parentFids = parents(fid);
-		for (int parentFid=0; parentFid<parentFids.size(); parentFid++) {
-			parentGids.add(gid(parentFid));
+		IntList parentFids = parentsOf(fid);
+		for (int i=0; i<parentFids.size(); i++) {
+			int parentFid = parentFids.getInt(i);
+			parentGids.add(gidOf(parentFid));
 		}
 		avroItem.setParentGids(parentGids);
 
@@ -910,7 +1125,7 @@ public final class Dictionary implements Externalizable, Writable {
 		} else {
 			avroItemProperties.clear();
 		}
-		DesqProperties properties = properties(fid);
+		DesqProperties properties = propertiesOf(fid);
 		if (properties != null) {
 			Iterator<String> keysIt = properties.getKeys();
 			while (keysIt.hasNext()) {
@@ -924,6 +1139,20 @@ public final class Dictionary implements Externalizable, Writable {
 		return avroItem;
 	}
 
+	public String toJson(int fid) {
+		DatumWriter<AvroItem> itemDatumWriter = new SpecificDatumWriter<>(AvroItem.class);
+		AvroItem avroItem = toAvroItem(fid, null);
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		try {
+			Encoder encoder = EncoderFactory.get().jsonEncoder(avroItem.getSchema(), out);
+			itemDatumWriter.write( avroItem, encoder );
+			encoder.flush();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return out.toString();
+	}
+
 	public void writeAvro(OutputStream out) throws IOException {
 		// set up writers
 		AvroItem avroItem = new AvroItem();
@@ -934,7 +1163,7 @@ public final class Dictionary implements Externalizable, Writable {
 		// write items in topological order
 		IntList items = topologicalSort();
 		for (int i=0; i<items.size(); i++) {
-			int fid = items.get(i);
+			int fid = items.getInt(i);
 			avroItem = toAvroItem(fid, avroItem);
 			dataFileWriter.append(avroItem);
 		}
@@ -948,6 +1177,7 @@ public final class Dictionary implements Externalizable, Writable {
 	}
 
 	private void readAvro(InputStream in, int maxItems) throws IOException {
+		ensureWritable();
 		clear();
 		DatumReader<AvroItem> itemDatumReader = new SpecificDatumReader<>(AvroItem.class);
 		DataFileStream<AvroItem> dataFileReader = new DataFileStream<>(in, itemDatumReader);
@@ -957,22 +1187,16 @@ public final class Dictionary implements Externalizable, Writable {
 			avroItem = dataFileReader.next(avroItem);
 			addItem(avroItem);
 		}
-
-		// check that fids are dense
-		for (int i=0; i<gids.size(); i++) {
-			if (gids.getInt(i) < 0) {
-				throw new IOException("fids are not dense (e.g., fid " + i + " is missing)");
-			}
-		}
+		trim();
 	}
 
 	public void writeJson(OutputStream out) throws IOException {
 		DatumWriter<AvroItem> itemDatumWriter = new SpecificDatumWriter<>(AvroItem.class);
-		List<Integer> items = topologicalSort();
+		IntList fids = topologicalSort();
 		AvroItem avroItem = new AvroItem();
 		Encoder encoder = EncoderFactory.get().jsonEncoder(avroItem.getSchema(), out);
-		for (int i=0; i<items.size(); i++) {
-			int fid = items.get(i);
+		for (int i=0; i<fids.size(); i++) {
+			int fid = fids.getInt(i);
 			avroItem = toAvroItem(fid, avroItem);
 			itemDatumWriter.write( avroItem, encoder );
 		}
@@ -991,13 +1215,7 @@ public final class Dictionary implements Externalizable, Writable {
 		} catch (EOFException e) {
 			// fine, we read everything
 		}
-
-		// check that fids are dense
-		for (int i=0; i<gids.size(); i++) {
-			if (gids.getInt(i) < 0) {
-				throw new IOException("fids are not dense (e.g., fid " + i + " is missing)");
-			}
-		}
+		trim();
 	}
 
 	private byte[] toBytes() throws IOException {
@@ -1019,12 +1237,13 @@ public final class Dictionary implements Externalizable, Writable {
 
 	@Override
 	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+		ensureWritable();
 		readFields(in);
 	}
 
 	@Override
 	public void write(DataOutput out) throws IOException {
-		// not very efficient to write, but allows for fast reads
+		// TODO: don't use avro here, but write manually
 		byte[] bytes = toBytes();
 		out.writeInt(bytes.length);
 		out.write(bytes);
@@ -1032,6 +1251,7 @@ public final class Dictionary implements Externalizable, Writable {
 
 	@Override
 	public void readFields(DataInput in) throws IOException {
+		// TODO: don't use avro here, but read manually
 		int length = in.readInt();
 		readAvro(new DataInput2InputStreamWrapper(in, length));
 		// since Avro internally prereads the input stream beyond its actually serialized size, we need to limit

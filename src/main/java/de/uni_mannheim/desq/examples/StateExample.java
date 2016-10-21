@@ -1,7 +1,6 @@
 package de.uni_mannheim.desq.examples;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.dictionary.Item;
 import de.uni_mannheim.desq.fst.BasicTransition;
 import de.uni_mannheim.desq.fst.BasicTransition.InputLabelType;
 import de.uni_mannheim.desq.fst.BasicTransition.OutputLabelType;
@@ -30,24 +29,23 @@ public class StateExample {
 		fromState.addTransition(t1);
 
 		// A:EPS
-		Item item = dict.getItemBySid("VB@");
-		Transition t2 = new BasicTransition(item.fid, InputLabelType.SELF_DESCENDANTS, -1, OutputLabelType.EPSILON,
+		int fid = dict.fidOf("VB@");
+		Transition t2 = new BasicTransition(fid, InputLabelType.SELF_DESCENDANTS, -1, OutputLabelType.EPSILON,
 				toState2, dict);
 		fromState.addTransition(t2);
 
 		// A:$
-		Transition t3 = new BasicTransition(item.fid, InputLabelType.SELF_DESCENDANTS, -1, OutputLabelType.SELF,
+		Transition t3 = new BasicTransition(fid, InputLabelType.SELF_DESCENDANTS, -1, OutputLabelType.SELF,
 				toState1, dict);
 		fromState.addTransition(t3);
 
 		// A:$-A
-		Transition t4 = new BasicTransition(item.fid, InputLabelType.SELF_DESCENDANTS, item.fid,
+		Transition t4 = new BasicTransition(fid, InputLabelType.SELF_DESCENDANTS, fid,
 				OutputLabelType.SELF_ASCENDANTS, toState2, dict);
 		fromState.addTransition(t4);
 
-		Item inputItem = dict.getItemBySid("NN@");
-
-		Iterator<ItemState> it = fromState.consume(inputItem.fid);
+		fid = dict.fidOf("NN@");
+		Iterator<ItemState> it = fromState.consume(fid);
 		while (it.hasNext()) {
 			System.out.println();
 			ItemState itemState = it.next();
@@ -56,7 +54,7 @@ public class StateExample {
 		}
 		
 		Iterator<State> stateIt = null;
-		stateIt = fromState.toStateIterator(inputItem.fid, stateIt);
+		stateIt = fromState.toStateIterator(fid, stateIt);
 		while(stateIt.hasNext()) {
 			State state = stateIt.next();
 			System.out.println(state.getId());

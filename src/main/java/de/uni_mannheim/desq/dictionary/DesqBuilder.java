@@ -18,23 +18,23 @@ public interface DesqBuilder {
     void newSequence();
 
     /** Informs the builder that a new input sequence is being processed. Must also be called before the first
-     * and after the last input sequence has been processed. Uses the given support for the startedsequence. */
-    void newSequence(int support);
+     * and after the last input sequence has been processed. Uses the given weight for the started sequence. */
+    void newSequence(long weight);
 
     /** Appends an item to the current input sequence using its sid.
      *
-     * @return the item being added and a flag indicating whether the item is new (true) or has been seen
+     * @return the fid of the item being added and a flag indicating whether the item is new (true) or has been seen
      *         before (false). Note that the returned pair may be reused if another method of this class is called.
      */
-    Pair<Item,Boolean> appendItem(String sid);
+    Pair<Integer,Boolean> appendItem(String sid);
 
-    /** Adds a parent item to the given child item using its sid. The method must (and must only) be called on
-     * items returned from {@link #appendItem(String)} or {@link #addParent(Item, String)} for which the is-new flag
-     * was set. It must also be called before any other invocations of {@link #appendItem(String)} or
-     * {@link #newSequence()}.
+    /** Adds a parent item to the child item with the given fid using the specified sid for the parent. The
+     * method must (and must only) be called on items returned from {@link #appendItem(String)} or
+     * {@link #addParent(int, String)} for which the is-new flag was set. It must also be called before any
+     * other invocations of {@link #appendItem(String)} or {@link #newSequence()}.
      *
-     * @return the item being added and a flag indicating whether the item is new (true) or has been seen
+     * @return the fid of the item being added and a flag indicating whether the item is new (true) or has been seen
      *         before (false). Note that the returned pair may be reused if another method of this class is called.
      */
-    Pair<Item,Boolean> addParent(Item child, String parentSid);
+    Pair<Integer,Boolean> addParent(int childFid, String parentSid);
 }

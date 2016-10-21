@@ -72,7 +72,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	public DesqDfs(DesqMinerContext ctx) {
 		super(ctx);
 		sigma = ctx.conf.getLong("desq.mining.min.support");
-		largestFrequentFid = ctx.dict.getLargestFidAboveSupport(sigma);
+		largestFrequentFid = ctx.dict.lastFidAbove(sigma);
 		pruneIrrelevantInputs = ctx.conf.getBoolean("desq.mining.prune.irrelevant.inputs");
         useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
 
@@ -268,7 +268,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				reachedFinalStateWithoutOutput |= incStepOnePass(args, pos+1, toState, newLevel);
 			} else if (largestFrequentFid >= outputItemFid) {
 			    // we have an output and its frequent, so update the corresponding projected database
-				args.node.expandWithItem(outputItemFid, args.inputId, args.inputSequence.support,
+				args.node.expandWithItem(outputItemFid, args.inputId, args.inputSequence.weight,
 						pos+1, toState.getId());
 			}
 		}
@@ -327,7 +327,7 @@ public final class DesqDfs extends MemoryDesqMiner {
                 // we have an output and its frequent, so update the corresponding projected database
 				// Note: we do not store pos-1 in the projected database to having avoid write -1's when the
                 // position was 0. When we read the posting list later, we substract 1
-				args.node.expandWithItem(outputItemFid, args.inputId, args.inputSequence.support,
+				args.node.expandWithItem(outputItemFid, args.inputId, args.inputSequence.weight,
 						pos, toState.getId());
 			}
 		}
@@ -379,7 +379,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
                     // if we reached a final state without output, increment the support of this child node
 					if (reachedFinalStateWithoutOutput) {
-						support += incStepArgs.inputSequence.support;
+						support += incStepArgs.inputSequence.weight;
 					}
 
 					// now go to next posting (next input sequence)
@@ -403,7 +403,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
                     // if we reached the initial state without output, increment the support of this child node
                     if (reachedInitialStateWithoutOutput) {
-						support += incStepArgs.inputSequence.support;
+						support += incStepArgs.inputSequence.weight;
 					}
 
                     // now go to next posting (next input sequence)
