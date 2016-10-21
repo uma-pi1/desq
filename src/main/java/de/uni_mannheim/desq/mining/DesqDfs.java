@@ -7,11 +7,11 @@ import it.unimi.dsi.fastutil.ints.*;
 
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.MutablePair;
 
-import java.util.ArrayList;
-import java.util.Set;
-import java.util.HashSet;
-import java.util.Iterator;
+import java.util.*;
 
 public final class DesqDfs extends MemoryDesqMiner {
 	private static final Logger logger = Logger.getLogger(DesqDfs.class);
@@ -85,6 +85,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 	/** For each current recursion level, a set of to-states that already have been visited by a non-pivot transition */
 	final ArrayList<Set<State>> nonPivotExpandedToStates = new ArrayList<>();
+
+	/** For each (state, pos) combination, store the max seen and min guaranteed pivot item that came up from recursion to this state */
+	final HashMap<ImmutablePair<State, Integer>,MutablePair<Integer,Integer>> minMaxPivotPerStatePos = new HashMap<ImmutablePair<State, Integer>,MutablePair<Integer,Integer>>();
 
 	/** Stats about pivot element search */
 	public long counterTotalRecursions = 0;
@@ -230,10 +233,19 @@ public final class DesqDfs extends MemoryDesqMiner {
             finalPos.clear();*/
 			
 		} else { // one pass
+
 			if (!pruneIrrelevantInputs || edfa.isRelevant(inputSequence, 0, 0)) {
-				osCountStepOnePass(0, 0, fst.getInitialState(), 0, 0);
+				System.out.println("------ Sequence " + inputSequence.toString());
+				MutablePair<Integer, Integer> minMaxPivot = new MutablePair<Integer, Integer>(0,0);
+				osCountStepOnePass(0, 0, fst.getInitialState(), 0, 0, minMaxPivot);
 			}
 		}
+
+		// delete information about all states, but keep the objects
+		for(MutablePair<Integer, Integer> entry : minMaxPivotPerStatePos.values()) {
+			entry.setRight(0);
+		}
+
 		return outputItems;
 	}
 
@@ -245,12 +257,16 @@ public final class DesqDfs extends MemoryDesqMiner {
 	 * @param level current level
 	 */
 
-	private void osCountStepOnePass(int pivot, int pos, State state, int level, int level2) {
+
+	private void osCountStepOnePass(int pivot, int pos, State state, int level, int level2, MutablePair<Integer, Integer> prevMinMaxPivot) {
 		counterTotalRecursions++;
 		// if we reached a final state, we count the current sequence (if any)
 		if(state.isFinal() && pivot != 0 && (!fst.getRequireFullMatch() || pos==inputSequence.size())) {
 			//countSequence(prefix);
 			outputItems.add(pivot);
+			if(pivot > prevMinMaxPivot.getRight()) {
+				prevMinMaxPivot.setRight(pivot);
+			}
 		}
 
 		// check if we already read the entire input
@@ -278,6 +294,34 @@ public final class DesqDfs extends MemoryDesqMiner {
 			visitedToStates.clear();
 		}
 
+		// check whether we have already recursed starting at this (state, pos) combination.
+		// if yes, we might be able to skip recursion
+		Pair<State, Integer> statePos = new ImmutablePair<State, Integer>(state, pos);
+		MutablePair<Integer, Integer> minMaxPivot;
+			// left=guaranteed minimum pivot -> smallest possible pivot to come out of recursion)
+			// right=max achievable pivot in pivot
+		System.out.print("<" + state.getId() + ", " + pos + "> : ");
+		if(minMaxPivotPerStatePos.containsKey(statePos)) {
+			minMaxPivot = minMaxPivotPerStatePos.get(statePos);
+			System.out.println("already visited. maxPivot=" + minMaxPivot.getRight());
+			if(minMaxPivot.getRight() != 0) { // min and max pivots are set
+				if(minMaxPivot.getRight() >= pivot) { // current pivot is larger than anything that will be produced in the recursion, so we don't need to recurse
+					outputItems.add(pivot);
+					prevMinMaxPivot.setRight(minMaxPivot.getRight());
+					counterMinMaxPivotUsed++;
+					return;
+				}
+				//else if(minMaxPivot.getRight() <= pivot) {
+				//	outputItems.add(minMaxPivot.getRight());
+					//return minMaxPivot;
+				//}
+			} // otherwise, we have to recurse. while doing that, we fill in the minMaxPivot item
+		} else {
+			minMaxPivot = new MutablePair<Integer, Integer>(Integer.MAX_VALUE, 0);
+			System.out.println("not yet. Creating object.");
+		}
+
+
 		// iterate over output item/state pairs
 		while(itemStateIt.hasNext()) {
 			final ItemState itemState = itemStateIt.next();
@@ -287,7 +331,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			if(outputItemFid == 0) { // EPS output
 				// we did not get an output, so continue with the current prefix
 				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
-				osCountStepOnePass(pivot, pos + 1, toState, newLevel, level2+1);
+				osCountStepOnePass(pivot, pos + 1, toState, newLevel, level2+1, minMaxPivot);
 			} else {
 				// we got an output; check whether it is relevant
 				if (largestFrequentFid >= outputItemFid) {
@@ -296,23 +340,29 @@ public final class DesqDfs extends MemoryDesqMiner {
 					int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
 
 					if(outputItemFid > pivot) { // we have a new pivot item
-						osCountStepOnePass(outputItemFid, pos + 1, toState, newLevel, level2+1);
+						osCountStepOnePass(outputItemFid, pos + 1, toState, newLevel, level2+1, minMaxPivot);
 					} else { // keep the old pivot
 						if(!visitedToStates.contains(toState)) { // we go to each toState only once with non-pivot transitions
-							osCountStepOnePass(pivot, pos + 1, toState, newLevel, level2 + 1);
+							osCountStepOnePass(pivot, pos + 1, toState, newLevel, level2 + 1, minMaxPivot);
 							visitedToStates.add(toState);
 						//	System.out.println("(Non-pivot item " + outputItemFid + " (pivot + " + pivot + ")): Visiting state " + toState.getId() + " for the first time from state " + state.getId() + " at level " + level2);
 						} else {
 							counterNonPivotTransitionsSkipped++;
-							//System.out.println("Non-pivot item " + outputItemFid + " (pivot + " + pivot + ")): State " + toState.getId() + " visited already from state " + state.getId() + " at level " + level2 + ". Skipping");
 						}
+							//System.out.println("Non-pivot item " + outputItemFid + " (pivot + " + pivot + ")): State " + toState.getId() + " visited already from state " + state.getId() + " at level " + level2 + ". Skipping");
 					}
-
-					//prefix.removeInt(prefix.size() - 1);
 				}
+				//prefix.removeInt(prefix.size() - 1);
 			}
 		}
+
+		// pass up max found pivots
+		if(minMaxPivot.getRight() > prevMinMaxPivot.getRight()) {
+			System.out.println("<" + state.getId() + ", " + pos + "> : passing up maxPivot " + minMaxPivot.getRight());
+			prevMinMaxPivot.setRight(minMaxPivot.getRight());
+		}
 	}
+
 	
 	/** Runs one step in the FST to produce the set of frequent output items for one sequence
 	 * 
