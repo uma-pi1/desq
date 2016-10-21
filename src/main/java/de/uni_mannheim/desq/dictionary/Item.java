@@ -8,6 +8,8 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.spark.WithSizeEstimation;
+import org.apache.spark.util.SizeEstimator;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -17,7 +19,7 @@ import java.util.Iterator;
 import java.util.List;
 
 /** A single item in a dictionary.  */
-public final class Item {
+public final class Item implements WithSizeEstimation {
 	/** Stable global identifier of this item */
 	public final int gid;
 
@@ -94,7 +96,7 @@ public final class Item {
 		return item;
 	}
 
-	/** Returns a comparator that compares by {@link de.uni_mannheim.desq.dictionary.Item#dFreq} descending,
+	/** Returns a comparator that compares by {@link Item#dFreq} descending,
 	 * then by gid ascending. */
 	public static Comparator<Item> dfreqDecrComparator() {
 		return (o1, o2) -> {
@@ -179,5 +181,40 @@ public final class Item {
 		}
 
 		return item;
+	}
+
+	/** Hack to make Spark estimate the in-memory size of a Dictionary correctly. This code does not count the
+	 * in-memory size of the items in the children and parents lists, but instead only counts the corresponding
+	 * pointer sizes. This still gives a decent estimate of dictinary size because every item (being referenced)
+	 * is stored in the dictionary anyway and thus will be counted. */
+	@Override
+	public long estimatedSize() {
+		ProxyItem proxyItem = new ProxyItem();
+		proxyItem.gid = gid;
+		proxyItem.sid = sid;
+		proxyItem.fid = fid;
+		proxyItem.cFreq = cFreq;
+		proxyItem.dFreq = dFreq;
+		proxyItem.properties = properties;
+
+		proxyItem.children = new ArrayList<>(children.size());
+		for (int i=0; i<children.size(); i++)
+			proxyItem.children.add(null);
+		proxyItem.parents = new ArrayList<>(parents.size());
+		for (int i=0; i<parents.size(); i++)
+			proxyItem.parents.add(null);
+
+		return SizeEstimator.estimate(proxyItem);
+	}
+
+	private static class ProxyItem {
+		int gid;
+		String sid;
+		int fid;
+		long cFreq;
+		long dFreq;
+		List<Item> children;
+		List<Item> parents;
+		DesqProperties properties;
 	}
 }
