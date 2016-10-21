@@ -27,7 +27,11 @@ object DesqRunner {
     val sparkConf = new SparkConf().setAppName(getClass.getName)
     Desq.initDesq(sparkConf)
     implicit val sc = new SparkContext(sparkConf)
-      
+
+    println("#####################")
+    println(sparkConf.toDebugString)
+    println("#####################")
+
     val path = args(1)
     val data = DesqDataset.load(path)
     
@@ -45,7 +49,7 @@ object DesqRunner {
     if(args(0).equals("DesqCount")) {
       minerConf = DesqCount.createConf(patternExpression, sigma)
     }
-    minerConf.setProperty("desq.mining.prune.irrelevant.inputs", "true")
+    minerConf.setProperty("desq.mining.prune.irrelevant.inputs", "false")
     minerConf.setProperty("desq.mining.use.two.pass", "false")
     minerConf.setProperty("desq.mining.use.flist", "true")
     
@@ -61,7 +65,7 @@ object DesqRunner {
     val result = miner.mine(data)
     result.sequences.saveAsTextFile(args(2))
     //result.toSidsSupportPairs().saveAsTextFile(args(2))
-    val mineAndOutputTime = (System.nanoTime - t1) / 1e6d
-    logger.fatal("mineAndOutputTime: " + mineAndOutputTime + "ms")
+    val mineAndOutputTime = (System.nanoTime - t1) / 1e9d
+    logger.fatal("mineAndOutputTime: " + mineAndOutputTime + "s")
   }
 }

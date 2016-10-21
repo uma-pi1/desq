@@ -5,6 +5,7 @@ import de.uni_mannheim.desq.patex.PatEx;
 import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.*;
 
+import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import java.util.ArrayList;
@@ -82,9 +83,13 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** Current prefix (used for finding the potential output items of one sequence) */
 	final Sequence prefix = new Sequence();
 
-	/* For each current recursion level, a set of to-states that already have been visited by a non-pivot transition */
+	/** For each current recursion level, a set of to-states that already have been visited by a non-pivot transition */
 	final ArrayList<Set<State>> nonPivotExpandedToStates = new ArrayList<>();
 
+	/** Stats about pivot element search */
+	public long counterTotalRecursions = 0;
+	public long counterNonPivotTransitionsSkipped = 0;
+	public long counterMinMaxPivotUsed = 0;
 
     // -- construction/clearing ---------------------------------------------------------------------------------------
 
@@ -225,7 +230,7 @@ public final class DesqDfs extends MemoryDesqMiner {
             finalPos.clear();*/
 			
 		} else { // one pass
-			if (edfa.isRelevant(inputSequence, 0, 0)) {
+			if (!pruneIrrelevantInputs || edfa.isRelevant(inputSequence, 0, 0)) {
 				osCountStepOnePass(0, 0, fst.getInitialState(), 0, 0);
 			}
 		}
@@ -241,6 +246,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	 */
 
 	private void osCountStepOnePass(int pivot, int pos, State state, int level, int level2) {
+		counterTotalRecursions++;
 		// if we reached a final state, we count the current sequence (if any)
 		if(state.isFinal() && pivot != 0 && (!fst.getRequireFullMatch() || pos==inputSequence.size())) {
 			//countSequence(prefix);
@@ -265,7 +271,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		// get an empty set to maintain the states to-states that we have already visited with non-pivot transitions
 		Set<State> visitedToStates;
 		if(level2 >= nonPivotExpandedToStates.size()) {
-			visitedToStates = new HashSet();
+			visitedToStates = new HashSet<State>();
 			nonPivotExpandedToStates.add(visitedToStates);
 		} else {
 			visitedToStates = nonPivotExpandedToStates.get(level2);
@@ -296,9 +302,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 							osCountStepOnePass(pivot, pos + 1, toState, newLevel, level2 + 1);
 							visitedToStates.add(toState);
 						//	System.out.println("(Non-pivot item " + outputItemFid + " (pivot + " + pivot + ")): Visiting state " + toState.getId() + " for the first time from state " + state.getId() + " at level " + level2);
-						} //else {
+						} else {
+							counterNonPivotTransitionsSkipped++;
 							//System.out.println("Non-pivot item " + outputItemFid + " (pivot + " + pivot + ")): State " + toState.getId() + " visited already from state " + state.getId() + " at level " + level2 + ". Skipping");
-						//}
+						}
 					}
 
 					//prefix.removeInt(prefix.size() - 1);
