@@ -17,8 +17,8 @@ import scala.io.Source
 object DesqRunner {
   
   def main(args: Array[String]) {
-    if(args.length < 5) {
-      println("Usage: DesqRunner miner inputPath outputPath minSupport patternExpression")
+    if(args.length < 6) {
+      println("Usage: DesqRunner miner inputPath outputPath minSupport patternExpression skipNonPivotPartitions")
       System.exit(0)
     }
     val logger = LogManager.getLogger("DesqRunner")
@@ -43,6 +43,7 @@ object DesqRunner {
     
     val sigma = args(3).toInt
     val patternExpression = args(4)
+
     
     // Build miner conf
     var minerConf = DesqDfs.createConf(patternExpression, sigma)
@@ -52,6 +53,7 @@ object DesqRunner {
     minerConf.setProperty("desq.mining.prune.irrelevant.inputs", "false")
     minerConf.setProperty("desq.mining.use.two.pass", "false")
     minerConf.setProperty("desq.mining.use.flist", "true")
+    minerConf.setProperty("desq.mining.skip.non.pivot.transitions", args(5))
     
     // Build miner
     val ctx = new DesqMinerContext(minerConf)
