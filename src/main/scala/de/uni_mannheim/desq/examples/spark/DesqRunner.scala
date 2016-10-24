@@ -9,6 +9,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.log4j.{Logger, LogManager}
 import scala.collection.JavaConversions._
 import scala.io.Source
+import java.util.Calendar
 
 /**
   * Other way to run DesqDfs
@@ -17,8 +18,8 @@ import scala.io.Source
 object DesqRunner {
   
   def main(args: Array[String]) {
-    if(args.length < 6) {
-      println("Usage: DesqRunner miner inputPath outputPath minSupport patternExpression skipNonPivotPartitions")
+    if(args.length < 7) {
+      println("Usage: DesqRunner miner inputPath outputPath minSupport patternExpression skipNonPivotPartitions useMinMaxPivot")
       System.exit(0)
     }
     val logger = LogManager.getLogger("DesqRunner")
@@ -54,6 +55,7 @@ object DesqRunner {
     minerConf.setProperty("desq.mining.use.two.pass", "false")
     minerConf.setProperty("desq.mining.use.flist", "true")
     minerConf.setProperty("desq.mining.skip.non.pivot.transitions", args(5))
+    minerConf.setProperty("desq.mining.use.minmax.pivot", args(6))
     
     // Build miner
     val ctx = new DesqMinerContext(minerConf)
@@ -65,7 +67,8 @@ object DesqRunner {
     var t1 = System.nanoTime // we are not using the Guava stopwatch here due to the packaging conflicts inside Spark (Guava 14)
     print("Mining (RDD construction)... ")
     val result = miner.mine(data)
-    result.sequences.saveAsTextFile(args(2))
+    val cal = Calendar.getInstance()
+    result.sequences.saveAsTextFile(args(2)+cal.get(Calendar.HOUR_OF_DAY)+cal.get(Calendar.MINUTE)+cal.get(Calendar.SECOND));
     //result.toSidsSupportPairs().saveAsTextFile(args(2))
     val mineAndOutputTime = (System.nanoTime - t1) / 1e9d
     logger.fatal("mineAndOutputTime: " + mineAndOutputTime + "s")

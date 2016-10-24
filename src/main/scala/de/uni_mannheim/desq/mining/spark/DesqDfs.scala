@@ -72,10 +72,10 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 
             // for that new input sequence, find all possible output sequences and add them to the outputIterator
             if (usesFids) {
-              outputIterator = baseMiner.getFreqOutputItemsOfOneSequence(currentSequence).iterator()
+              outputIterator = baseMiner.getPivotItemsOfOneSequence(currentSequence).iterator()
             } else {
               dict.gidsToFids(currentSequence, itemFids)
-              outputIterator = baseMiner.getFreqOutputItemsOfOneSequence(itemFids).iterator()
+              outputIterator = baseMiner.getPivotItemsOfOneSequence(itemFids).iterator()
             }
           }
 
@@ -85,7 +85,8 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
             logger.fatal("map-processing: " + mapTime + "s")
             logger.fatal("foi-totalRecursions:   " + baseMiner.counterTotalRecursions)
             logger.fatal("foi-nonPivotTrSkipped: " + baseMiner.counterNonPivotTransitionsSkipped)
-            logger.fatal("foi-minMaxPivotUsed:   " + baseMiner.counterMinMaxPivotUsed)
+            logger.fatal("foi-minPivotUsed:   " + baseMiner.counterMinPivotUsed)
+            logger.fatal("foi-maxPivotUsed:   " + baseMiner.counterMaxPivotUsed)
           }
           outputIterator.hasNext
         }
@@ -193,10 +194,10 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 
             // for that new input sequence, find all possible output sequences and add them to the outputIterator
             if (usesFids) {
-              outputIterator = baseMiner.getFreqOutputItemsOfOneSequence(currentSequence).iterator()
+              outputIterator = baseMiner.getPivotItemsOfOneSequence(currentSequence).iterator()
             } else {
               dict.gidsToFids(currentSequence, itemFids)
-              outputIterator = baseMiner.getFreqOutputItemsOfOneSequence(itemFids).iterator()
+              outputIterator = baseMiner.getPivotItemsOfOneSequence(itemFids).iterator()
             }
             println("Starting to emit: " + currentSequence)
           }
