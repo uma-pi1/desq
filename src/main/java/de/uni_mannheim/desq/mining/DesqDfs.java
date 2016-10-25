@@ -91,7 +91,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	final boolean useMinMaxPivots;
 
 	/** For each (state, pos) combination, store the max seen and min guaranteed pivot item that came up from recursion to this state */
-	final HashMap<Long,minMaxPivot> minMaxPivotPerStatePos = new HashMap<Long,minMaxPivot>();
+	final HashMap<Long,Integer> maxPivotPerStatePos = new HashMap<Long,Integer>();
 
 	/** Stats about pivot element search */
 	public long counterTotalRecursions = 0;
@@ -242,12 +242,12 @@ public final class DesqDfs extends MemoryDesqMiner {
 		} else { // one pass
 
 			if (!pruneIrrelevantInputs || edfa.isRelevant(inputSequence, 0, 0)) {
-				osCountStepOnePass(0, 0, fst.getInitialState(), 0, new minMaxPivot());
+				osCountStepOnePass(0, 0, fst.getInitialState(), 0, 0);
 			}
 		}
 
-		for(minMaxPivot entry: minMaxPivotPerStatePos.values()) {
-			entry.reset();
+		for(Integer entry: maxPivotPerStatePos.values()) {
+			entry = 0;
 		}
 		return pivotItems;
 	}
@@ -260,7 +260,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	 * @param level current level
 	 */
 
-	private void osCountStepOnePass(int pivot, int pos, State state, int level, minMaxPivot prevMinMaxPivot) {
+	private int osCountStepOnePass(int pivot, int pos, State state, int level, int upperMaxPivot) {
 		counterTotalRecursions++;
 		// if we reached a final state, we count the current sequence (if any)
 		if(state.isFinal() && pivot != 0 && (!fst.getRequireFullMatch() || pos==inputSequence.size())) {
@@ -271,8 +271,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 			if(useMinMaxPivots) {
 				// this current pivot is a pivot for the sequence. if it's either the max seen or the min seen pivot in this
 				// recursion branch, let's keep track of it.
-				if (pivot > prevMinMaxPivot.getMax()) {
-					prevMinMaxPivot.setMax(pivot);
+				if (pivot > upperMaxPivot) {
+					upperMaxPivot= pivot;
 				}
 				//if (pivot < prevMinMaxPivot.getMin()) {
 				//	prevMinMaxPivot.setMin(pivot);
@@ -282,7 +282,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		// check if we already read the entire input
 		if (pos == inputSequence.size()) {
-			return;
+			return upperMaxPivot;
 		}
 
 		// get iterator over next output item/state pairs; reuse existing ones if possible
@@ -314,23 +314,26 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		// current (state,pos)
 		Long statePos = PrimitiveUtils.combine(state.getId(),pos);
-		minMaxPivot minMaxPivot = new minMaxPivot();
+		int maxPivot = 0;
+		int returnPivot;
 
 		if(useMinMaxPivots) {
-			if (minMaxPivotPerStatePos.containsKey(statePos)) {
-				minMaxPivot = minMaxPivotPerStatePos.get(statePos);
-				if (minMaxPivot.getMax() != 0) { // max pivot is set, means that also min pivot is set
-					if (pivot >= minMaxPivot.getMax()) { // current pivot is larger than anything that will be produced in the recursion, so we don't need to recurse
+			if (maxPivotPerStatePos.containsKey(statePos)) {
+				maxPivot = maxPivotPerStatePos.get(statePos);
+				if (maxPivot != 0) { // max pivot is set, means that also min pivot is set
+					if (pivot >= maxPivot) { // current pivot is larger than anything that will be produced in the recursion, so we don't need to recurse
 						// if maxPivot(this_state, this_pos)!=0, we have reached a final state with recursion from here.
 						// so we know the current pivot will be the pivot element of an output sequence.
 						// so we add it to the set of pivot items
-						if(pivot > minMaxPivot.getMax()) { // if the current pivot is actually larger, output. otherwise it was already output
+						if(pivot > maxPivot) { // if the current pivot is actually larger, output. otherwise it was already output
 							pivotItems.add(pivot);
 						}
 						// we also note it down as the max pivot seen for the previous recursion level
-						prevMinMaxPivot.setMax(pivot);
+						if(pivot > upperMaxPivot) {
+							upperMaxPivot = pivot;
+						}
 						counterMaxPivotUsed++;
-						return;
+						return upperMaxPivot;
 					}/* TODO: how do we find the minimum guaranteed pivot?
 					(at the moment, this produces incorrect results)
 					if (pivot <= minMaxPivot.getMin()) {
@@ -341,10 +344,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 						return;
 					}*/
 				} // otherwise, we have to recurse. while doing that, we fill in the minMaxPivot item
-			} else {
+			}/* else {
 				minMaxPivot = new minMaxPivot();
-				minMaxPivotPerStatePos.put(statePos, minMaxPivot);
-			}
+				maxPivotPerStatePos.put(statePos, minMaxPivot);
+			}*/
 		}
 
 		// iterate over output item/state pairs
@@ -355,16 +358,19 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 			if(outputItemFid == 0) { // EPS output
 				// we did not get an output, so continue with the current prefix
-				osCountStepOnePass(pivot, pos + 1, toState, level+1, minMaxPivot);
+				returnPivot = osCountStepOnePass(pivot, pos + 1, toState, level+1, maxPivot);
+				if(returnPivot > maxPivot) maxPivot = returnPivot;
 			} else {
 				// we got an output; check whether it is relevant
 				if (largestFrequentFid >= outputItemFid) {
 					// the seen output is frequent, so we contiune running the FST
 					if(outputItemFid > pivot) { // we have a new pivot item
-						osCountStepOnePass(outputItemFid, pos + 1, toState, level + 1, minMaxPivot);
+						returnPivot = osCountStepOnePass(outputItemFid, pos + 1, toState, level + 1, maxPivot);
+						if(returnPivot > maxPivot) maxPivot = returnPivot;
 					} else { // keep the old pivot
 						if(!skipNonPivotTransitions || !visitedToStates.contains(toState)) { // we go to each toState only once with non-pivot transitions
-							osCountStepOnePass(pivot, pos + 1, toState, level + 1, minMaxPivot);
+							returnPivot = osCountStepOnePass(pivot, pos + 1, toState, level + 1, maxPivot);
+							if(returnPivot > maxPivot) maxPivot = returnPivot;
 							if(skipNonPivotTransitions) visitedToStates.add(toState);
 						} else {
 							counterNonPivotTransitionsSkipped++;
@@ -374,11 +380,13 @@ public final class DesqDfs extends MemoryDesqMiner {
 			}
 		}
 
-
-		// Pass up found min/max pivots
-		if(minMaxPivot.getMax() > prevMinMaxPivot.getMax()) {
-			prevMinMaxPivot.setMax(minMaxPivot.getMax());
+		// Set maxPivot for current statePo
+		if(useMinMaxPivots) {
+			maxPivotPerStatePos.put(statePos, maxPivot);
 		}
+
+		// Pass up found max pivot
+		return maxPivot;
 		//if(minMaxPivot.getMin() < prevMinMaxPivot.getMin()) {
 		//	prevMinMaxPivot.setMin(minMaxPivot.getMin());
 		//}
@@ -693,23 +701,5 @@ public final class DesqDfs extends MemoryDesqMiner {
 		WeightedSequence inputSequence;
 		ExtendedDfaState[] edfaStateSequence;
 		DesqDfsTreeNode node;
-	}
-
-
-	/** Keep track of the min and max pivot coming out of recursion.
-	 *  TODO: think about more efficient ways to implement this
-	 */
-	private class minMaxPivot {
-		//private int min;
-		private int max;
-		minMaxPivot() {	this.reset(); }
-		int getMax() { return this.max; }
-		//int getMin() { return this.min; }
-		void setMax(int max) { this.max = max; }
-		//void setMin(int min) { this.min = min; }
-		void reset() {
-			//this.min = Integer.MAX_VALUE;
-			this.max = 0;
-		}
 	}
 }
