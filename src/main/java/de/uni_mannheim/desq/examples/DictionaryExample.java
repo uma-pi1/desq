@@ -93,7 +93,7 @@ public class DictionaryExample {
 	
 	
 	public static void main(String[] args) throws IOException {
-		nyt();
-		//icdm16();
+		//nyt();
+		icdm16();
 	}
 }

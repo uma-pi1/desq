@@ -1,14 +1,15 @@
 package de.uni_mannheim.desq.util;
 
 import com.esotericsoftware.kryo.io.Output;
-import org.apache.commons.lang.NotImplementedException;
 
 import java.io.DataOutput;
+import java.io.DataOutputStream;
 import java.io.IOException;
 
 /** Wraps a DataOutput around an Output. */
 public final class Output2DataOutputWrapper implements DataOutput {
     public Output output;
+    private DataOutputStream thisWrapper = new DataOutputStream(new DataOutput2OutputStreamWrapper(this));
 
     @Override
     public void write(int b) throws IOException {
@@ -67,16 +68,16 @@ public final class Output2DataOutputWrapper implements DataOutput {
 
     @Override
     public void writeBytes(String s) throws IOException {
-        throw new NotImplementedException();
+        thisWrapper.writeBytes(s);
     }
 
     @Override
     public void writeChars(String s) throws IOException {
-        throw new NotImplementedException();
+        thisWrapper.writeChars(s);
     }
 
     @Override
     public void writeUTF(String s) throws IOException {
-        throw new NotImplementedException();
+        thisWrapper.writeUTF(s);
     }
 }

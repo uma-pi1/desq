@@ -5,7 +5,6 @@ import com.esotericsoftware.kryo.io.Input;
 import de.uni_mannheim.desq.avro.AvroItem;
 import de.uni_mannheim.desq.avro.AvroItemProperties;
 import de.uni_mannheim.desq.io.SequenceReader;
-import de.uni_mannheim.desq.util.DataInput2InputStreamWrapper;
 import de.uni_mannheim.desq.util.DesqProperties;
 import de.uni_mannheim.desq.util.IntSetUtils;
 import de.uni_mannheim.desq.util.Writable2Serializer;
@@ -18,6 +17,7 @@ import org.apache.avro.io.*;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.WritableUtils;
 
 import java.io.*;
 import java.net.URL;
@@ -82,7 +82,7 @@ public class Dictionary implements Externalizable, Writable {
 	protected Boolean hasConsistentFids = null;
 
 
-	// -- construction and modification -------------------------------------------------------------------------------
+	// -- construction ------------------------------------------------------------------------------------------------
 
 	public Dictionary() {
 		gids = new IntArrayList();
@@ -98,9 +98,43 @@ public class Dictionary implements Externalizable, Writable {
 		sidIndex.defaultReturnValue(-1);
 	}
 
+	/** Deep clone */
+	private Dictionary(Dictionary other) {
+		size = other.size;
+		gids = other.gids.clone();
+		sids = new ArrayList<>(other.sids);
+		dfreqs = other.dfreqs.clone();
+		cfreqs = other.cfreqs.clone();
+		gidIndex = other.gidIndex.clone();
+		sidIndex = other.sidIndex.clone();
+
+		parents = new ArrayList<>(gids.size());
+		children = new ArrayList<>(gids.size());
+		properties = new ArrayList<>(gids.size());
+		for (int i=0; i<gids.size(); i++) {
+			int gid = gids.getInt(i);
+			if (gid >= 0) {
+				parents.add(other.parents.get(i).clone());
+				children.add(other.children.get(i).clone());
+				DesqProperties p = other.properties.get(i);
+				if (p != null) {
+					p = new DesqProperties(p);
+				}
+				properties.add(p);
+			} else {
+				parents.add(null);
+				children.add(null);
+				properties.add(null);
+			}
+		}
+
+		isForest = other.isForest;
+		hasConsistentFids = other.hasConsistentFids;
+	}
+
 	/** Creates a new dictionary backed by given dictionary, except parents and children. Used
 	 * for {@link RestrictedDictionary}. */
-	protected Dictionary(Dictionary dict) {
+	protected Dictionary(Dictionary dict, boolean dummy) {
 		gids = dict.gids;
 		sids = dict.sids;
 		dfreqs = dict.dfreqs;
@@ -111,6 +145,9 @@ public class Dictionary implements Externalizable, Writable {
 		gidIndex = dict.gidIndex;
 		sidIndex = dict.sidIndex;
 	}
+
+
+	// -- modification ------------------------------------------------------------------------------------------------
 
 	/** Always false. Subclasses may override. */
 	public boolean isReadOnly() {
@@ -321,13 +358,7 @@ public class Dictionary implements Externalizable, Writable {
 
 	/** Returns a copy of this dictionary. */
 	public Dictionary deepCopy() {
-		// TODO: this could be made more efficient with more lines of code
-		try {
-			byte[] bytes = toBytes();
-			return Dictionary.fromBytes(bytes);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
+		return new Dictionary(this);
 	}
 
 	// -- querying ----------------------------------------------------------------------------------------------------
@@ -1218,17 +1249,8 @@ public class Dictionary implements Externalizable, Writable {
 		trim();
 	}
 
-	private byte[] toBytes() throws IOException {
-		ByteArrayOutputStream bytesOut = new ByteArrayOutputStream(size()*50);
-		writeAvro(bytesOut);
-		return bytesOut.toByteArray();
-	}
 
-	private static Dictionary fromBytes(byte[] bytes) throws IOException {
-		Dictionary dict = new Dictionary();
-		dict.readAvro(new ByteArrayInputStream(bytes));
-		return dict;
-	}
+	// -- serialization -----------------------------------------------------------------------------------------------
 
 	@Override
 	public void writeExternal(ObjectOutput out) throws IOException {
@@ -1237,25 +1259,86 @@ public class Dictionary implements Externalizable, Writable {
 
 	@Override
 	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-		ensureWritable();
 		readFields(in);
 	}
 
 	@Override
 	public void write(DataOutput out) throws IOException {
-		// TODO: don't use avro here, but write manually
-		byte[] bytes = toBytes();
-		out.writeInt(bytes.length);
-		out.write(bytes);
+		// general info
+		WritableUtils.writeVInt(out, size());
+		out.writeBoolean(isForest());
+		out.writeBoolean(hasConsistentFids());
+
+		// each item
+		DesqProperties EMPTY_PROPERTIES = new DesqProperties();
+		IntList fids = topologicalSort();
+		for (int i=0; i<fids.size(); i++) {
+			int fid = fids.getInt(i);
+			WritableUtils.writeVInt(out, fid);
+			WritableUtils.writeVInt(out, gids.getInt(fid));
+			out.writeUTF(sids.get(fid));
+			WritableUtils.writeVLong(out, dfreqs.getLong(fid));
+			WritableUtils.writeVLong(out, cfreqs.getLong(fid));
+
+			DesqProperties properties = this.properties.get(fid);
+			if (properties == null) {
+				EMPTY_PROPERTIES.write(out);
+			} else {
+				properties.write(out);
+			}
+
+			IntArrayList parents = this.parents.get(fid);
+			WritableUtils.writeVInt(out, parents.size());
+			IntArrayList children = this.children.get(fid);
+			WritableUtils.writeVInt(out, children.size());
+
+			for (int j=0; j<parents.size(); j++) {
+				WritableUtils.writeVInt(out, parents.getInt(j));
+			}
+		}
 	}
 
 	@Override
 	public void readFields(DataInput in) throws IOException {
-		// TODO: don't use avro here, but read manually
-		int length = in.readInt();
-		readAvro(new DataInput2InputStreamWrapper(in, length));
-		// since Avro internally prereads the input stream beyond its actually serialized size, we need to limit
-		// the number of bytes to be read above
+		clear();
+
+		// general info
+		int size = WritableUtils.readVInt(in);
+		ensureCapacity(size);
+		boolean isForest = in.readBoolean();
+		boolean hasConsistentFids = in.readBoolean();
+
+		// each item
+		DesqProperties propertiesBuffer = new DesqProperties();
+		for (int i=0; i<size; i++) {
+			int fid = WritableUtils.readVInt(in);
+			int gid = WritableUtils.readVInt(in);
+			String sid = in.readUTF();
+			long dfreq = WritableUtils.readVLong(in);
+			long cfreq = WritableUtils.readVLong(in);
+
+			propertiesBuffer.readFields(in);
+			DesqProperties properties = null;
+			if (propertiesBuffer.size() > 0) {
+				properties = propertiesBuffer;
+				propertiesBuffer = new DesqProperties();
+			}
+
+			int noParents = WritableUtils.readVInt(in);
+			IntArrayList parents = new IntArrayList(noParents);
+			int noChildren = WritableUtils.readVInt(in);
+			IntArrayList children = new IntArrayList(noChildren);
+
+			addItem(fid, gid, sid, dfreq, cfreq, parents, children, properties);
+
+			for (int j=0; j<noParents; j++) {
+				addParent(fid, WritableUtils.readVInt(in));
+			}
+		}
+
+		assert this.size == size;
+		this.isForest = isForest;
+		this.hasConsistentFids = hasConsistentFids;
 	}
 
 	public static final class KryoSerializer extends Writable2Serializer<Dictionary> {

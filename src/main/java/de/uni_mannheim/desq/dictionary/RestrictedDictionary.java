@@ -22,7 +22,7 @@ public class RestrictedDictionary extends Dictionary {
     private BitSet availableFids = new BitSet();
 
     public RestrictedDictionary(Dictionary dict, IntSet fidsToRetain) {
-        super(dict);
+        super(dict, true);
 
         // copy parents and children
         IntIterator it = fidsToRetain.iterator();

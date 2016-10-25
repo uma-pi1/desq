@@ -1,12 +1,14 @@
 package de.uni_mannheim.desq.util;
 
 import com.google.common.base.Strings;
+import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.WritableUtils;
 
 import java.io.*;
 import java.util.*;
 
 /** Light-weight collection of properties */
-public class DesqProperties implements Externalizable {
+public class DesqProperties implements Externalizable, Writable {
     private HashMap<String,String> properties;
 
     public DesqProperties() {
@@ -21,6 +23,13 @@ public class DesqProperties implements Externalizable {
         properties = new HashMap<>(prop.size());
         for(Map.Entry<Object,Object> entry : prop.entrySet()) {
             setProperty((String)entry.getKey(), entry.getValue());
+        }
+    }
+
+    public DesqProperties(DesqProperties prop) {
+        properties = new HashMap<>(prop.size());
+        for(Map.Entry<String,String> entry : prop.properties.entrySet()) {
+            setProperty(entry.getKey(), entry.getValue());
         }
     }
 
@@ -88,20 +97,12 @@ public class DesqProperties implements Externalizable {
 
     @Override
     public void writeExternal(ObjectOutput out) throws IOException {
-        out.writeInt(properties.size());
-        for (Map.Entry<String, String> p : properties.entrySet()) {
-            out.writeUTF(p.getKey());
-            out.writeUTF(p.getValue());
-        }
+        write(out);
     }
 
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        for (int size = in.readInt(); size>0; size--) {
-            String key = in.readUTF();
-            String value = in.readUTF();
-            properties.put(key, value);
-        }
+        readFields(in);
     }
 
     public void prettyPrint() {
@@ -119,6 +120,28 @@ public class DesqProperties implements Externalizable {
             out.print("=");
             out.print(getString(key));
             out.println();
+        }
+    }
+
+    public int size() {
+        return properties.size();
+    }
+
+    @Override
+    public void write(DataOutput out) throws IOException {
+        WritableUtils.writeVInt(out, properties.size());
+        for (Map.Entry<String, String> p : properties.entrySet()) {
+            out.writeUTF(p.getKey());
+            out.writeUTF(p.getValue());
+        }
+    }
+
+    @Override
+    public void readFields(DataInput in) throws IOException {
+        for (int size = WritableUtils.readVInt(in); size>0; size--) {
+            String key = in.readUTF();
+            String value = in.readUTF();
+            properties.put(key, value);
         }
     }
 }
