@@ -23,6 +23,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     val conf = ctx.conf
     val usesFids = data.usesFids
     val minSupport = conf.getLong("desq.mining.min.support")
+    val numPartitions = conf.getInt("desq.mining.num.mine.partitions")
 
     // In a first step, we map over each input sequence and output (output item, input sequence) pairs
     //   for all possible output items in that input sequence
@@ -103,7 +104,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
                 // TODO: if we don't clone the sequence, the wrong sequences appear in the emits. but maybe there is a better way than cloning?
         }
       }
-    }).groupByKey()   // hardcoded. TODO change this later
+    }).groupByKey(numPartitions)
 
     
     

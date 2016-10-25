@@ -19,7 +19,7 @@ object DesqRunner {
   
   def main(args: Array[String]) {
     if(args.length < 5) {
-      println("Usage: DesqRunner miner inputPath outputPath minSupport patternExpression [skipNonPivotPartitions useMinMaxPivot]")
+      println("Usage: DesqRunner miner inputPath outputPath minSupport patternExpression numPartitions [skipNonPivotPartitions useMinMaxPivot]")
       System.exit(0)
     }
     val logger = LogManager.getLogger("DesqRunner")
@@ -58,6 +58,8 @@ object DesqRunner {
     //minerConf.setProperty("desq.mining.use.minmax.pivot", args(6))
     minerConf.setProperty("desq.mining.skip.non.pivot.transitions", "false")
     minerConf.setProperty("desq.mining.use.minmax.pivot", "false")
+
+    minerConf.setProperty("desq.mining.num.mine.partitions", args(5).toInt)
     
     // Build miner
     val ctx = new DesqMinerContext(minerConf)
