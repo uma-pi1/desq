@@ -324,10 +324,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 		// current (state,pos)
 		//Long statePos = PrimitiveUtils.combine(state.getId(),pos);
 		int statePos = pos*numFstStates+state.getId();
-		//int maxPivot = 0;
+		int maxPivot = 0;
 		int returnPivot;
 
 		if(useMinMaxPivots) {
+			maxPivot = maxPivotPerStatePos[statePos];
 			if (maxPivotPerStatePos[statePos] != 0) { // max pivot is set, means that also min pivot is set
 				if (pivot >= maxPivotPerStatePos[statePos] ) { // current pivot is larger than anything that will be produced in the recursion, so we don't need to recurse
 					// if maxPivot(this_state, this_pos)!=0, we have reached a final state with recursion from here.
@@ -342,15 +343,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 					}
 					counterMaxPivotUsed++;
 					return upperMaxPivot;
-				}/* TODO: how do we find the minimum guaranteed pivot?
-				(at the moment, this produces incorrect results)
-				if (pivot <= minMaxPivot.getMin()) {
-					// recursion will definitely yield a pivot larger than the one we have
-					// as we have already output those pivots, we do not need to recurse from here
-					// in fact, we don't do anything here but stop to recurse
-					counterMinPivotUsed++;
-					return;
-				}*/
+				}
 			}
 		}
 
@@ -362,20 +355,22 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 			if(outputItemFid == 0) { // EPS output
 				// we did not get an output, so continue with the current prefix
-				returnPivot = osCountStepOnePass(pivot, pos + 1, toState, level+1, maxPivotPerStatePos[statePos] );
+				returnPivot = osCountStepOnePass(pivot, pos + 1, toState, level+1, maxPivot );
 				if(useMinMaxPivots && returnPivot > maxPivotPerStatePos[statePos] ) maxPivotPerStatePos[statePos]  = returnPivot;
 			} else {
 				// we got an output; check whether it is relevant
 				if (largestFrequentFid >= outputItemFid) {
 					// the seen output is frequent, so we contiune running the FST
 					if(outputItemFid > pivot) { // we have a new pivot item
-						returnPivot = osCountStepOnePass(outputItemFid, pos + 1, toState, level + 1, maxPivotPerStatePos[statePos] );
+						returnPivot = osCountStepOnePass(outputItemFid, pos + 1, toState, level + 1, maxPivot );
 						if(useMinMaxPivots && returnPivot > maxPivotPerStatePos[statePos] ) maxPivotPerStatePos[statePos]  = returnPivot;
 					} else { // keep the old pivot
 						if(!skipNonPivotTransitions || !visitedToStates.contains(toState)) { // we go to each toState only once with non-pivot transitions
-							returnPivot = osCountStepOnePass(pivot, pos + 1, toState, level + 1, maxPivotPerStatePos[statePos] );
+							returnPivot = osCountStepOnePass(pivot, pos + 1, toState, level + 1, maxPivot );
 							if(useMinMaxPivots && returnPivot > maxPivotPerStatePos[statePos] ) maxPivotPerStatePos[statePos]  = returnPivot;
-							if(skipNonPivotTransitions) visitedToStates.add(toState);
+							if(skipNonPivotTransitions) {
+								visitedToStates.add(toState);
+							}
 						} else {
 							counterNonPivotTransitionsSkipped++;
 						}
