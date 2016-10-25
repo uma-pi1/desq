@@ -87,6 +87,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
             logger.fatal("foi-nonPivotTrSkipped: " + baseMiner.counterNonPivotTransitionsSkipped)
             logger.fatal("foi-minPivotUsed:   " + baseMiner.counterMinPivotUsed)
             logger.fatal("foi-maxPivotUsed:   " + baseMiner.counterMaxPivotUsed)
+            logger.fatal("foi-createObject:   " + baseMiner.counterCreateObject)
           }
           outputIterator.hasNext
         }
