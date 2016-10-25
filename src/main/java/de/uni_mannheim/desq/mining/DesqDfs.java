@@ -386,7 +386,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		// Pass up found max pivot
 		if(useMinMaxPivots) {
-			return maxPivotPerStatePos[statePos];
+			return Math.max(maxPivotPerStatePos[statePos], upperMaxPivot);
 		} else {
 			return 0;
 		}
