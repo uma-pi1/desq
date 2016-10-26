@@ -54,12 +54,12 @@ object DesqRunner {
     minerConf.setProperty("desq.mining.prune.irrelevant.inputs", "false")
     minerConf.setProperty("desq.mining.use.two.pass", "false")
     minerConf.setProperty("desq.mining.use.flist", "true")
-    //minerConf.setProperty("desq.mining.skip.non.pivot.transitions", args(5))
-    //minerConf.setProperty("desq.mining.use.minmax.pivot", args(6))
-    minerConf.setProperty("desq.mining.skip.non.pivot.transitions", "false")
-    minerConf.setProperty("desq.mining.use.minmax.pivot", "false")
+    minerConf.setProperty("desq.mining.skip.non.pivot.transitions", args(5))
+    minerConf.setProperty("desq.mining.use.minmax.pivot", args(6))
+    //minerConf.setProperty("desq.mining.skip.non.pivot.transitions", "false")
+    //minerConf.setProperty("desq.mining.use.minmax.pivot", "false")
 
-    minerConf.setProperty("desq.mining.num.mine.partitions", args(5).toInt)
+    //minerConf.setProperty("desq.mining.num.mine.partitions", args(5).toInt)
     
     // Build miner
     val ctx = new DesqMinerContext(minerConf)
