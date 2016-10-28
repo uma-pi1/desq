@@ -82,7 +82,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	final Sequence prefix = new Sequence();
 
 	/** For each current recursion level, a set of to-states that already have been visited by a non-pivot transition */
-	final ArrayList<Set<State>> nonPivotExpandedToStates = new ArrayList<>();
+	final ArrayList<IntSet> nonPivotExpandedToStates = new ArrayList<>();
 
 	/** If true, we maintain a set of already visited to-states for each state */
 	final boolean skipNonPivotTransitions;
@@ -305,10 +305,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 
 		// get an empty set to maintain the states to-states that we have already visited with non-pivot transitions
-		Set<State> visitedToStates = null;
+		IntSet visitedToStates = null;
 		if(skipNonPivotTransitions) {
 			if (level >= nonPivotExpandedToStates.size()) {
-				visitedToStates = new HashSet<State>();
+				visitedToStates = new IntAVLTreeSet();
 				nonPivotExpandedToStates.add(visitedToStates);
 			} else {
 				visitedToStates = nonPivotExpandedToStates.get(level);
@@ -365,11 +365,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 						returnPivot = osCountStepOnePass(outputItemFid, pos + 1, toState, level + 1, maxPivot );
 						if(useMinMaxPivots && returnPivot > maxPivotPerStatePos[statePos] ) maxPivotPerStatePos[statePos]  = returnPivot;
 					} else { // keep the old pivot
-						if(!skipNonPivotTransitions || !visitedToStates.contains(toState)) { // we go to each toState only once with non-pivot transitions
+						if(!skipNonPivotTransitions || !visitedToStates.contains(toState.getId())) { // we go to each toState only once with non-pivot transitions
 							returnPivot = osCountStepOnePass(pivot, pos + 1, toState, level + 1, maxPivot );
 							if(useMinMaxPivots && returnPivot > maxPivotPerStatePos[statePos] ) maxPivotPerStatePos[statePos]  = returnPivot;
 							if(skipNonPivotTransitions) {
-								visitedToStates.add(toState);
+								visitedToStates.add(toState.getId());
 							}
 						} else {
 							counterNonPivotTransitionsSkipped++;
