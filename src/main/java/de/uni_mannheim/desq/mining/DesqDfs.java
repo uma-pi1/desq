@@ -70,7 +70,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
     // -- helper variables for distributing --------------------------------------------------------------------------
     /** Set of output items created by one input sequence */
-    final IntSet pivotItems = new IntOpenHashSet();
+    final IntSet pivotItems = new IntAVLTreeSet();
 
     /** Storing the current input sequence */
 	protected IntList inputSequence;
