@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.examples;
 
+import com.google.common.base.Stopwatch;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.io.CountPatternWriter;
 import de.uni_mannheim.desq.io.DelSequenceReader;
@@ -12,6 +13,7 @@ import de.uni_mannheim.desq.util.DesqProperties;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 public class DesqDfsLocalRun {
 	public static void nyt() throws IOException {
@@ -79,7 +81,62 @@ public class DesqDfsLocalRun {
         ExampleUtils.runNetflixDeep(conf);
     }
 
+    public static void runPartitionConstruction() throws IOException {
+		long sigma = 500;
+		String patternExp = "(Electronics^)[.{0,2}(Electronics^)]{1,4}";
+
+
+		DesqProperties minerConf = DesqDfs.createConf(patternExp, sigma);
+
+
+		String dataDir = "/home/alex/Data/amzn/";
+		Dictionary dict = Dictionary.loadFrom(dataDir + "amzn-dict.avro.gz");
+		File dataFile = new File(dataDir + "amzn-data.del");
+		SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), true);
+		dataReader.setDictionary(dict);
+
+		// create context
+		DesqMinerContext ctx = new DesqMinerContext();
+		ctx.dict = dataReader.getDictionary();
+		CountPatternWriter result = new CountPatternWriter();
+		ctx.patternWriter = result;
+		ctx.conf = minerConf;
+
+		// perform the mining
+		System.out.print("Creating miner... ");
+		Stopwatch prepTime = Stopwatch.createStarted();
+		DesqDfs miner = (DesqDfs) DesqDfs.create(ctx);
+		prepTime.stop();
+		System.out.println(prepTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
+
+		System.out.print("Reading input sequences... ");
+		Stopwatch ioTime = Stopwatch.createStarted();
+		miner.determinePivotElementsForSequences(dataReader);
+		ioTime.stop();
+		System.out.println(ioTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
+
+		/*
+		System.out.print("Mining... ");
+		Stopwatch miningTime = Stopwatch.createStarted();
+		miner.mine();
+		miningTime.stop();
+		System.out.println(miningTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
+		*/
+
+		System.out.println("Total time: " +
+				(prepTime.elapsed(TimeUnit.MILLISECONDS) + ioTime.elapsed(TimeUnit.MILLISECONDS)
+						) + "ms");
+
+		// print results
+		System.out.println("Number of patterns: " + result.getCount());
+		System.out.println("Total frequency of all patterns: " + result.getTotalFrequency());
+	}
+
 	public static void main(String[] args) throws IOException {
+		runPartitionConstruction();
+	}
+
+	public static void runMining() throws IOException {
 
 		// Run N5
 		//N5 String patternExp = "([.^ . .]|[. .^ .]|[. . .^])";

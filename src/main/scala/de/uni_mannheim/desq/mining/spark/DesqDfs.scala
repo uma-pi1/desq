@@ -86,9 +86,9 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
             logger.fatal("map-processing: " + mapTime + "s")
             logger.fatal("foi-totalRecursions:   " + baseMiner.counterTotalRecursions)
             logger.fatal("foi-nonPivotTrSkipped: " + baseMiner.counterNonPivotTransitionsSkipped)
-            logger.fatal("foi-minPivotUsed:   " + baseMiner.counterMinPivotUsed)
+            //logger.fatal("foi-minPivotUsed:   " + baseMiner.counterMinPivotUsed)
             logger.fatal("foi-maxPivotUsed:   " + baseMiner.counterMaxPivotUsed)
-            logger.fatal("foi-createObject:   " + baseMiner.counterCreateObject)
+            //logger.fatal("foi-createObject:   " + baseMiner.counterCreateObject)
           }
           outputIterator.hasNext
         }
