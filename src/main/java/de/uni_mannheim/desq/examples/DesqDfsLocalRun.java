@@ -25,6 +25,7 @@ public class DesqDfsLocalRun {
 	static String patternExp;
 	static File dataFile;
 	static Dictionary dict;
+	static boolean useFirstVersion;
 	static boolean skipNonPivotTransitions;
 	static boolean useMaxPivot;
 	static String runVersion;
@@ -63,6 +64,7 @@ public class DesqDfsLocalRun {
 		// experiment
 		minerConf.setProperty("desq.mining.skip.non.pivot.transitions", skipNonPivotTransitions);
 		minerConf.setProperty("desq.mining.use.minmax.pivot", useMaxPivot);
+		minerConf.setProperty("desq.mining.use.first.version", useFirstVersion);
 
 
 
@@ -112,7 +114,7 @@ public class DesqDfsLocalRun {
 
 		// print results
 		System.out.println("Number of sequences: " + stats._1);
-		System.out.println("Total frequency of all patterns: " + stats._2);
+		System.out.println("Total frequency of all pivot items: " + stats._2);
 
 		// combined print
 		System.out.println("exp. no, case, optimizations, run, create time, read time, process time, no. seq, no. piv, total Recursions, trs used, mxp used");
@@ -166,15 +168,23 @@ public class DesqDfsLocalRun {
 
 	private static void setScenario(int scenario) {
 		switch(scenario) {
+			case 0:
+				useFirstVersion = true;
+				skipNonPivotTransitions = false;
+				useMaxPivot = false;
+				break;
 			case 1:
+				useFirstVersion = false;
 				skipNonPivotTransitions = false;
 				useMaxPivot = false;
 				break;
 			case 2:
+				useFirstVersion = false;
 				skipNonPivotTransitions = true;
 				useMaxPivot = false;
 				break;
 			case 3:
+				useFirstVersion = false;
 				skipNonPivotTransitions = true;
 				useMaxPivot = true;
 				break;
@@ -184,7 +194,8 @@ public class DesqDfsLocalRun {
 	}
 
 	private static String printScenario() {
-		String scenario = "piv";
+		if(useFirstVersion) return "first";
+		String scenario = "pit";
 		if(skipNonPivotTransitions) scenario += "+trs";
 		if(useMaxPivot) scenario += "+mxp";
 		return scenario;
@@ -246,6 +257,7 @@ public class DesqDfsLocalRun {
 
 
 	public static void main(String[] args) throws IOException {
-		runPartitionConstruction(args);
+		//runPartitionConstruction(args);
+		runPartitionConstruction("N5", 0, 1);
 	}
 }

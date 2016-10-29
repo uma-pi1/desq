@@ -92,6 +92,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** If true, we keep track of the min and max pivots coming up from recursion for each (state,pos) pair */
 	final boolean useMaxPivot;
 
+	/** for comparing to the old version */
+	final boolean useFirstPCVersion;
+
 	/** For each (state, pos) combination, store the max seen and min guaranteed pivot item that came up from recursion to this state */
 	// int[] maxPivotPerStatePos = null;
 	int numFstStates; // TODO: remove, not needed anymore
@@ -111,6 +114,7 @@ public final class DesqDfs extends MemoryDesqMiner {
         useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
 		skipNonPivotTransitions = ctx.conf.getBoolean("desq.mining.skip.non.pivot.transitions", false);
 		useMaxPivot = ctx.conf.getBoolean("desq.mining.use.minmax.pivot", false);
+		useFirstPCVersion = ctx.conf.getBoolean("desq.mining.use.first.pc.version", false);
 
 
         // construct pattern expression and FST
@@ -278,7 +282,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 				//	maxPivotPerStatePos = new int[inputSequence.size() * numFstStates * 2];
 				//	counterCreateObject++;
 				//}
-				osCountStepOnePass(0, 0, fst.getInitialState(), 0);
+				if(useFirstPCVersion) {
+					osCountStepOnePass(0, 0, fst.getInitialState(), 0);
+				} else {
+					osCountStepOnePassV1(0, fst.getInitialState(), 0);
+				}
 			}
 		}
 
@@ -423,6 +431,52 @@ public final class DesqDfs extends MemoryDesqMiner {
 			}
 		}
 		return maxFoundPivot; // returns 0 if no accepting path was found
+	}
+
+	private void osCountStepOnePassV1(int pos, State state, int level) {
+		counterTotalRecursions++;
+		// if we reached a final state, we count the current sequence (if any)
+		if(state.isFinal() && prefix.size()>0 && (!fst.getRequireFullMatch() || pos==inputSequence.size())) {
+			// the current pivot is the pivot of the current output sequence and therefore one pivot element
+			// for the input sequence we are scanning right now. so we add it to the set of pivot items for this input sequence.
+			pivotItems.add(pivot(prefix));
+		}
+
+		// check if we already read the entire input
+		if (pos == inputSequence.size()) {
+			return;
+		}
+
+		// get iterator over next output item/state pairs; reuse existing ones if possible
+		final int itemFid = inputSequence.getInt(pos); // the current input item
+		Iterator<ItemState> itemStateIt;
+		if(level >= itemStateIterators.size()) {
+			itemStateIt = state.consume(itemFid);
+			itemStateIterators.add(itemStateIt);
+		} else {
+			itemStateIt = state.consume(itemFid, itemStateIterators.get(level));
+		}
+
+
+
+		// iterate over output item/state pairs
+		while(itemStateIt.hasNext()) {
+			final ItemState itemState = itemStateIt.next();
+			final int outputItemFid = itemState.itemFid;
+			final State toState = itemState.state;
+
+			if(outputItemFid == 0) { // EPS output
+				// we did not get an output, so continue with the current prefix
+				osCountStepOnePassV1(pos + 1, toState, level+1);
+			} else {
+				// we got an output; check whether it is relevant
+				if (largestFrequentFid >= outputItemFid) {
+					prefix.add(outputItemFid);
+					osCountStepOnePassV1(pos + 1, toState, level + 1 );
+					prefix.removeInt(prefix.size()-1);
+				}
+			}
+		}
 	}
 
 
