@@ -13,11 +13,9 @@ import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import scala.Tuple2;
 
+import java.io.*;
 import java.util.ArrayList;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 public class DesqDfsLocalRun {
@@ -27,11 +25,34 @@ public class DesqDfsLocalRun {
 	static String patternExp;
 	static File dataFile;
 	static Dictionary dict;
+	static boolean skipNonPivotTransitions;
+	static boolean useMaxPivot;
+	static String runVersion;
+	static int expNo;
 
-    public static void runPartitionConstruction() throws IOException {
 
-		setCase("N5");
+	public static void runPartitionConstruction(String args[]) throws IOException {
 
+		runVersion=args[0];
+
+		expNo = Integer.parseInt(args[1]);
+		String theCase = args[2];
+		int scenario = Integer.parseInt(args[3]);
+		int run = Integer.parseInt(args[4]);
+
+		System.out.println(runVersion+" " + expNo + ": Running runPartitionConstruction("+theCase+", "+scenario+", "+run+") now");
+		runPartitionConstruction(theCase, scenario, run);
+	}
+
+    public static void runPartitionConstruction(String theCase, int scenario, int run) throws IOException {
+
+
+		setCase(theCase);
+		setScenario(scenario);
+
+		System.out.println("------------------------------------------------------------------");
+		System.out.println("Running " + theCase + " @ " + printScenario() + "  #" + run);
+		System.out.println("------------------------------------------------------------------");
 
 		DesqProperties minerConf = DesqDfs.createConf(patternExp, sigma);
 		SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), true);
@@ -40,8 +61,8 @@ public class DesqDfsLocalRun {
 
 
 		// experiment
-		minerConf.setProperty("desq.mining.skip.non.pivot.transitions", false);
-		minerConf.setProperty("desq.mining.use.minmax.pivot", false);
+		minerConf.setProperty("desq.mining.skip.non.pivot.transitions", skipNonPivotTransitions);
+		minerConf.setProperty("desq.mining.use.minmax.pivot", useMaxPivot);
 
 
 
@@ -94,9 +115,20 @@ public class DesqDfsLocalRun {
 		System.out.println("Total frequency of all patterns: " + stats._2);
 
 		// combined print
-		System.out.println("create time, read time, process time, no. seq, no. piv, total Recursions, trs used, mxp used");
-		System.out.println(prepTime.elapsed(TimeUnit.MILLISECONDS) + "\t" + ioTime.elapsed(TimeUnit.MILLISECONDS) + "\t" + miningTime.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-				stats._1 + "\t" + stats._2 + "\t" + miner.counterTotalRecursions + "\t" + miner.counterNonPivotTransitionsSkipped + "\t" + miner.counterMaxPivotUsed);
+		System.out.println("exp. no, case, optimizations, run, create time, read time, process time, no. seq, no. piv, total Recursions, trs used, mxp used");
+		String out = expNo + "\t" + theCase + "\t" + printScenario() + "\t" + run + "\t" + prepTime.elapsed(TimeUnit.MILLISECONDS) + "\t" + ioTime.elapsed(TimeUnit.MILLISECONDS) + "\t" + miningTime.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+				stats._1 + "\t" + stats._2 + "\t" + miner.counterTotalRecursions + "\t" + miner.counterNonPivotTransitionsSkipped + "\t" + miner.counterMaxPivotUsed;
+		System.out.println(out);
+
+		try{
+			PrintWriter writer = new PrintWriter(new FileOutputStream(new File("/home/alex/Dropbox/Master/Thesis/Experiments/E/runlog-"+runVersion+".txt"), true));
+			writer.println(out);
+			writer.close();
+		} catch (Exception e) {
+			// do something
+			System.out.println("Can't open file!");
+			e.printStackTrace();
+		}
 	}
 
 
@@ -130,6 +162,32 @@ public class DesqDfsLocalRun {
 				 setAmznData();
 				 break;
 		 }
+	}
+
+	private static void setScenario(int scenario) {
+		switch(scenario) {
+			case 1:
+				skipNonPivotTransitions = false;
+				useMaxPivot = false;
+				break;
+			case 2:
+				skipNonPivotTransitions = true;
+				useMaxPivot = false;
+				break;
+			case 3:
+				skipNonPivotTransitions = true;
+				useMaxPivot = true;
+				break;
+			default:
+				System.out.println("Unknown scenario");
+		}
+	}
+
+	private static String printScenario() {
+		String scenario = "piv";
+		if(skipNonPivotTransitions) scenario += "+trs";
+		if(useMaxPivot) scenario += "+mxp";
+		return scenario;
 	}
 
 	private static void setAmznData() throws IOException {
@@ -188,6 +246,6 @@ public class DesqDfsLocalRun {
 
 
 	public static void main(String[] args) throws IOException {
-		runPartitionConstruction();
+		runPartitionConstruction(args);
 	}
 }
