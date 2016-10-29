@@ -283,9 +283,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 				//	counterCreateObject++;
 				//}
 				if(useFirstPCVersion) {
-					osCountStepOnePass(0, 0, fst.getInitialState(), 0);
-				} else {
 					osCountStepOnePassV1(0, fst.getInitialState(), 0);
+				} else {
+					osCountStepOnePass(0, 0, fst.getInitialState(), 0);
 				}
 			}
 		}

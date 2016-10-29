@@ -64,7 +64,7 @@ public class DesqDfsLocalRun {
 		// experiment
 		minerConf.setProperty("desq.mining.skip.non.pivot.transitions", skipNonPivotTransitions);
 		minerConf.setProperty("desq.mining.use.minmax.pivot", useMaxPivot);
-		minerConf.setProperty("desq.mining.use.first.version", useFirstVersion);
+		minerConf.setProperty("desq.mining.use.first.pc.version", useFirstVersion);
 
 
 
@@ -257,7 +257,6 @@ public class DesqDfsLocalRun {
 
 
 	public static void main(String[] args) throws IOException {
-		//runPartitionConstruction(args);
-		runPartitionConstruction("N5", 0, 1);
+		runPartitionConstruction(args);
 	}
 }
