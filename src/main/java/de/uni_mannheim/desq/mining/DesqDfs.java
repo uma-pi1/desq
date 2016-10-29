@@ -5,6 +5,7 @@ import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.patex.PatEx;
 import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.*;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import scala.Tuple2;
 
 import org.apache.log4j.Logger;
@@ -98,9 +99,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** Stats about pivot element search */
 	public long counterTotalRecursions = 0;
 	public long counterNonPivotTransitionsSkipped = 0;
-	public long counterMinPivotUsed = 0;
 	public long counterMaxPivotUsed = 0;
-	public long counterCreateObject = 0;
 
     // -- construction/clearing ---------------------------------------------------------------------------------------
 
@@ -227,6 +226,19 @@ public final class DesqDfs extends MemoryDesqMiner {
         }
         return new Tuple2(numSequences,totalPivotElements);
     }
+
+	public Tuple2<Integer,Integer> determinePivotElementsForSequences(ObjectArrayList<Sequence> inputSequences) throws IOException {
+		int numSequences = 0;
+		int totalPivotElements = 0;
+		//Sequence inputSequence = new Sequence();
+		IntSet pivotElements;
+		for(Sequence inputSequence: inputSequences) {
+			pivotElements = getPivotItemsOfOneSequence(inputSequence);
+			totalPivotElements += pivotElements.size();
+			numSequences++;
+		}
+		return new Tuple2(numSequences,totalPivotElements);
+	}
 
 
 	/** Produces set of frequent output elements created by one input sequence by running the FST 
