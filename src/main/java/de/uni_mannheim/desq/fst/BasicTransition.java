@@ -256,6 +256,9 @@ public final class BasicTransition extends Transition {
 			inputFids.addAll(this.inputFids);
 	}
 	
-	
+	/** For partition constrution in DesqDfs */
+	public OutputLabelType getOutputLabelType() {
+		return outputLabelType;
+	}
 
 }

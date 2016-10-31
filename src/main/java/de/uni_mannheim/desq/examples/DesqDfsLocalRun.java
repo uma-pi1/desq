@@ -14,7 +14,6 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import scala.Tuple2;
 
 import java.io.*;
-import java.util.ArrayList;
 
 import java.util.concurrent.TimeUnit;
 
@@ -28,6 +27,7 @@ public class DesqDfsLocalRun {
 	static boolean useFirstVersion;
 	static boolean skipNonPivotTransitions;
 	static boolean useMaxPivot;
+	static boolean useTwoPass;
 	static String runVersion;
 	static int expNo;
 
@@ -172,22 +172,29 @@ public class DesqDfsLocalRun {
 				useFirstVersion = true;
 				skipNonPivotTransitions = false;
 				useMaxPivot = false;
+				useTwoPass = false;
 				break;
 			case 1:
 				useFirstVersion = false;
 				skipNonPivotTransitions = false;
 				useMaxPivot = false;
+				useTwoPass = false;
 				break;
 			case 2:
 				useFirstVersion = false;
 				skipNonPivotTransitions = true;
 				useMaxPivot = false;
+				useTwoPass = false;
 				break;
 			case 3:
 				useFirstVersion = false;
 				skipNonPivotTransitions = true;
 				useMaxPivot = true;
+				useTwoPass = false;
 				break;
+			case 4:
+				useFirstVersion = false;
+				useTwoPass = true;
 			default:
 				System.out.println("Unknown scenario");
 		}
@@ -257,6 +264,7 @@ public class DesqDfsLocalRun {
 
 
 	public static void main(String[] args) throws IOException {
-		runPartitionConstruction(args);
+		//runPartitionConstruction(args);
+		runPartitionConstruction("A2",4,1);
 	}
 }

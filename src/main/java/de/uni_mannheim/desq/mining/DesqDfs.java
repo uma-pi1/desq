@@ -256,14 +256,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 	public IntSet getPivotItemsOfOneSequence(IntList inputSequence) {
 		pivotItems.clear();
 		this.inputSequence = inputSequence;
-		// TODO: one-pass probably won't work at the moment
 		// check whether sequence produces output at all. if yes, produce output items
 		if(useTwoPass) {
-			System.out.println("Please use onePass with DesqDfs distributed. Exiting.");
-			System.exit(0);
 			// Run the DFA to find to determine whether the input has outputs and in which states
 			// Then walk backwards and collect the output items
-			/*if (edfa.isRelevant(inputSequence, 0, edfaStateSequence, finalPos)) {
+			if (edfa.isRelevant(inputSequence, 0, edfaStateSequence, finalPos)) {
 				// starting from all final states for all final positions, walk backwards
 				for (final int pos : finalPos) {
 					for (State fstFinalState : edfaStateSequence.get(pos).getFstFinalStates()) {
@@ -273,7 +270,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				finalPos.clear();
 			}
 			edfaStateSequence.clear();
-            finalPos.clear();*/
+            finalPos.clear();
 			
 		} else { // one pass
 
@@ -299,6 +296,74 @@ public final class DesqDfs extends MemoryDesqMiner {
 	}
 
 
+	private void osCountStepTwoPass(int pivot, int pos, State state, int level) {
+		// check if we reached the beginning of the input sequence
+		if(pos == -1) {
+			// we consumed entire input in reverse -> we must have reached the inital state by two-pass correctness
+			assert state.getId() == 0;
+			//if (!prefix.isEmpty()) {
+			//countSequence(prefix);
+			//outputItems.add(pivot(prefix)); // version2: send to the pivot of each output sequence, implemented naively
+			//}
+			if(pivot != 0) {
+				pivotItems.add(pivot);
+			}
+			return;
+		}
+		// get iterator over next output item/state pairs; reuse existing ones if possible
+		// note that the reverse FST is used here (since we process inputs backwards)
+		// only iterates over states that we saw in the forward pass (the other ones can safely be skipped)
+		final int itemFid = inputSequence.getInt(pos);
+		Iterator<ItemState> itemStateIt;
+		if (level>=itemStateIterators.size()) {
+			itemStateIt = state.consume(itemFid, null, edfaStateSequence.get(pos).getFstStates());
+			itemStateIterators.add(itemStateIt);
+		} else {
+			itemStateIt = state.consume(itemFid, itemStateIterators.get(level),
+					edfaStateSequence.get(pos).getFstStates());
+		}
+
+		/*List<Transition> transitions = state.getTransitions();
+
+		BasicTransition tr = (BasicTransition) transitions.get(0);
+		tr.getOutputLabelType();*/
+
+		// iterate over output item/state pairs
+		while(itemStateIt.hasNext()) {
+			final ItemState itemState = itemStateIt.next();
+			// we need to process that state because we saw it in the forward pass (assertion checks this)
+			final State toState = itemState.state;
+			assert edfaStateSequence.get(pos).getFstStates().get(toState.getId());
+			final int outputItemFid = itemState.itemFid;
+			if(outputItemFid == 0) { // EPS output
+				// we did not get an output, so continue with the current prefix
+				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
+				osCountStepTwoPass(pivot, pos - 1, toState, newLevel);
+			} else {
+				// we got an output; check whether it is relevant
+				if (largestFrequentFid >= outputItemFid) {
+
+					// now append this item to the prefix, continue running the FST, and remove the item once done
+					// but: we only append this item if it is the new pivot
+					//prefix.add(outputItemFid);
+					//outputItems.add(outputItemFid); // this was version1 - output all output items
+
+					int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
+
+					// version3: instead of storing all elements seen so far, we only keep track of the current pivot
+					if(outputItemFid > pivot) {
+						// we have a new pivot, pass it on
+						osCountStepTwoPass(outputItemFid, pos - 1, toState, newLevel);
+					} else {
+						// the old element stays the pivot, keep it
+						osCountStepTwoPass(pivot, pos - 1, toState, newLevel);
+					}
+					//prefix.removeInt(prefix.size() - 1);
+				}
+			}
+		}
+	}
+
 	/** Runs one step in the FST in order to produce the set of frequent output items
      *  returns: - 0 if no accepting path was found in the recursion branch
      *           - the maximum pivot item found in the branch otherwise
@@ -315,17 +380,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 			// the current pivot is the pivot of the current output sequence and therefore one pivot element
 			// for the input sequence we are scanning right now. so we add it to the set of pivot items for this input sequence.
 			pivotItems.add(pivot);
-
-			/*if(useMaxPivot) {
-				// this current pivot is a pivot for the sequence. if it's either the max seen or the min seen pivot in this
-				// recursion branch, let's keep track of it.
-				if (pivot > upperMaxPivot) {
-					upperMaxPivot= pivot;
-				}
-				//if (pivot < prevMinMaxPivot.getMin()) {
-				//	prevMinMaxPivot.setMin(pivot);
-				//}
-			}*/
 		}
 
 		// check if we already read the entire input
