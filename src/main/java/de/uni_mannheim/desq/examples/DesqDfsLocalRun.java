@@ -27,9 +27,10 @@ public class DesqDfsLocalRun {
 	static boolean useFirstVersion;
 	static boolean skipNonPivotTransitions;
 	static boolean useMaxPivot;
-	static boolean useTwoPass;
+	static boolean useCompressedTransitions;
 	static String runVersion;
 	static int expNo;
+	static boolean verbose;
 
 
 	public static void runPartitionConstruction(String args[]) throws IOException {
@@ -45,7 +46,7 @@ public class DesqDfsLocalRun {
 		runPartitionConstruction(theCase, scenario, run);
 	}
 
-    public static void runPartitionConstruction(String theCase, int scenario, int run) throws IOException {
+	public static void runPartitionConstruction(String theCase, int scenario, int run) throws IOException {
 
 
 		setCase(theCase);
@@ -65,17 +66,17 @@ public class DesqDfsLocalRun {
 		minerConf.setProperty("desq.mining.skip.non.pivot.transitions", skipNonPivotTransitions);
 		minerConf.setProperty("desq.mining.use.minmax.pivot", useMaxPivot);
 		minerConf.setProperty("desq.mining.use.first.pc.version", useFirstVersion);
-
+		minerConf.setProperty("desq.mining.pc.use.compressed.transitions", useCompressedTransitions);
 
 
 
 		// create context
 		DesqMinerContext ctx = new DesqMinerContext();
-		minerConf.setProperty("desq.mining.prune.irrelevant.inputs", false);
-		minerConf.setProperty("desq.mining.use.two.pass", false);
 		ctx.dict = dataReader.getDictionary();
 		CountPatternWriter result = new CountPatternWriter();
 		ctx.patternWriter = result;
+		minerConf.setProperty("desq.mining.use.two.pass", false);
+		minerConf.setProperty("desq.mining.prune.irrelevant.inputs", false); // set to true as well when using two-pass
 
 		ctx.conf = minerConf;
 
@@ -102,14 +103,14 @@ public class DesqDfsLocalRun {
 
 		System.out.print("Determining pivot items... ");
 		Stopwatch miningTime = Stopwatch.createStarted();
-		Tuple2<Integer, Integer> stats = miner.determinePivotElementsForSequences(inputSequences);
+		Tuple2<Integer, Integer> stats = miner.determinePivotElementsForSequences(inputSequences, verbose);
 		miningTime.stop();
 		System.out.println(miningTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
 
 
 		System.out.println("Total time: " +
 				(prepTime.elapsed(TimeUnit.MILLISECONDS) + ioTime.elapsed(TimeUnit.MILLISECONDS) +  miningTime.elapsed(TimeUnit.MILLISECONDS)
-						) + "ms");
+				) + "ms");
 
 
 		// print results
@@ -135,35 +136,55 @@ public class DesqDfsLocalRun {
 
 
 	private static void setCase(String useCase) throws IOException {
-		 switch (useCase) {
-			 case "N5":
-				 patternExp = "([.^ . .]|[. .^ .]|[. . .^])";
-				 sigma = 1000;
-				 String dataDir = "/home/alex/Data/nyt/";
-				 dict = Dictionary.loadFrom(dataDir + "nyt-dict.avro.gz");
-				 dataFile  = new File(dataDir + "nyt-data.del");
-				 break;
-			 case "A1":
-				 patternExp = "(Electronics^)[.{0,2}(Electronics^)]{1,4}";
-				 sigma = 500;
-				 setAmznData();
-				 break;
-			 case "A2":
-				 patternExp = "(Books)[.{0,2}(Books)]{1,4}";
-				 sigma = 100;
-				 setAmznData();
-				 break;
-			 case "A3":
-				 patternExp = "Digital_Cameras@Electronics[.{0,3}(.^)]{1,4}";
-				 sigma = 100;
-				 setAmznData();
-				 break;
-			 case "A4":
-				 patternExp = "(Musical_Instruments^)[.{0,2}(Musical_Instruments^)]{1,4}";
-				 sigma = 100;
-				 setAmznData();
-				 break;
-		 }
+		String dataDir;
+		verbose = false;
+		switch (useCase) {
+			case "N5":
+				patternExp = "([.^ . .]|[. .^ .]|[. . .^])";
+				sigma = 1000;
+				dataDir = "/home/alex/Data/nyt/";
+				dict = Dictionary.loadFrom(dataDir + "nyt-dict.avro.gz");
+				dataFile  = new File(dataDir + "nyt-data.del");
+				break;
+			case "A1":
+				patternExp = "(Electronics^)[.{0,2}(Electronics^)]{1,4}";
+				sigma = 500;
+				setAmznData();
+				break;
+			case "A2":
+				patternExp = "(Books)[.{0,2}(Books)]{1,4}";
+				sigma = 100;
+				setAmznData();
+				break;
+			case "A3":
+				patternExp = "Digital_Cameras@Electronics[.{0,3}(.^)]{1,4}";
+				sigma = 100;
+				setAmznData();
+				break;
+			case "A4":
+				patternExp = "(Musical_Instruments^)[.{0,2}(Musical_Instruments^)]{1,4}";
+				sigma = 100;
+				setAmznData();
+				break;
+			case "I1":
+				patternExp = "[c|d]([A^|B=^]+)e";
+				sigma = 1;
+				verbose = true;
+				setICDMData();
+				break;
+			case "I2":
+				patternExp = "([.^ . .])";
+				sigma = 1;
+				verbose = true;
+				setICDMData();
+				break;
+			case "IA2":
+				patternExp = "(A)[.{0,2}(A)]{1,4}";
+				sigma = 1;
+				verbose = true;
+				setICDMData();
+				break;
+		}
 	}
 
 	private static void setScenario(int scenario) {
@@ -172,29 +193,32 @@ public class DesqDfsLocalRun {
 				useFirstVersion = true;
 				skipNonPivotTransitions = false;
 				useMaxPivot = false;
-				useTwoPass = false;
+				useCompressedTransitions = false;
 				break;
 			case 1:
 				useFirstVersion = false;
 				skipNonPivotTransitions = false;
 				useMaxPivot = false;
-				useTwoPass = false;
+				useCompressedTransitions = false;
 				break;
 			case 2:
 				useFirstVersion = false;
 				skipNonPivotTransitions = true;
 				useMaxPivot = false;
-				useTwoPass = false;
+				useCompressedTransitions = false;
 				break;
 			case 3:
 				useFirstVersion = false;
 				skipNonPivotTransitions = true;
 				useMaxPivot = true;
-				useTwoPass = false;
+				useCompressedTransitions = false;
 				break;
 			case 4:
 				useFirstVersion = false;
-				useTwoPass = true;
+				skipNonPivotTransitions = false;
+				useMaxPivot = false;
+				useCompressedTransitions = true;
+				break;
 			default:
 				System.out.println("Unknown scenario");
 		}
@@ -202,6 +226,7 @@ public class DesqDfsLocalRun {
 
 	private static String printScenario() {
 		if(useFirstVersion) return "first";
+		if(useCompressedTransitions) return "compressed";
 		String scenario = "pit";
 		if(skipNonPivotTransitions) scenario += "+trs";
 		if(useMaxPivot) scenario += "+mxp";
@@ -214,14 +239,20 @@ public class DesqDfsLocalRun {
 		dataFile = new File(dataDir + "amzn-data.del");
 	}
 
+	private static void setICDMData() throws IOException {
+		String dataDir = "/home/alex/Data/icdm16fids/";
+		dict = Dictionary.loadFrom(dataDir + "dict.json");
+		dataFile  = new File(dataDir + "data.del");
+	}
+
 	public static void runMining() throws IOException {
 
 		// Run N5
 		//N5 String patternExp = "([.^ . .]|[. .^ .]|[. . .^])";
 
-        // A1
-        long sigma = 500;
-        String patternExp = "(Electronics^)[.{0,2}(Electronics^)]{1,4}";
+		// A1
+		long sigma = 500;
+		String patternExp = "(Electronics^)[.{0,2}(Electronics^)]{1,4}";
 
 
 		DesqProperties minerConf = DesqDfs.createConf(patternExp, sigma);
@@ -234,11 +265,11 @@ public class DesqDfsLocalRun {
 		SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), true);
 		dataReader.setDictionary(dict);*/
 
-        String dataDir = "/home/alex/Data/amzn/";
-        Dictionary dict = Dictionary.loadFrom(dataDir + "amzn-dict.avro.gz");
-        File dataFile = new File(dataDir + "amzn-data.del");
-        SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), true);
-        dataReader.setDictionary(dict);
+		String dataDir = "/home/alex/Data/amzn/";
+		Dictionary dict = Dictionary.loadFrom(dataDir + "amzn-dict.avro.gz");
+		File dataFile = new File(dataDir + "amzn-data.del");
+		SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), true);
+		dataReader.setDictionary(dict);
 
 		// create context
 		DesqMinerContext ctx = new DesqMinerContext();
@@ -258,13 +289,13 @@ public class DesqDfsLocalRun {
 		//icdm16(args);
 		//nyt();
 		//netflixFlat();
-        //netflixDeep();
+		//netflixDeep();
 	}
 
 
 
 	public static void main(String[] args) throws IOException {
 		//runPartitionConstruction(args);
-		runPartitionConstruction("A2",4,1);
+		runPartitionConstruction("A3", 1, 1);
 	}
 }
