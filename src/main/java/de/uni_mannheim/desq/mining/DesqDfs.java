@@ -401,7 +401,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 	}
 
 	// TODO: use two-pass (again) to omit all the recursion dead-ends, measure time without DFA construction
-	@Deprecated
 	private void piStepTwoPass(int pivot, int pos, State state, int level) {
 		// check if we reached the beginning of the input sequence
 		if(pos == -1) {

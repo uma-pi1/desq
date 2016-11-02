@@ -28,9 +28,11 @@ public class DesqDfsLocalRun {
 	static boolean skipNonPivotTransitions;
 	static boolean useMaxPivot;
 	static boolean useCompressedTransitions;
+	static boolean useTwoPass;
 	static String runVersion;
 	static int expNo;
 	static boolean verbose;
+	static String scenarioStr;
 
 
 	public static void runMining() throws IOException {
@@ -100,7 +102,7 @@ public class DesqDfsLocalRun {
 		setScenario(scenario);
 
 		System.out.println("------------------------------------------------------------------");
-		System.out.println("Running " + theCase + " @ " + printScenario() + "  #" + run);
+		System.out.println("Running " + theCase + " @ " + scenarioStr + "  #" + run);
 		System.out.println("------------------------------------------------------------------");
 
 		DesqProperties minerConf = DesqDfs.createConf(patternExp, sigma);
@@ -114,6 +116,7 @@ public class DesqDfsLocalRun {
 		minerConf.setProperty("desq.mining.use.minmax.pivot", useMaxPivot);
 		minerConf.setProperty("desq.mining.use.first.pc.version", useFirstVersion);
 		minerConf.setProperty("desq.mining.pc.use.compressed.transitions", useCompressedTransitions);
+		minerConf.setProperty("desq.mining.use.two.pass", useTwoPass);
 
 
 
@@ -122,8 +125,7 @@ public class DesqDfsLocalRun {
 		ctx.dict = dataReader.getDictionary();
 		CountPatternWriter result = new CountPatternWriter();
 		ctx.patternWriter = result;
-		minerConf.setProperty("desq.mining.use.two.pass", false);
-		minerConf.setProperty("desq.mining.prune.irrelevant.inputs", false); // set to true as well when using two-pass
+		minerConf.setProperty("desq.mining.prune.irrelevant.inputs", false);
 
 		ctx.conf = minerConf;
 
@@ -166,7 +168,7 @@ public class DesqDfsLocalRun {
 
 		// combined print
 		System.out.println("exp. no, case, optimizations, run, create time, read time, process time, no. seq, no. piv, total Recursions, trs used, mxp used");
-		String out = expNo + "\t" + theCase + "\t" + printScenario() + "\t" + run + "\t" + prepTime.elapsed(TimeUnit.MILLISECONDS) + "\t" + ioTime.elapsed(TimeUnit.MILLISECONDS) + "\t" + miningTime.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+		String out = expNo + "\t" + theCase + "\t" + scenarioStr + "\t" + run + "\t" + prepTime.elapsed(TimeUnit.MILLISECONDS) + "\t" + ioTime.elapsed(TimeUnit.MILLISECONDS) + "\t" + miningTime.elapsed(TimeUnit.MILLISECONDS) + "\t" +
 				stats._1 + "\t" + stats._2 + "\t" + miner.counterTotalRecursions + "\t" + miner.counterNonPivotTransitionsSkipped + "\t" + miner.counterMaxPivotUsed;
 		System.out.println(out);
 
@@ -235,49 +237,40 @@ public class DesqDfsLocalRun {
 	}
 
 	private static void setScenario(int scenario) {
+		//set some defaults
+		useTwoPass = false;
+		useFirstVersion = false;
+		skipNonPivotTransitions = false;
+		useMaxPivot = false;
+		useCompressedTransitions = false;
 		switch(scenario) {
 			case 0:
+				scenarioStr = "first";
 				useFirstVersion = true;
-				skipNonPivotTransitions = false;
-				useMaxPivot = false;
-				useCompressedTransitions = false;
 				break;
 			case 1:
-				useFirstVersion = false;
-				skipNonPivotTransitions = false;
-				useMaxPivot = false;
-				useCompressedTransitions = false;
+				scenarioStr = "pivot";
 				break;
 			case 2:
-				useFirstVersion = false;
+				scenarioStr = "pivot, trs";
 				skipNonPivotTransitions = true;
-				useMaxPivot = false;
-				useCompressedTransitions = false;
 				break;
 			case 3:
-				useFirstVersion = false;
+				scenarioStr = "pivot, trs+mxp";
 				skipNonPivotTransitions = true;
 				useMaxPivot = true;
-				useCompressedTransitions = false;
 				break;
 			case 4:
-				useFirstVersion = false;
-				skipNonPivotTransitions = false;
-				useMaxPivot = false;
+				scenarioStr = "compressed, heap";
 				useCompressedTransitions = true;
+				break;
+			case 5:
+				scenarioStr = "two-pass, uncompressed";
+				useTwoPass = true;
 				break;
 			default:
 				System.out.println("Unknown scenario");
 		}
-	}
-
-	private static String printScenario() {
-		if(useFirstVersion) return "first";
-		if(useCompressedTransitions) return "compressed-heap";
-		String scenario = "pit";
-		if(skipNonPivotTransitions) scenario += "+trs";
-		if(useMaxPivot) scenario += "+mxp";
-		return scenario;
 	}
 
 	private static void setAmznData() throws IOException {
@@ -294,7 +287,7 @@ public class DesqDfsLocalRun {
 
 
 	public static void main(String[] args) throws IOException {
-		runPartitionConstruction(args);
-		//runPartitionConstruction("I1", 4, 1);
+		//runPartitionConstruction(args);
+		runPartitionConstruction("IA2", 5, 1);
 	}
 }
