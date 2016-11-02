@@ -3,6 +3,7 @@ package de.uni_mannheim.desq.mining;
 import de.uni_mannheim.desq.fst.*;
 import de.uni_mannheim.desq.fst.BasicTransition.OutputLabelType;
 import de.uni_mannheim.desq.patex.PatEx;
+import de.uni_mannheim.desq.util.CloneableIntHeapPriorityQueue;
 import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -295,11 +296,14 @@ public final class DesqDfs extends MemoryDesqMiner {
 	 * @param state current state
 	 * @param level current level
 	 */
-	private void piStepOnePassCompressed(IntSortedSet currentPivotItems, int pos, State state, int level) {
+	private void piStepOnePassCompressed(CloneableIntHeapPriorityQueue currentPivotItems, int pos, State state, int level) {
 		counterTotalRecursions++;
 		// if we reached a final state, we add the current set of pivot items at this state to the global set of pivot items for this sequences
 		if(state.isFinal() && currentPivotItems.size() != 0 && (!fst.getRequireFullMatch() || pos==inputSequence.size())) {
-			pivotItems.addAll(currentPivotItems);
+
+			for(int i=0; i<currentPivotItems.size(); i++) {
+				pivotItems.add(currentPivotItems.exposeInts()[i]); // This isn't very nice, but it does not drop read elements from the heap. TODO: find a better way?
+			}
 		}
 
 		// check if we already read the entire input
@@ -345,20 +349,23 @@ public final class DesqDfs extends MemoryDesqMiner {
 				}
 				// If the output item is frequent, we merge it into the set of current potential pivot items and recurse
 				if (largestFrequentFid >= addItem) {
-					IntSortedSet newCurrentPivotItems;
+					CloneableIntHeapPriorityQueue newCurrentPivotItems;
 					if(currentPivotItems == null) { // set of pivot elements is empty so far, so no update is necessary, we just create a new set
-						newCurrentPivotItems = new IntAVLTreeSet();
-						newCurrentPivotItems.add(addItem);
+						newCurrentPivotItems = new CloneableIntHeapPriorityQueue();
+						newCurrentPivotItems.enqueue(addItem);
 					} else { // update the set of current pivot elements
 						// get the first half: current[>=min(add)]
-						IntSortedSet tail = currentPivotItems.tailSet(addItem);
-						newCurrentPivotItems = new IntAVLTreeSet(tail);
-						// join in the second half: add[>=min(current)]
-						if(addItem >= currentPivotItems.firstInt()) {
-								newCurrentPivotItems.add(addItem);
+						newCurrentPivotItems = currentPivotItems.clone();
+						while(newCurrentPivotItems.size() > 0  && newCurrentPivotItems.firstInt() < addItem) {
+							newCurrentPivotItems.dequeueInt();
+						}
+						// join in the second half: add[>=min(current)]		  (don't add the item a second time if it is already in the heap)
+						if(addItem >= currentPivotItems.firstInt() && (newCurrentPivotItems.size() == 0 || addItem != newCurrentPivotItems.firstInt())) {
+								newCurrentPivotItems.enqueue(addItem);
 						}
 					}
 					// continue the recursion with the updated set of pivot items
+					assert newCurrentPivotItems.size() > 0;
 					piStepOnePassCompressed(newCurrentPivotItems, pos+1, toState, level+1);
 				}
 			} else { // SELF_GENERALIZE
@@ -370,17 +377,23 @@ public final class DesqDfs extends MemoryDesqMiner {
 				// we only consider this transition if the set of output elements contains at least one frequent item
 				if(largestFrequentFid >= ascendants.firstInt()) { // the first item of the ascendants is the most frequent one
 
-					IntSortedSet newCurrentPivotItems;
+					CloneableIntHeapPriorityQueue newCurrentPivotItems;
 					if (currentPivotItems == null) { // if we are starting a new pivot set there is no need for a union
 						// headSet(largestFrequentFid + 1) drops all infrequent items
-						newCurrentPivotItems = new IntAVLTreeSet(ascendants.headSet(largestFrequentFid + 1));
+						newCurrentPivotItems = new CloneableIntHeapPriorityQueue(ascendants.headSet(largestFrequentFid + 1));
 					} else {
 						// first half of the update union: current[>=min(add)].
-						newCurrentPivotItems = new IntAVLTreeSet(currentPivotItems.tailSet(ascendants.firstInt()));
+						newCurrentPivotItems = currentPivotItems.clone();
+						while(newCurrentPivotItems.size() > 0 && newCurrentPivotItems.firstInt() < ascendants.firstInt()) {
+							newCurrentPivotItems.dequeueInt();
+						}
 						// second half of the update union: add[>=min(curent)]
 						// we filter out infrequent items, so in fact we do:  add[<=largestFrequentFid][>=min(current)]
-						newCurrentPivotItems.addAll(ascendants.headSet(largestFrequentFid + 1).tailSet(currentPivotItems.firstInt()));
+						for(int add : ascendants.headSet(largestFrequentFid + 1).tailSet(currentPivotItems.firstInt())) {
+							newCurrentPivotItems.enqueue(add);
+						}
 					}
+					assert newCurrentPivotItems.size() > 0;
 					piStepOnePassCompressed(newCurrentPivotItems, pos+1, toState, level+1);
 				}
 			}

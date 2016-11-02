@@ -33,6 +33,53 @@ public class DesqDfsLocalRun {
 	static boolean verbose;
 
 
+	public static void runMining() throws IOException {
+
+		// Run N5
+		//N5 String patternExp = "([.^ . .]|[. .^ .]|[. . .^])";
+
+		// A1
+		long sigma = 500;
+		String patternExp = "(Electronics^)[.{0,2}(Electronics^)]{1,4}";
+
+
+		DesqProperties minerConf = DesqDfs.createConf(patternExp, sigma);
+		// conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
+
+
+		/*String dataDir = "/home/alex/Data/nyt/";
+		Dictionary dict = Dictionary.loadFrom(dataDir + "nyt-dict.avro.gz");
+		File dataFile = new File(dataDir + "nyt-data.del");
+		SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), true);
+		dataReader.setDictionary(dict);*/
+
+		String dataDir = "/home/alex/Data/amzn/";
+		Dictionary dict = Dictionary.loadFrom(dataDir + "amzn-dict.avro.gz");
+		File dataFile = new File(dataDir + "amzn-data.del");
+		SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), true);
+		dataReader.setDictionary(dict);
+
+		// create context
+		DesqMinerContext ctx = new DesqMinerContext();
+		ctx.dict = dataReader.getDictionary();
+		CountPatternWriter result = new CountPatternWriter();
+		ctx.patternWriter = result;
+		ctx.conf = minerConf;
+
+		// perform the mining
+		DesqMiner miner = ExampleUtils.runMiner(dataReader, ctx);
+
+		// print results
+		System.out.println("Number of patterns: " + result.getCount());
+		System.out.println("Total frequency of all patterns: " + result.getTotalFrequency());
+
+
+		//icdm16(args);
+		//nyt();
+		//netflixFlat();
+		//netflixDeep();
+	}
+
 	public static void runPartitionConstruction(String args[]) throws IOException {
 
 		runVersion=args[0];
@@ -226,7 +273,7 @@ public class DesqDfsLocalRun {
 
 	private static String printScenario() {
 		if(useFirstVersion) return "first";
-		if(useCompressedTransitions) return "compressed";
+		if(useCompressedTransitions) return "compressed-heap";
 		String scenario = "pit";
 		if(skipNonPivotTransitions) scenario += "+trs";
 		if(useMaxPivot) scenario += "+mxp";
@@ -245,57 +292,9 @@ public class DesqDfsLocalRun {
 		dataFile  = new File(dataDir + "data.del");
 	}
 
-	public static void runMining() throws IOException {
-
-		// Run N5
-		//N5 String patternExp = "([.^ . .]|[. .^ .]|[. . .^])";
-
-		// A1
-		long sigma = 500;
-		String patternExp = "(Electronics^)[.{0,2}(Electronics^)]{1,4}";
-
-
-		DesqProperties minerConf = DesqDfs.createConf(patternExp, sigma);
-		// conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
-
-
-		/*String dataDir = "/home/alex/Data/nyt/";
-		Dictionary dict = Dictionary.loadFrom(dataDir + "nyt-dict.avro.gz");
-		File dataFile = new File(dataDir + "nyt-data.del");
-		SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), true);
-		dataReader.setDictionary(dict);*/
-
-		String dataDir = "/home/alex/Data/amzn/";
-		Dictionary dict = Dictionary.loadFrom(dataDir + "amzn-dict.avro.gz");
-		File dataFile = new File(dataDir + "amzn-data.del");
-		SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), true);
-		dataReader.setDictionary(dict);
-
-		// create context
-		DesqMinerContext ctx = new DesqMinerContext();
-		ctx.dict = dataReader.getDictionary();
-		CountPatternWriter result = new CountPatternWriter();
-		ctx.patternWriter = result;
-		ctx.conf = minerConf;
-
-		// perform the mining
-		DesqMiner miner = ExampleUtils.runMiner(dataReader, ctx);
-
-		// print results
-		System.out.println("Number of patterns: " + result.getCount());
-		System.out.println("Total frequency of all patterns: " + result.getTotalFrequency());
-
-
-		//icdm16(args);
-		//nyt();
-		//netflixFlat();
-		//netflixDeep();
-	}
-
-
 
 	public static void main(String[] args) throws IOException {
-		//runPartitionConstruction(args);
-		runPartitionConstruction("A3", 1, 1);
+		runPartitionConstruction(args);
+		//runPartitionConstruction("I1", 4, 1);
 	}
 }
