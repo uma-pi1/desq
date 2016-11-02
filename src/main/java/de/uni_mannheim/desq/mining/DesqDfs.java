@@ -253,6 +253,36 @@ public final class DesqDfs extends MemoryDesqMiner {
 		return new Tuple2(numSequences,totalPivotElements);
 	}
 
+	public Tuple2<HashMap<Integer, IntArrayList>,Tuple2<Integer,Integer>> createPartitions(ObjectArrayList<Sequence> inputSequences, boolean verbose) throws IOException {
+		int numSequences = 0;
+		int totalPivotElements = 0;
+		//Sequence inputSequence = new Sequence();
+		HashMap<Integer, IntArrayList> partitions = new HashMap<>();
+		IntSet pivotElements;
+		Sequence inputSequence;
+		IntArrayList newPartitionSeqList;
+		//for(Sequence inputSequence: inputSequences) {
+		for(int seqNo=0; seqNo<inputSequences.size(); seqNo++) {
+			inputSequence = inputSequences.get(seqNo);
+			pivotElements = getPivotItemsOfOneSequence(inputSequence);
+			totalPivotElements += pivotElements.size();
+			if(verbose) {
+				System.out.println(inputSequence.toString() + " pivots:" + pivotElements.toString());
+			}
+			numSequences++;
+			for(int pivot : pivotElements) {
+				if(partitions.containsKey(pivot)) {
+					partitions.get(pivot).add(seqNo);
+				} else {
+					newPartitionSeqList = new IntArrayList();
+					newPartitionSeqList.add(seqNo);
+					partitions.put(pivot, newPartitionSeqList);
+				}
+			}
+		}
+		return new Tuple2(partitions, new Tuple2(numSequences,totalPivotElements));
+	}
+
 
 	/** Produces set of frequent output elements created by one input sequence by running the FST
 	 * and storing all frequent output items
