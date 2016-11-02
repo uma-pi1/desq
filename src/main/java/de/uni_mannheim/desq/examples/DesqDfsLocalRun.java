@@ -233,6 +233,12 @@ public class DesqDfsLocalRun {
 				verbose = true;
 				setICDMData();
 				break;
+			case "IA4":
+				patternExp = "(A^)[.{0,2}(A^)]{1,4}";
+				sigma = 1;
+				verbose = true;
+				setICDMData();
+				break;
 		}
 	}
 
@@ -268,6 +274,11 @@ public class DesqDfsLocalRun {
 				scenarioStr = "two-pass, uncompressed";
 				useTwoPass = true;
 				break;
+			case 6:
+				scenarioStr = "two-pass, compressed";
+				useTwoPass = true;
+				useCompressedTransitions = true;
+				break;
 			default:
 				System.out.println("Unknown scenario");
 		}
@@ -287,7 +298,7 @@ public class DesqDfsLocalRun {
 
 
 	public static void main(String[] args) throws IOException {
-		//runPartitionConstruction(args);
-		runPartitionConstruction("IA2", 5, 1);
+		runPartitionConstruction(args);
+		//runPartitionConstruction("I2", 6, 1);
 	}
 }

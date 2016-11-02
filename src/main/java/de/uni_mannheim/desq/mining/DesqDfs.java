@@ -105,6 +105,15 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** Ascendants of current input item */
 	IntAVLTreeSet ascendants = new IntAVLTreeSet();
 
+	/** Current transition */
+	BasicTransition tr;
+
+	/** Current to-state */
+	State toState;
+
+	/** Item added by current transition */
+	int addItem;
+
 	/** Stats about pivot element search */
 	public long counterTotalRecursions = 0;
 	public long counterNonPivotTransitionsSkipped = 0;
@@ -145,6 +154,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 			tempFst.reverse(false); // here we need the reverse fst
 			fst = null;
 			reverseFst = tempFst;
+
+			//reverseFst.exportGraphViz("reverseFst.pdf");
 
 			// initialize helper variables for two-pass
 			edfaStateSequences = new ArrayList<>();
@@ -262,7 +273,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 				// starting from all final states for all final positions, walk backwards
 				for (final int pos : finalPos) {
 					for (State fstFinalState : edfaStateSequence.get(pos).getFstFinalStates()) {
-						piStepTwoPass(0, pos-1, fstFinalState, 0);
+						if(useCompressedTransitions) {
+							piStepTwoPassCompressed(null, pos-1, fstFinalState, 0);
+						} else {
+							piStepTwoPass(0, pos-1, fstFinalState, 0);
+						}
 					}
 				}
 				finalPos.clear();
@@ -323,9 +338,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			transitionIt = state.consumeCompressed(itemFid, transitionIterators.get(level));
 		}
 
-		BasicTransition tr;
-		State toState;
-		int addItem = -1;
+		addItem = -1;
 
 		// follow each relevant transition
 		while(transitionIt.hasNext()) {
@@ -400,8 +413,162 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 	}
 
-	// TODO: use two-pass (again) to omit all the recursion dead-ends, measure time without DFA construction
+	/** Runs one step (along uncompressed transitions) in the FST in order to produce the set of frequent output items
+	 *
+	 * @param currentPivotItems set of current potential pivot items
+	 * @param pos   current position
+	 * @param state current state
+	 * @param level current level
+	 */
+	private void piStepTwoPassCompressed(CloneableIntHeapPriorityQueue currentPivotItems, int pos, State state, int level) {
+		counterTotalRecursions++;
+		// check if we reached the beginning of the input sequence
+		if(pos == -1) {
+			// we consumed entire input in reverse -> we must have reached the inital state by two-pass correctness
+			assert state.getId() == 0;
+			for(int i=0; i<currentPivotItems.size(); i++) {
+				pivotItems.add(currentPivotItems.exposeInts()[i]); // This isn't very nice, but it does not drop read elements from the heap. TODO: find a better way?
+			}
+			return;
+		}
+
+		// get the next input item
+		final int itemFid = inputSequence.getInt(pos);
+
+		// get an iterator over all relevant transitions from here (relevant=starts from this state + matches the input item)
+		Iterator<Transition> transitionIt;
+		if(level >= transitionIterators.size()) {
+			transitionIt = state.consumeCompressed(itemFid);
+			transitionIterators.add(transitionIt);
+		} else {
+			transitionIt = state.consumeCompressed(itemFid, transitionIterators.get(level));
+		}
+
+		addItem = -1;
+
+
+		// follow each relevant transition
+		while(transitionIt.hasNext()) {
+			tr = (BasicTransition) transitionIt.next();
+			toState = tr.getToState();
+			OutputLabelType ol = tr.getOutputLabelType();
+
+			// check: we need to process this state as we saw it in the forward pass
+			assert edfaStateSequence.get(pos).getFstStates().get(toState.getId());
+
+			// We handle the different output label types differently
+			if(ol == OutputLabelType.EPSILON) { // EPS
+				// an eps transition does not introduce potential pivot elements, so we simply continue recursion
+				piStepTwoPassCompressed(currentPivotItems, pos-1, toState, level+1);
+
+			} else if (ol == OutputLabelType.CONSTANT || ol == OutputLabelType.SELF) { // CONSTANT and SELF
+				// SELF and CONSTANT transitions both yield exactly one new potential pivot item.
+
+				// retrieve input item
+				if(ol == OutputLabelType.CONSTANT) { // CONSTANT
+					addItem = tr.getOutputLabel();
+				} else { // SELF
+					addItem = itemFid;
+				}
+				// If the output item is frequent, we merge it into the set of current potential pivot items and recurse
+				if (largestFrequentFid >= addItem) {
+					CloneableIntHeapPriorityQueue newCurrentPivotItems;
+					if(currentPivotItems == null) { // set of pivot elements is empty so far, so no update is necessary, we just create a new set
+						newCurrentPivotItems = new CloneableIntHeapPriorityQueue();
+						newCurrentPivotItems.enqueue(addItem);
+					} else { // update the set of current pivot elements
+						// get the first half: current[>=min(add)]
+						newCurrentPivotItems = currentPivotItems.clone();
+						while(newCurrentPivotItems.size() > 0  && newCurrentPivotItems.firstInt() < addItem) {
+							newCurrentPivotItems.dequeueInt();
+						}
+						// join in the second half: add[>=min(current)]		  (don't add the item a second time if it is already in the heap)
+						if(addItem >= currentPivotItems.firstInt() && (newCurrentPivotItems.size() == 0 || addItem != newCurrentPivotItems.firstInt())) {
+							newCurrentPivotItems.enqueue(addItem);
+						}
+					}
+					// continue the recursion with the updated set of pivot items
+					assert newCurrentPivotItems.size() > 0;
+					piStepTwoPassCompressed(newCurrentPivotItems, pos-1, toState, level+1);
+				}
+			} else { // SELF_GENERALIZE
+				addItem = itemFid; // retrieve the input item
+				// retrieve ascendants of the input item
+				ascendants.clear();
+				ascendants.add(addItem);
+				tr.addAscendantFids(addItem, ascendants);
+				// we only consider this transition if the set of output elements contains at least one frequent item
+				if(largestFrequentFid >= ascendants.firstInt()) { // the first item of the ascendants is the most frequent one
+
+					CloneableIntHeapPriorityQueue newCurrentPivotItems;
+					if (currentPivotItems == null) { // if we are starting a new pivot set there is no need for a union
+						// headSet(largestFrequentFid + 1) drops all infrequent items
+						newCurrentPivotItems = new CloneableIntHeapPriorityQueue(ascendants.headSet(largestFrequentFid + 1));
+					} else {
+						// first half of the update union: current[>=min(add)].
+						newCurrentPivotItems = currentPivotItems.clone();
+						while(newCurrentPivotItems.size() > 0 && newCurrentPivotItems.firstInt() < ascendants.firstInt()) {
+							newCurrentPivotItems.dequeueInt();
+						}
+						// second half of the update union: add[>=min(curent)]
+						// we filter out infrequent items, so in fact we do:  add[<=largestFrequentFid][>=min(current)]
+						for(int add : ascendants.headSet(largestFrequentFid + 1).tailSet(currentPivotItems.firstInt())) {
+							newCurrentPivotItems.enqueue(add);
+						}
+					}
+					assert newCurrentPivotItems.size() > 0;
+					piStepTwoPassCompressed(newCurrentPivotItems, pos-1, toState, level+1);
+				}
+			}
+		}
+
+		/*
+		// iterate over output item/state pairs
+		while(itemStateIt.hasNext()) {
+			final ItemState itemState = itemStateIt.next();
+			// we need to process that state because we saw it in the forward pass (assertion checks this)
+			final State toState = itemState.state;
+			assert edfaStateSequence.get(pos).getFstStates().get(toState.getId());
+			final int outputItemFid = itemState.itemFid;
+			if(outputItemFid == 0) { // EPS output
+				// we did not get an output, so continue with the current prefix
+				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
+				piStepTwoPass(pivot, pos - 1, toState, newLevel);
+			} else {
+				// we got an output; check whether it is relevant
+				if (largestFrequentFid >= outputItemFid) {
+
+					// now append this item to the prefix, continue running the FST, and remove the item once done
+					// but: we only append this item if it is the new pivot
+					//prefix.add(outputItemFid);
+					//outputItems.add(outputItemFid); // this was version1 - output all output items
+
+					int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
+
+					// version3: instead of storing all elements seen so far, we only keep track of the current pivot
+					if(outputItemFid > pivot) {
+						// we have a new pivot, pass it on
+						piStepTwoPass(outputItemFid, pos - 1, toState, newLevel);
+					} else {
+						// the old element stays the pivot, keep it
+						piStepTwoPass(pivot, pos - 1, toState, newLevel);
+					}
+					//prefix.removeInt(prefix.size() - 1);
+				}
+			}
+		}
+		*/
+	}
+
+	/** Runs one step (along uncompressed transitions) in the FST in order to produce the set of frequent output items
+	 *
+	 * @param pivot current pivot item
+	 * @param pos   current position
+	 * @param state current state
+	 * @param level current level
+	 */
 	private void piStepTwoPass(int pivot, int pos, State state, int level) {
+		counterTotalRecursions++;
 		// check if we reached the beginning of the input sequence
 		if(pos == -1) {
 			// we consumed entire input in reverse -> we must have reached the inital state by two-pass correctness
