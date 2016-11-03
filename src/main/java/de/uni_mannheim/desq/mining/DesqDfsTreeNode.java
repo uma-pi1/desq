@@ -96,7 +96,7 @@ final class DesqDfsTreeNode {
 			child.itemFid = itemFid;
 			childrenByFid.put(itemFid, child);
 		}
-		
+
 		if (child.currentInputId != inputId) {
 			// start a new posting
 			child.projectedDatabase.newPosting();
@@ -123,6 +123,38 @@ final class DesqDfsTreeNode {
 			if (entry.getValue().prefixSupport < minSupport) {
 				childrenIt.remove();
 			}
+		}
+	}
+
+	/** ---------- Distributed mode --------------------------------------- */
+
+
+	/** Add a snapshot to the projected database of a child of this node.
+	 *  Stores inputId,pos   (instead of inputId,pos,state)
+	 *
+	 * @param itemFid the item fid of the child
+	 * @param inputId input sequence id
+	 * @param inputSupport support of the input sequence
+	 * @param position position in the input sequence
+	 */
+	void expandWithTransactionItem(int itemFid, int inputId, long inputSupport, int position, int origInputId) {
+		DesqDfsTreeNode child = childrenByFid.get(itemFid);
+		if (child == null) {
+			child = new DesqDfsTreeNode(currentSnapshots.length);
+			child.itemFid = itemFid;
+			childrenByFid.put(itemFid, child);
+		}
+
+		if (child.currentInputId != inputId) {
+			// start a new posting
+			child.projectedDatabase.newPosting();
+			child.clearSnapshots();
+			child.prefixSupport += inputSupport;
+			child.projectedDatabase.addNonNegativeInt(inputId-child.currentInputId);
+			child.currentInputId = inputId;
+			child.projectedDatabase.addNonNegativeInt(position);
+		} else {
+			child.projectedDatabase.addNonNegativeInt(position);
 		}
 	}
 }

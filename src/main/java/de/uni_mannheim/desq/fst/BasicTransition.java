@@ -23,6 +23,9 @@ public final class BasicTransition extends Transition {
 	final Dictionary outputDict;
 	final boolean isForest;
 
+	// variables for distributing DesqDfs
+	private int transitionNumber = -1;
+
 	private BasicTransition(BasicTransition other) {
 		this.inputLabel = other.inputLabel;
 		this.inputLabelType = other.inputLabelType;
@@ -190,6 +193,7 @@ public final class BasicTransition extends Transition {
 	@Override
 	public String labelString() {
 		StringBuilder sb = new StringBuilder();
+        sb.append("[" + transitionNumber + "] ");
 		if (inputLabel == 0)
 			sb.append(".");
 		else {
@@ -263,4 +267,25 @@ public final class BasicTransition extends Transition {
 	public State getToState() { return toState; }
 	public int getOutputLabel() { return outputLabel; }
 	public void addAscendantFids(int itemFid, IntCollection ascendants) { outputDict.addAscendantFids(itemFid, ascendants); }
+	public void setTransitionNumber(int number) {
+		this.transitionNumber = number;
+	}
+	public int getTransitionNumber() { return transitionNumber; }
+
+    public IntList getOutputElements(int inputItem) {
+        IntList outputElements = new IntArrayList();
+        // retrieve input item
+        if(this.outputLabelType == OutputLabelType.CONSTANT) { // CONSTANT
+            outputElements.add(getOutputLabel());
+        } else if(this.outputLabelType == OutputLabelType.SELF) { // SELF
+            outputElements.add(inputItem);
+        } else if(this.outputLabelType == OutputLabelType.SELF_ASCENDANTS) { // SELF-ASCENDANTS
+            // retrieve ascendants of the input item
+            outputElements.add(inputItem);
+            addAscendantFids(inputItem, outputElements);
+        } else {
+            System.out.println("CALLED getOutputElements for EPS-Transition!");
+        }
+        return outputElements;
+    }
 }

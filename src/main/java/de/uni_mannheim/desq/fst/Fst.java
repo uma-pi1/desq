@@ -280,4 +280,22 @@ public final class Fst {
 			exp += "]";
 		return exp;
 	}
+
+	/** Numbers the transitions of this FST */
+	private Transition[] numberedTransitions = null;
+	public void numberTransitions() {
+		ArrayList<Transition> tempNumberedTransitions = new ArrayList<Transition>();
+		int trNo = 0;
+		for(State state : states) {
+			for(Transition gtr : state.getTransitions()) {
+				((BasicTransition) gtr).setTransitionNumber(trNo);
+				trNo++;
+				tempNumberedTransitions.add(gtr);
+			}
+		}
+		numberedTransitions = new Transition[tempNumberedTransitions.size()];
+		tempNumberedTransitions.toArray(numberedTransitions);
+	}
+
+	public Transition getTransitionByNumber( int trNo ) { return numberedTransitions[trNo]; }
 }
