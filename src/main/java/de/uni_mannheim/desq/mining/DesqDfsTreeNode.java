@@ -137,7 +137,7 @@ final class DesqDfsTreeNode {
 	 * @param inputSupport support of the input sequence
 	 * @param position position in the input sequence
 	 */
-	void expandWithTransactionItem(int itemFid, int inputId, long inputSupport, int position, int origInputId) {
+	void expandWithTransactionItem(int itemFid, int inputId, long inputSupport, int position) {
 		DesqDfsTreeNode child = childrenByFid.get(itemFid);
 		if (child == null) {
 			child = new DesqDfsTreeNode(currentSnapshots.length);

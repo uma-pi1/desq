@@ -11,7 +11,6 @@ import it.unimi.dsi.fastutil.objects.ObjectList;
 import scala.Tuple2;
 
 import org.apache.log4j.Logger;
-import scala.Tuple4;
 
 import java.io.IOException;
 import java.util.*;
@@ -121,9 +120,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 	/** The output partitions */
 	Int2ObjectOpenHashMap<ObjectList<IntList>> partitions;
-
-	/** Keep track of the input sequences we have seen supporting output sequences from */
-	IntSet seenInputSequences = new IntOpenHashSet();
 
 
 	/** Stats about pivot element search */
@@ -284,7 +280,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		for(int seqNo=0; seqNo<inputSequences.size(); seqNo++) {
 			inputSequence = inputSequences.get(seqNo);
 			if(useTransactionRepresentation) {
-				getPivotItemsAndTransactionRepresentationOfOneSequence(seqNo, inputSequence);
+				getPivotItemsAndTransactionRepresentationOfOneSequence(inputSequence);
 			} else {
 				pivotElements = getPivotItemsOfOneSequence(inputSequence);
 
@@ -353,24 +349,65 @@ public final class DesqDfs extends MemoryDesqMiner {
 	}
 
 
-	/** Produces the set of pivot items for a given input sequence and emits pairs of the pivot element with a
-	 * transaction representation of the produced output sequence, in the form of:
-	 * (pivot_element, [(trNo,inpItem),(trNo,inpItem),...])
+	/** Produces the set of pivot items for a given input sequence and emits one concatenated collection of paths through the
+	 * FST for each pivot element, in the current format:
+	 * (pivot_element, {(no. pathes), (start-pos-path1), [(start-pos-path2), ...], (trNo,inpItem),(trNo,inpItem),...})
 	 *
 	 * @param inputSequence
 	 * @return pivotItems set of frequent output items of input sequence inputSequence
 	 */
-	public IntSet getPivotItemsAndTransactionRepresentationOfOneSequence(int seqNo, IntList inputSequence) {
+	public IntSet getPivotItemsAndTransactionRepresentationOfOneSequence(IntList inputSequence) {
 		pivotItems.clear();
 		this.inputSequence = inputSequence;
 
-		// skipping all options for now (see above for the options) TODO: maybe change this later
+		// only one-pass for now
+
+		// get the pivot elements with the corresponding paths through the FST
 		prefix.clear();
-		prefix.add(seqNo);
-		piAndOutputStepOnePassCompressed(null, 0, fst.getInitialState(), 0);
+		paths.clear();
+		findPathsAndPivotsStepOnePassCompressed(null, 0, fst.getInitialState(), 0);
+
+		// join the pathes together into one collection of paths
+		// TODO: partition construction is very inefficient for now, let's first see whether the concept works
+		for(Map.Entry<Integer, ObjectList<IntList>> partition : paths.entrySet()) {
+			int pivotItem = partition.getKey();
+			ObjectList<IntList> paths = partition.getValue();
+			//System.out.println("-------------------------");
+			//System.out.println("seq " + inputSequence + " pivot " + pivotItem);
+
+			IntList sendList = new IntArrayList();
+			// first element of the sent list is the number N of paths we are sending
+			sendList.add(paths.size());
+
+			// the next N elements are the starting positions for the N paths, we set them to 0 now and fill them in the second loop
+			for(int i=0; i<paths.size(); i++) {
+				sendList.add(0);
+			}
+
+			// append all the paths and fill in the start-pos at the beginning of the sequence
+			int currentOffset = 1+paths.size();
+			int pathNo = 0;
+			for(IntList path :  partition.getValue()) {
+				//System.out.println("path: " + path);
+				sendList.set(1+pathNo,currentOffset);
+				pathNo++;
+				currentOffset += path.size();
+				sendList.addAll(path);
+			}
+
+			// emit the list we constructed
+			if(!partitions.containsKey(pivotItem)) {
+				partitions.put(pivotItem, new ObjectArrayList<IntList>());
+			}
+			//System.out.println("==> sendList: " + sendList);
+			partitions.get(pivotItem).add(sendList);
+		}
+
 
 		return pivotItems;
 	}
+
+	Int2ObjectOpenHashMap<ObjectList<IntList>> paths = new Int2ObjectOpenHashMap<>();
 
 
 	/** Runs one step (along compressed transition) in the FST in order to produce the set of frequent output items
@@ -381,7 +418,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	 * @param state current state
 	 * @param level current level
 	 */
-	private void piAndOutputStepOnePassCompressed(CloneableIntHeapPriorityQueue currentPivotItems, int pos, State state, int level) {
+	private void findPathsAndPivotsStepOnePassCompressed(CloneableIntHeapPriorityQueue currentPivotItems, int pos, State state, int level) {
 		counterTotalRecursions++;
 		// if we reached a final state, we add the current set of pivot items at this state to the global set of pivot items for this sequences
 		if(state.isFinal() && currentPivotItems.size() != 0 && prefix.size() != 0 && (!fst.getRequireFullMatch() || pos==inputSequence.size())) {
@@ -392,12 +429,12 @@ public final class DesqDfs extends MemoryDesqMiner {
 				int pivotItem = currentPivotItems.exposeInts()[i]; // This isn't very nice, but it does not drop read elements from the heap. TODO: find a better way?
 				if(!emittedPivots.contains(pivotItem)) {
 					emittedPivots.add(pivotItem);
-					if(partitions.containsKey(pivotItem)) {
-						partitions.get(pivotItem).add(prefix.clone());
+					if(paths.containsKey(pivotItem)) {
+						paths.get(pivotItem).add(prefix.clone());
 					} else {
 						ObjectList<IntList> add = new ObjectArrayList<>();
 						add.add(prefix.clone());
-						partitions.put(pivotItem,add);
+						paths.put(pivotItem,add);
 					}
 				}
 			}
@@ -431,7 +468,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			// We handle the different output label types differently
 			if(ol == OutputLabelType.EPSILON) { // EPS
 				// an eps transition does not introduce potential pivot elements, so we simply continue recursion
-				piAndOutputStepOnePassCompressed(currentPivotItems, pos+1, toState, level+1);
+				findPathsAndPivotsStepOnePassCompressed(currentPivotItems, pos+1, toState, level+1);
 
 			} else if (ol == OutputLabelType.CONSTANT || ol == OutputLabelType.SELF) { // CONSTANT and SELF
 				// SELF and CONSTANT transitions both yield exactly one new potential pivot item.
@@ -462,7 +499,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 					// we put the current transaction together with the input item onto the prefix and take it off when we come back from recursion
 					prefix.add(tr.getTransitionNumber());
 					prefix.add(addItem);
-					piAndOutputStepOnePassCompressed(newCurrentPivotItems, pos+1, toState, level+1);
+					findPathsAndPivotsStepOnePassCompressed(newCurrentPivotItems, pos+1, toState, level+1);
 					prefix.removeInt(prefix.size()-1);
 					prefix.removeInt(prefix.size()-1);
 
@@ -495,7 +532,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 					// we put the current transaction together with the input item onto the prefix and take it off when we come back from recursion
 					prefix.add(tr.getTransitionNumber());
 					prefix.add(addItem);
-					piAndOutputStepOnePassCompressed(newCurrentPivotItems, pos+1, toState, level+1);
+					findPathsAndPivotsStepOnePassCompressed(newCurrentPivotItems, pos+1, toState, level+1);
 					prefix.removeInt(prefix.size()-1);
 					prefix.removeInt(prefix.size()-1);
 				}
@@ -971,17 +1008,12 @@ public final class DesqDfs extends MemoryDesqMiner {
 				for (int inputId = 0; inputId < inputSequences.size(); inputId++) {
 					incStepArgs.inputId = inputId;
 					incStepArgs.inputSequence = inputSequences.get(inputId);
-					int startPos = 0;
-					if(useTransactionRepresentation) {
-						startPos = 1;
-						incStepOnePass(incStepArgs, startPos, fst.getInitialState(), 0);
-					} else {
-						incStepOnePassTraditional(incStepArgs, startPos, fst.getInitialState(), 0);
-					}
+
+					incStepOnePass(incStepArgs, 0);
 				}
-			} else { // two-pass
+			} else {  // two-pass
 				// create the root
-				root = new DesqDfsTreeNode(reverseFst.numStates());
+				root = new DesqDfsTreeNode(reverseFst.numStates());/*
 				incStepArgs.node = root;
 
 				// and process all input sequences to compute the roots children
@@ -1005,7 +1037,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				// we don't need this anymore, so let's save the memory
 				edfaFinalStatePositions.clear();
 				edfaFinalStatePositions.trimToSize();
-			}
+			*/}
 
 			// recursively grow the patterns
 			root.pruneInfrequentChildren(sigma);
@@ -1018,68 +1050,64 @@ public final class DesqDfs extends MemoryDesqMiner {
 	 *
 	 * @param args information about the input sequence and the current search tree node
 	 * @param pos next item to read
-	 * @param state current FST state
-	 * @param level recursion level (used for reusing iterators without conflict)
 	 *
 	 * @return true if a final FST state can be reached without producing further output
 	 */
-	private boolean incStepOnePass(final IncStepArgs args, final int pos, final State state, final int level) {
-		// check if we reached the end of the input sequence
+	private boolean incStepOnePass(final IncStepArgs args, final int pos) {
+		// check whether we are at the end of the path we are following. There are two options.
+		// Option 1: we are through the last path, meaning, we are through the input
 		if (pos >= args.inputSequence.size()) {
-			if(!useTransactionRepresentation)
-				return state.isFinal(); // whether or not we require a full match
-			else
-				return true; // if we are using transaction representation and reached the end of the input, then we reached a final state
+			return true;
 		}
-
-		// get iterator over next output item/state pairs; reuse existing ones if possible
-		final int itemFid = args.inputSequence.getInt(pos);
-		Iterator<ItemState> itemStateIt = null;
-		if(!useTransactionRepresentation) {
-			if (level >= itemStateIterators.size()) {
-				itemStateIt = state.consume(itemFid);
-				itemStateIterators.add(itemStateIt);
-			} else {
-				itemStateIt = state.consume(itemFid, itemStateIterators.get(level));
+		// Option 2: We finished one of the other pathes (not the last one in the input)
+		for(int i=0; i<args.inputSequence.getInt(0); i++) {
+			if(pos == args.inputSequence.getInt(i+1)) { // if pos is at the start of the next path, we are done with the current one
+														// when we first call pos for a specific path, pos is already at pos+2
+				return true;
 			}
 		}
+
 
 		// iterate over output item/state pairs and remember whether we hit a final state without producing output
 		// (i.e., no transitions or only transitions with epsilon output)
-		boolean reachedFinalStateWithoutOutput = state.isFinal() && !fst.getRequireFullMatch();
+		boolean reachedFinalStateWithoutOutput = false; // state.isFinal() && !fst.getRequireFullMatch();
 
-		if(!useTransactionRepresentation) {
-			while (itemStateIt.hasNext()) {
-				final ItemState itemState = itemStateIt.next();
-				final int outputItemFid = itemState.itemFid;
-				final State toState = itemState.state;
+		// transaction representation
 
-				if (outputItemFid == 0) { // EPS output
-					// we did not get an output, so continue running the FST
-					int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
-					reachedFinalStateWithoutOutput |= incStepOnePass(args, pos + 1, toState, newLevel);
-				} else if (largestFrequentFid >= outputItemFid) {
-					// we have an output and its frequent, so update the corresponding projected database
-					args.node.expandWithItemTraditional(outputItemFid, args.inputId, args.inputSequence.support,
-							pos + 1, toState.getId());
-				}
+		// in transaction representation, we store pairs of integers: (transaction id, input element)
+		int trNo ;
+		int inputItem;
+		BasicTransition tr;
+		OutputLabelType ol;
+
+		// if we are at position 0, we have to follow each of the pathes in the input
+		int pathsToFollow = 1;
+		int localPos;
+		if(pos == 0) {
+			pathsToFollow=args.inputSequence.getInt(pos);
+		}
+		for(int pathNo=0; pathNo<pathsToFollow; pathNo++) {
+			if(pos == 0) {
+				localPos = args.inputSequence.getInt(1+pathNo);
+			} else {
+				localPos = pos;
 			}
-		} else { // transaction representation
-			// in transaction representation, we store pairs of integers: (transaction id, input element)
-			int trNo = itemFid;
-			int inputItem = args.inputSequence.getInt(pos+1);
-			BasicTransition tr = (BasicTransition) fst.getTransitionByNumber(trNo);
-			OutputLabelType ol = tr.getOutputLabelType();
 
-			if(ol == OutputLabelType.EPSILON) {
-				reachedFinalStateWithoutOutput |= incStepOnePass(args, pos + 2, toState, level+1);
+			// get (transaction_id, input_item_fid) pair
+			trNo = args.inputSequence.getInt(localPos);
+			inputItem = args.inputSequence.getInt(localPos+1);
+			tr = (BasicTransition) fst.getTransitionByNumber(trNo);
+			ol = tr.getOutputLabelType();
+
+			if (ol == OutputLabelType.EPSILON) {
+				reachedFinalStateWithoutOutput |= incStepOnePass(args, localPos + 2);
 			} else {
 				// we have new outputs, so we run through them and update the corresponding projected databases if the item is frequent
 				IntList outputItems = tr.getOutputElements(inputItem);
-				for(int outputItem : outputItems) {
-					if(largestFrequentFid >= outputItem) {
+				for (int outputItem : outputItems) {
+					if (largestFrequentFid >= outputItem) {
 						args.node.expandWithTransactionItem(outputItem, args.inputId, args.inputSequence.support,
-								pos + 2, args.inputSequence.getInt(0));
+								localPos + 2);
 					}
 				}
 			}
@@ -1108,7 +1136,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			// while we expand the child node, we also compute its actual support to determine whether or not
 			// to output it (and then output it if the support is large enough)
 			long support = 0;
-			seenInputSequences.clear(); // TODO: this is the consequence of sending multiple output sequences per input sequence. will go away when we send one NFA per partition and input sequence
+
 			// check whether pivot expansion worked
 			// the idea is that we never expand a child>pivotItem at this point
 			if(pivotItem != 0) {
@@ -1131,20 +1159,13 @@ public final class DesqDfs extends MemoryDesqMiner {
 					// iterate over state@pos snapshots for this input sequence
 					boolean reachedFinalStateWithoutOutput = false;
 					do {
-						int stateId = 0;
-						if(!useTransactionRepresentation) {
-							stateId = projectedDatabaseIt.nextNonNegativeInt();
-						}
 						final int pos = projectedDatabaseIt.nextNonNegativeInt(); // position of next input item
-						reachedFinalStateWithoutOutput |= incStepOnePass(incStepArgs, pos, fst.getState(stateId), 0); // TODO: improve here. when we use transaction representation, stateId=0
+						reachedFinalStateWithoutOutput |= incStepOnePass(incStepArgs, pos);
 					} while (projectedDatabaseIt.hasNext());
 
 					// if we reached a final state without output, increment the support of this child node
 					if (reachedFinalStateWithoutOutput) {
-						if(!useTransactionRepresentation)
-							support += incStepArgs.inputSequence.support;
-						else
-							seenInputSequences.add(incStepArgs.inputSequence.getInt(0));
+						support += incStepArgs.inputSequence.support;
 					}
 
 					// now go to next posting (next input sequence)
@@ -1174,9 +1195,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 					// now go to next posting (next input sequence)
 				} while (projectedDatabaseIt.nextPosting());*/
 			}
-
-			if(useTransactionRepresentation)
-				support = seenInputSequences.size();
 
 			// output the patterns for the current child node if it turns out to be frequent
 			if (support >= sigma) {
@@ -1299,7 +1317,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			if (outputItemFid == 0) { // EPS output
 				// we did not get an output, so continue running the FST
 				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
-				reachedFinalStateWithoutOutput |= incStepOnePass(args, pos + 1, toState, newLevel);
+				reachedFinalStateWithoutOutput |= incStepOnePassTraditional(args, pos + 1, toState, newLevel);
 			} else if (largestFrequentFid >= outputItemFid) {
 				// we have an output and its frequent, so update the corresponding projected database
 				args.node.expandWithItemTraditional(outputItemFid, args.inputId, args.inputSequence.support,
@@ -1390,7 +1408,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 			// while we expand the child node, we also compute its actual support to determine whether or not
 			// to output it (and then output it if the support is large enough)
 			long support = 0;
-			seenInputSequences.clear(); // TODO: this is the consequence of sending multiple output sequences per input sequence. will go away when we send one NFA per partition and input sequence
 			// check whether pivot expansion worked
 			// the idea is that we never expand a child>pivotItem at this point
 			if(pivotItem != 0) {
@@ -1415,7 +1432,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 					do {
 						int stateId = projectedDatabaseIt.nextNonNegativeInt();
 						final int pos = projectedDatabaseIt.nextNonNegativeInt(); // position of next input item
-						reachedFinalStateWithoutOutput |= incStepOnePassTraditional(incStepArgs, pos, fst.getState(stateId), 0); // TODO: improve here. when we use transaction representation, stateId=0
+						reachedFinalStateWithoutOutput |= incStepOnePassTraditional(incStepArgs, pos, fst.getState(stateId), 0);
 					} while (projectedDatabaseIt.hasNext());
 
 					// if we reached a final state without output, increment the support of this child node
