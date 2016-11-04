@@ -943,7 +943,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 		this.pivotItem = pivotItem;
 
 		// run the normal mine method. Filtering is done in expand() when the patterns are output
-		mine();
+		if(useTransactionRepresentation)
+			mine();
+		else
+			mineTraditional();
 
 		// reset the pivot item, just to be sure. pivotItem=0 means no filter
 		this.pivotItem = 0;
@@ -969,9 +972,12 @@ public final class DesqDfs extends MemoryDesqMiner {
 					incStepArgs.inputId = inputId;
 					incStepArgs.inputSequence = inputSequences.get(inputId);
 					int startPos = 0;
-					if(useTransactionRepresentation)
+					if(useTransactionRepresentation) {
 						startPos = 1;
-					incStepOnePass(incStepArgs, startPos, fst.getInitialState(), 0);
+						incStepOnePass(incStepArgs, startPos, fst.getInitialState(), 0);
+					} else {
+						incStepOnePassTraditional(incStepArgs, startPos, fst.getInitialState(), 0);
+					}
 				}
 			} else { // two-pass
 				// create the root
@@ -991,7 +997,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 					for (final int pos : finalStatePos) {
 						// for those positions, start with each possible final FST state and go backwards
 						for (State fstFinalState : incStepArgs.edfaStateSequence[pos].getFstFinalStates()) {
-							incStepTwoPass(incStepArgs, pos-1, fstFinalState, 0);
+							incStepTwoPassTraditional(incStepArgs, pos-1, fstFinalState, 0);
 						}
 					}
 				}
@@ -1054,7 +1060,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 					reachedFinalStateWithoutOutput |= incStepOnePass(args, pos + 1, toState, newLevel);
 				} else if (largestFrequentFid >= outputItemFid) {
 					// we have an output and its frequent, so update the corresponding projected database
-					args.node.expandWithItem(outputItemFid, args.inputId, args.inputSequence.support,
+					args.node.expandWithItemTraditional(outputItemFid, args.inputId, args.inputSequence.support,
 							pos + 1, toState.getId());
 				}
 			}
@@ -1081,66 +1087,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 		return reachedFinalStateWithoutOutput;
 	}
 
-	/** Updates the projected databases of the children of the current node (args.node) corresponding to each possible
-	 * previous output item for the current input sequence (also stored in args). Used only in the two-pass algorithm.
-	 *
-	 * @param args information about the input sequence and the current search tree node
-	 * @param pos next item to read
-	 * @param state current FST state
-	 * @param level recursion level (used for reusing iterators without conflict)
-	 *
-	 * @return true if the initial FST state can be reached without producing further output
-	 */
-	private boolean incStepTwoPass(final IncStepArgs args, final int pos,
-								   final State state, final int level) {
-		// check if we reached the beginning of the input sequence
-		if(pos == -1) {
-			// we consumed entire input in reverse -> we must have reached the inital state by two-pass correctness
-			assert state.getId() == 0;
-			return true;
-		}
-
-		// get iterator over next output item/state pairs; reuse existing ones if possible
-		// note that the reverse FST is used here (since we process inputs backwards)
-		// only iterates over states that we saw in the forward pass (the other ones can safely be skipped)
-		final int itemFid = args.inputSequence.getInt(pos);
-		Iterator<ItemState> itemStateIt;
-		if (level>=itemStateIterators.size()) {
-			itemStateIt = state.consume(itemFid, null, args.edfaStateSequence[pos].getFstStates());
-			itemStateIterators.add(itemStateIt);
-		} else {
-			itemStateIt = state.consume(itemFid, itemStateIterators.get(level),
-					args.edfaStateSequence[pos].getFstStates());
-		}
-
-		// iterate over output item/state pairs and remember whether we hit the initial state without producing output
-		// (i.e., no transitions or only transitions with epsilon output)
-		boolean reachedInitialStateWithoutOutput = false;
-		while (itemStateIt.hasNext()) {
-			final ItemState itemState = itemStateIt.next();
-			final State toState = itemState.state;
-
-			// we need to process that state because we saw it in the forward pass (assertion checks this)
-			assert args.edfaStateSequence[pos].getFstStates().get(toState.getId());
-
-			final int outputItemFid = itemState.itemFid;
-			if (outputItemFid == 0) { // EPS output
-				// we did not get an output, so continue running the reverse FST
-				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
-				reachedInitialStateWithoutOutput |= incStepTwoPass(args, pos-1, toState, newLevel);
-			} else if (largestFrequentFid >= outputItemFid && (pivotItem == 0 || pivotItem >= outputItemFid)) {
-				// we have an output and its frequent, so update the corresponding projected database
-				// if we are mining a pivot partition, we don't expand with items largerthan the pivot
-
-				// Note: we do not store pos-1 in the projected database to having avoid write -1's when the
-				// position was 0. When we read the posting list later, we substract 1
-				args.node.expandWithItem(outputItemFid, args.inputId, args.inputSequence.support,
-						pos, toState.getId());
-			}
-		}
-
-		return reachedInitialStateWithoutOutput;
-	}
 
 	/** Expands all children of the given search tree node. The node itself must have been processed/output/expanded
 	 * already.
@@ -1204,7 +1150,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 					// now go to next posting (next input sequence)
 				} while (projectedDatabaseIt.nextPosting());
 			} else { // two-pass
-				do {
+				/*do {
 					// process next input sequence (backwards)
 					incStepArgs.inputId += projectedDatabaseIt.nextNonNegativeInt();
 					incStepArgs.inputSequence = inputSequences.get(incStepArgs.inputId);
@@ -1216,7 +1162,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 						final int stateId = projectedDatabaseIt.nextNonNegativeInt();
 						final int pos = projectedDatabaseIt.nextNonNegativeInt() - 1; // position of next input item
 						// (-1 because we added a position incremented by one; see incStepTwoPass)
-						reachedInitialStateWithoutOutput |= incStepTwoPass(incStepArgs, pos,
+						reachedInitialStateWithoutOutput |= incStepTwoPassTraditional(incStepArgs, pos,
 								reverseFst.getState(stateId), 0);
 					} while (projectedDatabaseIt.hasNext());
 
@@ -1226,7 +1172,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 					}
 
 					// now go to next posting (next input sequence)
-				} while (projectedDatabaseIt.nextPosting());
+				} while (projectedDatabaseIt.nextPosting());*/
 			}
 
 			if(useTransactionRepresentation)
@@ -1257,6 +1203,279 @@ public final class DesqDfs extends MemoryDesqMiner {
 		prefix.removeInt(lastPrefixIndex);
 	}
 
+
+	public void mineTraditional() {
+		// this bundles common arguments to incStepOnePass or incStepTwoPass
+		final IncStepArgs incStepArgs = new IncStepArgs();
+
+
+		if (sumInputSupports >= sigma) {
+			// stores the root of the search tree
+			DesqDfsTreeNode root;
+
+			if (!useTwoPass) { // one-pass
+				// create the root
+				root = new DesqDfsTreeNode(fst.numStates());
+				incStepArgs.node = root;
+
+				// and process all input sequences to compute the roots children
+				for (int inputId = 0; inputId < inputSequences.size(); inputId++) {
+					incStepArgs.inputId = inputId;
+					incStepArgs.inputSequence = inputSequences.get(inputId);
+					incStepOnePassTraditional(incStepArgs, 0, fst.getInitialState(), 0);
+				}
+			} else { // two-pass
+				// create the root
+				root = new DesqDfsTreeNode(reverseFst.numStates());
+				incStepArgs.node = root;
+
+				// and process all input sequences to compute the roots children
+				// note that we read the input sequences backwards in in the two-pass algorithm
+				// the search tree is also constructed backwards
+				for (int inputId = 0; inputId < inputSequences.size(); inputId++) {
+					incStepArgs.inputId = inputId;
+					incStepArgs.inputSequence = inputSequences.get(inputId);
+					incStepArgs.edfaStateSequence = edfaStateSequences.get(inputId);
+					final int[] finalStatePos = edfaFinalStatePositions.get(inputId);
+
+					// look at all positions before which a final FST state can be reached
+					for (final int pos : finalStatePos) {
+						// for those positions, start with each possible final FST state and go backwards
+						for (State fstFinalState : incStepArgs.edfaStateSequence[pos].getFstFinalStates()) {
+							incStepTwoPassTraditional(incStepArgs, pos-1, fstFinalState, 0);
+						}
+					}
+				}
+
+				// we don't need this anymore, so let's save the memory
+				edfaFinalStatePositions.clear();
+				edfaFinalStatePositions.trimToSize();
+			}
+
+			// recursively grow the patterns
+			root.pruneInfrequentChildren(sigma);
+			expand(new IntArrayList(), root);
+		}
+	}
+
+
+	/** Updates the projected databases of the children of the current node (args.node) corresponding to each possible
+	 * next output item for the current input sequence (also stored in args). Used only in the one-pass algorithm.
+	 *
+	 * @param args information about the input sequence and the current search tree node
+	 * @param pos next item to read
+	 * @param state current FST state
+	 * @param level recursion level (used for reusing iterators without conflict)
+	 *
+	 * @return true if a final FST state can be reached without producing further output
+	 */
+	private boolean incStepOnePassTraditional(final IncStepArgs args, final int pos, final State state, final int level) {
+		// check if we reached the end of the input sequence
+		if (pos >= args.inputSequence.size()) {
+			return state.isFinal(); // whether or not we require a full match
+		}
+
+		// get iterator over next output item/state pairs; reuse existing ones if possible
+		final int itemFid = args.inputSequence.getInt(pos);
+		Iterator<ItemState> itemStateIt = null;
+
+		if (level >= itemStateIterators.size()) {
+			itemStateIt = state.consume(itemFid);
+			itemStateIterators.add(itemStateIt);
+		} else {
+			itemStateIt = state.consume(itemFid, itemStateIterators.get(level));
+		}
+
+		// iterate over output item/state pairs and remember whether we hit a final state without producing output
+		// (i.e., no transitions or only transitions with epsilon output)
+		boolean reachedFinalStateWithoutOutput = state.isFinal() && !fst.getRequireFullMatch();
+
+
+		while (itemStateIt.hasNext()) {
+			final ItemState itemState = itemStateIt.next();
+			final int outputItemFid = itemState.itemFid;
+			final State toState = itemState.state;
+
+			if (outputItemFid == 0) { // EPS output
+				// we did not get an output, so continue running the FST
+				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
+				reachedFinalStateWithoutOutput |= incStepOnePass(args, pos + 1, toState, newLevel);
+			} else if (largestFrequentFid >= outputItemFid) {
+				// we have an output and its frequent, so update the corresponding projected database
+				args.node.expandWithItemTraditional(outputItemFid, args.inputId, args.inputSequence.support,
+						pos + 1, toState.getId());
+			}
+		}
+		return reachedFinalStateWithoutOutput;
+	}
+
+	/** Updates the projected databases of the children of the current node (args.node) corresponding to each possible
+	 * previous output item for the current input sequence (also stored in args). Used only in the two-pass algorithm.
+	 *
+	 * @param args information about the input sequence and the current search tree node
+	 * @param pos next item to read
+	 * @param state current FST state
+	 * @param level recursion level (used for reusing iterators without conflict)
+	 *
+	 * @return true if the initial FST state can be reached without producing further output
+	 */
+	private boolean incStepTwoPassTraditional(final IncStepArgs args, final int pos,
+								   final State state, final int level) {
+		// check if we reached the beginning of the input sequence
+		if(pos == -1) {
+			// we consumed entire input in reverse -> we must have reached the inital state by two-pass correctness
+			assert state.getId() == 0;
+			return true;
+		}
+
+		// get iterator over next output item/state pairs; reuse existing ones if possible
+		// note that the reverse FST is used here (since we process inputs backwards)
+		// only iterates over states that we saw in the forward pass (the other ones can safely be skipped)
+		final int itemFid = args.inputSequence.getInt(pos);
+		Iterator<ItemState> itemStateIt;
+		if (level>=itemStateIterators.size()) {
+			itemStateIt = state.consume(itemFid, null, args.edfaStateSequence[pos].getFstStates());
+			itemStateIterators.add(itemStateIt);
+		} else {
+			itemStateIt = state.consume(itemFid, itemStateIterators.get(level),
+					args.edfaStateSequence[pos].getFstStates());
+		}
+
+		// iterate over output item/state pairs and remember whether we hit the initial state without producing output
+		// (i.e., no transitions or only transitions with epsilon output)
+		boolean reachedInitialStateWithoutOutput = false;
+		while (itemStateIt.hasNext()) {
+			final ItemState itemState = itemStateIt.next();
+			final State toState = itemState.state;
+
+			// we need to process that state because we saw it in the forward pass (assertion checks this)
+			assert args.edfaStateSequence[pos].getFstStates().get(toState.getId());
+
+			final int outputItemFid = itemState.itemFid;
+			if (outputItemFid == 0) { // EPS output
+				// we did not get an output, so continue running the reverse FST
+				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
+				reachedInitialStateWithoutOutput |= incStepTwoPassTraditional(args, pos-1, toState, newLevel);
+			} else if (largestFrequentFid >= outputItemFid && (pivotItem == 0 || pivotItem >= outputItemFid)) {
+				// we have an output and its frequent, so update the corresponding projected database
+				// if we are mining a pivot partition, we don't expand with items largerthan the pivot
+
+				// Note: we do not store pos-1 in the projected database to having avoid write -1's when the
+				// position was 0. When we read the posting list later, we substract 1
+				args.node.expandWithItemTraditional(outputItemFid, args.inputId, args.inputSequence.support,
+						pos, toState.getId());
+			}
+		}
+
+		return reachedInitialStateWithoutOutput;
+	}
+
+	/** Expands all children of the given search tree node. The node itself must have been processed/output/expanded
+	 * already.
+	 *
+	 * @param prefix (partial) output sequence corresponding to the given node (must remain unmodified upon return)
+	 * @param node the node whose children to expand
+	 */
+
+	private void expandTraditional(IntList prefix, DesqDfsTreeNode node) {
+		// this bundles common arguments to incStepOnePass or incStepTwoPass
+		final IncStepArgs incStepArgs = new IncStepArgs();
+
+		// add a placeholder to prefix for the output item of the child being expanded
+		final int lastPrefixIndex = prefix.size();
+		prefix.add(-1);
+
+		// iterate over all children
+		for (final DesqDfsTreeNode childNode : node.childrenByFid.values() )  {
+			// while we expand the child node, we also compute its actual support to determine whether or not
+			// to output it (and then output it if the support is large enough)
+			long support = 0;
+			seenInputSequences.clear(); // TODO: this is the consequence of sending multiple output sequences per input sequence. will go away when we send one NFA per partition and input sequence
+			// check whether pivot expansion worked
+			// the idea is that we never expand a child>pivotItem at this point
+			if(pivotItem != 0) {
+				assert childNode.itemFid <= pivotItem;
+			}
+
+			// set up the expansion
+			assert childNode.prefixSupport >= sigma;
+			prefix.set(lastPrefixIndex, childNode.itemFid);
+			projectedDatabaseIt.reset(childNode.projectedDatabase);
+			incStepArgs.inputId = -1;
+			incStepArgs.node = childNode;
+
+			if (!useTwoPass) { // one-pass
+				do {
+					// process next input sequence
+					incStepArgs.inputId += projectedDatabaseIt.nextNonNegativeInt();
+					incStepArgs.inputSequence = inputSequences.get(incStepArgs.inputId);
+
+					// iterate over state@pos snapshots for this input sequence
+					boolean reachedFinalStateWithoutOutput = false;
+					do {
+						int stateId = projectedDatabaseIt.nextNonNegativeInt();
+						final int pos = projectedDatabaseIt.nextNonNegativeInt(); // position of next input item
+						reachedFinalStateWithoutOutput |= incStepOnePassTraditional(incStepArgs, pos, fst.getState(stateId), 0); // TODO: improve here. when we use transaction representation, stateId=0
+					} while (projectedDatabaseIt.hasNext());
+
+					// if we reached a final state without output, increment the support of this child node
+					if (reachedFinalStateWithoutOutput) {
+						support += incStepArgs.inputSequence.support;
+					}
+
+					// now go to next posting (next input sequence)
+				} while (projectedDatabaseIt.nextPosting());
+			} else { // two-pass
+				do {
+					// process next input sequence (backwards)
+					incStepArgs.inputId += projectedDatabaseIt.nextNonNegativeInt();
+					incStepArgs.inputSequence = inputSequences.get(incStepArgs.inputId);
+					incStepArgs.edfaStateSequence = edfaStateSequences.get(incStepArgs.inputId);
+
+					// iterate over state@pos snapshots for this input sequence
+					boolean reachedInitialStateWithoutOutput = false;
+					do {
+						final int stateId = projectedDatabaseIt.nextNonNegativeInt();
+						final int pos = projectedDatabaseIt.nextNonNegativeInt() - 1; // position of next input item
+						// (-1 because we added a position incremented by one; see incStepTwoPass)
+						reachedInitialStateWithoutOutput |= incStepTwoPassTraditional(incStepArgs, pos,
+								reverseFst.getState(stateId), 0);
+					} while (projectedDatabaseIt.hasNext());
+
+					// if we reached the initial state without output, increment the support of this child node
+					if (reachedInitialStateWithoutOutput) {
+						support += incStepArgs.inputSequence.support;
+					}
+
+					// now go to next posting (next input sequence)
+				} while (projectedDatabaseIt.nextPosting());
+			}
+
+			// output the patterns for the current child node if it turns out to be frequent
+			if (support >= sigma) {
+				// if we are mining a specific pivot partition (meaning, pivotItem>0), then we output only sequences with that pivot
+				if (ctx.patternWriter != null && (pivotItem==0 || pivot(prefix) == pivotItem)) {
+					if (!useTwoPass) { // one-pass
+						ctx.patternWriter.write(prefix, support);
+					} else { // two-pass
+						// for the two-pass algorithm, we need to reverse the output because the search tree is built
+						// in reverse order
+						ctx.patternWriter.writeReverse(prefix, support);
+					}
+				}
+			}
+
+			// expand the child node
+			childNode.pruneInfrequentChildren(sigma);
+			childNode.projectedDatabase = null; // not needed anymore
+			expandTraditional(prefix, childNode);
+			childNode.invalidate(); // not needed anymore
+		}
+
+		// we are done processing the node, so remove its item from the prefix
+		prefix.removeInt(lastPrefixIndex);
+	}
+
 	/**
 	 * Determines the pivot item of a sequence
 	 * @param sequence
@@ -1271,7 +1490,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	}
 
 
-	/** Bundles arguments for {@link #incStepOnePass} and {@link #incStepTwoPass}. These arguments are not modified
+	/** Bundles arguments for {@link #incStepOnePass} and {@link #incStepTwoPassTraditional}. These arguments are not modified
 	 * during the method's recursions, so we keep them at a single place. */
 	private static class IncStepArgs {
 		int inputId;
