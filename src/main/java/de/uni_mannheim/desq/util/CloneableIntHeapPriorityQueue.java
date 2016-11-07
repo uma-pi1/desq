@@ -1,9 +1,6 @@
 package de.uni_mannheim.desq.util;
 
-import it.unimi.dsi.fastutil.ints.IntCollection;
-import it.unimi.dsi.fastutil.ints.IntComparator;
-import it.unimi.dsi.fastutil.ints.IntHeapPriorityQueue;
-import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.ints.*;
 
 /**
  * Created by Alexander Renz-Wieland on 11/2/16.
@@ -23,6 +20,14 @@ public class CloneableIntHeapPriorityQueue extends IntHeapPriorityQueue implemen
     }
     public CloneableIntHeapPriorityQueue clone() {
         return new CloneableIntHeapPriorityQueue(heap, size, c);
+    }
+    public void startFromExisting(CloneableIntHeapPriorityQueue from) {
+        this.size = from.size();
+        if(this.heap.length < size) {
+            this.heap = IntArrays.grow(this.heap, size);
+        }
+        System.arraycopy(from.exposeInts(), 0, this.heap, 0, size);
+        this.c = from.comparator();
     }
     public int[] exposeInts() {
         return heap;
