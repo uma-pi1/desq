@@ -48,6 +48,23 @@ public class FstAnnotationExample {
         fst.print();
         fst.exportGraphViz("fst-example-annotated.gv");
         fst.exportGraphViz("fst-example-annotated.pdf"); // graphviz needs to be installed
+
+
+        // create reverse the fst
+        fst = null;
+        fst = patEx.translate();
+        fst.minimize();
+        fst.reverse(false);
+
+        // annotate final states
+        fst.annotateFinalStates();
+
+        System.out.println("Minimized reverse FST");
+        fst.print();
+        fst.exportGraphViz("fst-example-annotated-reversed.gv");
+        fst.exportGraphViz("fst-example-annotated-reversed.pdf"); // graphviz needs to be installed
+
+
     }
 
     public static void main(String[] args) throws IOException {

@@ -3,9 +3,7 @@ package de.uni_mannheim.desq.fst;
 
 import com.google.common.base.Strings;
 import de.uni_mannheim.desq.fst.graphviz.FstVisualizer;
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import it.unimi.dsi.fastutil.ints.IntSet;
-import it.unimi.dsi.fastutil.ints.IntSets;
+import it.unimi.dsi.fastutil.ints.*;
 import org.apache.commons.io.FilenameUtils;
 
 import java.io.PrintStream;
@@ -308,9 +306,19 @@ public final class Fst {
 		// Processed xdfa states
 		Set<IntSet> processedStateIdSets = new HashSet<>();
 
-		// Initialize
-		for(State finalState : finalStates) {
-			int finalStateId = finalState.id;
+		// Initialize list of final state ids
+        // if fst is reversed it will have only one final state
+        IntList finalStateIdList = new IntArrayList();
+        for(State finalState : finalStates) {
+            // if fst is reversed without creating a new initial state as in two pass
+            // then finalStates are not updated
+            if(finalState.isFinal)
+                finalStateIdList.add(finalState.id);
+        }
+        if(initialState.isFinal)
+            finalStateIdList.add(initialState.id);
+
+		for(int finalStateId : finalStateIdList) {
 			IntSet initialStateIdSet = IntSets.singleton(finalStateId);
 			xDfaStateForFstStateIdSet.put(initialStateIdSet, new XDfaState(true));
 			unprocessedStateIdSets.push(initialStateIdSet);
@@ -358,9 +366,9 @@ public final class Fst {
         // If DFA starting at final state is a chain with all states final and a self loop at the end
         // and there is no reachable transition that produces an output then the corresponding final
         // fst state is complete
-		for(State finalState : finalStates) {
+		for(int finalStateId : finalStateIdList) {
             // get xdfa state
-            XDfaState xDfaState = xDfaStateForFstStateIdSet.get(IntSets.singleton(finalState.id));
+            XDfaState xDfaState = xDfaStateForFstStateIdSet.get(IntSets.singleton(finalStateId));
             while(true) {
                 XDfaState nextXDfaState = xDfaState.nextState;
                 if(nextXDfaState == null || xDfaState.hasNonEpsOutput || !xDfaState.isFinal){
@@ -368,7 +376,7 @@ public final class Fst {
                     break;
                 }
                 if(nextXDfaState == xDfaState) {
-                    finalState.isFinalComplete = true;
+                    getState(finalStateId).isFinalComplete = true;
                     break;
                 }
                 xDfaState = nextXDfaState;
@@ -387,4 +395,10 @@ public final class Fst {
 			this.isFinal = isFinal;
 		}
 	}
+
+	public void removeAnnotations() {
+        for(State state : getStates()) {
+            state.isFinalComplete = false;
+        }
+    }
 }
