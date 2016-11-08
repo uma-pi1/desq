@@ -280,4 +280,8 @@ public final class Fst {
 			exp += "]";
 		return exp;
 	}
+
+	public void annotateFinalStates() {
+
+	}
 }
