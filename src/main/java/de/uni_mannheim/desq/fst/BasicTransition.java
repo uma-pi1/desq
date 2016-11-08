@@ -255,7 +255,16 @@ public final class BasicTransition extends Transition {
 		else
 			inputFids.addAll(this.inputFids);
 	}
-	
+
+	@Override
+	public boolean isDotEps() {
+//		if(inputLabel == 0 && outputLabelType == OutputLabelType.EPSILON)
+//			return true;
+//		else
+//			return false;
+//
+		return (inputLabel == 0 && outputLabelType == OutputLabelType.EPSILON);
+	}
 	
 
 }

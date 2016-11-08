@@ -28,4 +28,6 @@ public abstract class Transition {
 	public abstract String labelString();
 
 	public abstract String toPatternExpression();
+
+	public abstract boolean isDotEps();
 }

@@ -12,6 +12,8 @@ public final class State {
 	// List of transitions
 	List<Transition> transitionList;
 	boolean isFinal;
+	boolean isFinalComplete = false;
+
 	
 	public State() {
 		this(false);
@@ -138,6 +140,10 @@ public final class State {
 
 	public boolean isFinal() { 
 		return isFinal; 
+	}
+
+	public boolean isFinalComplete() {
+		return isFinalComplete;
 	}
 	
 	public List<Transition> getTransitions() {

@@ -3,6 +3,9 @@ package de.uni_mannheim.desq.fst;
 
 import com.google.common.base.Strings;
 import de.uni_mannheim.desq.fst.graphviz.FstVisualizer;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.ints.IntSets;
 import org.apache.commons.io.FilenameUtils;
 
 import java.io.PrintStream;
@@ -148,7 +151,17 @@ public final class Fst {
 			out.print(state.id);
 			separator = ",";
 		}
-		out.println("]");
+		out.print("]");
+        out.print(", finalComplete=[");
+        separator = "";
+        for (State state : getFinalStates()) {
+            if(state.isFinalComplete) {
+                out.print(separator);
+                out.print(state.id);
+                separator = ",";
+            }
+        }
+        out.println("]");
 
 		out.print(indentString);
 		out.print("Trans. : ");
@@ -182,7 +195,7 @@ public final class Fst {
 			for(Transition t : s.transitionList)
                 fstVisualizer.add(String.valueOf(s.id), t.labelString(), String.valueOf(t.getToState().id));
 			if(s.isFinal)
-				fstVisualizer.addAccepted(String.valueOf(s.id));
+				fstVisualizer.addFinalState(String.valueOf(s.id), s.isFinalComplete);
 		}
 		fstVisualizer.endGraph();
 	}
@@ -281,7 +294,97 @@ public final class Fst {
 		return exp;
 	}
 
+	/** Annotates final states of the FST. An final FST state is finalComplete
+     * if it accepts .* without further output and there is no state with output
+     * reachable.
+     */
 	public void annotateFinalStates() {
+        // Convert FST starting at final states to DFA by only looking of .:EPS transitions
 
+		// Map fst states to xdfa state
+		Map<IntSet, XDfaState> xDfaStateForFstStateIdSet = new HashMap<>();
+		// Unprocessed xdfa states
+		Stack<IntSet> unprocessedStateIdSets = new Stack<>();
+		// Processed xdfa states
+		Set<IntSet> processedStateIdSets = new HashSet<>();
+
+		// Initialize
+		for(State finalState : finalStates) {
+			int finalStateId = finalState.id;
+			IntSet initialStateIdSet = IntSets.singleton(finalStateId);
+			xDfaStateForFstStateIdSet.put(initialStateIdSet, new XDfaState(true));
+			unprocessedStateIdSets.push(initialStateIdSet);
+		}
+
+		while(!unprocessedStateIdSets.isEmpty()) {
+			// process fst states
+			IntSet stateIdSet = unprocessedStateIdSets.pop();
+
+			if(!processedStateIdSets.contains(stateIdSet)) {
+				IntSet nextStateIdSet = new IntOpenHashSet();
+				boolean isFinal = false;
+				boolean hasNonEpsOutput = false;
+
+				// we look at only outgoing .:EPS transitions
+				for(int stateId : stateIdSet) {
+					for(Transition transition : getState(stateId).transitionList) {
+						isFinal = transition.toState.isFinal;
+						if(transition.isDotEps()) {
+							//add toState
+							nextStateIdSet.add(transition.toState.id);
+						} else {
+							// if there is an outgoing transition with non eps output
+							hasNonEpsOutput = true;
+						}
+					}
+				}
+				// create the next xdfa state
+				XDfaState nextXDfaState = xDfaStateForFstStateIdSet.get(nextStateIdSet);
+				if(nextXDfaState == null) {
+					nextXDfaState = new XDfaState(isFinal);
+				}
+				XDfaState xDfaState = xDfaStateForFstStateIdSet.get(stateIdSet);
+				xDfaState.nextState = nextXDfaState;
+
+				// if there was an outgoing transition with non eps output
+				xDfaState.hasNonEpsOutput = hasNonEpsOutput;
+			}
+			// mark as processed
+			processedStateIdSets.add(stateIdSet);
+		}
+
+
+		// annotate final states
+        // If DFA starting at final state is a chain with all states final and a self loop at the end
+        // and there is no reachable transition that produces an output then the corresponding final
+        // fst state is complete
+		for(State finalState : finalStates) {
+            // get xdfa state
+            XDfaState xDfaState = xDfaStateForFstStateIdSet.get(IntSets.singleton(finalState.id));
+            while(true) {
+                XDfaState nextXDfaState = xDfaState.nextState;
+                if(nextXDfaState == null || xDfaState.hasNonEpsOutput || !xDfaState.isFinal){
+                    // finalState.isFinalComplete = false; // false by construction
+                    break;
+                }
+                if(nextXDfaState == xDfaState) {
+                    finalState.isFinalComplete = true;
+                    break;
+                }
+                xDfaState = nextXDfaState;
+            }
+		}
+
+	}
+
+	/** Helper class for DFA states for annotating final fst states in {@link #annotateFinalStates()}*/
+	private class XDfaState {
+		XDfaState nextState = null;
+		boolean hasNonEpsOutput = false;
+		boolean isFinal = false;
+
+		XDfaState(boolean isFinal) {
+			this.isFinal = isFinal;
+		}
 	}
 }
