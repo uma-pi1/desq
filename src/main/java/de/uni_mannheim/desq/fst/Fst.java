@@ -134,6 +134,7 @@ public final class Fst {
 		print(System.out, 2);
 	}
 
+	//TODO: prints states incorrectly when FST is reversed
 	public void print(PrintStream out, int indent) {
 		String indentString = Strings.repeat(" ", indent);
 

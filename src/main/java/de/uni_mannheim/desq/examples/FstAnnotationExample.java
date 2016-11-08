@@ -60,7 +60,7 @@ public class FstAnnotationExample {
         fst.annotateFinalStates();
 
         System.out.println("Minimized reverse FST");
-        fst.print();
+        //fst.print();
         fst.exportGraphViz("fst-example-annotated-reversed.gv");
         fst.exportGraphViz("fst-example-annotated-reversed.pdf"); // graphviz needs to be installed
 
