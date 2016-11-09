@@ -4,6 +4,7 @@ import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.SequenceReader;
+import de.uni_mannheim.desq.mining.DesqMiner;
 import de.uni_mannheim.desq.patex.PatEx;
 
 import java.io.IOException;
@@ -28,11 +29,12 @@ public class FstAnnotationExample {
         dict.recomputeFids();
 
         //Some test expressions
-        String patternExpression = "[[c|d]([A^|B=^]+)e].*";
+        String patternExpression = ".*[[c|d]([A^|B=^]+)e].*";
         //String patternExpression = ".*[(.)[.{0,1} (.)]{1,3}].*";
         //String patternExpression = ".*(B)[.* | ...(B)]?";
         //String patternExpression = "(A .*|A B c)";
         //String patternExpression = "[(A .*|A B c)].*";
+        //String patternExpression = DesqMiner.patternExpressionFor(1,3,false);
 
         System.out.println(patternExpression);
 
@@ -60,7 +62,7 @@ public class FstAnnotationExample {
         fst.annotateFinalStates();
 
         System.out.println("Minimized reverse FST");
-        //fst.print();
+        //fst.print(); //TODO: print does not handle reverse FST
         fst.exportGraphViz("fst-example-annotated-reversed.gv");
         fst.exportGraphViz("fst-example-annotated-reversed.pdf"); // graphviz needs to be installed
 

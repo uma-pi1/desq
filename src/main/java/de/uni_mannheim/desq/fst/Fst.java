@@ -194,7 +194,9 @@ public final class Fst {
 			for(Transition t : s.transitionList)
                 fstVisualizer.add(String.valueOf(s.id), t.labelString(), String.valueOf(t.getToState().id));
 			if(s.isFinal)
-				fstVisualizer.addFinalState(String.valueOf(s.id), s.isFinalComplete);
+				fstVisualizer.addFinalState(String.valueOf(s.id));
+			if(s.isFinalComplete)
+				fstVisualizer.addFinalState(String.valueOf(s.id), true);
 		}
 		fstVisualizer.endGraph();
 	}
@@ -378,6 +380,7 @@ public final class Fst {
                 }
                 if(nextXDfaState == xDfaState) {
                     getState(finalStateId).isFinalComplete = true;
+					getState(finalStateId).isFinal = false;
                     break;
                 }
                 xDfaState = nextXDfaState;
