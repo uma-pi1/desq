@@ -52,7 +52,7 @@ public final class PatEx {
 		
 		@Override
 		public Fst visitUnion(UnionContext ctx) {
-			Fst fst = visit(ctx.unionexp());
+			/*Fst fst = visit(ctx.unionexp());
 
 			// add self loop to starting state if we can start anywhere
 			if (ctx.start == null) {
@@ -65,7 +65,9 @@ public final class PatEx {
 			// remember whether we need to match to the end
 			fst.setRequireFullMatch( ctx.end != null );
 
-			return fst;
+
+			return fst;*/
+			return visit(ctx.unionexp());
 		}
 
 		
