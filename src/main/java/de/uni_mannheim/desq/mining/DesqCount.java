@@ -121,6 +121,9 @@ public final class DesqCount extends DesqMiner {
 			fst = tempFst;
 			reverseFst = null;
 
+			// annotate final states
+			fst.annotateFinalStates();
+
 			// if we prune irrelevant inputs, construct the DFS for the FST
 			if (pruneIrrelevantInputs) {
 				this.edfa = new ExtendedDfa(fst, ctx.dict);
@@ -232,8 +235,13 @@ public final class DesqCount extends DesqMiner {
 	 */
 	private void stepOnePass(int pos, State state, int level) {
 		// if we reached a final state, we count the current sequence (if any)
-		if(state.isFinal() && !prefix.isEmpty() && (!fst.getRequireFullMatch() || pos==inputSequence.size())) {
+		/*if(state.isFinal() && !prefix.isEmpty() && (!fst.getRequireFullMatch() || pos==inputSequence.size())) {
 			countSequence(prefix);
+		}*/
+
+		if( (state.isFinalComplete() || (state.isFinal() && pos==inputSequence.size()) ) && !prefix.isEmpty() ) {
+			countSequence(prefix);
+			return;
 		}
 
 		// check if we already read the entire input
