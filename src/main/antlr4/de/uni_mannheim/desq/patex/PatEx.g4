@@ -2,14 +2,9 @@ grammar PatEx;
 
 //Rules
 
-//patex
-//:
-//	start='^'? expr=unionexp end='$'?				#union
-//;
-
 patex
 :
-	unionexp        				#union
+	start='^'? expr=unionexp end='$'?				#union
 ;
 
 unionexp

@@ -52,7 +52,9 @@ public final class PatEx {
 		
 		@Override
 		public Fst visitUnion(UnionContext ctx) {
-			/*Fst fst = visit(ctx.unionexp());
+			Fst fst = visit(ctx.unionexp());
+
+			fst.updateStates();
 
 			// add self loop to starting state if we can start anywhere
 			if (ctx.start == null) {
@@ -63,11 +65,21 @@ public final class PatEx {
 			}
 
 			// remember whether we need to match to the end
-			fst.setRequireFullMatch( ctx.end != null );
+			// fst.setRequireFullMatch( ctx.end != null );
 
+			// if we can end anywhere
+			if (ctx.end == null) {
+				State newFinalState = new State(true);
+				newFinalState.addTransition(
+						new BasicTransition(0, InputLabelType.SELF, -1, OutputLabelType.EPSILON, newFinalState, dict)
+				);
+				for(State finalState : fst.getFinalStates()) {
+					finalState.simulateEpsilonTransitionTo(newFinalState);
+				}
+			}
 
-			return fst;*/
-			return visit(ctx.unionexp());
+			return fst;
+			//return visit(ctx.unionexp());
 		}
 
 		
