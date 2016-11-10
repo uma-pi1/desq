@@ -6,15 +6,11 @@ import de.uni_mannheim.desq.io.*;
 import de.uni_mannheim.desq.mining.*;
 import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;
-import org.apache.hadoop.fs.shell.Count;
-import scala.Tuple4;
 
 import java.io.*;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -30,7 +26,7 @@ public class DesqDfsLocalDistributedMining {
 	static boolean verbose;
 	static String scenarioStr;
 	static String useCase;
-	static boolean useTransactionRepresentation;
+	static boolean useTransitionRepresentation;
 
 	/** main
 	 *
@@ -72,7 +68,7 @@ public class DesqDfsLocalDistributedMining {
 		SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), true);
 		dataReader.setDictionary(dict);
 
-		minerConf.setProperty("desq.mining.use.transaction.representation", useTransactionRepresentation);
+		minerConf.setProperty("desq.mining.use.transition.representation", useTransitionRepresentation);
 
 		// default settings
 		minerConf.setProperty("desq.mining.skip.non.pivot.transitions", false);
@@ -291,7 +287,7 @@ public class DesqDfsLocalDistributedMining {
 
 	private static void setScenario(int scenario) {
 		//set some defaults
-		useTransactionRepresentation = false;
+		useTransitionRepresentation = false;
 
 		switch(scenario) {
 			case 1:
@@ -299,7 +295,7 @@ public class DesqDfsLocalDistributedMining {
 				break;
 			case 2:
 				scenarioStr = "send-transactions";
-				useTransactionRepresentation = true;
+				useTransitionRepresentation = true;
 				break;
 			default:
 				System.out.println("Unknown variant");

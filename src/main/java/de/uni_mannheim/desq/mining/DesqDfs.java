@@ -100,8 +100,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** If true, we recurse through compressed transitions and keep track of set of potential pivot elements */
 	final boolean useCompressedTransitions;
 
-	/** If true, DesqDfs Distributed trends transaction-encoded sequences between transitions */
-	final boolean useTransactionRepresentation;
+	/** If true, DesqDfs Distributed trends transition-encoded sequences between transitions */
+	final boolean useTransitionRepresentation;
 
 	/** Stores one Transition iterator per recursion level for reuse */
 	final ArrayList<Iterator<Transition>> transitionIterators = new ArrayList<>();
@@ -142,7 +142,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		useMaxPivot = ctx.conf.getBoolean("desq.mining.use.minmax.pivot", false);
 		useFirstPCVersion = ctx.conf.getBoolean("desq.mining.use.first.pc.version", false);
 		useCompressedTransitions = ctx.conf.getBoolean("desq.mining.pc.use.compressed.transitions", false);
-		useTransactionRepresentation = ctx.conf.getBoolean("desq.mining.use.transaction.representation", false);
+		useTransitionRepresentation = ctx.conf.getBoolean("desq.mining.use.transition.representation", false);
 
 
 		// construct pattern expression and FST
@@ -240,7 +240,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 
 		// one-pass version of DesqDfs
-		if (!pruneIrrelevantInputs || useTransactionRepresentation || edfa.isRelevant(inputSequence, 0, 0)) {
+		if (!pruneIrrelevantInputs || useTransitionRepresentation || edfa.isRelevant(inputSequence, 0, 0)) {
 			// if we reach this place, we either don't want to prune irrelevant inputs or the input is relevant
 			// -> remember it
 			super.addInputSequence(inputSequence, inputSupport, allowBuffering);
@@ -279,10 +279,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 		Sequence inputSequence;
 		ObjectList<IntList> newPartitionSeqList;
 
-		// for each input sequence, emit (pivot_item, transaction_representation)
+		// for each input sequence, emit (pivot_item, transition_id)
 		for(int seqNo=0; seqNo<inputSequences.size(); seqNo++) {
 			inputSequence = inputSequences.get(seqNo);
-			if(useTransactionRepresentation) {
+			if(useTransitionRepresentation) {
 				getPivotItemsAndTransitionRepresentationOfOneSequence(inputSequence);
 			} else {
 				pivotElements = getPivotItemsOfOneSequence(inputSequence);
@@ -412,7 +412,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 
 	/** Runs one step (along compressed transition) in the FST in order to produce the set of frequent output items
-	 *  and directly creates the partitions with the transaction representation
+	 *  and directly creates the partitions with the transition representation
 	 *
 	 * @param currentPivotItems set of current potential pivot items
 	 * @param pos   current position
@@ -508,7 +508,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 							newCurrentPivotItems.enqueue(addItem);
 						}
 					}
-					// we put the current transaction together with the input item onto the prefix and take it off when we come back from recursion
+					// we put the current transition together with the input item onto the prefix and take it off when we come back from recursion
 					prefix.add(tr.getTransitionNumber());
 					prefix.add(addItem);
 					findPathsAndPivotsStepOnePassCompressed(newCurrentPivotItems, pos+1, toState, level+1);
@@ -545,7 +545,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 							newCurrentPivotItems.enqueue(add);
 						}
 					}
-					// we put the current transaction together with the input item onto the prefix and take it off when we come back from recursion
+					// we put the current transition together with the input item onto the prefix and take it off when we come back from recursion
 					prefix.add(tr.getTransitionNumber());
 					prefix.add(addItem);
 					findPathsAndPivotsStepOnePassCompressed(newCurrentPivotItems, pos+1, toState, level+1);
@@ -1018,7 +1018,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		this.pivotItem = pivotItem;
 
 		// run the normal mine method. Filtering is done in expand() when the patterns are output
-		if(useTransactionRepresentation)
+		if(useTransitionRepresentation)
 			mine();
 		else
 			mineTraditional();
@@ -1110,9 +1110,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		// (i.e., no transitions or only transitions with epsilon output)
 		boolean reachedFinalStateWithoutOutput = false; // state.isFinal() && !fst.getRequireFullMatch();
 
-		// transaction representation
-
-		// in transaction representation, we store pairs of integers: (transaction id, input element)
+		// in transition representation, we store pairs of integers: (transition id, input element)
 		int trNo ;
 		int inputItem;
 		BasicTransition tr;
@@ -1131,7 +1129,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				localPos = pos;
 			}
 
-			// get (transaction_id, input_item_fid) pair
+			// get (transition_id, input_item_fid) pair
 			trNo = args.inputSequence.getInt(localPos);
 			inputItem = args.inputSequence.getInt(localPos+1);
 			tr = (BasicTransition) fst.getTransitionByNumber(trNo);
@@ -1144,7 +1142,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				IntList outputItems = tr.getOutputElements(inputItem);
 				for (int outputItem : outputItems) {
 					if (pivotItem >= outputItem) { // no check for largestFrequentFid necessary, as largestFrequentFid >= pivotItem
-						args.node.expandWithTransactionItem(outputItem, args.inputId, args.inputSequence.support,
+						args.node.expandWithTransitionItem(outputItem, args.inputId, args.inputSequence.support,
 								localPos + 2);
 					}
 				}
