@@ -1,5 +1,7 @@
 package de.uni_mannheim.desq.fst;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
 import java.util.ArrayList;
@@ -13,42 +15,33 @@ import java.util.List;
  */
 public final class ExtendedDfaState {
 	
-	// parameters
-	//int id;
-	List<ExtendedDfaTransition> transitionList;
+	Int2ObjectMap<ExtendedDfaState> transitionTable;
 
-	//
 	BitSet fstStates;
 	List<State> fstFinalStates;
-	
+	List<State> fstFinalCompleteStates;
+
 	public ExtendedDfaState(IntSet stateIdSet, Fst fst) {
-		this.transitionList = new ArrayList<>();
+		initTransitionTable();
 		setFstStates(stateIdSet, fst);
 	}
 
 	public ExtendedDfaState(int stateId, Fst fst) {
-		this.transitionList = new ArrayList<>();
+		initTransitionTable();
 		setFstStates(stateId, fst);
 	}
 
-	public void addTransition(ExtendedDfaTransition t) {
-		transitionList.add(t);
+	private void initTransitionTable(){
+		transitionTable = new Int2ObjectOpenHashMap<>();
+		transitionTable.defaultReturnValue(null);
+	}
+
+	public void addToTransitionTable(int itemFid, ExtendedDfaState toEDfaState) {
+		transitionTable.put(itemFid, toEDfaState);
 	}
 	
-	/*public int consume(int itemFid) {
-		for(ExtendedDfaTransition t : transitionList) {
-			if(t.matches(itemFid))
-				return t.getToStateId();
-		}
-		return -1;
-	}*/
-	
 	public ExtendedDfaState consume(int itemFid) {
-		for(ExtendedDfaTransition t : transitionList) {
-			if(t.matches(itemFid))
-				return t.getToState();
-		}
-		return null;
+		return transitionTable.get(itemFid);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -59,13 +52,20 @@ public final class ExtendedDfaState {
 		if (state.isFinal()) {
 			fstFinalStates = new ArrayList<>(1);
 			fstFinalStates.add(state);
-		} else {
+		}
+		if(state.isFinalComplete()) {
+			fstFinalCompleteStates = new ArrayList<>(1);
+			fstFinalCompleteStates.add(state);
+		}
+		else {
 			fstFinalStates = (List<State>)Collections.EMPTY_LIST;
+			fstFinalCompleteStates = (List<State>)Collections.EMPTY_LIST;
 		}
 	}
 	
 	private void setFstStates(IntSet stateIdSet, Fst fst) {
 		fstFinalStates = new ArrayList<>(fst.numStates());
+		fstFinalCompleteStates = new ArrayList<>(fst.numStates());
 		this.fstStates = new BitSet();
 		for(int stateId : stateIdSet) {
 			fstStates.set(stateId);
@@ -73,11 +73,18 @@ public final class ExtendedDfaState {
 			if (state.isFinal()) {
 				fstFinalStates.add(state);
 			}
+			if (state.isFinalComplete()) {
+				fstFinalCompleteStates.add(state);
+			}
 		}
 	}
 
 	public boolean isFinal() {
 		return !fstFinalStates.isEmpty();
+	}
+
+	public boolean isFinalComplete() {
+		return !fstFinalCompleteStates.isEmpty();
 	}
 
 	public BitSet getFstStates() {
@@ -87,5 +94,10 @@ public final class ExtendedDfaState {
 	public List<State> getFstFinalStates() {
 		return fstFinalStates;
 	}
+
+	public List<State> getFstFinalCompleteStates() {
+		return fstFinalCompleteStates;
+	}
+
 
 }
