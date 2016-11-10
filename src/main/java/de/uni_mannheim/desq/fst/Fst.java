@@ -349,10 +349,16 @@ public final class Fst {
 						}
 					}
 				}
+
+				// add to stack
+				if(!processedStateIdSets.containsAll(nextStateIdSet))
+					unprocessedStateIdSets.push(nextStateIdSet);
+
 				// create the next xdfa state
 				XDfaState nextXDfaState = xDfaStateForFstStateIdSet.get(nextStateIdSet);
 				if(nextXDfaState == null) {
 					nextXDfaState = new XDfaState(isFinal);
+					xDfaStateForFstStateIdSet.put(nextStateIdSet, nextXDfaState);
 				}
 				XDfaState xDfaState = xDfaStateForFstStateIdSet.get(stateIdSet);
 				xDfaState.nextState = nextXDfaState;
@@ -402,7 +408,10 @@ public final class Fst {
 
 	public void removeAnnotations() {
         for(State state : getStates()) {
-            state.isFinalComplete = false;
+			if(state.isFinalComplete) {
+				state.isFinalComplete = false;
+				state.isFinal = true;
+			}
         }
     }
 }
