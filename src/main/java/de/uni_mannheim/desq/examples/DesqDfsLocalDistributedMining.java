@@ -29,7 +29,7 @@ public class DesqDfsLocalDistributedMining {
 	static int expNo;
 	static boolean verbose;
 	static String scenarioStr;
-
+	static String useCase;
 	static boolean useTransactionRepresentation;
 
 	/** main
@@ -41,7 +41,7 @@ public class DesqDfsLocalDistributedMining {
 		if(args.length > 0) {
 			runDistributedMiningLocally(args);
 		} else {
-			runDistributedMiningLocally("IA2", 2, 1);
+			runDistributedMiningLocally("N4-1991", 2, 1);
 		}
 	}
 
@@ -202,16 +202,39 @@ public class DesqDfsLocalDistributedMining {
 	}
 
 
-	private static void setCase(String useCase) throws IOException {
+	private static void setCase(String thisUseCase) throws IOException {
 		String dataDir;
 		verbose = false;
+		useCase = thisUseCase;
 		switch (useCase) {
+			case "N1-1991":
+			case "N1":
+				patternExp = "ENTITY@ (VB@+ NN@+? IN@?) ENTITY@";
+				sigma = 10;
+				setNytData();
+				break;
+			case "N2-1991":
+			case "N2":
+			    patternExp = "(ENTITY@^ VB@+ NN@+? IN@? ENTITY@^)";
+				sigma = 100;
+				setNytData();
+				break;
+			case "N3-1991":
+			case "N3":
+				patternExp = "(ENTITY@^ be@VB@=^) DT@? (RB@? JJ@? NN@)";
+				sigma = 10;
+				setNytData();
+				break;
+			case "N4-1991":
+			case "N4":
+				patternExp = "(.^){3} NN@";
+				sigma = 1000;
+				setNytData();
+				break;
 			case "N5":
 				patternExp = "([.^ . .]|[. .^ .]|[. . .^])";
 				sigma = 1000;
-				dataDir = "/home/alex/Data/nyt/";
-				dict = Dictionary.loadFrom(dataDir + "nyt-dict.avro.gz");
-				dataFile  = new File(dataDir + "nyt-data.del");
+                setNytData();
 				break;
 			case "A1":
 				patternExp = "(Electronics^)[.{0,2}(Electronics^)]{1,4}";
@@ -295,5 +318,14 @@ public class DesqDfsLocalDistributedMining {
 		dataFile  = new File(dataDir + "data.del");
 	}
 
+	private static void setNytData()  throws IOException {
+		String dataset = "nyt";
+		if(useCase.contains("1991")) {
+			dataset = "nyt-1991";
+		}
+		String dataDir = "/home/alex/Data/" + dataset + "/";
 
+		dict = Dictionary.loadFrom(dataDir + dataset + "-dict.avro.gz");
+		dataFile  = new File(dataDir + dataset + "-data.del");
+	}
 }
