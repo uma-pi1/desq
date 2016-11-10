@@ -283,7 +283,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		for(int seqNo=0; seqNo<inputSequences.size(); seqNo++) {
 			inputSequence = inputSequences.get(seqNo);
 			if(useTransactionRepresentation) {
-				getPivotItemsAndTransactionRepresentationOfOneSequence(inputSequence);
+				getPivotItemsAndTransitionRepresentationOfOneSequence(inputSequence);
 			} else {
 				pivotElements = getPivotItemsOfOneSequence(inputSequence);
 
@@ -359,11 +359,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 	 * @param inputSequence
 	 * @return pivotItems set of frequent output items of input sequence inputSequence
 	 */
-	public IntSet getPivotItemsAndTransactionRepresentationOfOneSequence(IntList inputSequence) {
+	public IntSet getPivotItemsAndTransitionRepresentationOfOneSequence(IntList inputSequence) {
 		pivotItems.clear();
 		this.inputSequence = inputSequence;
-
-		// only one-pass for now
 
 		// get the pivot elements with the corresponding paths through the FST
 		prefix.clear();

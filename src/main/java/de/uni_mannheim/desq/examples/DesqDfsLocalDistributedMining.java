@@ -38,8 +38,11 @@ public class DesqDfsLocalDistributedMining {
 	 * @throws IOException
 	 */
 	public static void main(String[] args) throws IOException {
-		runDistributedMiningLocally("I1@2", 2, 1);
-		//runDistributedMiningLocally(args);
+		if(args.length > 0) {
+			runDistributedMiningLocally(args);
+		} else {
+			runDistributedMiningLocally("IA2", 2, 1);
+		}
 	}
 
 

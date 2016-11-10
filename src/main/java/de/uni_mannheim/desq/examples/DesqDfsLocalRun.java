@@ -306,8 +306,10 @@ public class DesqDfsLocalRun {
 	 * @throws IOException
 	 */
 	public static void main(String[] args) throws IOException {
-		runPartitionConstruction(args);
-		//runPartitionConstruction("I2", 6, 1);
-		//runDistributedMiningLocally("I1", 1, 1);
+		if(args.length > 0) {
+			runPartitionConstruction(args);
+		} else {
+			runPartitionConstruction("I2", 6, 1);
+		}
 	}
 }
