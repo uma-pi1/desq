@@ -33,4 +33,17 @@ public class CloneableIntHeapPriorityQueue extends IntHeapPriorityQueue implemen
         return heap;
     }
 
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[");
+        for(int i=0; i<size; i++) {
+            sb.append(heap[i]);
+            if(i<size-1) {
+                sb.append(", ");
+            }
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+
 }

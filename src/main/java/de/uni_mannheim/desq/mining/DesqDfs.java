@@ -704,10 +704,21 @@ public final class DesqDfs extends MemoryDesqMiner {
 		// get an iterator over all relevant transitions from here (relevant=starts from this state + matches the input item)
 		Iterator<Transition> transitionIt;
 		if(level >= transitionIterators.size()) {
-			transitionIt = state.consumeCompressed(itemFid);
+			transitionIt = state.consumeCompressed(itemFid, null, edfaStateSequence.get(pos).getFstStates());
 			transitionIterators.add(transitionIt);
 		} else {
-			transitionIt = state.consumeCompressed(itemFid, transitionIterators.get(level));
+			transitionIt = state.consumeCompressed(itemFid, transitionIterators.get(level),
+					edfaStateSequence.get(pos).getFstStates());
+		}
+
+
+		// get set for storing potential pivot elements
+		CloneableIntHeapPriorityQueue newCurrentPivotItems;
+		if(level >= pivotItemHeaps.size()) {
+			newCurrentPivotItems = new CloneableIntHeapPriorityQueue();
+			pivotItemHeaps.add(newCurrentPivotItems);
+		} else {
+			newCurrentPivotItems = pivotItemHeaps.get(level);
 		}
 
 		addItem = -1;
@@ -738,13 +749,12 @@ public final class DesqDfs extends MemoryDesqMiner {
 				}
 				// If the output item is frequent, we merge it into the set of current potential pivot items and recurse
 				if (largestFrequentFid >= addItem) {
-					CloneableIntHeapPriorityQueue newCurrentPivotItems;
 					if(currentPivotItems == null) { // set of pivot elements is empty so far, so no update is necessary, we just create a new set
-						newCurrentPivotItems = new CloneableIntHeapPriorityQueue();
+						newCurrentPivotItems.clear();
 						newCurrentPivotItems.enqueue(addItem);
 					} else { // update the set of current pivot elements
 						// get the first half: current[>=min(add)]
-						newCurrentPivotItems = currentPivotItems.clone();
+						newCurrentPivotItems.startFromExisting(currentPivotItems);
 						while(newCurrentPivotItems.size() > 0  && newCurrentPivotItems.firstInt() < addItem) {
 							newCurrentPivotItems.dequeueInt();
 						}
@@ -766,13 +776,15 @@ public final class DesqDfs extends MemoryDesqMiner {
 				// we only consider this transition if the set of output elements contains at least one frequent item
 				if(largestFrequentFid >= ascendants.firstInt()) { // the first item of the ascendants is the most frequent one
 
-					CloneableIntHeapPriorityQueue newCurrentPivotItems;
 					if (currentPivotItems == null) { // if we are starting a new pivot set there is no need for a union
 						// headSet(largestFrequentFid + 1) drops all infrequent items
-						newCurrentPivotItems = new CloneableIntHeapPriorityQueue(ascendants.headSet(largestFrequentFid + 1));
+						newCurrentPivotItems.clear();
+						for(int ascendant : ascendants.headSet(largestFrequentFid + 1)) {
+							newCurrentPivotItems.enqueue(ascendant);
+						}
 					} else {
 						// first half of the update union: current[>=min(add)].
-						newCurrentPivotItems = currentPivotItems.clone();
+						newCurrentPivotItems.startFromExisting(currentPivotItems);
 						while(newCurrentPivotItems.size() > 0 && newCurrentPivotItems.firstInt() < ascendants.firstInt()) {
 							newCurrentPivotItems.dequeueInt();
 						}
