@@ -108,6 +108,9 @@ public final class DesqDfs extends MemoryDesqMiner {
             fst = tempFst;
 			reverseFst = null;
 
+			// annotate final states
+			fst.annotateFinalStates();
+
             // if we prune irrelevant inputs, construct the DFS for the FST
             if (pruneIrrelevantInputs) {
                 this.edfa = new ExtendedDfa(fst, ctx.dict);
@@ -241,7 +244,11 @@ public final class DesqDfs extends MemoryDesqMiner {
      */
 	private boolean incStepOnePass(final IncStepArgs args, final int pos, final State state, final int level) {
 		// check if we reached the end of the input sequence
-	    if (pos >= args.inputSequence.size())
+
+		if(state.isFinalComplete())
+			return true;
+
+		if (pos >= args.inputSequence.size())
 			return state.isFinal(); // whether or not we require a full match
 
 		// get iterator over next output item/state pairs; reuse existing ones if possible
@@ -256,7 +263,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		// iterate over output item/state pairs and remember whether we hit a final state without producing output
         // (i.e., no transitions or only transitions with epsilon output)
-		boolean reachedFinalStateWithoutOutput = state.isFinal() && !fst.getRequireFullMatch();
+		//boolean reachedFinalStateWithoutOutput = state.isFinal() && !fst.getRequireFullMatch();
+		boolean reachedFinalStateWithoutOutput = false;
 		while (itemStateIt.hasNext()) {
 			final ItemState itemState = itemStateIt.next();
 			final int outputItemFid = itemState.itemFid;
