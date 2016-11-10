@@ -408,7 +408,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		return pivotItems;
 	}
 
-	Int2ObjectOpenHashMap<ObjectList<IntList>> paths = new Int2ObjectOpenHashMap<>();
+	private Int2ObjectOpenHashMap<ObjectList<IntList>> paths = new Int2ObjectOpenHashMap<>();
 
 
 	/** Runs one step (along compressed transition) in the FST in order to produce the set of frequent output items
@@ -425,16 +425,17 @@ public final class DesqDfs extends MemoryDesqMiner {
 		if(state.isFinal() && currentPivotItems.size() != 0 && prefix.size() != 0 && (!fst.getRequireFullMatch() || pos==inputSequence.size())) {
 			// add (pivot_item, transition-input-sequence) pairs to the partitions
 			IntSet emittedPivots = new IntAVLTreeSet(); // This is a hack. we should keep track of a set, not possibly mutliple items. TODO
-														// on second thought, maybe while we still use one-pass, this might not be 100% stupid
+			// on second thought, maybe while we still use one-pass, this might not be 100% stupid
+			IntList path = prefix.clone();
 			for(int i=0; i<currentPivotItems.size(); i++) {
 				int pivotItem = currentPivotItems.exposeInts()[i]; // This isn't very nice, but it does not drop read elements from the heap. TODO: find a better way?
 				if(!emittedPivots.contains(pivotItem)) {
 					emittedPivots.add(pivotItem);
 					if(paths.containsKey(pivotItem)) {
-						paths.get(pivotItem).add(prefix.clone());
+						paths.get(pivotItem).add(path);
 					} else {
 						ObjectList<IntList> add = new ObjectArrayList<>();
-						add.add(prefix.clone());
+						add.add(path);
 						paths.put(pivotItem,add);
 					}
 				}
@@ -1142,7 +1143,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				// we have new outputs, so we run through them and update the corresponding projected databases if the item is frequent
 				IntList outputItems = tr.getOutputElements(inputItem);
 				for (int outputItem : outputItems) {
-					if (largestFrequentFid >= outputItem) {
+					if (pivotItem >= outputItem) { // no check for largestFrequentFid necessary, as largestFrequentFid >= pivotItem
 						args.node.expandWithTransactionItem(outputItem, args.inputId, args.inputSequence.support,
 								localPos + 2);
 					}
