@@ -60,7 +60,9 @@ public final class ExtendedDfa {
 				//TODO: optimize
 				transitionList.clear();
 				for(int stateId : stateIdSet) {
-					transitionList.addAll(fst.getState(stateId).getTransitions());
+					// ignore outgoing transitions from final complete states
+					if(!fst.getState(stateId).isFinalComplete())
+						transitionList.addAll(fst.getState(stateId).getTransitions());
 				}
 				
 				// for all items, for all transitions
@@ -123,16 +125,18 @@ public final class ExtendedDfa {
 		return false;
 	}
 
+
+
 	/**
-	 * Returns true if the fst snapshot is relevant, i.e., leads to a final state
-	 * otherwise returns false
+	 * Returns true if the input sequence is relevant
 	 *
 	 * Also adds to the given list with the sequence of states being visited before consuming each item + final one
 	 * i.e., stateSeq[pos] = state before consuming inputSequence[pos]
 	 */
+	//TODO: change signature
 	public boolean isRelevant(IntList inputSequence, int initialFstStateId, List<ExtendedDfaState> stateSeq,
 							  IntList finalPos) {
-	/*	ExtendedDfaState state = eDfaStateIdForFstStateId[initialFstStateId];
+		ExtendedDfaState state = initialDfaState;
 		stateSeq.add(state);
 		int pos = 0;
 		while(pos < inputSequence.size()) {
@@ -140,10 +144,10 @@ public final class ExtendedDfa {
 			if(state == null)
 				break; // we may return true or false, as we might have reached a final state before
 			stateSeq.add(state);
-			if (state.isFinal() && (!fst.requireFullMatch || pos==inputSequence.size())) {
+			if(state.isFinalComplete() || (state.isFinal() && pos == inputSequence.size())) {
 				finalPos.add(pos);
 			}
-		}*/
+		}
 		return (!finalPos.isEmpty());
 	}
 }
