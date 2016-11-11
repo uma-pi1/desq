@@ -108,21 +108,20 @@ public final class ExtendedDfa {
 	/**
 	 * Returns true if the input sequence is relevant
 	 */
-	//TODO: change signature
-	public boolean isRelevant(IntList inputSequence, int position, int fstStateId) {
-		//ExtendedDfaState state = eDfaStateIdForFstStateId[fstStateId];
-        ExtendedDfaState state = initialDfaState;
-		while(position < inputSequence.size()) {
-			state = state.consume(inputSequence.getInt(position++));
+	public boolean isRelevant(IntList inputSequence) {
+		ExtendedDfaState state = initialDfaState;
+		int pos = 0;
+		while(pos < inputSequence.size()) {
+			state = state.consume(inputSequence.getInt(pos++));
 			// In this case is ok to return false, if there was a final state before
 			// we already retured true, final state can not be reached if state 
 			// was null
 			if(state == null)
 				return false;
-            if(state.isFinalComplete() || (state.isFinal() && position == inputSequence.size()))
+            if(state.isFinalComplete())
 				return true;
 		}
-		return false;
+		return state.isFinal(); //pos == inputSequence.size()
 	}
 
 
@@ -133,9 +132,7 @@ public final class ExtendedDfa {
 	 * Also adds to the given list with the sequence of states being visited before consuming each item + final one
 	 * i.e., stateSeq[pos] = state before consuming inputSequence[pos]
 	 */
-	//TODO: change signature
-	public boolean isRelevant(IntList inputSequence, int initialFstStateId, List<ExtendedDfaState> stateSeq,
-							  IntList finalPos) {
+	public boolean isRelevant(IntList inputSequence, List<ExtendedDfaState> stateSeq, IntList finalPos) {
 		ExtendedDfaState state = initialDfaState;
 		stateSeq.add(state);
 		int pos = 0;

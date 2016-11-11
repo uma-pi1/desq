@@ -165,7 +165,7 @@ public final class DesqDfs extends MemoryDesqMiner {
         if (useTwoPass) {
             // run the input sequence through the EDFA and compute the state sequences as well as the positions before
             // which a final FST state is reached
-			if (edfa.isRelevant(inputSequence, 0, edfaStateSequence, finalPos)) {
+			if (edfa.isRelevant(inputSequence, edfaStateSequence, finalPos)) {
 			    // we now know that the sequence is relevant; remember it
 				super.addInputSequence(inputSequence, inputSupport, allowBuffering);
 				edfaStateSequences.add(edfaStateSequence.toArray(new ExtendedDfaState[edfaStateSequence.size()]));
@@ -178,7 +178,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 
 		// one-pass version of DesqDfs
-		if (!pruneIrrelevantInputs || edfa.isRelevant(inputSequence, 0, 0)) {
+		if (!pruneIrrelevantInputs || edfa.isRelevant(inputSequence)) {
 			// if we reach this place, we either don't want to prune irrelevant inputs or the input is relevant
             // -> remember it
 		    super.addInputSequence(inputSequence, inputSupport, allowBuffering);

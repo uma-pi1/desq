@@ -52,10 +52,11 @@ public final class ExtendedDfaState {
 		if (state.isFinal()) {
 			fstFinalStates = new ArrayList<>(1);
 			fstFinalStates.add(state);
-		}
-		if(state.isFinalComplete()) {
+			fstFinalCompleteStates = (List<State>)Collections.EMPTY_LIST;
+		} else if(state.isFinalComplete()) {
 			fstFinalCompleteStates = new ArrayList<>(1);
 			fstFinalCompleteStates.add(state);
+			fstFinalStates = (List<State>)Collections.EMPTY_LIST;
 		}
 		else {
 			fstFinalStates = (List<State>)Collections.EMPTY_LIST;
@@ -98,6 +99,4 @@ public final class ExtendedDfaState {
 	public List<State> getFstFinalCompleteStates() {
 		return fstFinalCompleteStates;
 	}
-
-
 }

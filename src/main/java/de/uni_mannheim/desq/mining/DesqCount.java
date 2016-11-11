@@ -176,7 +176,7 @@ public final class DesqCount extends DesqMiner {
 		if (useTwoPass) {
 			// run the input sequence through the EDFA and compute the state sequences as well as the positions before
 			// which a final FST state is reached
-			if (edfa.isRelevant(sequence, 0, edfaStateSequence, finalPos)) {
+			if (edfa.isRelevant(sequence, edfaStateSequence, finalPos)) {
 				// we now know that the sequence is relevant; process it
 				// look at all positions before which a final FST state can be reached
 				for (final int pos : finalPos) {
@@ -200,7 +200,7 @@ public final class DesqCount extends DesqMiner {
 		}
 
 		// one-pass version of DesqCount
-		if (!pruneIrrelevantInputs || edfa.isRelevant(sequence, 0, 0)) {
+		if (!pruneIrrelevantInputs || edfa.isRelevant(sequence)) {
 			stepOnePass(0, fst.getInitialState(), 0);
 			inputId++;
 		}
