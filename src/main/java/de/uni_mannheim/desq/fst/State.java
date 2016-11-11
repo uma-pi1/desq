@@ -33,6 +33,8 @@ public final class State {
 	}
 	
 	public void addTransition(Transition t) {
+		BasicTransition tr = (BasicTransition) t;
+		tr.addFromState(this);
 		transitionList.add(t);
 	}
 	

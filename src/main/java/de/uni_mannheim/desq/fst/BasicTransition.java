@@ -22,6 +22,7 @@ public final class BasicTransition extends Transition {
 	final IntSet inputFids;
 	final Dictionary outputDict;
 	final boolean isForest;
+	private State fromState;
 
 	// variables for distributing DesqDfs
 	private int transitionNumber = -1;
@@ -288,4 +289,11 @@ public final class BasicTransition extends Transition {
         }
         return outputElements;
     }
+
+    public void addFromState(State state) {
+		fromState = state;
+	}
+	public State getFromState() {
+		return fromState;
+	}
 }

@@ -5,9 +5,12 @@ import de.uni_mannheim.desq.fst.BasicTransition.OutputLabelType;
 import de.uni_mannheim.desq.patex.PatEx;
 import de.uni_mannheim.desq.util.CloneableIntHeapPriorityQueue;
 import de.uni_mannheim.desq.util.DesqProperties;
+import de.uni_mannheim.desq.util.PrimitiveUtils;
 import it.unimi.dsi.fastutil.ints.*;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;
+import it.unimi.dsi.fastutil.objects.ObjectSet;
 import scala.Tuple2;
 
 import org.apache.log4j.Logger;
@@ -103,6 +106,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** If true, DesqDfs Distributed trends transition-encoded sequences between transitions */
 	final boolean useTransitionRepresentation;
 
+	/** If true, DesqDfs Distributed uses tree-structered transitions as shuffle format */
+	final boolean useTreeRepresentation;
+
 	/** Stores one Transition iterator per recursion level for reuse */
 	final ArrayList<Iterator<Transition>> transitionIterators = new ArrayList<>();
 
@@ -143,6 +149,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		useFirstPCVersion = ctx.conf.getBoolean("desq.mining.use.first.pc.version", false);
 		useCompressedTransitions = ctx.conf.getBoolean("desq.mining.pc.use.compressed.transitions", false);
 		useTransitionRepresentation = ctx.conf.getBoolean("desq.mining.use.transition.representation", false);
+		useTreeRepresentation = ctx.conf.getBoolean("desq.mining.use.tree.representation", false);
 
 
 		// construct pattern expression and FST
@@ -181,7 +188,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 			fst.numberTransitions();
 			//fst.print();
-			//fst.exportGraphViz("IA2.pdf");
+			//fst.exportGraphViz("fst.pdf");
 
 			// if we prune irrelevant inputs, construct the DFS for the FST
 			if (pruneIrrelevantInputs) {
@@ -282,7 +289,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 		// for each input sequence, emit (pivot_item, transition_id)
 		for(int seqNo=0; seqNo<inputSequences.size(); seqNo++) {
 			inputSequence = inputSequences.get(seqNo);
-			if(useTransitionRepresentation) {
+			if (useTreeRepresentation) { // tree transition representation
+				getPivotItemsAndTreeRepresentationOfOneSequence(inputSequence);
+			} else if(useTransitionRepresentation) { // concatenated transition representation
 				getPivotItemsAndTransitionRepresentationOfOneSequence(inputSequence);
 			} else {
 				pivotElements = getPivotItemsOfOneSequence(inputSequence);
@@ -395,6 +404,105 @@ public final class DesqDfs extends MemoryDesqMiner {
 				currentOffset += path.size();
 				sendList.addAll(path);
 			}
+
+			// emit the list we constructed
+			if(!partitions.containsKey(pivotItem)) {
+				partitions.put(pivotItem, new ObjectArrayList<IntList>());
+			}
+			//System.out.println("==> sendList: " + sendList);
+			partitions.get(pivotItem).add(sendList);
+		}
+
+
+		return pivotItems;
+	}
+
+	/** One state in a path through the Fst. We use this to build the NFAs we shuffle to the partitions
+	 *
+	 */
+	private class PathState {
+		protected PathState() {
+			outTransitions = new Object2ObjectOpenHashMap<>();
+		}
+		protected Object2ObjectOpenHashMap<Long, PathState> outTransitions;
+
+		protected PathState followTransition(int trId, int inpItem) {
+			// if we already have this transition, return the to state
+			long trInp = PrimitiveUtils.combine(trId,inpItem);
+			if(outTransitions.containsKey(trInp)) {
+				return outTransitions.get(trInp);
+			} else {
+				PathState toState = new PathState();
+				outTransitions.put(trInp, toState);
+				return toState;
+			}
+		}
+		protected void write(IntList send) {
+			int numOutgoing = outTransitions.size();
+			int startOffset = send.size();
+			// add number of outgoing transitions
+			send.add(numOutgoing);
+			// for each outgoing transition, place one placeholder integer for the offset to the beginning of the outgoing path
+			for(int i=0; i<numOutgoing; i++) {
+				send.add(0);
+			}
+
+
+			int outPathNo = 0;
+			for(Map.Entry<Long,PathState> entry : outTransitions.entrySet()) {
+				send.set(startOffset+1+outPathNo, send.size());
+                send.add(PrimitiveUtils.getLeft(entry.getKey())); // add the transition number
+				send.add(PrimitiveUtils.getRight(entry.getKey())); // add the input item
+                entry.getValue().write(send);
+                outPathNo++;
+			}
+		}
+	}
+
+/** Produces the set of pivot items for a given input sequence and constructs a tree representation of the transitions
+ * generating all output sequences of this input sequence
+	 *
+	 * @param inputSequence
+	 * @return pivotItems set of frequent output items of input sequence inputSequence
+	 */
+	public IntSet getPivotItemsAndTreeRepresentationOfOneSequence(IntList inputSequence) {
+		pivotItems.clear();
+		this.inputSequence = inputSequence;
+
+		// get the pivot elements with the corresponding paths through the FST
+		prefix.clear();
+		paths.clear();
+		findPathsAndPivotsStepOnePassCompressed(null, 0, fst.getInitialState(), 0);
+
+
+        // Join the found paths together into one tree/NFA
+		for(Map.Entry<Integer, ObjectList<IntList>> pivPath : paths.entrySet()) {
+			int pivotItem = pivPath.getKey();
+			ObjectList<IntList> paths = pivPath.getValue();
+			//System.out.println("-------------------------");
+			//System.out.println("seq " + inputSequence + " pivot " + pivotItem);
+
+			PathState root = new PathState();
+			// first element of the sent list is the number N of paths we are sending
+			int trId = 0;
+			int inpItem = 0;
+            PathState currentState;
+			// Run through the transitions of all pathes and construct the tree
+			for(IntList path :  pivPath.getValue()) {
+				//System.out.println("path: " + path);
+				currentState = root;
+                for(int i=0; i<path.size(); ) {
+					trId = path.getInt(i);
+					inpItem = path.getInt(i+1);
+					// TODO: if we change self-generalize input items up to their first ancestor<=pivot, we might be able to compress more here.
+					currentState = currentState.followTransition(trId, inpItem);
+					i = i+2;
+				}
+			}
+
+			// Next step: construct the sequence we will send to the partition
+			IntList sendList = new IntArrayList();
+			root.write(sendList);
 
 			// emit the list we constructed
 			if(!partitions.containsKey(pivotItem)) {
@@ -1083,6 +1191,20 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 	}
 
+	/**
+	 * Convenience function to switch between concat transition representation and trees
+	 * @param args
+	 * @param pos
+	 * @return
+	 */
+	private boolean incStepOnePass(final IncStepArgs args, final int pos) {
+		if(useTreeRepresentation)
+			return incStepOnePassTree(args, pos);
+		else
+			return incStepOnePassConcat(args, pos);
+	}
+
+
 	/** Updates the projected databases of the children of the current node (args.node) corresponding to each possible
 	 * next output item for the current input sequence (also stored in args). Used only in the one-pass algorithm.
 	 *
@@ -1091,7 +1213,54 @@ public final class DesqDfs extends MemoryDesqMiner {
 	 *
 	 * @return true if a final FST state can be reached without producing further output
 	 */
-	private boolean incStepOnePass(final IncStepArgs args, final int pos) {
+	private boolean incStepOnePassTree(final IncStepArgs args, final int pos) {
+		int numOutgoing = args.inputSequence.get(pos);
+
+        if(numOutgoing == 0) {
+			return true;
+		}
+
+		// in transition representation, we store pairs of integers: (transition id, input element)
+		int trNo ;
+		int inputItem;
+		BasicTransition tr = null;
+		OutputLabelType ol;
+		int readPos;
+
+		for(int pathNo=0; pathNo<numOutgoing; pathNo++) {
+			readPos = args.inputSequence.getInt(pos+1+pathNo);
+
+			// get (transition_id, input_item_fid) pair
+			trNo = args.inputSequence.getInt(readPos);
+			inputItem = args.inputSequence.getInt(readPos+1);
+			tr = (BasicTransition) fst.getTransitionByNumber(trNo);
+
+            // for each of the new outputs, we update the according projected database
+            IntList outputItems = tr.getOutputElements(inputItem);
+            for (int outputItem : outputItems) {
+                if (pivotItem >= outputItem) { // no check for largestFrequentFid necessary, as largestFrequentFid >= pivotItem
+                    args.node.expandWithTransitionItem(outputItem, args.inputId, args.inputSequence.support,
+                            readPos + 2);
+                }
+            }
+		}
+
+		// check for any of the outgoing transitions (in this case, the last one), whether the from state is final
+		return tr.getFromState().isFinal();
+		// TODO: there is probably a problem here. If we reach the accepting state with epsilon transitions and that state
+		// is another than the one here, the from state stored in the transition will not be marked as final state
+		// Therefore, we would not count this output although we should
+	}
+	/** Updates the projected databases of the children of the current node (args.node) corresponding to each possible
+	 * next output item for the current input sequence (also stored in args). Used only in the one-pass algorithm.
+	 *
+	 * @param args information about the input sequence and the current search tree node
+	 * @param pos next item to read
+	 *
+	 * @return true if a final FST state can be reached without producing further output
+	 */
+	private boolean incStepOnePassConcat(final IncStepArgs args, final int pos) {
+
 		// check whether we are at the end of the path we are following. There are two options.
 		// Option 1: we are through the last path, meaning, we are through the input
 		if (pos >= args.inputSequence.size()) {
@@ -1235,7 +1404,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			// output the patterns for the current child node if it turns out to be frequent
 			if (support >= sigma) {
 				// if we are mining a specific pivot partition (meaning, pivotItem>0), then we output only sequences with that pivot
-				if (ctx.patternWriter != null && (pivotItem==0 || pivot(prefix) == pivotItem)) {
+				if (ctx.patternWriter != null && (pivotItem==0 || pivot(prefix) == pivotItem)) { // TODO: investigate what is pruned here (whether we can improve)
 					if (!useTwoPass) { // one-pass
 						ctx.patternWriter.write(prefix, support);
 					} else { // two-pass

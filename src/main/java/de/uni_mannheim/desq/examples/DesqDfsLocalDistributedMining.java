@@ -27,6 +27,7 @@ public class DesqDfsLocalDistributedMining {
 	static String scenarioStr;
 	static String useCase;
 	static boolean useTransitionRepresentation;
+	static boolean useTreeRepresentation;
 
 	/** main
 	 *
@@ -37,7 +38,7 @@ public class DesqDfsLocalDistributedMining {
 		if(args.length > 0) {
 			runDistributedMiningLocally(args);
 		} else {
-			runDistributedMiningLocally("N4-1991", 2, 1);
+			runDistributedMiningLocally("I2", 3, 1);
 		}
 	}
 
@@ -69,6 +70,7 @@ public class DesqDfsLocalDistributedMining {
 		dataReader.setDictionary(dict);
 
 		minerConf.setProperty("desq.mining.use.transition.representation", useTransitionRepresentation);
+		minerConf.setProperty("desq.mining.use.tree.representation", useTreeRepresentation);
 
 		// default settings
 		minerConf.setProperty("desq.mining.skip.non.pivot.transitions", false);
@@ -296,6 +298,11 @@ public class DesqDfsLocalDistributedMining {
 			case 2:
 				scenarioStr = "send-transactions";
 				useTransitionRepresentation = true;
+				break;
+			case 3:
+				scenarioStr = "send-trees";
+                useTransitionRepresentation = true;
+				useTreeRepresentation = true;
 				break;
 			default:
 				System.out.println("Unknown variant");
