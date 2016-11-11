@@ -425,6 +425,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			outTransitions = new Object2ObjectOpenHashMap<>();
 		}
 		protected Object2ObjectOpenHashMap<Long, PathState> outTransitions;
+		protected boolean isFinal = false;
 
 		protected PathState followTransition(int trId, int inpItem) {
 			// if we already have this transition, return the to state
@@ -437,11 +438,14 @@ public final class DesqDfs extends MemoryDesqMiner {
 				return toState;
 			}
 		}
+		public void setFinal() {
+			this.isFinal = true;
+		}
 		protected void write(IntList send) {
 			int numOutgoing = outTransitions.size();
 			int startOffset = send.size();
 			// add number of outgoing transitions
-			send.add(numOutgoing);
+			send.add(isFinal ? -numOutgoing : numOutgoing); // if the current state is a final state, we store a negative integer
 			// for each outgoing transition, place one placeholder integer for the offset to the beginning of the outgoing path
 			for(int i=0; i<numOutgoing; i++) {
 				send.add(0);
@@ -498,6 +502,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 					currentState = currentState.followTransition(trId, inpItem);
 					i = i+2;
 				}
+				// we ran through the path, so the current state is a final state.
+				currentState.setFinal();
 			}
 
 			// Next step: construct the sequence we will send to the partition
@@ -1215,8 +1221,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 	 */
 	private boolean incStepOnePassTree(final IncStepArgs args, final int pos) {
 		int numOutgoing = args.inputSequence.get(pos);
-
-        if(numOutgoing == 0) {
+		boolean stateIsFinal = false;
+		if(numOutgoing < 0) {
+			stateIsFinal = true;
+			numOutgoing = -numOutgoing;
+		} else if(numOutgoing == 0) {
 			return true;
 		}
 
@@ -1246,10 +1255,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 
 		// check for any of the outgoing transitions (in this case, the last one), whether the from state is final
-		return tr.getFromState().isFinal();
+		//return tr.getFromState().isFinal();
 		// TODO: there is probably a problem here. If we reach the accepting state with epsilon transitions and that state
 		// is another than the one here, the from state stored in the transition will not be marked as final state
 		// Therefore, we would not count this output although we should
+        return stateIsFinal;
 	}
 	/** Updates the projected databases of the children of the current node (args.node) corresponding to each possible
 	 * next output item for the current input sequence (also stored in args). Used only in the one-pass algorithm.
