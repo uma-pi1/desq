@@ -105,11 +105,22 @@ public final class DesqCount extends DesqMiner {
 						"desq.mining.use.two.pass=true");
 			}
 
+
+			// annotate final states before constructing dfa
+			tempFst.annotateFinalStates();
+
 			// construct the DFA for the FST (for the forward pass)
 			this.edfa = new ExtendedDfa(tempFst, ctx.dict);
 
-			// and then reverse the FST (which we now only need for the backward pass)
+			// clear annotations
+			tempFst.removeAnnotations();
+
+			// then reverse the FST (which we now only need for the backward pass)
 			tempFst.reverse(false); // here we need the reverse fst
+
+			// and annotate reverse FST
+			tempFst.annotateFinalStates();
+
 			fst = null;
 			reverseFst = tempFst;
 
@@ -170,8 +181,15 @@ public final class DesqCount extends DesqMiner {
 				// look at all positions before which a final FST state can be reached
 				for (final int pos : finalPos) {
 					// for those positions, start with each possible final FST state and go backwards
-					for (State fstFinalState : edfaStateSequence.get(pos).getFstFinalStates()) {
-						stepTwoPass(pos-1, fstFinalState, 0);
+
+					// we start with final state if all input was consumed or final complete state
+					if(pos == sequence.size()) {
+						for (State fstFinalState : edfaStateSequence.get(pos).getFstFinalStates()) {
+							stepTwoPass(pos - 1, fstFinalState, 0);
+						}
+					}
+					for(State fstFinalCompleteState : edfaStateSequence.get(pos).getFstFinalCompleteStates()) {
+						stepTwoPass(pos - 1, fstFinalCompleteState, 0);
 					}
 				}
 				inputId++;
@@ -291,12 +309,18 @@ public final class DesqCount extends DesqMiner {
 	 */
 	private void stepTwoPass(int pos, State state, int level) {
 		// check if we reached the beginning of the input sequence
-		if(pos == -1) {
+		/*if(pos == -1) {
 			// we consumed entire input in reverse -> we must have reached the inital state by two-pass correctness
 			assert state.getId() == 0;
 			if (!prefix.isEmpty()) {
 				countSequence(prefix);
 			}
+			return;
+		}*/
+
+		// if we reached a final complete state or consumed the entire input (-> reached final state)
+		if( (state.isFinalComplete() || pos == -1) && !prefix.isEmpty()) {
+			countSequence(prefix);
 			return;
 		}
 
