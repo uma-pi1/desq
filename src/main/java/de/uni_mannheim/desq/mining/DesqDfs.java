@@ -90,11 +90,21 @@ public final class DesqDfs extends MemoryDesqMiner {
 						"desq.mining.use.two.pass=true");
 			}
 
+			// annotate final states before constructing dfa
+            tempFst.annotateFinalStates();
+
             // construct the DFA for the FST (for the forward pass)
 			this.edfa = new ExtendedDfa(tempFst, ctx.dict);
 
-            // and then reverse the FST (which we now only need for the backward pass)
+            // clean annotations
+            tempFst.removeAnnotations();
+
+            // then reverse the FST (which we now only need for the backward pass)
             tempFst.reverse(false); // here we need the reverse fst
+
+            // and annotate reverse FST
+            tempFst.annotateFinalStates();
+
 			fst = null;
 			reverseFst = tempFst;
 
@@ -215,9 +225,16 @@ public final class DesqDfs extends MemoryDesqMiner {
                     // look at all positions before which a final FST state can be reached
                     for (final int pos : finalStatePos) {
                         // for those positions, start with each possible final FST state and go backwards
-						for (State fstFinalState : incStepArgs.edfaStateSequence[pos].getFstFinalStates()) {
-							incStepTwoPass(incStepArgs, pos-1, fstFinalState, 0);
-						}
+
+                        // we start with final state if entire input was consumed or final complete state
+                        if(pos == incStepArgs.inputSequence.size()) {
+                            for (State fstFinalState : incStepArgs.edfaStateSequence[pos].getFstFinalStates()) {
+                                incStepTwoPass(incStepArgs, pos-1, fstFinalState, 0);
+                            }
+                        }
+                        for(State fstFinalCompleteState : incStepArgs.edfaStateSequence[pos].getFstFinalCompleteStates()) {
+                            incStepTwoPass(incStepArgs, pos-1, fstFinalCompleteState, 0);
+                        }
 					}
 				}
 
@@ -297,11 +314,14 @@ public final class DesqDfs extends MemoryDesqMiner {
 	private boolean incStepTwoPass(final IncStepArgs args, final int pos,
 								   final State state, final int level) {
 		// check if we reached the beginning of the input sequence
-	    if(pos == -1) {
+	    /*if(pos == -1) {
 			// we consumed entire input in reverse -> we must have reached the inital state by two-pass correctness
 			assert state.getId() == 0;
 			return true;
-		}
+		}*/
+
+		if(state.isFinalComplete() || pos == -1)
+		    return true;
 
         // get iterator over next output item/state pairs; reuse existing ones if possible
         // note that the reverse FST is used here (since we process inputs backwards)
