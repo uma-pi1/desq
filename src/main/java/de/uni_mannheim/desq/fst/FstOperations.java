@@ -131,7 +131,8 @@ public final class FstOperations {
 	public static List<State> reverse(Fst fst) {
 		return reverse(fst, true);
 	}
-	
+
+	//TODO: handle fst annotations (remove annotations before reversing?)
 	public static List<State> reverse(Fst fst, boolean createNewInitialState) {
 	
 		Int2ObjectMap<List<Transition>> reversedIncomingTransitionsOfState = new Int2ObjectOpenHashMap<>();
@@ -185,7 +186,8 @@ public final class FstOperations {
 		initialStates.add(fst.initialState);
 		partiallyDeterminize(fst, initialStates);
 	}
-	
+
+	//TODO: handle fst annotations (remove annotations before determinizing?)
 	public static void partiallyDeterminize(Fst fst, List<State> initialStates) {
 		fst.initialState = new State();
 		

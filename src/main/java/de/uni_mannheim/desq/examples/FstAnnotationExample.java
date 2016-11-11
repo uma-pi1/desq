@@ -34,7 +34,11 @@ public class FstAnnotationExample {
         //String patternExpression = ".*(B)[.* | ...(B)]?";
         //String patternExpression = "(A .*|A B c)";
         //String patternExpression = "[(A .*|A B c)].*";
-        //String patternExpression = DesqMiner.patternExpressionFor(1,3,false);
+        //String patternExpression = DesqMiner.patternExpressionFor(0,3,false);
+        //String patternExpression = "^(A B)|.*(A c).*$";
+        //String patternExpression = "(A c).*";
+        //String patternExpression = "(A B c?)$";
+
 
         System.out.println(patternExpression);
 
@@ -47,7 +51,7 @@ public class FstAnnotationExample {
         fst.annotateFinalStates();
 
         System.out.println("Minimized FST");
-        fst.print();
+        //fst.print();
         fst.exportGraphViz("fst-example-annotated.gv");
         fst.exportGraphViz("fst-example-annotated.pdf"); // graphviz needs to be installed
 
