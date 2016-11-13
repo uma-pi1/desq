@@ -25,7 +25,7 @@ public class FstAnnotationExample {
 
         // update hierarchy
         SequenceReader dataReader = new DelSequenceReader(dataFile.openStream(), false);
-        dict.incCounts(dataReader);
+        dict.incFreqs(dataReader);
         dict.recomputeFids();
 
         //Some test expressions
