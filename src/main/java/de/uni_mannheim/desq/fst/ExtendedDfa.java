@@ -36,9 +36,6 @@ public final class ExtendedDfa {
 		// processed edfa states
 		Set<IntSet> processedStateIdSets = new HashSet<>();
 		
-		//helper
-		List<Transition> transitionList = new ArrayList<>();
-		
 		// Initialize conversion
 		IntSet initialStateIdSet = IntSets.singleton(fst.getInitialState().getId());
 		newStateForStateIdSet.put(initialStateIdSet, initialDfaState);
@@ -51,23 +48,22 @@ public final class ExtendedDfa {
 			if(!processedStateIdSets.contains(stateIdSet)) {
 				ExtendedDfaState fromEDfaState = newStateForStateIdSet.get(stateIdSet);
 				
-				//TODO: optimize
-				transitionList.clear();
-				for(int stateId : stateIdSet) {
-					// ignore outgoing transitions from final complete states
-					if(!fst.getState(stateId).isFinalComplete())
-						transitionList.addAll(fst.getState(stateId).getTransitions());
-				}
-				
 				// for all items, for all transitions
 				IntIterator intIt = dict.fids().iterator();
 				while (intIt.hasNext()) {
 					int itemFid = intIt.nextInt();
 					// compute reachable states for this item
 					IntSet reachableStateIds = new IntOpenHashSet();
-					for(Transition t : transitionList) {
-						if(t.matches(itemFid)) {
-							reachableStateIds.add(t.getToState().getId());
+
+					for(int stateId : stateIdSet) {
+						// ignore outgoing transitions from final complete states
+						State state = fst.getState(stateId);
+						if(!state.isFinalComplete()) {
+							for(Transition t : state.getTransitions()) {
+								if(t.matches(itemFid)) {
+									reachableStateIds.add(t.getToState().getId());
+								}
+							}
 						}
 					}
 					if(!reachableStateIds.isEmpty()) {
@@ -92,7 +88,6 @@ public final class ExtendedDfa {
 		newStateForStateIdSet = null;
 		unprocessedStateIdSets = null;
 		processedStateIdSets = null;
-		transitionList = null;
 	}
 	
 
