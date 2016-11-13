@@ -30,9 +30,6 @@ public final class ExtendedDfa {
 		// Map old states to new state
 		Map<IntSet, ExtendedDfaState> newStateForStateIdSet = new HashMap<>();
 		
-		// Map from item to reachable states
-		Int2ObjectMap<IntSet> reachableStatesFromItemId = new Int2ObjectOpenHashMap<>(); 
-		
 		// Unprocessed edfa states
 		Stack<IntSet> unprocessedStateIdSets = new Stack<>();
 		
@@ -54,8 +51,6 @@ public final class ExtendedDfa {
 			if(!processedStateIdSets.contains(stateIdSet)) {
 				ExtendedDfaState fromEDfaState = newStateForStateIdSet.get(stateIdSet);
 				
-				reachableStatesFromItemId.clear();
-
 				//TODO: optimize
 				transitionList.clear();
 				for(int stateId : stateIdSet) {
@@ -68,40 +63,36 @@ public final class ExtendedDfa {
 				IntIterator intIt = dict.fids().iterator();
 				while (intIt.hasNext()) {
 					int itemFid = intIt.nextInt();
+					// compute reachable states for this item
 					IntSet reachableStateIds = new IntOpenHashSet();
 					for(Transition t : transitionList) {
 						if(t.matches(itemFid)) {
 							reachableStateIds.add(t.getToState().getId());
 						}
 					}
-					reachableStatesFromItemId.put(itemFid, reachableStateIds);
-				}
+					if(!reachableStateIds.isEmpty()) {
+						//check if we already processed these reachableStateIds
+						if(!processedStateIdSets.containsAll(reachableStateIds))
+							unprocessedStateIdSets.push(reachableStateIds);
 
-				Iterator it = reachableStatesFromItemId.entrySet().iterator();
-				while(it.hasNext()) {
-					Int2ObjectMap.Entry<IntSet> entry = (Int2ObjectMap.Entry<IntSet>) it.next();
-					int itemFid = entry.getIntKey();
-					IntSet reachableStateIds = entry.getValue();
+						//create new extended dfa state if required
+						ExtendedDfaState toEDfaState = newStateForStateIdSet.get(reachableStateIds);
+						if(toEDfaState == null) {
+							toEDfaState = new ExtendedDfaState(reachableStateIds, fst);
+							newStateForStateIdSet.put(reachableStateIds, toEDfaState);
+						}
 
-					//check if we already processed these reachableStateIds
-					if(!processedStateIdSets.containsAll(reachableStateIds))
-						unprocessedStateIdSets.push(reachableStateIds);
-
-					//create new extended dfa state if required
-					ExtendedDfaState toEDfaState = newStateForStateIdSet.get(reachableStateIds);
-					if(toEDfaState == null) {
-						toEDfaState = new ExtendedDfaState(reachableStateIds, fst);
-						newStateForStateIdSet.put(reachableStateIds, toEDfaState);
+						// add to dfa transition table
+						fromEDfaState.addToTransitionTable(itemFid, toEDfaState);
 					}
-
-					// add to dfa transition table
-					fromEDfaState.addToTransitionTable(itemFid, toEDfaState);
 				}
 			}
 			processedStateIdSets.add(stateIdSet);
 		}
-		reachableStatesFromItemId.clear();
-		processedStateIdSets.clear();
+		newStateForStateIdSet = null;
+		unprocessedStateIdSets = null;
+		processedStateIdSets = null;
+		transitionList = null;
 	}
 	
 
