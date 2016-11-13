@@ -76,8 +76,8 @@ public abstract class DesqMiningTest {
         if (computeStatisticsAndFids()) {
             SequenceReader dataReader = getSequenceReader();
             dataReader.setDictionary(dict);
-            dict.clearCountsAndFids();
-            dict.incCounts(dataReader);
+            dict.clearFreqs();
+            dict.incFreqs(dataReader);
             dataReader.close();
             dict.recomputeFids();
         }

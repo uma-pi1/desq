@@ -1,7 +1,6 @@
 package de.uni_mannheim.desq.patex;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.dictionary.Item;
 import de.uni_mannheim.desq.fst.*;
 import de.uni_mannheim.desq.fst.BasicTransition.InputLabelType;
 import de.uni_mannheim.desq.fst.BasicTransition.OutputLabelType;
@@ -215,12 +214,12 @@ public final class PatEx {
 				word = word.substring(1, word.length()-1);
 			}
 
-			Item item = dict.getItemBySid(word);
-			if (item == null) {
+			int fid = dict.fidOf(word);
+			if (fid < 0) {
 				throw new RuntimeException("unknown item " + word + " at " + ctx.item().getStart().getLine()
 						+ ":" + ctx.item().getStart().getCharPositionInLine());
 			}
-			int inputLabel = item.fid;
+			int inputLabel = fid;
 			int opCount = ctx.getChildCount();
 			if (opCount == 2) {
 				if (ctx.getChild(1).getText().equals("=")) {

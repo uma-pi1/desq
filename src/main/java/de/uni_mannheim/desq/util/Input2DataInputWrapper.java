@@ -1,14 +1,15 @@
 package de.uni_mannheim.desq.util;
 
 import com.esotericsoftware.kryo.io.Input;
-import org.apache.commons.lang.NotImplementedException;
 
 import java.io.DataInput;
+import java.io.DataInputStream;
 import java.io.IOException;
 
 /** Wraps a DataInput around a Input. */
 public final class Input2DataInputWrapper implements DataInput {
     public Input input;
+    private DataInput thisWrapper = new DataInputStream(new DataInput2InputStreamWrapper(this));
 
     @Override
     public void readFully(byte[] b) throws IOException {
@@ -22,7 +23,7 @@ public final class Input2DataInputWrapper implements DataInput {
 
     @Override
     public int skipBytes(int n) throws IOException {
-        throw new NotImplementedException();
+        return thisWrapper.skipBytes(n);
     }
 
     @Override
@@ -77,11 +78,11 @@ public final class Input2DataInputWrapper implements DataInput {
 
     @Override
     public String readLine() throws IOException {
-        throw new NotImplementedException();
+        return thisWrapper.readLine();
     }
 
     @Override
     public String readUTF() throws IOException {
-        throw new NotImplementedException();
+        return thisWrapper.readUTF();
     }
 }

@@ -1,6 +1,7 @@
 package de.uni_mannheim.desq.fst;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
+import de.uni_mannheim.desq.dictionary.RestrictedDictionary;
 import it.unimi.dsi.fastutil.ints.*;
 
 import java.util.Iterator;
@@ -43,8 +44,8 @@ public final class BasicTransition extends Transition {
 		this.inputLabelType = inputLabelType;
 		this.outputLabel = outputLabel;
 		this.outputLabelType = outputLabelType;
-		this.inputLabelSid = inputLabel > 0 ? dict.getItemByFid(inputLabel).sid : ".";
-		this.outputLabelSid = outputLabel > 0 ? dict.getItemByFid(outputLabel).sid : null;
+		this.inputLabelSid = inputLabel > 0 ? dict.sidOfFid(inputLabel): ".";
+		this.outputLabelSid = outputLabel > 0 ? dict.sidOfFid(outputLabel) : null;
 		this.toState = toState;
 
 		if (inputLabel == 0)
@@ -65,7 +66,7 @@ public final class BasicTransition extends Transition {
 			if (outputLabel == 0) 
 				outputDict = dict;
 			else
-				outputDict = dict.restrictedCopy(dict.descendantsFids(outputLabel));
+				outputDict = new RestrictedDictionary(dict, dict.descendantsFids(outputLabel));
 		} else outputDict = null;
 	}	
 

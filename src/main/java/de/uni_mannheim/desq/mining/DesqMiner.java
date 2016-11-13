@@ -22,7 +22,7 @@ public abstract class DesqMiner {
 	protected abstract void addInputSequence(IntList sequence, long support, boolean allowBuffering);
 
 	protected void addInputSequence(WeightedSequence sequence, boolean allowBuffering) {
-		addInputSequence(sequence, sequence.support, allowBuffering);
+		addInputSequence(sequence, sequence.weight, allowBuffering);
 	}
 	
 	public void addInputSequences(SequenceReader in) throws IOException {

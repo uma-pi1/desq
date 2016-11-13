@@ -38,7 +38,7 @@ object ExampleUtils {
     print("Mining (persist)... ")
     val persistTime = Stopwatch.createStarted
     result.sequences.cache()
-    val (count, support) = result.sequences.map(ws => (1, ws.support)).reduce((cs1, cs2) => (cs1._1+cs2._1, cs1._2+cs2._2))
+    val (count, support) = result.sequences.map(ws => (1, ws.weight)).reduce((cs1, cs2) => (cs1._1+cs2._1, cs1._2+cs2._2))
     persistTime.stop
     println(persistTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 

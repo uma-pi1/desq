@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.io;
 
+import de.uni_mannheim.desq.dictionary.Dictionary;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
@@ -12,12 +13,17 @@ public class DelSequenceReader extends SequenceReader {
 	private final BufferedReader reader;
 	private final boolean usesFids;
 
-	public DelSequenceReader(InputStream in, boolean usesFids) {
+	public DelSequenceReader(Dictionary dict, InputStream in, boolean usesFids) {
+		this.dict = dict;
 		this.reader = new BufferedReader(new InputStreamReader(in));
 		this.usesFids = usesFids;
 	}
 
-	@Override
+	public DelSequenceReader(InputStream in, boolean usesFids) {
+		this(null, in, usesFids);
+	}
+
+		@Override
 	public boolean read(IntList items) throws IOException {
 		String line = reader.readLine();
 		if (line == null) {

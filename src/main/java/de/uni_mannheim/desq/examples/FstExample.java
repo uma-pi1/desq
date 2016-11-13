@@ -22,7 +22,7 @@ public class FstExample {
 
 		// update hierarchy
 		SequenceReader dataReader = new DelSequenceReader(dataFile.openStream(), false);
-		dict.incCounts(dataReader);
+		dict.incFreqs(dataReader);
 		dict.recomputeFids();
 		
 		String patternExpression = "[c|d]([A^|B=^]+)e";

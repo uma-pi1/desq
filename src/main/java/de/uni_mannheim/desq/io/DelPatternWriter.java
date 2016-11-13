@@ -39,10 +39,10 @@ public class DelPatternWriter extends PatternWriter {
 					writer.print( fid );
 					break;
 				case GID:
-					writer.print( dict.getItemByFid(fid).gid);
+					writer.print( dict.gidOf(fid));
 					break;
 				case SID:
-					writer.print( dict.getItemByFid(fid).sid);
+					writer.print( dict.sidOfFid(fid));
 					break;
 			}
 		}
@@ -63,10 +63,10 @@ public class DelPatternWriter extends PatternWriter {
 					writer.print( fid );
 					break;
 				case GID:
-					writer.print( dict.getItemByFid(fid).gid);
+					writer.print( dict.gidOf(fid));
 					break;
 				case SID:
-					writer.print( dict.getItemByFid(fid).sid);
+					writer.print( dict.sidOfFid(fid));
 					break;
 			}
 		}

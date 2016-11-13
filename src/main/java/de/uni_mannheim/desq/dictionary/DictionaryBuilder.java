@@ -9,12 +9,12 @@ import org.apache.commons.lang3.tuple.Pair;
  */
 public class DictionaryBuilder implements DesqBuilder {
     private Dictionary dict;
-    private IntList currentGids = new IntArrayList();
-    private IntSet ascendantGids = new IntOpenHashSet();
-    private int currentSupport = 0;
-    private Int2IntMap itemCounts = new Int2IntOpenHashMap();
+    private IntList currentFids = new IntArrayList();
+    private IntSet ascendantFids = new IntOpenHashSet();
+    private long currentWeight = 0;
+    private Int2LongMap itemCfreqs = new Int2LongOpenHashMap();
     private int maxGidSoFar = 0;
-    private MutablePair<Item,Boolean> pair = new MutablePair<>();
+    private MutablePair<Integer,Boolean> pair = new MutablePair<>();
 
     public DictionaryBuilder(Dictionary dict) {
         this.dict = dict;
@@ -29,44 +29,41 @@ public class DictionaryBuilder implements DesqBuilder {
         newSequence(1);
     }
 
-        /** Informs the dictionary builder that a new input sequences is being processed. Must also be called after
-         * the last input sequence has been processed. */
-    public void newSequence(int support) {
-        dict.incCounts(currentGids, itemCounts, ascendantGids, false, currentSupport);
-        currentSupport = support;
-        currentGids.clear();
+    /** Informs the dictionary builder that a new input sequences is being processed. Must also be called after
+      * the last input sequence has been processed. */
+    public void newSequence(long weight) {
+        dict.incFreqs(currentFids, itemCfreqs, ascendantFids, true, currentWeight);
+        currentWeight = weight;
+        currentFids.clear();
     }
 
     @Override
-    public Pair<Item,Boolean> appendItem(String sid) {
+    public Pair<Integer,Boolean> appendItem(String sid) {
         boolean newItem = false;
-        Item item = dict.getItemBySid(sid);
-        if (item == null) {
+        int fid = dict.fidOf(sid);
+        if (fid < 0) {
             newItem = true;
             maxGidSoFar++;
-            item = new Item(maxGidSoFar, sid);
-            dict.addItem(item);
+            fid = dict.addItem(maxGidSoFar, sid);
         }
-        currentGids.add(item.gid);
-        pair.setLeft(item);
+        currentFids.add(fid);
+        pair.setLeft(fid);
         pair.setRight(newItem);
         return pair;
     }
 
     @Override
-    public Pair<Item,Boolean> addParent(Item child, String parentSid) {
+    public Pair<Integer,Boolean> addParent(int childFid, String parentSid) {
         boolean newItem = false;
-        Item parent = dict.getItemBySid(parentSid);
-        if (parent == null) {
+        int parentFid = dict.fidOf(parentSid);
+        if (parentFid < 0) {
             newItem = true;
             maxGidSoFar++;
-            parent = new Item(maxGidSoFar, parentSid);
-            dict.addItem(parent);
-            Item.addParent(child, parent);
-        } else if (!child.parents.contains(parent)) {
-                Item.addParent(child, parent);
+            parentFid = dict.addItem(maxGidSoFar, parentSid);
         }
-        pair.setLeft(parent);
+        assert !dict.childrenOf(parentFid).contains(childFid); // because the child was new
+        dict.addParent(childFid, parentFid);
+        pair.setLeft(parentFid);
         pair.setRight(newItem);
         return pair;
     }

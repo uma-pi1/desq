@@ -93,9 +93,9 @@ public class ExampleUtils {
         // print results
         System.out.println("Patterns:");
         for (WeightedSequence pattern : result.getPatterns()) {
-            System.out.print(pattern.support);
+            System.out.print(pattern.weight);
             System.out.print(": ");
-            System.out.println(dataReader.getDictionary().getItemsByFids(pattern));
+            System.out.println(dataReader.getDictionary().sidsOfFids(pattern));
         }
 
         return miner;
@@ -141,7 +141,7 @@ public class ExampleUtils {
 
         // update hierarchy
         SequenceReader dataReader = new DelSequenceReader(dataFile.openStream(), false);
-        dict.incCounts(dataReader);
+        dict.incFreqs(dataReader);
         dict.recomputeFids();
         System.out.println("Dictionary with statitics:");
         dict.writeJson(System.out);
@@ -153,7 +153,7 @@ public class ExampleUtils {
         dataReader.setDictionary(dict);
         IntList inputSequence = new IntArrayList();
         while (dataReader.readAsFids(inputSequence)) {
-            System.out.println(dict.getItemsByFids(inputSequence));
+            System.out.println(dict.sidsOfFids(inputSequence));
         }
         System.out.println();
 

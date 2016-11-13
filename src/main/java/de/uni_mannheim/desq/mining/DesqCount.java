@@ -89,7 +89,7 @@ public final class DesqCount extends DesqMiner {
 		this.pruneIrrelevantInputs = ctx.conf.getBoolean("desq.mining.prune.irrelevant.inputs");
 		this.useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
 
-		this.largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
+		this.largestFrequentFid = ctx.dict.lastFidAbove(sigma);
 		this.inputId = 0;
 		
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");

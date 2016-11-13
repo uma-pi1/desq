@@ -64,7 +64,7 @@ public final class PrefixGrowthMiner extends MemoryDesqMiner {
 		this.gamma = gamma;
 		this.lambda = lambda;
 		this.generalize = generalize;
-        this.largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
+        this.largestFrequentFid = ctx.dict.lastFidAbove(sigma);
         this.ascendants = ctx.dict.isForest() ? new IntArrayList() : new IntAVLTreeSet();
         clear();
 	}
@@ -99,7 +99,7 @@ public final class PrefixGrowthMiner extends MemoryDesqMiner {
 
                     // process item
                     if (largestFrequentFid >= itemFid) {
-                        root.expandWithItem(itemFid, inputId, inputSequence.support, pos);
+                        root.expandWithItem(itemFid, inputId, inputSequence.weight, pos);
                     }
                     if (generalize) {
                         ascendants.clear();
@@ -108,7 +108,7 @@ public final class PrefixGrowthMiner extends MemoryDesqMiner {
                         while (itemFidIt.hasNext()) {
                             itemFid = itemFidIt.nextInt();
                             if (largestFrequentFid >= itemFid) {
-                                root.expandWithItem(itemFid, inputId, inputSequence.support, pos);
+                                root.expandWithItem(itemFid, inputId, inputSequence.weight, pos);
                             }
                         }
                     }
@@ -182,7 +182,7 @@ public final class PrefixGrowthMiner extends MemoryDesqMiner {
 
                         // process item
                         if (largestFrequentFid >= itemFid) {
-                            childNode.expandWithItem(itemFid, inputId, inputSequence.support, newPosition);
+                            childNode.expandWithItem(itemFid, inputId, inputSequence.weight, newPosition);
                         }
                         if (generalize) {
                             ascendants.clear();
@@ -191,7 +191,7 @@ public final class PrefixGrowthMiner extends MemoryDesqMiner {
                             while (itemFidIt.hasNext()) {
                                 itemFid = itemFidIt.nextInt();
                                 if(largestFrequentFid >= itemFid) {
-                                    childNode.expandWithItem(itemFid, inputId, inputSequence.support, newPosition);
+                                    childNode.expandWithItem(itemFid, inputId, inputSequence.weight, newPosition);
                                 }
                             }
                         }

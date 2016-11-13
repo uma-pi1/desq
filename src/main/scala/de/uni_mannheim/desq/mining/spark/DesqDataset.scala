@@ -44,37 +44,37 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
     // compute counts
     val usesFids = this.usesFids
     val dictBroadcast = broadcastDictionary()
-    val totalItemCounts = sequences.mapPartitions(rows => {
+    val totalItemFreqs = sequences.mapPartitions(rows => {
       new Iterator[(Int, (Long,Long))] {
         val dict = dictBroadcast.value
-        val itemCounts = new Int2IntOpenHashMap()
-        var currentItemCountsIterator = itemCounts.int2IntEntrySet().fastIterator()
-        var currentSupport = 0L
+        val itemCfreqs = new Int2LongOpenHashMap()
+        var currentItemCfreqsIterator = itemCfreqs.int2LongEntrySet().fastIterator()
+        var currentWeight = 0L
         val ancItems = new IntAVLTreeSet()
 
         override def hasNext: Boolean = {
-          while (!currentItemCountsIterator.hasNext && rows.hasNext) {
+          while (!currentItemCfreqsIterator.hasNext && rows.hasNext) {
             val sequence = rows.next()
-            currentSupport = sequence.support
-            dict.computeItemFrequencies(sequence, itemCounts, ancItems, usesFids, 1)
-            currentItemCountsIterator = itemCounts.int2IntEntrySet().fastIterator()
+            currentWeight = sequence.weight
+            dict.computeItemCfreqs(sequence, itemCfreqs, ancItems, usesFids, 1)
+            currentItemCfreqsIterator = itemCfreqs.int2LongEntrySet().fastIterator()
           }
-          currentItemCountsIterator.hasNext
+          currentItemCfreqsIterator.hasNext
         }
 
         override def next(): (Int, (Long, Long)) = {
-          val entry = currentItemCountsIterator.next()
-          (entry.getIntKey, (currentSupport, entry.getIntValue*currentSupport))
+          val entry = currentItemCfreqsIterator.next()
+          (entry.getIntKey, (currentWeight, entry.getLongValue*currentWeight))
         }
       }
     }).reduceByKey((c1,c2) => (c1._1+c2._1, c1._2+c2._2)).collect
 
     // and put them in the dictionary
     val newDict = dict.deepCopy()
-    for (itemCount <- totalItemCounts) {
-      val item = newDict.getItemByGid(itemCount._1)
-      item.dFreq = itemCount._2._1
-      item.cFreq = itemCount._2._2
+    for (itemFreqs <- totalItemFreqs) {
+      val fid = if (usesFids) itemFreqs._1 else newDict.fidOf(itemFreqs._1)
+      newDict.setDfreqOf(fid, itemFreqs._2._1)
+      newDict.setCfreqOf(fid, itemFreqs._2._2)
     }
     newDict.recomputeFids()
 
@@ -168,9 +168,9 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
     }
   }
 
-  /** Returns an RDD that contains for each sequence an array of its string identifiers and its support. */
+  /** Returns an RDD that contains for each sequence an array of its string identifiers and its weight. */
   //noinspection AccessorLikeMethodIsEmptyParen
-  def toSidsSupportPairs(): RDD[(Array[String],Long)] = {
+  def toSidsWeightPairs(): RDD[(Array[String],Long)] = {
     val dictBroadcast = broadcastDictionary()
     val usesFids = this.usesFids // to localize
 
@@ -185,12 +185,12 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
           val itemSids = new Array[String](s.size())
           for (i <- Range(0,s.size())) {
             if (usesFids) {
-              itemSids(i) = dict.getItemByFid(s.getInt(i)).sid
+              itemSids(i) = dict.sidOfFid(s.getInt(i))
             } else {
-              itemSids(i) = dict.getItemByGid(s.getInt(i)).sid
+              itemSids(i) = dict.sidOfGid(s.getInt(i))
             }
           }
-          (itemSids, s.support)
+          (itemSids, s.weight)
         }
       }
     })
@@ -264,7 +264,7 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
 
   /** Pretty prints up to <code>maxSequences</code> sequences contained in this dataset using their sid's. */
   def print(maxSequences: Int = -1): Unit = {
-    val strings = toSidsSupportPairs().map(s => {
+    val strings = toSidsWeightPairs().map(s => {
       val sidString = s._1.deep.mkString("[", " ", "]")
       if (s._2 == 1)
         sidString
@@ -369,7 +369,7 @@ object DesqDataset {
 
       override def next(): WeightedSequence = {
         parse.apply(rows.next(), seqBuilder)
-        val s = new WeightedSequence(seqBuilder.getCurrentGids, seqBuilder.getCurrentSupport)
+        val s = new WeightedSequence(seqBuilder.getCurrentGids, seqBuilder.getCurrentWeight)
         dict.gidsToFids(s)
         s
       }
