@@ -324,6 +324,9 @@ public final class DesqCount extends DesqMiner {
 			return;
 		}
 
+		if(pos == -1)
+			return;
+
 		// get iterator over next output item/state pairs; reuse existing ones if possible
 		// note that the reverse FST is used here (since we process inputs backwards)
 		// only iterates over states that we saw in the forward pass (the other ones can safely be skipped)
