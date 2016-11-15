@@ -9,6 +9,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;
+import scala.Tuple2;
 
 import java.io.*;
 import java.util.Map;
@@ -16,7 +17,6 @@ import java.util.concurrent.TimeUnit;
 
 public class DesqDfsLocalDistributedMining {
 
-	static boolean caseSet = false;
 	static long sigma;
 	static String patternExp;
 	static File dataFile;
@@ -28,6 +28,8 @@ public class DesqDfsLocalDistributedMining {
 	static String useCase;
 	static boolean useTransitionRepresentation;
 	static boolean useTreeRepresentation;
+	static boolean mergeSuffixes;
+	static String dataFolder;
 
 	/** main
 	 *
@@ -35,13 +37,43 @@ public class DesqDfsLocalDistributedMining {
 	 * @throws IOException
 	 */
 	public static void main(String[] args) throws IOException {
+
+//		localCorrectnessTest(); System.exit(0);
+
+		if(System.getProperty("os.name").startsWith("Mac")) {
+			dataFolder = "/Users/alex/Data/";
+		} else {
+			dataFolder = "/home/alex/Data/";
+		}
 		if(args.length > 0) {
 			runDistributedMiningLocally(args);
 		} else {
-			runDistributedMiningLocally("I2", 3, 1);
+			runDistributedMiningLocally("IX2", 4, 1);
 		}
 	}
 
+	public static void localCorrectnessTest() throws IOException {
+		if (System.getProperty("os.name").startsWith("Mac")) {
+			dataFolder = "/Users/alex/Data/";
+		} else {
+			dataFolder = "/home/alex/Data/";
+		}
+		String[] tests = {"I1@1", "I1@2", "I2", "IA2", "IA4", "IX1", "IX2"};
+		int[] scenarios = {1, 2, 3, 4};
+
+		String output = "";
+		for (String testCase : tests) {
+			for (int scenario : scenarios) {
+				Tuple2<Long, Long> res = runDistributedMiningLocally(testCase, scenario, 1);
+				output += testCase + " // " + scenario + "\t" + res._1() + "\t" + res._2() + "\n";
+			}
+			output += "\n";
+		}
+
+		System.out.println("###############################################################");
+		System.out.println("###############################################################");
+		System.out.println(output);
+	}
 
 	public static void runDistributedMiningLocally(String args[]) throws IOException {
 
@@ -56,7 +88,7 @@ public class DesqDfsLocalDistributedMining {
 		runDistributedMiningLocally(theCase, scenario, run);
 	}
 
-	public static void runDistributedMiningLocally(String theCase, int scenario, int run) throws IOException{
+	public static Tuple2<Long,Long> runDistributedMiningLocally(String theCase, int scenario, int run) throws IOException{
 
 		setCase(theCase);
 		setScenario(scenario);
@@ -71,6 +103,7 @@ public class DesqDfsLocalDistributedMining {
 
 		minerConf.setProperty("desq.mining.use.transition.representation", useTransitionRepresentation);
 		minerConf.setProperty("desq.mining.use.tree.representation", useTreeRepresentation);
+        minerConf.setProperty("desq.mining.merge.suffixes", mergeSuffixes);
 
 		// default settings
 		minerConf.setProperty("desq.mining.skip.non.pivot.transitions", false);
@@ -117,6 +150,10 @@ public class DesqDfsLocalDistributedMining {
 		Int2ObjectOpenHashMap<ObjectList<IntList>> partitions = miner.createPartitions(inputSequences, verbose);
 		pcTime.stop();
 		System.out.println(pcTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
+
+		// clear the memory
+		inputSequences.clear();
+		inputSequences.trim();
 
 		// some stats (outside time)
 		int numPartitions = partitions.size();
@@ -190,13 +227,15 @@ public class DesqDfsLocalDistributedMining {
 		System.out.println(out);
 
 		try{
-			PrintWriter writer = new PrintWriter(new FileOutputStream(new File("/home/alex/Dropbox/Master/Thesis/Experiments/F/log-"+runVersion+".txt"), true));
+			PrintWriter writer = new PrintWriter(new FileOutputStream(new File("/Users/alex/Dropbox/Master/Thesis/Experiments/F/log-"+runVersion+".txt"), true));
 			writer.println(out);
 			writer.close();
 		} catch (Exception e) {
 			System.out.println("Can't open file!");
 			e.printStackTrace();
 		}
+
+		return new Tuple2(patCount, patTotalFreq);
 	}
 
 
@@ -284,12 +323,29 @@ public class DesqDfsLocalDistributedMining {
 				verbose = true;
 				setICDMData();
 				break;
+			case "IX1":
+				patternExp = "[c|d](a2).*([A^|B=^]).*(e)";
+				sigma = 1;
+				verbose = true;
+				setICDMData();
+				break;
+			case "IX2":
+				patternExp = "[c|d](a2).*([A^|B=^]).*(B^e)";
+				sigma = 1;
+				verbose = true;
+				setICDMData();
+				break;
+			default:
+				System.out.println("Do not know the use case " + useCase);
+				System.exit(1);
 		}
 	}
 
 	private static void setScenario(int scenario) {
 		//set some defaults
 		useTransitionRepresentation = false;
+        useTreeRepresentation = false;
+		mergeSuffixes = false;
 
 		switch(scenario) {
 			case 1:
@@ -304,19 +360,25 @@ public class DesqDfsLocalDistributedMining {
                 useTransitionRepresentation = true;
 				useTreeRepresentation = true;
 				break;
+			case 4:
+				scenarioStr = "send-trees, merge suffixes";
+				useTransitionRepresentation = true;
+				useTreeRepresentation = true;
+				mergeSuffixes = true;
+				break;
 			default:
 				System.out.println("Unknown variant");
 		}
 	}
 
 	private static void setAmznData() throws IOException {
-		String dataDir = "/home/alex/Data/amzn/";
+		String dataDir = dataFolder + "amzn/";
 		dict = Dictionary.loadFrom(dataDir + "amzn-dict.avro.gz");
 		dataFile = new File(dataDir + "amzn-data.del");
 	}
 
 	private static void setICDMData() throws IOException {
-		String dataDir = "/home/alex/Data/icdm16fids/";
+		String dataDir = dataFolder + "icdm16fids/";
 		dict = Dictionary.loadFrom(dataDir + "dict.json");
 		dataFile  = new File(dataDir + "data.del");
 	}
@@ -326,7 +388,7 @@ public class DesqDfsLocalDistributedMining {
 		if(useCase.contains("1991")) {
 			dataset = "nyt-1991";
 		}
-		String dataDir = "/home/alex/Data/" + dataset + "/";
+		String dataDir = dataFolder + dataset + "/";
 
 		dict = Dictionary.loadFrom(dataDir + dataset + "-dict.avro.gz");
 		dataFile  = new File(dataDir + dataset + "-data.del");

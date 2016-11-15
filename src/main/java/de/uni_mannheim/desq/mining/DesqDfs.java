@@ -2,6 +2,7 @@ package de.uni_mannheim.desq.mining;
 
 import de.uni_mannheim.desq.fst.*;
 import de.uni_mannheim.desq.fst.BasicTransition.OutputLabelType;
+import de.uni_mannheim.desq.fst.graphviz.FstVisualizer;
 import de.uni_mannheim.desq.patex.PatEx;
 import de.uni_mannheim.desq.util.CloneableIntHeapPriorityQueue;
 import de.uni_mannheim.desq.util.DesqProperties;
@@ -10,7 +11,7 @@ import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;
-import it.unimi.dsi.fastutil.objects.ObjectSet;
+import org.apache.commons.io.FilenameUtils;
 import scala.Tuple2;
 
 import org.apache.log4j.Logger;
@@ -109,6 +110,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** If true, DesqDfs Distributed uses tree-structered transitions as shuffle format */
 	final boolean useTreeRepresentation;
 
+	/** If true, DesqDfs Distributed merges shared suffixes in the tree representation */
+	final boolean mergeSuffixes;
+
 	/** Stores one Transition iterator per recursion level for reuse */
 	final ArrayList<Iterator<Transition>> transitionIterators = new ArrayList<>();
 
@@ -130,6 +134,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** Stores one pivot element heap per level for reuse */
 	final ArrayList<CloneableIntHeapPriorityQueue> pivotItemHeaps = new ArrayList<>();
 
+	/** Counter for path state IDs and list of states for convenient debug output */
+	private int numPathStates = 0;
+	private ObjectList<PathState> pathStates = new ObjectArrayList<PathState>(); // TODO: only for printing. can be removed
+
 
 	/** Stats about pivot element search */
 	public long counterTotalRecursions = 0;
@@ -150,6 +158,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		useCompressedTransitions = ctx.conf.getBoolean("desq.mining.pc.use.compressed.transitions", false);
 		useTransitionRepresentation = ctx.conf.getBoolean("desq.mining.use.transition.representation", false);
 		useTreeRepresentation = ctx.conf.getBoolean("desq.mining.use.tree.representation", false);
+		mergeSuffixes = ctx.conf.getBoolean("desq.mining.merge.suffixes", false);
 
 
 		// construct pattern expression and FST
@@ -273,7 +282,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 		return new Tuple2(numSequences,totalPivotElements);
 	}
 
-	/** Produces partitions for a given set of input sequences
+	/**
+	 * Produces partitions for a given set of input sequences
 	 *
 	 * @param inputSequences the input sequences
 	 * @return partitions Map
@@ -314,7 +324,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 	}
 
 
-	/** Produces set of frequent output elements created by one input sequence by running the FST
+	/**
+	 * Produces set of frequent output elements created by one input sequence by running the FST
 	 * and storing all frequent output items
 	 *
 	 * We are using one pass for this for now, as it is generally safer to use.
@@ -361,7 +372,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 	}
 
 
-	/** Produces the set of pivot items for a given input sequence and emits one concatenated collection of paths through the
+	/**
+	 * Produces the set of pivot items for a given input sequence and emits one concatenated collection of paths through the
 	 * FST for each pivot element, in the current format:
 	 * (pivot_element, {(no. pathes), (start-pos-path1), [(start-pos-path2), ...], (trNo,inpItem),(trNo,inpItem),...})
 	 *
@@ -417,54 +429,281 @@ public final class DesqDfs extends MemoryDesqMiner {
 		return pivotItems;
 	}
 
-	/** One state in a path through the Fst. We use this to build the NFAs we shuffle to the partitions
+	/**
+	 * One state in a path through the Fst. We use this to build the NFAs we shuffle to the partitions
 	 *
+	 * If we want to merge suffixes (mergeSuffixes true), in addition to the forward pointers (outTransitions),
+	 * we maintain backward pointers (inTransitions)
 	 */
 	private class PathState {
-		protected PathState() {
-			outTransitions = new Object2ObjectOpenHashMap<>();
-		}
-		protected Object2ObjectOpenHashMap<Long, PathState> outTransitions;
+		protected final int id;
 		protected boolean isFinal = false;
 
-		protected PathState followTransition(int trId, int inpItem) {
-			// if we already have this transition, return the to state
+		/** Forward pointers */
+		protected Object2ObjectOpenHashMap<Long, PathState> outTransitions;
+
+		/** Backward pointers (for merging suffixes) */
+		protected Object2ObjectOpenHashMap<Long, ObjectList<PathState>> inTransitions;
+
+		protected PathState() {
+			id = numPathStates++;
+			pathStates.add(this);
+			outTransitions = new Object2ObjectOpenHashMap<>();
+			if(mergeSuffixes)
+				inTransitions = new Object2ObjectOpenHashMap<>();
+		}
+
+		/** Construct new state with backwards pointers */
+		protected PathState(long trInp, PathState from) {
+			this();
+			ObjectList<PathState> fromState = new ObjectArrayList<>();
+			fromState.add(from);
+			inTransitions.put(trInp, fromState);
+		}
+
+		/**
+		 * Starting from this state, follow a given transition with given input item. Returns the state the transition
+		 * leads to.
+		 *
+		 * @param trId		the number of the input transition to follow
+		 * @param inpItem	the input item for the transition to follow
+		 * @param endState	the end state for the NFA (only relevant for merging suffixes)
+		 * @param lastTransition	flag whether the given transition is the last in the path (only relevant for merging suffixes)
+		 * @return
+		 */
+		protected PathState followTransition(int trId, int inpItem, PathState endState, boolean lastTransition) {
 			long trInp = PrimitiveUtils.combine(trId,inpItem);
+			// if we have a tree branch with this transition already, follow it and return the state it leads to
 			if(outTransitions.containsKey(trInp)) {
-				return outTransitions.get(trInp);
-			} else {
-				PathState toState = new PathState();
+				PathState toState = outTransitions.get(trInp);
+
+				// if this transition goes to the end state, but the current path has more than one transition left,
+				//    we direct this transition to a new state, which we mark as final
+				if(toState == endState && !lastTransition) {
+					// create new state
+					toState = new PathState(trInp, this);
+					toState.setFinal();
+
+					// redirect forward pointer
+					outTransitions.put(trInp, toState);
+
+					// drop backward pointer in the end state
+					endState.inTransitions.get(trInp).remove(this);
+				}
+
+				// return this state
+				return toState;
+			} else if(!lastTransition || !mergeSuffixes) {
+                // if we don't have a path starting with that transition, we create a new one
+				//   (unless it is the last transition, in which case we want to transition to the global end state)
+				PathState toState;
+				// if we merge suffixes, create a state with backwards pointers, otherwise one without
+                if(mergeSuffixes)
+                    toState = new PathState(trInp, this);
+                else
+                	toState = new PathState();
+
+				// add the transition and the created state to the outgoing transitions of this state and return the state the transition moves to
 				outTransitions.put(trInp, toState);
 				return toState;
+			} else {
+                // if this is the last transition, we want to move to the global end state and start merging suffixes from there
+				outTransitions.put(trInp, endState);
+				// check wether we have merge candidates (=same transition going into the end state)
+                ObjectList<PathState> sameTransitionFromStates = endState.addIncomingTransitionOrGetExistingOnes(trInp, this);
+				if(sameTransitionFromStates != null) {
+					// the current transition has arrived before at the toState, so it was not added to the list of incoming
+					// in that case, we check whether we can merge our current state with any of those states
+					boolean wasMerged = false;
+					for(PathState fromState : sameTransitionFromStates) {
+						wasMerged = fromState.attemptMerge(this);
+						if(wasMerged)
+							break;
+					}
+
+					// if we can't merge this state into any of the existing ones, we need to add it to the list
+					//   of from states for this transition
+					if(!wasMerged) {
+                        endState.inTransitions.get(trInp).add(this);
+					}
+				}
+				return endState;
 			}
 		}
+
+		/**
+		 * Attempts to merge PathState 'drop' into the called state.
+		 * Merges parent states recursively
+		 *
+		 * If it is possible to join the two states, updates forward and backward pointers of affected states
+         *
+		 * @param drop	The state that is supposed to be merged into the current one
+		 * @return
+		 */
+		private boolean attemptMerge(PathState drop) {
+			// we want to merge the passed State "drop" into this state if possible.
+
+			// if it is the same state, there is no need for action
+			if(this == drop) {
+				return true;
+			}
+
+			// we only merge final states in to final states and non-final ones into non-final ones
+			// also, we can only merge if the two states have the same outgoing transitions. otherwise, we would
+			// 	produce incorrect prefixes
+			if(isFinal == drop.isFinal && outTransitions.equals(drop.outTransitions))  {
+				// we merge the incoming transitions of the two merge states: each incoming transition can have multiple
+				// from states. within these sets, we see whether we can join predecessor states. Imagine the in transitions
+				// we aim to join like this:
+
+                // mergeTarget                              drop
+				// tr1/inp1: from1, from2					tr1/inp1: from3
+				// tr1/inp2: from4
+				//											tr1/inp3: from4
+				// tr2/inp3: from5							tr2/inp3: from6, from7
+
+				// so potentially, we could join tr1/inp1/from3 and tr2/inp3/from5 -- if the from states are mergeable
+				//   into one of the other from states for that TR/INP
+
+				for(Map.Entry<Long, ObjectList<PathState>> inTransitionEntry : drop.inTransitions.entrySet()) {
+					long incomingTrInp = inTransitionEntry.getKey();
+					ObjectList<PathState> incomingStatesForThisTr = inTransitionEntry.getValue();
+
+					// we might be able to merge some of the parent states
+					if(this.inTransitions.containsKey(incomingTrInp)) {
+						for(PathState mergeInState : incomingStatesForThisTr) {
+							// update the forward pointer of the parent state
+							mergeInState.outTransitions.put(incomingTrInp, this);
+
+							// check all predecessor states for this tr/inp in the mergeTarget state as merge candidates
+							boolean mergedThisState = false;
+							for(PathState potentialMergeTargetState : inTransitions.get(incomingTrInp)) {
+								mergedThisState = potentialMergeTargetState.attemptMerge(mergeInState);
+								if(mergedThisState) {
+									break;
+								}
+							}
+							// if no merge was possible, we add this state to the incoming states for this tr/inp
+							if(!mergedThisState) {
+								inTransitions.get(incomingTrInp).add(mergeInState);
+							}
+						}
+					} else {
+						// if there is no transition like this pointing to the keep state yet, we add it
+						inTransitions.put(incomingTrInp, incomingStatesForThisTr);
+						// Update the forward pointers
+						for(PathState s : incomingStatesForThisTr) {
+							s.outTransitions.put(incomingTrInp, this);
+						}
+					}
+				}
+
+				// after merging, we need to remove the the drop state from the incomingTr lists of the outgoing states
+				for(Map.Entry<Long, PathState> targetStateEntry : drop.outTransitions.entrySet()) {
+					targetStateEntry.getValue().inTransitions.get(targetStateEntry.getKey()).remove(drop);
+				}
+
+				// also we can remove the state from the list of states
+				pathStates.remove(drop);
+
+				return true;
+			} else {
+				return false;
+			}
+		}
+
+		/** Mark this state as final */
 		public void setFinal() {
 			this.isFinal = true;
 		}
+
+		/**
+		 * Case 1 (the state was not before reached with given TR/INP): Add the given fromState to the list of
+		 * 			from states for the given TR/INP, return null
+		 * Case 2 (the state was reached with the given TR/INP before): Don't add given TR/INP, return the list of
+		 * 			fromStates this states was reached from with given TR/INP
+		 *
+		 * @param trInp		TR/INP to check
+		 * @param fromState state the TR/INP is coming from
+		 * @return
+		 */
+		public ObjectList<PathState> addIncomingTransitionOrGetExistingOnes(long trInp, PathState fromState) {
+			if(inTransitions.containsKey(trInp)) {
+				// TR/INP exists, return list of from states
+				return inTransitions.get(trInp);
+			} else {
+				// TR/INP doesn't exist yet, create list, add given from state, return null
+				ObjectList<PathState> incomingStates = new ObjectArrayList<>();
+				incomingStates.add(fromState);
+				inTransitions.put(trInp, incomingStates);
+				return null;
+			}
+		}
+
+		/**
+		 * Serialize this state, appending to the given send list.
+		 * Run serialization of successor states recursively
+		 *
+		 * @param send
+		 */
 		protected void write(IntList send) {
 			int numOutgoing = outTransitions.size();
 			int startOffset = send.size();
-			// add number of outgoing transitions
+
+			// write number of outgoing transitions
 			send.add(isFinal ? -numOutgoing : numOutgoing); // if the current state is a final state, we store a negative integer
-			// for each outgoing transition, place one placeholder integer for the offset to the beginning of the outgoing path
+
+			// for each outgoing transition, write one placeholder integer for the offset to the beginning of the outgoing path
 			for(int i=0; i<numOutgoing; i++) {
 				send.add(0);
 			}
 
-
+			// follow each outgoing transition
 			int outPathNo = 0;
 			for(Map.Entry<Long,PathState> entry : outTransitions.entrySet()) {
+                // fill in the placeholder, then write transition number and the input item
 				send.set(startOffset+1+outPathNo, send.size());
-                send.add(PrimitiveUtils.getLeft(entry.getKey())); // add the transition number
-				send.add(PrimitiveUtils.getRight(entry.getKey())); // add the input item
+                send.add(PrimitiveUtils.getLeft(entry.getKey()));
+				send.add(PrimitiveUtils.getRight(entry.getKey()));
+                // run serialization for the successor state
                 entry.getValue().write(send);
                 outPathNo++;
 			}
 		}
 	}
 
-/** Produces the set of pivot items for a given input sequence and constructs a tree representation of the transitions
- * generating all output sequences of this input sequence
+	/**
+	 * Export the set of path states currently stored in pathStates with their transitions to PDF
+	 * @param file
+	 * @param paintIncoming
+	 */
+	public void exportGraphViz(String file, boolean paintIncoming) {
+		FstVisualizer fstVisualizer = new FstVisualizer(FilenameUtils.getExtension(file), FilenameUtils.getBaseName(file));
+		fstVisualizer.beginGraph();
+		for(PathState s : pathStates) {
+			for(Map.Entry<Long, PathState> trEntry : s.outTransitions.entrySet()) {
+				int trId = PrimitiveUtils.getLeft(trEntry.getKey());
+				int inputId = PrimitiveUtils.getRight(trEntry.getKey());
+
+				fstVisualizer.add(String.valueOf(s.id), trId+"{"+inputId+"}", String.valueOf(trEntry.getValue().id));
+			}
+			if(paintIncoming && s.inTransitions!=null) {
+				for(Map.Entry<Long, ObjectList<PathState>> trEntry : s.inTransitions.entrySet()) {
+					int trId = PrimitiveUtils.getLeft(trEntry.getKey());
+					int inputId = PrimitiveUtils.getRight(trEntry.getKey());
+
+					for(PathState s2 : trEntry.getValue())
+						fstVisualizer.add(String.valueOf(s.id), (-trId)+"{"+inputId+"}", String.valueOf(s2.id));
+				}
+			}
+			if(s.isFinal)
+				fstVisualizer.addAccepted(String.valueOf(s.id));
+		}
+		fstVisualizer.endGraph();
+	}
+
+	/** Produces the set of pivot items for a given input sequence and constructs a tree representation of the transitions
+	 * generating all output sequences of this input sequence
 	 *
 	 * @param inputSequence
 	 * @return pivotItems set of frequent output items of input sequence inputSequence
@@ -486,7 +725,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 			//System.out.println("-------------------------");
 			//System.out.println("seq " + inputSequence + " pivot " + pivotItem);
 
+			numPathStates = 0;
+			pathStates.clear();
 			PathState root = new PathState();
+			PathState end = new PathState();
 			// first element of the sent list is the number N of paths we are sending
 			int trId = 0;
 			int inpItem = 0;
@@ -499,13 +741,15 @@ public final class DesqDfs extends MemoryDesqMiner {
 					trId = path.getInt(i);
 					inpItem = path.getInt(i+1);
 					// TODO: if we change self-generalize input items up to their first ancestor<=pivot, we might be able to compress more here.
-					currentState = currentState.followTransition(trId, inpItem);
+                    currentState = currentState.followTransition(trId, inpItem, end, i+2 == path.size() ?  true : false);
 					i = i+2;
 				}
 				// we ran through the path, so the current state is a final state.
 				currentState.setFinal();
 			}
 
+			//System.out.println("Printing path tree for pivot " + pivotItem);
+			//root.exportGraphViz("PathTree-pivot"+pivotItem+".pdf", false);
 			// Next step: construct the sequence we will send to the partition
 			IntList sendList = new IntArrayList();
 			root.write(sendList);
