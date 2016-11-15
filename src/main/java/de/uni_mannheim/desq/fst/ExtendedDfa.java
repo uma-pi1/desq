@@ -1,9 +1,11 @@
 package de.uni_mannheim.desq.fst;
 
+import com.google.common.base.Stopwatch;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import it.unimi.dsi.fastutil.ints.*;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -17,11 +19,10 @@ public final class ExtendedDfa {
 	Fst fst;
 	Dictionary dict;
 
-	
 	public ExtendedDfa(Fst fst, Dictionary dict) {
 		this.fst = fst;
 		this.dict = dict;
-		this.initialDfaState = new ExtendedDfaState(fst.getInitialState().getId(), fst);
+		this.initialDfaState = new ExtendedDfaState(fst.getInitialState().getId(), fst, dict.size());
 		this.constructExtendedDfa();
 	}
 
@@ -29,13 +30,15 @@ public final class ExtendedDfa {
 	private void constructExtendedDfa() {
 		// Map old states to new state
 		Map<IntSet, ExtendedDfaState> newStateForStateIdSet = new HashMap<>();
-		
+
 		// Unprocessed edfa states
 		Stack<IntSet> unprocessedStateIdSets = new Stack<>();
-		
+
 		// processed edfa states
 		Set<IntSet> processedStateIdSets = new HashSet<>();
-		
+
+		Map<IntSet, IntSet> reachableStatesForItemIds = new HashMap<>();
+
 		// Initialize conversion
 		IntSet initialStateIdSet = IntSets.singleton(fst.getInitialState().getId());
 		newStateForStateIdSet.put(initialStateIdSet, initialDfaState);
@@ -46,8 +49,10 @@ public final class ExtendedDfa {
 			IntSet stateIdSet = unprocessedStateIdSets.pop();
 
 			if(!processedStateIdSets.contains(stateIdSet)) {
+
+				reachableStatesForItemIds.clear();
 				ExtendedDfaState fromEDfaState = newStateForStateIdSet.get(stateIdSet);
-				
+
 				// for all items, for all transitions
 				IntIterator intIt = dict.fids().iterator();
 				while (intIt.hasNext()) {
@@ -55,41 +60,57 @@ public final class ExtendedDfa {
 					// compute reachable states for this item
 					IntSet reachableStateIds = new IntOpenHashSet();
 
-					for(int stateId : stateIdSet) {
+					for (int stateId : stateIdSet) {
 						// ignore outgoing transitions from final complete states
 						State state = fst.getState(stateId);
-						if(!state.isFinalComplete()) {
-							for(Transition t : state.getTransitions()) {
-								if(t.matches(itemFid)) {
+						if (!state.isFinalComplete()) {
+							for (Transition t : state.getTransitions()) {
+								if (t.matches(itemFid)) {
 									reachableStateIds.add(t.getToState().getId());
 								}
 							}
 						}
 					}
-					if(!reachableStateIds.isEmpty()) {
-						//check if we already processed these reachableStateIds
-						if(!processedStateIdSets.containsAll(reachableStateIds))
-							unprocessedStateIdSets.push(reachableStateIds);
-
-						//create new extended dfa state if required
-						ExtendedDfaState toEDfaState = newStateForStateIdSet.get(reachableStateIds);
-						if(toEDfaState == null) {
-							toEDfaState = new ExtendedDfaState(reachableStateIds, fst);
-							newStateForStateIdSet.put(reachableStateIds, toEDfaState);
+					if (!reachableStateIds.isEmpty()) {
+						IntSet itemIds = reachableStatesForItemIds.get(reachableStateIds);
+						if (itemIds == null) {
+							itemIds = new IntOpenHashSet();
+							reachableStatesForItemIds.put(reachableStateIds, itemIds);
 						}
+						itemIds.add(itemFid);
+					}
+				}
+				for(Map.Entry<IntSet, IntSet> entry : reachableStatesForItemIds.entrySet()) {
+					IntSet reachableStateIds = entry.getKey();
+					IntSet itemFids = entry.getValue();
 
+					//check if we already processed these reachableStateIds
+					if(!processedStateIdSets.contains(reachableStateIds))
+						unprocessedStateIdSets.push(reachableStateIds);
+
+					//create new extended dfa state if required
+					ExtendedDfaState toEDfaState = newStateForStateIdSet.get(reachableStateIds);
+					if(toEDfaState == null) {
+						toEDfaState = new ExtendedDfaState(reachableStateIds, fst, dict.size());
+						newStateForStateIdSet.put(reachableStateIds, toEDfaState);
+					}
+
+					for(int itemFid : itemFids) {
 						// add to dfa transition table
 						fromEDfaState.addToTransitionTable(itemFid, toEDfaState);
 					}
+
 				}
+				processedStateIdSets.add(stateIdSet);
 			}
-			processedStateIdSets.add(stateIdSet);
+
+
 		}
 		newStateForStateIdSet = null;
 		unprocessedStateIdSets = null;
 		processedStateIdSets = null;
 	}
-	
+
 
 	/**
 	 * Returns true if the input sequence is relevant
@@ -104,7 +125,7 @@ public final class ExtendedDfa {
 			// was null
 			if(state == null)
 				return false;
-            if(state.isFinalComplete())
+			if(state.isFinalComplete())
 				return true;
 		}
 		return state.isFinal(); //pos == inputSequence.size()

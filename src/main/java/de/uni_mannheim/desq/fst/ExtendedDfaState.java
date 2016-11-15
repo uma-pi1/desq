@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.fst;
 
+import de.uni_mannheim.desq.examples.EDfaExample;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntSet;
@@ -15,33 +16,37 @@ import java.util.List;
  */
 public final class ExtendedDfaState {
 	
-	Int2ObjectMap<ExtendedDfaState> transitionTable;
+	//Int2ObjectMap<ExtendedDfaState> transitionTable;
+	ExtendedDfaState[] transitionTable;
 
 	BitSet fstStates;
 	List<State> fstFinalStates;
 	List<State> fstFinalCompleteStates;
 
-	public ExtendedDfaState(IntSet stateIdSet, Fst fst) {
-		initTransitionTable();
+	public ExtendedDfaState(IntSet stateIdSet, Fst fst, int size) {
+		initTransitionTable(size);
 		setFstStates(stateIdSet, fst);
 	}
 
-	public ExtendedDfaState(int stateId, Fst fst) {
-		initTransitionTable();
+	public ExtendedDfaState(int stateId, Fst fst, int size) {
+		initTransitionTable(size);
 		setFstStates(stateId, fst);
 	}
 
-	private void initTransitionTable(){
-		transitionTable = new Int2ObjectOpenHashMap<>();
-		transitionTable.defaultReturnValue(null);
+	private void initTransitionTable(int size){
+		//transitionTable = new Int2ObjectOpenHashMap<>();
+		//transitionTable.defaultReturnValue(null);
+		transitionTable = new ExtendedDfaState[size+1];
 	}
 
 	public void addToTransitionTable(int itemFid, ExtendedDfaState toEDfaState) {
-		transitionTable.put(itemFid, toEDfaState);
+		//transitionTable.put(itemFid, toEDfaState);
+		transitionTable[itemFid] = toEDfaState;
 	}
 	
 	public ExtendedDfaState consume(int itemFid) {
-		return transitionTable.get(itemFid);
+		//return transitionTable.get(itemFid);
+		return transitionTable[itemFid];
 	}
 
 	@SuppressWarnings("unchecked")
