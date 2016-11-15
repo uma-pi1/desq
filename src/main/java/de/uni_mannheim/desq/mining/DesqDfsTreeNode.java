@@ -38,7 +38,7 @@ final class DesqDfsTreeNode {
 	 * in the current input sequence.
  	 */
 	BitSet[] currentSnapshots; // buffers all the snapshots for the current input sequence
-
+	// note: when we send NFAs, we only use one BitSet, as we store only T[pos] and not T[q@pos]
 
 	// -- construction and clearing -----------------------------------------------------------------------------------
 
@@ -137,7 +137,7 @@ final class DesqDfsTreeNode {
 	 * @param inputSupport support of the input sequence
 	 * @param position position in the input sequence
 	 */
-	void expandWithTransitionItem(int itemFid, int inputId, long inputSupport, int position) {
+	void expandWithTransition(int itemFid, int inputId, long inputSupport, int position) {
 		DesqDfsTreeNode child = childrenByFid.get(itemFid);
 		if (child == null) {
 			child = new DesqDfsTreeNode(currentSnapshots.length);
@@ -150,10 +150,12 @@ final class DesqDfsTreeNode {
 			child.projectedDatabase.newPosting();
 			child.clearSnapshots();
 			child.prefixSupport += inputSupport;
+            child.currentSnapshots[0].set(position);
 			child.projectedDatabase.addNonNegativeInt(inputId-child.currentInputId);
 			child.currentInputId = inputId;
 			child.projectedDatabase.addNonNegativeInt(position);
-		} else {
+		} else if(!child.currentSnapshots[0].get(position)){
+			child.currentSnapshots[0].set(position);
 			child.projectedDatabase.addNonNegativeInt(position);
 		}
 	}

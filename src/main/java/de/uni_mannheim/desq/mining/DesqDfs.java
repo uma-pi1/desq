@@ -438,6 +438,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	private class PathState {
 		protected final int id;
 		protected boolean isFinal = false;
+        protected int writtenAtPos = -1;
 
 		/** Forward pointers */
 		protected Object2ObjectOpenHashMap<Long, PathState> outTransitions;
@@ -650,6 +651,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 			int numOutgoing = outTransitions.size();
 			int startOffset = send.size();
 
+			// note down that and where we have written this state
+			this.writtenAtPos = send.size();
+
 			// write number of outgoing transitions
 			send.add(isFinal ? -numOutgoing : numOutgoing); // if the current state is a final state, we store a negative integer
 
@@ -661,12 +665,24 @@ public final class DesqDfs extends MemoryDesqMiner {
 			// follow each outgoing transition
 			int outPathNo = 0;
 			for(Map.Entry<Long,PathState> entry : outTransitions.entrySet()) {
-                // fill in the placeholder, then write transition number and the input item
+                // fill in the placeholder, then write transition information: transition number and the input item
 				send.set(startOffset+1+outPathNo, send.size());
                 send.add(PrimitiveUtils.getLeft(entry.getKey()));
 				send.add(PrimitiveUtils.getRight(entry.getKey()));
-                // run serialization for the successor state
-                entry.getValue().write(send);
+				if(mergeSuffixes) {
+					// if we merge suffixes, multiple transitions can point to the same state, so we need a pointer for that
+					// if the state was already written, we know it's position and can write it down
+					if(entry.getValue().writtenAtPos != -1) {
+						send.add(entry.getValue().writtenAtPos);
+					} else {
+						// otherwise, we process the to state now, so we also know it's position and can write it
+						send.add(send.size()+1);
+						entry.getValue().write(send);
+					}
+				} else {
+					// if we don't merge suffixes, we simply run the serialization of the next state
+                    entry.getValue().write(send);
+				}
                 outPathNo++;
 			}
 		}
@@ -749,7 +765,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			}
 
 			//System.out.println("Printing path tree for pivot " + pivotItem);
-			//root.exportGraphViz("PathTree-pivot"+pivotItem+".pdf", false);
+			exportGraphViz("PathTree-pivot"+pivotItem+".pdf", false);
 			// Next step: construct the sequence we will send to the partition
 			IntList sendList = new IntArrayList();
 			root.write(sendList);
@@ -1397,7 +1413,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 			if (!useTwoPass) { // one-pass
 				// create the root
-				root = new DesqDfsTreeNode(fst.numStates());
+				root = new DesqDfsTreeNode(useTreeRepresentation ? 1 : fst.numStates()); // if we use NFAs, we need only one BitSet per node
 				incStepArgs.node = root;
 
 				// and process all input sequences to compute the roots children
@@ -1488,12 +1504,16 @@ public final class DesqDfs extends MemoryDesqMiner {
 			inputItem = args.inputSequence.getInt(readPos+1);
 			tr = (BasicTransition) fst.getTransitionByNumber(trNo);
 
+			// if we merge suffixes, we have one more integer: the following position. When not merging suffixes, that is always 2 items further
+            int followPos = readPos + 2;
+			if(mergeSuffixes)
+				followPos = args.inputSequence.getInt(readPos+2);
+
             // for each of the new outputs, we update the according projected database
             IntList outputItems = tr.getOutputElements(inputItem);
             for (int outputItem : outputItems) {
                 if (pivotItem >= outputItem) { // no check for largestFrequentFid necessary, as largestFrequentFid >= pivotItem
-                    args.node.expandWithTransitionItem(outputItem, args.inputId, args.inputSequence.support,
-                            readPos + 2);
+                    args.node.expandWithTransition(outputItem, args.inputId, args.inputSequence.support, followPos);
                 }
             }
 		}
@@ -1565,7 +1585,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				IntList outputItems = tr.getOutputElements(inputItem);
 				for (int outputItem : outputItems) {
 					if (pivotItem >= outputItem) { // no check for largestFrequentFid necessary, as largestFrequentFid >= pivotItem
-						args.node.expandWithTransitionItem(outputItem, args.inputId, args.inputSequence.support,
+						args.node.expandWithTransition(outputItem, args.inputId, args.inputSequence.support,
 								localPos + 2);
 					}
 				}
