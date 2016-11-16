@@ -41,6 +41,7 @@ public final class ExtendedDfaState {
 		return transitionTable[itemFid];
 	}
 
+	// TODO: all final complte states should also be in the final list
 	@SuppressWarnings("unchecked")
 	private void setFstStates(int stateId, Fst fst) {
 		this.fstStates = new BitSet(fst.numStates());

@@ -261,12 +261,11 @@ public final class DesqDfs extends MemoryDesqMiner {
      */
 	private boolean incStepOnePass(final IncStepArgs args, final int pos, final State state, final int level) {
 		// check if we reached the end of the input sequence
-
-		if(state.isFinalComplete())
+		if (state.isFinalComplete())
 			return true;
 
 		if (pos >= args.inputSequence.size())
-			return state.isFinal(); // whether or not we require a full match
+			return state.isFinal(); // we processed all input
 
 		// get iterator over next output item/state pairs; reuse existing ones if possible
 		final int itemFid = args.inputSequence.getInt(pos);
@@ -313,14 +312,8 @@ public final class DesqDfs extends MemoryDesqMiner {
      */
 	private boolean incStepTwoPass(final IncStepArgs args, final int pos,
 								   final State state, final int level) {
-		// check if we reached the beginning of the input sequence
-	    /*if(pos == -1) {
-			// we consumed entire input in reverse -> we must have reached the inital state by two-pass correctness
-			assert state.getId() == 0;
-			return true;
-		}*/
-
-		if(state.isFinalComplete() || pos == -1)
+		// check if we reached the beginning of the input sequence or a complete final state
+		if (state.isFinalComplete() || pos == -1)
 		    return true;
 
         // get iterator over next output item/state pairs; reuse existing ones if possible

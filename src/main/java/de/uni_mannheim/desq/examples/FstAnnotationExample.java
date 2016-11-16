@@ -4,7 +4,6 @@ import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.SequenceReader;
-import de.uni_mannheim.desq.mining.DesqMiner;
 import de.uni_mannheim.desq.patex.PatEx;
 
 import java.io.IOException;
@@ -55,7 +54,7 @@ public class FstAnnotationExample {
         fst.annotateFinalStates();
 
         System.out.println("Minimized FST");
-        //fst.print();
+        fst.print();
         fst.exportGraphViz("fst-example-annotated.gv");
         fst.exportGraphViz("fst-example-annotated.pdf"); // graphviz needs to be installed
 
@@ -70,7 +69,7 @@ public class FstAnnotationExample {
         fst.annotateFinalStates();
 
         System.out.println("Minimized reverse FST");
-        //fst.print(); //TODO: print does not handle reverse FST
+        fst.print(); //TODO: print does not handle reverse FST
         fst.exportGraphViz("fst-example-annotated-reversed.gv");
         fst.exportGraphViz("fst-example-annotated-reversed.pdf"); // graphviz needs to be installed
 

@@ -17,12 +17,8 @@ public final class Fst {
 	
 	/** list of states; initialized only after state numbers are updated; see updateStates() */
 	List<State> states = new ArrayList<>();
-    List<State> finalStates = new ArrayList<>();
 
-	/** flag indicating whether full input must be consumed
-	 * TODO: remove once we annotate states with isComplete
-	 */
-	boolean requireFullMatch = false;
+    List<State> finalStates = new ArrayList<>();
 
     public Fst() {
         this(false);
@@ -32,14 +28,6 @@ public final class Fst {
 		initialState = new State();
         initialState.isFinal = isFinal;
         updateStates();
-	}
-
-	public boolean getRequireFullMatch() {
-		return requireFullMatch;
-	}
-
-	public void setRequireFullMatch(boolean requireFullMatch) {
-		this.requireFullMatch = requireFullMatch;
 	}
 
 	public State getInitialState() {
@@ -262,9 +250,8 @@ public final class Fst {
 			}
 		}
 
-		// now we have the desired pattern expression
-		assert edges.size() == 1; // from dummy-initial to dummy-final
-		return edges.get(0).label; // this edge's label is the result
+		// now all edges go from dummy-initial to dummy-final
+		return combinedExp(edges); // this edge's label is the result
 	}
 
 
@@ -386,7 +373,7 @@ public final class Fst {
                 }
                 if(nextXDfaState == xDfaState) {
                     getState(finalStateId).isFinalComplete = true;
-					getState(finalStateId).isFinal = false;
+					getState(finalStateId).isFinal = true;
                     break;
                 }
                 xDfaState = nextXDfaState;

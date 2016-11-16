@@ -252,18 +252,12 @@ public final class DesqCount extends DesqMiner {
 	 * @param level recursion level (used for reusing iterators without conflict)
 	 */
 	private void stepOnePass(int pos, State state, int level) {
-		// if we reached a final state, we count the current sequence (if any)
-		/*if(state.isFinal() && !prefix.isEmpty() && (!fst.getRequireFullMatch() || pos==inputSequence.size())) {
-			countSequence(prefix);
-		}*/
-
-		if( (state.isFinalComplete() || (state.isFinal() && pos==inputSequence.size()) ) && !prefix.isEmpty() ) {
-			countSequence(prefix);
-			return;
-		}
-
-		// check if we already read the entire input
-		if (pos == inputSequence.size()) {
+		// if we reached a final complete state or consumed all input we stop recursing
+		if (state.isFinalComplete() || pos == inputSequence.size()) {
+			// if the state is final and we have collected an output sequence, count it
+			if (state.isFinal() && !prefix.isEmpty()) {
+				countSequence(prefix);
+			}
 			return;
 		}
 
@@ -319,13 +313,12 @@ public final class DesqCount extends DesqMiner {
 		}*/
 
 		// if we reached a final complete state or consumed the entire input (-> reached final state)
-		if( (state.isFinalComplete() || pos == -1) && !prefix.isEmpty()) {
-			countSequence(prefix);
+		if (state.isFinalComplete() || pos == -1) {
+			if (!prefix.isEmpty()) {
+				countSequence(prefix);
+			}
 			return;
 		}
-
-		if(pos == -1)
-			return;
 
 		// get iterator over next output item/state pairs; reuse existing ones if possible
 		// note that the reverse FST is used here (since we process inputs backwards)

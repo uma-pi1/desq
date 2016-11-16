@@ -63,6 +63,7 @@ public final class ExtendedDfa {
 						State state = fst.getState(stateId);
 						if (!state.isFinalComplete()) {
 							for (Transition t : state.getTransitions()) {
+								// TODO: check that if transition produces output, it can produce a frequent item
 								if (t.matches(itemFid)) {
 									reachableStateIds.add(t.getToState().getId());
 								}
@@ -103,9 +104,6 @@ public final class ExtendedDfa {
 				processedStateIdSets.add(stateIdSet);
 			}
 		}
-		newStateForStateIdSet = null;
-		unprocessedStateIdSets = null;
-		processedStateIdSets = null;
 	}
 
 
