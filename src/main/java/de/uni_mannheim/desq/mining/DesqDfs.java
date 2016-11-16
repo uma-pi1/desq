@@ -1837,7 +1837,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				// we did not get an output, so continue running the FST
 				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
 				reachedFinalStateWithoutOutput |= incStepOnePassTraditional(args, pos + 1, toState, newLevel);
-			} else if (largestFrequentFid >= pivotItem) {
+			} else if (pivotItem >= outputItemFid) {
 				// we have an output and its frequent, so update the corresponding projected database
 				args.node.expandWithItemTraditional(outputItemFid, args.inputId, args.inputSequence.support,
 						pos + 1, toState.getId());
