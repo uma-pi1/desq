@@ -128,16 +128,17 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** Item added by current transition */
 	int addItem;
 
+	/** For each pivot item, a list of paths generating output for that pivot item on the current input sequence */
+	private Int2ObjectOpenHashMap<ObjectList<IntList>> paths = new Int2ObjectOpenHashMap<>();
+
+	/** For each pivot item, a NFA producing the output sequences for that pivot item from the current input sequence */
+	private Int2ObjectOpenHashMap<OutputNFA> nfas = new Int2ObjectOpenHashMap<>();
+
 	/** The output partitions */
 	Int2ObjectOpenHashMap<ObjectList<IntList>> partitions;
 
 	/** Stores one pivot element heap per level for reuse */
 	final ArrayList<CloneableIntHeapPriorityQueue> pivotItemHeaps = new ArrayList<>();
-
-	/** Counter for path state IDs and list of states for convenient debug output */
-	private int numPathStates = 0;
-	private ObjectList<PathState> pathStates = new ObjectArrayList<PathState>(); // TODO: only for printing. can be removed
-
 
 	/** Stats about pivot element search */
 	public long counterTotalRecursions = 0;
@@ -430,6 +431,86 @@ public final class DesqDfs extends MemoryDesqMiner {
 	}
 
 	/**
+	 * A NFA that produces output sequences.
+	 *
+	 * Per input sequence, we send one such NFA to each partition, at which the input sequence generates at least one
+	 * output sequence.
+	 */
+	private class OutputNFA {
+		PathState root;
+		PathState end;
+        int numPathStates = 0;
+		private ObjectList<PathState> pathStates = new ObjectArrayList<PathState>(); // TODO: only for printing. can be removed
+
+		public OutputNFA() {
+			root = new PathState(this);
+			end = new PathState(this);
+
+		}
+
+		/**
+		 * Add a path to this NFA
+		 *
+		 * @param path
+		 */
+		protected void addPath(IntList path) {
+			int trId = 0;
+			int inpItem = 0;
+            PathState currentState;
+			// Run through the transitions of this path and add them to this NFA
+            currentState = root;
+            for(int i=0; i<path.size(); ) {
+                trId = path.getInt(i);
+                inpItem = path.getInt(i+1);
+                // TODO: if we change self-generalize input items up to their first ancestor<=pivot, we might be able to compress more here.
+                currentState = currentState.followTransition(trId, inpItem, i+2 == path.size() ?  true : false, this);
+                i = i+2;
+            }
+            // we ran through the path, so the current state is a final state.
+            currentState.setFinal();
+		}
+
+		/**
+		 * Serialize this NFA to a given IntList
+		 * @param send
+		 */
+		public void write(IntList send) {
+			root.write(send);
+		}
+
+		/**
+         * Export the set of path states currently stored in pathStates with their transitions to PDF
+         * @param file
+         * @param paintIncoming
+         */
+        public void exportGraphViz(String file, boolean paintIncoming) {
+            FstVisualizer fstVisualizer = new FstVisualizer(FilenameUtils.getExtension(file), FilenameUtils.getBaseName(file));
+            fstVisualizer.beginGraph();
+            for(PathState s : pathStates) {
+                for(Map.Entry<Long, PathState> trEntry : s.outTransitions.entrySet()) {
+                    int trId = PrimitiveUtils.getLeft(trEntry.getKey());
+                    int inputId = PrimitiveUtils.getRight(trEntry.getKey());
+
+                    fstVisualizer.add(String.valueOf(s.id), trId+"{"+inputId+"}", String.valueOf(trEntry.getValue().id));
+                }
+                if(paintIncoming && s.inTransitions!=null) {
+                    for(Map.Entry<Long, ObjectList<PathState>> trEntry : s.inTransitions.entrySet()) {
+                        int trId = PrimitiveUtils.getLeft(trEntry.getKey());
+                        int inputId = PrimitiveUtils.getRight(trEntry.getKey());
+
+                        for(PathState s2 : trEntry.getValue())
+                            fstVisualizer.add(String.valueOf(s.id), (-trId)+"{"+inputId+"}", String.valueOf(s2.id));
+                    }
+                }
+                if(s.isFinal)
+                    fstVisualizer.addAccepted(String.valueOf(s.id));
+            }
+            fstVisualizer.endGraph();
+        }
+	}
+
+
+	/**
 	 * One state in a path through the Fst. We use this to build the NFAs we shuffle to the partitions
 	 *
 	 * If we want to merge suffixes (mergeSuffixes true), in addition to the forward pointers (outTransitions),
@@ -439,6 +520,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		protected final int id;
 		protected boolean isFinal = false;
         protected int writtenAtPos = -1;
+        protected OutputNFA nfa;
 
 		/** Forward pointers */
 		protected Object2ObjectOpenHashMap<Long, PathState> outTransitions;
@@ -446,17 +528,18 @@ public final class DesqDfs extends MemoryDesqMiner {
 		/** Backward pointers (for merging suffixes) */
 		protected Object2ObjectOpenHashMap<Long, ObjectList<PathState>> inTransitions;
 
-		protected PathState() {
-			id = numPathStates++;
-			pathStates.add(this);
+		protected PathState(OutputNFA nfa) {
+			this.nfa = nfa;
+			id = nfa.numPathStates++;
+			nfa.pathStates.add(this);
 			outTransitions = new Object2ObjectOpenHashMap<>();
 			if(mergeSuffixes)
 				inTransitions = new Object2ObjectOpenHashMap<>();
 		}
 
 		/** Construct new state with backwards pointers */
-		protected PathState(long trInp, PathState from) {
-			this();
+		protected PathState(long trInp, PathState from, OutputNFA nfa) {
+			this(nfa);
 			ObjectList<PathState> fromState = new ObjectArrayList<>();
 			fromState.add(from);
 			inTransitions.put(trInp, fromState);
@@ -468,11 +551,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 		 *
 		 * @param trId		the number of the input transition to follow
 		 * @param inpItem	the input item for the transition to follow
-		 * @param endState	the end state for the NFA (only relevant for merging suffixes)
 		 * @param lastTransition	flag whether the given transition is the last in the path (only relevant for merging suffixes)
+		 * @param nfa       the nfa the path is added to
 		 * @return
 		 */
-		protected PathState followTransition(int trId, int inpItem, PathState endState, boolean lastTransition) {
+		protected PathState followTransition(int trId, int inpItem, boolean lastTransition, OutputNFA nfa) {
 			long trInp = PrimitiveUtils.combine(trId,inpItem);
 			// if we have a tree branch with this transition already, follow it and return the state it leads to
 			if(outTransitions.containsKey(trInp)) {
@@ -480,16 +563,16 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 				// if this transition goes to the end state, but the current path has more than one transition left,
 				//    we direct this transition to a new state, which we mark as final
-				if(toState == endState && !lastTransition) {
+				if(toState == nfa.end && !lastTransition) {
 					// create new state
-					toState = new PathState(trInp, this);
+					toState = new PathState(trInp, this, nfa);
 					toState.setFinal();
 
 					// redirect forward pointer
 					outTransitions.put(trInp, toState);
 
 					// drop backward pointer in the end state
-					endState.inTransitions.get(trInp).remove(this);
+					nfa.end.inTransitions.get(trInp).remove(this);
 				}
 
 				// return this state
@@ -500,18 +583,18 @@ public final class DesqDfs extends MemoryDesqMiner {
 				PathState toState;
 				// if we merge suffixes, create a state with backwards pointers, otherwise one without
                 if(mergeSuffixes)
-                    toState = new PathState(trInp, this);
+                    toState = new PathState(trInp, this, nfa);
                 else
-                	toState = new PathState();
+                	toState = new PathState(nfa);
 
 				// add the transition and the created state to the outgoing transitions of this state and return the state the transition moves to
 				outTransitions.put(trInp, toState);
 				return toState;
 			} else {
                 // if this is the last transition, we want to move to the global end state and start merging suffixes from there
-				outTransitions.put(trInp, endState);
+				outTransitions.put(trInp, nfa.end);
 				// check wether we have merge candidates (=same transition going into the end state)
-                ObjectList<PathState> sameTransitionFromStates = endState.addIncomingTransitionOrGetExistingOnes(trInp, this);
+                ObjectList<PathState> sameTransitionFromStates = nfa.end.addIncomingTransitionOrGetExistingOnes(trInp, this);
 				if(sameTransitionFromStates != null) {
 					// the current transition has arrived before at the toState, so it was not added to the list of incoming
 					// in that case, we check whether we can merge our current state with any of those states
@@ -525,10 +608,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 					// if we can't merge this state into any of the existing ones, we need to add it to the list
 					//   of from states for this transition
 					if(!wasMerged) {
-                        endState.inTransitions.get(trInp).add(this);
+                         nfa.end.inTransitions.get(trInp).add(this);
 					}
 				}
-				return endState;
+				return nfa.end;
 			}
 		}
 
@@ -605,7 +688,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				}
 
 				// also we can remove the state from the list of states
-				pathStates.remove(drop);
+				nfa.pathStates.remove(drop);
 
 				return true;
 			} else {
@@ -688,35 +771,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 	}
 
-	/**
-	 * Export the set of path states currently stored in pathStates with their transitions to PDF
-	 * @param file
-	 * @param paintIncoming
-	 */
-	public void exportGraphViz(String file, boolean paintIncoming) {
-		FstVisualizer fstVisualizer = new FstVisualizer(FilenameUtils.getExtension(file), FilenameUtils.getBaseName(file));
-		fstVisualizer.beginGraph();
-		for(PathState s : pathStates) {
-			for(Map.Entry<Long, PathState> trEntry : s.outTransitions.entrySet()) {
-				int trId = PrimitiveUtils.getLeft(trEntry.getKey());
-				int inputId = PrimitiveUtils.getRight(trEntry.getKey());
 
-				fstVisualizer.add(String.valueOf(s.id), trId+"{"+inputId+"}", String.valueOf(trEntry.getValue().id));
-			}
-			if(paintIncoming && s.inTransitions!=null) {
-				for(Map.Entry<Long, ObjectList<PathState>> trEntry : s.inTransitions.entrySet()) {
-					int trId = PrimitiveUtils.getLeft(trEntry.getKey());
-					int inputId = PrimitiveUtils.getRight(trEntry.getKey());
-
-					for(PathState s2 : trEntry.getValue())
-						fstVisualizer.add(String.valueOf(s.id), (-trId)+"{"+inputId+"}", String.valueOf(s2.id));
-				}
-			}
-			if(s.isFinal)
-				fstVisualizer.addAccepted(String.valueOf(s.id));
-		}
-		fstVisualizer.endGraph();
-	}
 
 	/** Produces the set of pivot items for a given input sequence and constructs a tree representation of the transitions
 	 * generating all output sequences of this input sequence
@@ -725,64 +780,37 @@ public final class DesqDfs extends MemoryDesqMiner {
 	 * @return pivotItems set of frequent output items of input sequence inputSequence
 	 */
 	public IntSet getPivotItemsAndTreeRepresentationOfOneSequence(IntList inputSequence) {
-		pivotItems.clear();
-		this.inputSequence = inputSequence;
 
 		// get the pivot elements with the corresponding paths through the FST
+		this.inputSequence = inputSequence;
+		pivotItems.clear();
 		prefix.clear();
-		paths.clear();
+        nfas.clear();
 		findPathsAndPivotsStepOnePassCompressed(null, 0, fst.getInitialState(), 0);
 
 
-        // Join the found paths together into one tree/NFA
-		for(Map.Entry<Integer, ObjectList<IntList>> pivPath : paths.entrySet()) {
-			int pivotItem = pivPath.getKey();
-			ObjectList<IntList> paths = pivPath.getValue();
-			//System.out.println("-------------------------");
-			//System.out.println("seq " + inputSequence + " pivot " + pivotItem);
+        // Serialize the partition NFAs for this the item and append them to the partitions
+		for(Map.Entry<Integer, OutputNFA> pivotAndNFA: nfas.entrySet()) {
+			int pivotItem = pivotAndNFA.getKey();
+			OutputNFA nfa = pivotAndNFA.getValue();
 
-			numPathStates = 0;
-			pathStates.clear();
-			PathState root = new PathState();
-			PathState end = new PathState();
-			// first element of the sent list is the number N of paths we are sending
-			int trId = 0;
-			int inpItem = 0;
-            PathState currentState;
-			// Run through the transitions of all pathes and construct the tree
-			for(IntList path :  pivPath.getValue()) {
-				//System.out.println("path: " + path);
-				currentState = root;
-                for(int i=0; i<path.size(); ) {
-					trId = path.getInt(i);
-					inpItem = path.getInt(i+1);
-					// TODO: if we change self-generalize input items up to their first ancestor<=pivot, we might be able to compress more here.
-                    currentState = currentState.followTransition(trId, inpItem, end, i+2 == path.size() ?  true : false);
-					i = i+2;
-				}
-				// we ran through the path, so the current state is a final state.
-				currentState.setFinal();
-			}
-
-			//System.out.println("Printing path tree for pivot " + pivotItem);
-			exportGraphViz("PathTree-pivot"+pivotItem+".pdf", false);
+			System.out.println("Printing path tree for pivot " + pivotItem);
+			nfa.exportGraphViz("PathTree-pivot"+pivotItem+".pdf", false);
 			// Next step: construct the sequence we will send to the partition
 			IntList sendList = new IntArrayList();
-			root.write(sendList);
+			nfa.write(sendList);
 
 			// emit the list we constructed
 			if(!partitions.containsKey(pivotItem)) {
 				partitions.put(pivotItem, new ObjectArrayList<IntList>());
 			}
-			//System.out.println("==> sendList: " + sendList);
 			partitions.get(pivotItem).add(sendList);
 		}
-
 
 		return pivotItems;
 	}
 
-	private Int2ObjectOpenHashMap<ObjectList<IntList>> paths = new Int2ObjectOpenHashMap<>();
+
 
 
 	/** Runs one step (along compressed transition) in the FST in order to produce the set of frequent output items
@@ -805,12 +833,24 @@ public final class DesqDfs extends MemoryDesqMiner {
 				int pivotItem = currentPivotItems.exposeInts()[i]; // This isn't very nice, but it does not drop read elements from the heap. TODO: find a better way?
 				if(!emittedPivots.contains(pivotItem)) {
 					emittedPivots.add(pivotItem);
-					if(paths.containsKey(pivotItem)) {
-						paths.get(pivotItem).add(path);
+                    if(!useTreeRepresentation) {
+						if (paths.containsKey(pivotItem)) {
+							paths.get(pivotItem).add(path);
+						} else {
+							ObjectList<IntList> add = new ObjectArrayList<>();
+							add.add(path);
+							paths.put(pivotItem, add);
+						}
 					} else {
-						ObjectList<IntList> add = new ObjectArrayList<>();
-						add.add(path);
-						paths.put(pivotItem,add);
+						OutputNFA nfa;
+						if(!nfas.containsKey(pivotItem)) {
+                            // create the nfa
+							nfa = new OutputNFA();
+                            nfas.put(pivotItem, nfa);
+						} else {
+							nfa = nfas.get(pivotItem);
+						}
+						nfa.addPath(prefix);
 					}
 				}
 			}
