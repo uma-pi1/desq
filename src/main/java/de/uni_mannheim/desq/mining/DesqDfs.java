@@ -794,8 +794,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 			int pivotItem = pivotAndNFA.getKey();
 			OutputNFA nfa = pivotAndNFA.getValue();
 
-			System.out.println("Printing path tree for pivot " + pivotItem);
-			nfa.exportGraphViz("PathTree-pivot"+pivotItem+".pdf", false);
+			//System.out.println("Printing path tree for pivot " + pivotItem);
+			//nfa.exportGraphViz("PathTree-pivot"+pivotItem+".pdf", false);
 			// Next step: construct the sequence we will send to the partition
 			IntList sendList = new IntArrayList();
 			nfa.write(sendList);
@@ -1837,7 +1837,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				// we did not get an output, so continue running the FST
 				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
 				reachedFinalStateWithoutOutput |= incStepOnePassTraditional(args, pos + 1, toState, newLevel);
-			} else if (largestFrequentFid >= outputItemFid) {
+			} else if (largestFrequentFid >= pivotItem) {
 				// we have an output and its frequent, so update the corresponding projected database
 				args.node.expandWithItemTraditional(outputItemFid, args.inputId, args.inputSequence.support,
 						pos + 1, toState.getId());

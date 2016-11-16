@@ -29,7 +29,7 @@ public class DesqDfsLocalDistributedMining {
 	static boolean useTransitionRepresentation;
 	static boolean useTreeRepresentation;
 	static boolean mergeSuffixes;
-	static String dataFolder;
+	static String baseFolder;
 
 	/** main
 	 *
@@ -41,22 +41,22 @@ public class DesqDfsLocalDistributedMining {
 //		localCorrectnessTest(); System.exit(0);
 
 		if(System.getProperty("os.name").startsWith("Mac")) {
-			dataFolder = "/Users/alex/Data/";
+			baseFolder = "/Users/alex/";
 		} else {
-			dataFolder = "/home/alex/Data/";
+			baseFolder = "/home/alex/";
 		}
 		if(args.length > 0) {
 			runDistributedMiningLocally(args);
 		} else {
-			runDistributedMiningLocally("IX2", 4, 1);
+			runDistributedMiningLocally("N5-1991", 1, 1);
 		}
 	}
 
 	public static void localCorrectnessTest() throws IOException {
-		if (System.getProperty("os.name").startsWith("Mac")) {
-			dataFolder = "/Users/alex/Data/";
+		if(System.getProperty("os.name").startsWith("Mac")) {
+			baseFolder = "/Users/alex/";
 		} else {
-			dataFolder = "/home/alex/Data/";
+			baseFolder = "/home/alex/";
 		}
 		String[] tests = {"I1@1", "I1@2", "I2", "IA2", "IA4", "IX1", "IX2"};
 		int[] scenarios = {1, 2, 3, 4};
@@ -227,7 +227,7 @@ public class DesqDfsLocalDistributedMining {
 		System.out.println(out);
 
 		try{
-			PrintWriter writer = new PrintWriter(new FileOutputStream(new File("/Users/alex/Dropbox/Master/Thesis/Experiments/F/log-"+runVersion+".txt"), true));
+			PrintWriter writer = new PrintWriter(new FileOutputStream(new File(baseFolder + "Dropbox/Master/Thesis/Experiments/F/log-"+runVersion+".txt"), true));
 			writer.println(out);
 			writer.close();
 		} catch (Exception e) {
@@ -248,29 +248,35 @@ public class DesqDfsLocalDistributedMining {
 			case "N1":
 				patternExp = "ENTITY@ (VB@+ NN@+? IN@?) ENTITY@";
 				sigma = 10;
+				if(useCase.contains("1991")) sigma = sigma / 10;
 				setNytData();
 				break;
 			case "N2-1991":
 			case "N2":
 			    patternExp = "(ENTITY@^ VB@+ NN@+? IN@? ENTITY@^)";
 				sigma = 100;
+				if(useCase.contains("1991")) sigma = sigma / 10;
 				setNytData();
 				break;
 			case "N3-1991":
 			case "N3":
 				patternExp = "(ENTITY@^ be@VB@=^) DT@? (RB@? JJ@? NN@)";
 				sigma = 10;
+				if(useCase.contains("1991")) sigma = sigma / 10;
 				setNytData();
 				break;
 			case "N4-1991":
 			case "N4":
 				patternExp = "(.^){3} NN@";
 				sigma = 1000;
+				if(useCase.contains("1991")) sigma = sigma / 10;
 				setNytData();
 				break;
+			case "N5-1991":
 			case "N5":
 				patternExp = "([.^ . .]|[. .^ .]|[. . .^])";
 				sigma = 1000;
+				if(useCase.contains("1991")) sigma = sigma / 10;
                 setNytData();
 				break;
 			case "A1":
@@ -372,13 +378,13 @@ public class DesqDfsLocalDistributedMining {
 	}
 
 	private static void setAmznData() throws IOException {
-		String dataDir = dataFolder + "amzn/";
+		String dataDir = baseFolder + "Data/amzn/";
 		dict = Dictionary.loadFrom(dataDir + "amzn-dict.avro.gz");
 		dataFile = new File(dataDir + "amzn-data.del");
 	}
 
 	private static void setICDMData() throws IOException {
-		String dataDir = dataFolder + "icdm16fids/";
+		String dataDir = baseFolder + "Data/icdm16fids/";
 		dict = Dictionary.loadFrom(dataDir + "dict.json");
 		dataFile  = new File(dataDir + "data.del");
 	}
@@ -388,7 +394,7 @@ public class DesqDfsLocalDistributedMining {
 		if(useCase.contains("1991")) {
 			dataset = "nyt-1991";
 		}
-		String dataDir = dataFolder + dataset + "/";
+		String dataDir = baseFolder + "Data/" + dataset + "/";
 
 		dict = Dictionary.loadFrom(dataDir + dataset + "-dict.avro.gz");
 		dataFile  = new File(dataDir + dataset + "-data.del");
