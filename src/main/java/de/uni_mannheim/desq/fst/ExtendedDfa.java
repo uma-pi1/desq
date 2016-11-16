@@ -1,11 +1,9 @@
 package de.uni_mannheim.desq.fst;
 
-import com.google.common.base.Stopwatch;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import it.unimi.dsi.fastutil.ints.*;
 
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -37,7 +35,7 @@ public final class ExtendedDfa {
 		// processed edfa states
 		Set<IntSet> processedStateIdSets = new HashSet<>();
 
-		Map<IntSet, IntSet> reachableStatesForItemIds = new HashMap<>();
+		Map<IntSet, IntList> reachableStatesForItemIds = new HashMap<>();
 
 		// Initialize conversion
 		IntSet initialStateIdSet = IntSets.singleton(fst.getInitialState().getId());
@@ -72,17 +70,18 @@ public final class ExtendedDfa {
 						}
 					}
 					if (!reachableStateIds.isEmpty()) {
-						IntSet itemIds = reachableStatesForItemIds.get(reachableStateIds);
+						IntList itemIds = reachableStatesForItemIds.get(reachableStateIds);
 						if (itemIds == null) {
-							itemIds = new IntOpenHashSet();
+							itemIds = new IntArrayList();
 							reachableStatesForItemIds.put(reachableStateIds, itemIds);
 						}
 						itemIds.add(itemFid);
 					}
 				}
-				for(Map.Entry<IntSet, IntSet> entry : reachableStatesForItemIds.entrySet()) {
+
+				for(Map.Entry<IntSet, IntList> entry : reachableStatesForItemIds.entrySet()) {
 					IntSet reachableStateIds = entry.getKey();
-					IntSet itemFids = entry.getValue();
+					IntList itemFids = entry.getValue();
 
 					//check if we already processed these reachableStateIds
 					if(!processedStateIdSets.contains(reachableStateIds))
@@ -103,8 +102,6 @@ public final class ExtendedDfa {
 				}
 				processedStateIdSets.add(stateIdSet);
 			}
-
-
 		}
 		newStateForStateIdSet = null;
 		unprocessedStateIdSets = null;

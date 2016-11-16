@@ -1,8 +1,5 @@
 package de.uni_mannheim.desq.fst;
 
-import de.uni_mannheim.desq.examples.EDfaExample;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
 import java.util.ArrayList;
@@ -16,7 +13,6 @@ import java.util.List;
  */
 public final class ExtendedDfaState {
 	
-	//Int2ObjectMap<ExtendedDfaState> transitionTable;
 	ExtendedDfaState[] transitionTable;
 
 	BitSet fstStates;
@@ -34,18 +30,14 @@ public final class ExtendedDfaState {
 	}
 
 	private void initTransitionTable(int size){
-		//transitionTable = new Int2ObjectOpenHashMap<>();
-		//transitionTable.defaultReturnValue(null);
 		transitionTable = new ExtendedDfaState[size+1];
 	}
 
 	public void addToTransitionTable(int itemFid, ExtendedDfaState toEDfaState) {
-		//transitionTable.put(itemFid, toEDfaState);
 		transitionTable[itemFid] = toEDfaState;
 	}
 	
 	public ExtendedDfaState consume(int itemFid) {
-		//return transitionTable.get(itemFid);
 		return transitionTable[itemFid];
 	}
 
