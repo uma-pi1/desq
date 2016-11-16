@@ -29,15 +29,19 @@ public class FstAnnotationExample {
         dict.recomputeFids();
 
         //Some test expressions
-        String patternExpression = ".*[[c|d]([A^|B=^]+)e].*";
+        //String patternExpression = ".*[[c|d]([A^|B=^]+)e].*";
         //String patternExpression = ".*[(.)[.{0,1} (.)]{1,3}].*";
         //String patternExpression = ".*(B)[.* | ...(B)]?";
         //String patternExpression = "(A .*|A B c)";
         //String patternExpression = "[(A .*|A B c)].*";
         //String patternExpression = DesqMiner.patternExpressionFor(0,3,false);
+        //String patternExpression = "[(.)|(..)|(...)]";
         //String patternExpression = "^(A B)|.*(A c).*$";
         //String patternExpression = "(A c).*";
         //String patternExpression = "(A B c?)$";
+        //patternExpression = "A (.*) A";
+        //patternExpression = "([.^ . .]|[. .^ .]|[. . .^])";
+        String patternExpression = "(A^) [.?{2} (A^)]{1,4}";
 
 
         System.out.println(patternExpression);
