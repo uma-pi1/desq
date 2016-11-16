@@ -351,7 +351,7 @@ public final class Fst {
 				}
 
 				// add to stack
-				if(!processedStateIdSets.containsAll(nextStateIdSet))
+				if(!processedStateIdSets.contains(nextStateIdSet))
 					unprocessedStateIdSets.push(nextStateIdSet);
 
 				// create the next xdfa state
