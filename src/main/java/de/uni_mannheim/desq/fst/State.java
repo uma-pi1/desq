@@ -25,7 +25,6 @@ public final class State {
 		this.isFinal = isFinal;
 	}
 	
-	
 	public int getId(){
 		return id;
 	}
@@ -197,5 +196,20 @@ public final class State {
 		resultIt.toStatesOutput.clear();
 		resultIt.toState = null;
 		return resultIt;
+	}
+
+	public void removeTransition(Transition t) {
+		//TODO:swap with the last element and delete the last element
+		int i = 0;
+		for(; i < transitionList.size(); i++) {
+			if(t == transitionList.get(i))
+				break;
+		}
+		transitionList.remove(i);
+	}
+
+	/** Remove all outgoing transitions from this state */
+	public void removeAllTransitions() {
+		transitionList.clear();
 	}
 }

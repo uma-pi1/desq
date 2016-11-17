@@ -372,8 +372,10 @@ public final class Fst {
                     break;
                 }
                 if(nextXDfaState == xDfaState) {
-                    getState(finalStateId).isFinalComplete = true;
-					getState(finalStateId).isFinal = true;
+					State fstState = getState(finalStateId);
+                    fstState.isFinalComplete = true;
+					fstState.isFinal = true;
+					fstState.removeAllTransitions();
                     break;
                 }
                 xDfaState = nextXDfaState;
