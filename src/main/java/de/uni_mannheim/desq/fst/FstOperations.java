@@ -89,6 +89,9 @@ public final class FstOperations {
 	}
 	
 	public static Fst repeatMinMax(Fst a, int min, int max) {
+		if(min == max) {
+			return repeatExactly(a, min);
+		}
 		max -= min;
 		assert max>=0;
         if (max==0) return new Fst(true);
