@@ -41,7 +41,6 @@ public final class ExtendedDfaState {
 		return transitionTable[itemFid];
 	}
 
-	// TODO: all final complte states should also be in the final list
 	@SuppressWarnings("unchecked")
 	private void setFstStates(int stateId, Fst fst) {
 		this.fstStates = new BitSet(fst.numStates());
@@ -50,7 +49,6 @@ public final class ExtendedDfaState {
 		if (state.isFinal()) {
 			fstFinalStates = new ArrayList<>(1);
 			fstFinalStates.add(state);
-			//fstFinalCompleteStates = (List<State>)Collections.EMPTY_LIST;
 		} else{
 			fstFinalStates = (List<State>)Collections.EMPTY_LIST;
 		}
@@ -58,10 +56,8 @@ public final class ExtendedDfaState {
 		if(state.isFinalComplete()) {
 			fstFinalCompleteStates = new ArrayList<>(1);
 			fstFinalCompleteStates.add(state);
-			//fstFinalStates = (List<State>)Collections.EMPTY_LIST;
 		}
 		else {
-			//fstFinalStates = (List<State>)Collections.EMPTY_LIST;
 			fstFinalCompleteStates = (List<State>)Collections.EMPTY_LIST;
 		}
 	}
