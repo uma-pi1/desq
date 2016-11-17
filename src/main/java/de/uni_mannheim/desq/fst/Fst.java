@@ -397,7 +397,7 @@ public final class Fst {
         for(State state : getStates()) {
 			if(state.isFinalComplete) {
 				state.isFinalComplete = false;
-				state.isFinal = true;
+				//state.isFinal = true;
 			}
         }
     }

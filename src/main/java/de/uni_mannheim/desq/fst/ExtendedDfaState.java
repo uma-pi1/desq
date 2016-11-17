@@ -50,14 +50,18 @@ public final class ExtendedDfaState {
 		if (state.isFinal()) {
 			fstFinalStates = new ArrayList<>(1);
 			fstFinalStates.add(state);
-			fstFinalCompleteStates = (List<State>)Collections.EMPTY_LIST;
-		} else if(state.isFinalComplete()) {
-			fstFinalCompleteStates = new ArrayList<>(1);
-			fstFinalCompleteStates.add(state);
+			//fstFinalCompleteStates = (List<State>)Collections.EMPTY_LIST;
+		} else{
 			fstFinalStates = (List<State>)Collections.EMPTY_LIST;
 		}
+
+		if(state.isFinalComplete()) {
+			fstFinalCompleteStates = new ArrayList<>(1);
+			fstFinalCompleteStates.add(state);
+			//fstFinalStates = (List<State>)Collections.EMPTY_LIST;
+		}
 		else {
-			fstFinalStates = (List<State>)Collections.EMPTY_LIST;
+			//fstFinalStates = (List<State>)Collections.EMPTY_LIST;
 			fstFinalCompleteStates = (List<State>)Collections.EMPTY_LIST;
 		}
 	}
