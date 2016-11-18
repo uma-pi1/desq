@@ -30,6 +30,7 @@ public class DesqDfsLocalDistributedMining {
 	static boolean useTreeRepresentation;
 	static boolean mergeSuffixes;
 	static String baseFolder;
+	static boolean useDesqCount;
 
 	/** main
 	 *
@@ -59,7 +60,7 @@ public class DesqDfsLocalDistributedMining {
 			baseFolder = "/home/alex/";
 		}
 		String[] tests = {"I1@1", "I1@2", "I2", "IA2", "IA4", "IX1", "IX2"};
-		int[] scenarios = {1, 2, 3, 4};
+		int[] scenarios = {0, 1, 2, 3, 4};
 
 		String output = "";
 		for (String testCase : tests) {
@@ -85,11 +86,18 @@ public class DesqDfsLocalDistributedMining {
 		int run = Integer.parseInt(args[4]);
 
 		System.out.println(runVersion+" " + expNo + ": Running Distributed DesqDfs locally("+theCase+", "+scenario+", "+run+") now");
-		runDistributedMiningLocally(theCase, scenario, run);
+        runDistributedMiningLocally(theCase, scenario, run);
 	}
 
-	public static Tuple2<Long,Long> runDistributedMiningLocally(String theCase, int scenario, int run) throws IOException{
 
+	public static Tuple2<Long,Long> runDistributedMiningLocally(String theCase, int scenario, int run) throws IOException {
+		if(scenario == 0)
+			return runDesqCountDistributedLocally(theCase, scenario, run);
+		else
+			return runDesqDfsDistributedLocally(theCase, scenario, run);
+	}
+
+	public static  Tuple2<Long,Long> runDesqDfsDistributedLocally(String theCase, int scenario, int run) throws IOException {
 		setCase(theCase);
 		setScenario(scenario);
 
@@ -239,6 +247,121 @@ public class DesqDfsLocalDistributedMining {
 	}
 
 
+	public static Tuple2<Long,Long> runDesqCountDistributedLocally(String theCase, int scenario, int run) throws IOException{
+
+		setCase(theCase);
+		setScenario(scenario);
+
+		System.out.println("------------------------------------------------------------------");
+		System.out.println("Distributed Mining " + theCase + " @ " + scenarioStr + "  #" + run);
+		System.out.println("------------------------------------------------------------------");
+
+		DesqProperties minerConf = DesqCount.createConf(patternExp, sigma);
+		SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), true);
+		dataReader.setDictionary(dict);
+
+		minerConf.setProperty("desq.mining.use.two.pass", false);
+
+		// create context
+		DesqMinerContext ctx = new DesqMinerContext();
+		ctx.dict = dataReader.getDictionary();
+		PatternWriter result;
+		if (verbose) result = new MemoryPatternWriter();
+		else result = new CountPatternWriter();
+		ctx.patternWriter = result;
+		minerConf.setProperty("desq.mining.prune.irrelevant.inputs", false);
+
+		ctx.conf = minerConf;
+
+		ctx.conf.prettyPrint();
+
+		// create miner
+		System.out.print("Creating miner... ");
+		Stopwatch prepTime = Stopwatch.createStarted();
+		DesqCount miner = (DesqCount) DesqDfs.create(ctx);
+		prepTime.stop();
+		System.out.println(prepTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
+
+		// Read input sequences into memory
+		System.out.print("Reading input sequences into memory... ");
+		Stopwatch ioTime = Stopwatch.createStarted();
+		ObjectArrayList<Sequence> inputSequences = new ObjectArrayList<Sequence>();
+		Sequence inputSequence = new Sequence();
+		while (dataReader.readAsFids(inputSequence)) {
+			inputSequences.add(inputSequence);
+			inputSequence = new Sequence();
+		}
+		ioTime.stop();
+		System.out.println(ioTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
+
+		// run partition construction
+		System.out.print("Adding input sequences to miner ...");
+		Stopwatch pcTime = Stopwatch.createStarted();
+		for(IntList sequence : inputSequences) {
+			miner.addInputSequence(sequence, 1, true);
+		}
+		System.out.println(pcTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
+
+		// clear the memory
+		inputSequences.clear();
+		inputSequences.trim();
+
+
+		// mine the partitions
+		System.out.print("Mining... ");
+		Stopwatch mineTime = Stopwatch.createStarted();
+		miner.mine();
+		mineTime.stop();
+		System.out.println(mineTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
+
+
+		System.out.println("Total time: " +
+				(prepTime.elapsed(TimeUnit.MILLISECONDS) + ioTime.elapsed(TimeUnit.MILLISECONDS) +  pcTime.elapsed(TimeUnit.MILLISECONDS) +  mineTime.elapsed(TimeUnit.MILLISECONDS)
+				) + "ms");
+
+
+
+		long patCount;
+		long patTotalFreq = 0;
+		if(verbose) {
+			MemoryPatternWriter pw = (MemoryPatternWriter) result;
+			patCount = pw.getPatterns().size();
+			for(WeightedSequence ws : pw.getPatterns()) {
+				System.out.println(ws);
+				patTotalFreq += ws.support;
+			}
+		} else {
+			CountPatternWriter pw = (CountPatternWriter) result;
+			patCount = pw.getCount();
+			patTotalFreq = pw.getTotalFrequency();
+		}
+		System.out.println("Number of patterns: " + patCount);
+		System.out.println("Total frequency of all patterns: " + patTotalFreq);
+
+		// combined print
+		System.out.println("exp. no\tcase\toptimizations\trun\tcreate time\tread time\tpc time\tmine time\tno. partitions\tno. shuffle lists\tno. shuffle ints\ttotal Recursions\ttrs used\tmxp used\tno. patterns\ttotal freq. patterns");
+		String out = expNo + "\t" + theCase + "\t" + scenarioStr + "\t" + run + "\t" + prepTime.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+				ioTime.elapsed(TimeUnit.MILLISECONDS) + "\t" + pcTime.elapsed(TimeUnit.MILLISECONDS) + "\t" + mineTime.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+				0 + "\t" + 0 + "\t" + 0 + "\t" + 0 + "\t" + 0 + "\t" +
+				0 + "\t" + patCount + "\t" + patTotalFreq;
+		System.out.println(out);
+
+		try{
+			PrintWriter writer = new PrintWriter(new FileOutputStream(new File(baseFolder + "Dropbox/Master/Thesis/Experiments/F/log-"+runVersion+".txt"), true));
+			writer.println(out);
+			writer.close();
+		} catch (Exception e) {
+			System.out.println("Can't open file!");
+			e.printStackTrace();
+		}
+
+		return new Tuple2(patCount, patTotalFreq);
+	}
+
+
+
+
+
 	private static void setCase(String thisUseCase) throws IOException {
 		String dataDir;
 		verbose = false;
@@ -352,8 +475,13 @@ public class DesqDfsLocalDistributedMining {
 		useTransitionRepresentation = false;
         useTreeRepresentation = false;
 		mergeSuffixes = false;
+		useDesqCount = false;
 
 		switch(scenario) {
+			case 0:
+				scenarioStr = "DesqCount";
+				useDesqCount = true;
+				break;
 			case 1:
 				scenarioStr = "send-input-sequences";
 				break;

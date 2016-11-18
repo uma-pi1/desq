@@ -153,7 +153,7 @@ public final class DesqCount extends DesqMiner {
 	// -- processing input sequences ---------------------------------------------------------------------------------
 
 	@Override
-	protected void addInputSequence(IntList sequence, long support, boolean allowBuffering) {
+	public void addInputSequence(IntList sequence, long support, boolean allowBuffering) {
 		assert prefix.isEmpty(); // will be maintained by stepOnePass()
 		this.inputSequence = sequence;
 		this.inputSupport = support;
