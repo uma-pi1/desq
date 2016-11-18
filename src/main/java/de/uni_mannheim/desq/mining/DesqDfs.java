@@ -33,9 +33,6 @@ public final class DesqDfs extends MemoryDesqMiner {
     /** Stores the final state transducer for DesqDfs (one-pass) */
 	final Fst fst;
 
-    /** Stores the reverse final state transducer for DesqDfs (two-pass) */
-    final Fst reverseFst;
-
     /** Stores the largest fid of an item with frequency at least sigma. Zsed to quickly determine
      * whether an item is frequent (if fid <= largestFrequentFid, the item is frequent */
     final int largestFrequentFid;
@@ -58,13 +55,13 @@ public final class DesqDfs extends MemoryDesqMiner {
 
     /** For each relevant input sequence, the set of positions at which the FST can reach a final state (before
      * reading the item at that position) */
-    final ArrayList<int[]> edfaFinalStatePositions; // per relevant input sequence
+    final ArrayList<int[]> edfaInitialStatePositions; // per relevant input sequence
 
     /** A sequence of EDFA states for reuse */
     final ArrayList<ExtendedDfaState> edfaStateSequence;
 
     /** A sequence of positions for reuse */
-    final IntList finalPos;
+    final IntList initialPos;
 
 
     // -- construction/clearing ---------------------------------------------------------------------------------------
@@ -90,33 +87,29 @@ public final class DesqDfs extends MemoryDesqMiner {
 						"desq.mining.use.two.pass=true");
 			}
 
-			// annotate final states before constructing dfa
-            tempFst.annotateFinalStates();
+			// construct the DFA for the FST (for the first pass)
+			// the DFA is constructed for the reverse FST!
+			this.edfa = new ExtendedDfa(tempFst, ctx.dict, true);
 
-            // construct the DFA for the FST (for the forward pass)
-			this.edfa = new ExtendedDfa(tempFst, ctx.dict);
+			// clear annotations
+			tempFst.removeAnnotations();
 
-            // clean annotations
-            tempFst.removeAnnotations();
+			// then reverse the FST to obtain the original FST (which we need for the second pass)
+			tempFst.reverse(false);
 
-            // then reverse the FST (which we now only need for the backward pass)
-            tempFst.reverse(false); // here we need the reverse fst
+			// and annotate FST
+			tempFst.annotateFinalStates();
 
-            // and annotate reverse FST
-            tempFst.annotateFinalStates();
-
-			fst = null;
-			reverseFst = tempFst;
+			fst = tempFst;
 
             // initialize helper variables for two-pass
 			edfaStateSequences = new ArrayList<>();
-			edfaFinalStatePositions = new ArrayList<>();
+			edfaInitialStatePositions = new ArrayList<>();
 			edfaStateSequence = new ArrayList<>();
-			finalPos = new IntArrayList();
+			initialPos = new IntArrayList();
 		} else { // one-pass
 			// store the FST
             fst = tempFst;
-			reverseFst = null;
 
 			// annotate final states
 			fst.annotateFinalStates();
@@ -130,9 +123,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 
             // invalidate helper variables for two-pass
             edfaStateSequences = null;
-			edfaFinalStatePositions = null;
+			edfaInitialStatePositions = null;
 			edfaStateSequence = null;
-			finalPos  = null;
+			initialPos = null;
 		}
 	}
 
@@ -152,8 +145,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 		if (useTwoPass) {
 			edfaStateSequences.clear();
             edfaStateSequences.trimToSize();
-			edfaFinalStatePositions.clear();
-            edfaFinalStatePositions.trimToSize();
+			edfaInitialStatePositions.clear();
+            edfaInitialStatePositions.trimToSize();
 		}
 	}
 
@@ -163,15 +156,15 @@ public final class DesqDfs extends MemoryDesqMiner {
 	public void addInputSequence(IntList inputSequence, long inputSupport, boolean allowBuffering) {
         // two-pass version of DesqDfs
         if (useTwoPass) {
-            // run the input sequence through the EDFA and compute the state sequences as well as the positions before
+            // run the input sequence through the EDFA and compute the state sequences as well as the positions from
             // which a final FST state is reached
-			if (edfa.isRelevant(inputSequence, edfaStateSequence, finalPos)) {
+			if (edfa.isRelevant(inputSequence, edfaStateSequence, initialPos)) {
 			    // we now know that the sequence is relevant; remember it
 				super.addInputSequence(inputSequence, inputSupport, allowBuffering);
 				edfaStateSequences.add(edfaStateSequence.toArray(new ExtendedDfaState[edfaStateSequence.size()]));
-				//TODO: directly do the first incStepOnePass to avoid copying and storing finalPos
-				edfaFinalStatePositions.add(finalPos.toIntArray());
-				finalPos.clear();
+				//TODO: directly do the first incStepOnePass to avoid copying and storing initialPos
+				edfaInitialStatePositions.add(initialPos.toIntArray());
+				initialPos.clear();
 			}
 			edfaStateSequence.clear();
             return;
@@ -210,7 +203,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				}
 			} else { // two-pass
                 // create the root
-				root = new DesqDfsTreeNode(reverseFst.numStates());
+				root = new DesqDfsTreeNode(fst.numStates());
 				incStepArgs.node = root;
 
                 // and process all input sequences to compute the roots children
@@ -220,27 +213,18 @@ public final class DesqDfs extends MemoryDesqMiner {
 					incStepArgs.inputId = inputId;
 					incStepArgs.inputSequence = inputSequences.get(inputId);
 					incStepArgs.edfaStateSequence = edfaStateSequences.get(inputId);
-					final int[] finalStatePos = edfaFinalStatePositions.get(inputId);
+					final int[] initialStatePos = edfaInitialStatePositions.get(inputId);
 
-                    // look at all positions before which a final FST state can be reached
-                    for (final int pos : finalStatePos) {
-                        // for those positions, start with each possible final FST state and go backwards
-
-                        // we start with final state if entire input was consumed or final complete state
-                        if(pos == incStepArgs.inputSequence.size()) {
-                            for (State fstFinalState : incStepArgs.edfaStateSequence[pos].getFstFinalStates()) {
-                                incStepTwoPass(incStepArgs, pos-1, fstFinalState, 0);
-                            }
-                        }
-                        for(State fstFinalCompleteState : incStepArgs.edfaStateSequence[pos].getFstFinalCompleteStates()) {
-                            incStepTwoPass(incStepArgs, pos-1, fstFinalCompleteState, 0);
-                        }
+                    // look at all positions from which a final FST state can be reached
+                    for (final int pos : initialStatePos) {
+                        // for those positions, start with the initial state
+						incStepTwoPass(incStepArgs, pos, fst.getInitialState(), 0);
 					}
 				}
 
 				// we don't need this anymore, so let's save the memory
-				edfaFinalStatePositions.clear();
-                edfaFinalStatePositions.trimToSize();
+				edfaInitialStatePositions.clear();
+                edfaInitialStatePositions.trimToSize();
 			}
 
 			// recursively grow the patterns
@@ -312,44 +296,46 @@ public final class DesqDfs extends MemoryDesqMiner {
      */
 	private boolean incStepTwoPass(final IncStepArgs args, final int pos,
 								   final State state, final int level) {
-		// check if we reached the beginning of the input sequence or a complete final state
-		if (state.isFinalComplete() || pos == -1)
+		// check if we reached a final complete state of consumed entire input
+		// if we consumed the entire input, we are guaranteed to reach a final state
+		// (two-pass correctness)
+		if (state.isFinalComplete() || pos == args.inputSequence.size())
 		    return true;
 
         // get iterator over next output item/state pairs; reuse existing ones if possible
-        // note that the reverse FST is used here (since we process inputs backwards)
-		// only iterates over states that we saw in the forward pass (the other ones can safely be skipped)
+        // note that the FST used here (since we already processed inputs)
+		// only iterates over states that we saw in the first pass (the other ones can safely be skipped)
 		final int itemFid = args.inputSequence.getInt(pos);
+		final int edfaStatePos = args.inputSequence.size() - (pos + 1); // since we process input backwards
+
 		Iterator<ItemState> itemStateIt;
 		if (level>=itemStateIterators.size()) {
-			itemStateIt = state.consume(itemFid, null, args.edfaStateSequence[pos].getFstStates());
+			itemStateIt = state.consume(itemFid, null, args.edfaStateSequence[edfaStatePos].getFstStates());
 			itemStateIterators.add(itemStateIt);
 		} else {
 			itemStateIt = state.consume(itemFid, itemStateIterators.get(level),
-					args.edfaStateSequence[pos].getFstStates());
+					args.edfaStateSequence[edfaStatePos].getFstStates());
 		}
 
-        // iterate over output item/state pairs and remember whether we hit the initial state without producing output
+        // iterate over output item/state pairs and remember whether we hit the final or finalComplete state without producing output
         // (i.e., no transitions or only transitions with epsilon output)
         boolean reachedInitialStateWithoutOutput = false;
 		while (itemStateIt.hasNext()) {
 			final ItemState itemState = itemStateIt.next();
 			final State toState = itemState.state;
 
-			// we need to process that state because we saw it in the forward pass (assertion checks this)
-			assert args.edfaStateSequence[pos].getFstStates().get(toState.getId());
+			// we need to process that state because we saw it in the fist pass (assertion checks this)
+			assert args.edfaStateSequence[edfaStatePos].getFstStates().get(toState.getId());
 
 			final int outputItemFid = itemState.itemFid;
 			if (outputItemFid == 0) { // EPS output
                 // we did not get an output, so continue running the reverse FST
 				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
-				reachedInitialStateWithoutOutput |= incStepTwoPass(args, pos-1, toState, newLevel);
+				reachedInitialStateWithoutOutput |= incStepTwoPass(args, pos + 1, toState, newLevel);
 			} else if (largestFrequentFid >= outputItemFid) {
                 // we have an output and its frequent, so update the corresponding projected database
-				// Note: we do not store pos-1 in the projected database to having avoid write -1's when the
-                // position was 0. When we read the posting list later, we substract 1
 				args.node.expandWithItem(outputItemFid, args.inputId, args.inputSequence.weight,
-						pos, toState.getId());
+						pos+1, toState.getId());
 			}
 		}
 
@@ -416,10 +402,8 @@ public final class DesqDfs extends MemoryDesqMiner {
                     boolean reachedInitialStateWithoutOutput = false;
 					do {
 						final int stateId = projectedDatabaseIt.nextNonNegativeInt();
-						final int pos = projectedDatabaseIt.nextNonNegativeInt() - 1; // position of next input item
-                                            // (-1 because we added a position incremented by one; see incStepTwoPass)
-						reachedInitialStateWithoutOutput |= incStepTwoPass(incStepArgs, pos,
-								reverseFst.getState(stateId), 0);
+						final int pos = projectedDatabaseIt.nextNonNegativeInt(); // position of next input item
+						reachedInitialStateWithoutOutput |= incStepTwoPass(incStepArgs, pos, fst.getState(stateId), 0);
 					} while (projectedDatabaseIt.hasNext());
 
                     // if we reached the initial state without output, increment the support of this child node
@@ -434,13 +418,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			// output the patterns for the current child node if it turns out to be frequent
 			if (support >= sigma) {
 				if (ctx.patternWriter != null) {
-					if (!useTwoPass) { // one-pass
-						ctx.patternWriter.write(prefix, support);
-					} else { // two-pass
-                        // for the two-pass algorithm, we need to reverse the output because the search tree is built
-                        // in reverse order
-						ctx.patternWriter.writeReverse(prefix, support);
-					}
+					ctx.patternWriter.write(prefix, support);
 				}
 			}
 

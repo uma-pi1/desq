@@ -40,9 +40,6 @@ public final class DesqCount extends DesqMiner {
 	/** Stores the final state transducer (one-pass) */
 	final Fst fst;
 
-	/** Stores the reverse final state transducer (two-pass) */
-	final Fst reverseFst;
-
 	/** Stores the largest fid of an item with frequency at least sigma. Used to quickly determine
 	 * whether an item is frequent (if fid <= largestFrequentFid, the item is frequent */
 	final int largestFrequentFid;
@@ -76,8 +73,8 @@ public final class DesqCount extends DesqMiner {
 	/** Sequence of EDFA states for current input */
 	final ArrayList<ExtendedDfaState> edfaStateSequence;
 
-	/** Positions for which current input reached a final state  */
-	final IntList finalPos;
+	/** Positions for which FST should be simulated (used in two-pass) */
+	final IntList initialPos;
 
 
 	// -- construction/clearing ---------------------------------------------------------------------------------------
@@ -105,32 +102,27 @@ public final class DesqCount extends DesqMiner {
 						"desq.mining.use.two.pass=true");
 			}
 
-
-			// annotate final states before constructing dfa
-			tempFst.annotateFinalStates();
-
-			// construct the DFA for the FST (for the forward pass)
-			this.edfa = new ExtendedDfa(tempFst, ctx.dict);
+			// construct the DFA for the FST (for the first pass)
+			// the DFA is constructed for the reverse FST!
+			this.edfa = new ExtendedDfa(tempFst, ctx.dict, true);
 
 			// clear annotations
 			tempFst.removeAnnotations();
 
-			// then reverse the FST (which we now only need for the backward pass)
-			tempFst.reverse(false); // here we need the reverse fst
+			// then reverse the FST to obtain the original FST (which we need for the second pass)
+			tempFst.reverse(false);
 
-			// and annotate reverse FST
+			// and annotate FST
 			tempFst.annotateFinalStates();
 
-			fst = null;
-			reverseFst = tempFst;
+			fst = tempFst;
 
 			// initialize helper variables for two-pass
 			edfaStateSequence = new ArrayList<>();
-			finalPos = new IntArrayList();
+			initialPos = new IntArrayList();
 		} else { // one-pass
 			// store the FST
 			fst = tempFst;
-			reverseFst = null;
 
 			// annotate final states
 			fst.annotateFinalStates();
@@ -144,7 +136,7 @@ public final class DesqCount extends DesqMiner {
 
 			// invalidate helper variables for two-pass
 			edfaStateSequence = null;
-			finalPos  = null;
+			initialPos = null;
 		}
 
 		// initalize helper variable for FST simulation
@@ -174,28 +166,19 @@ public final class DesqCount extends DesqMiner {
 
 		// two-pass version of DesqCount
 		if (useTwoPass) {
-			// run the input sequence through the EDFA and compute the state sequences as well as the positions before
-			// which a final FST state is reached
-			if (edfa.isRelevant(sequence, edfaStateSequence, finalPos)) {
+			// run the input sequence through the EDFA and compute the state sequences as well as the positions
+			// at which, we start the FST simulation
+			if (edfa.isRelevant(sequence, edfaStateSequence, initialPos)) {
 				// we now know that the sequence is relevant; process it
-				// look at all positions before which a final FST state can be reached
-				for (final int pos : finalPos) {
-					// for those positions, start with each possible final FST state and go backwards
-
-					// we start with final state if all input was consumed or final complete state
-					if(pos == sequence.size()) {
-						for (State fstFinalState : edfaStateSequence.get(pos).getFstFinalStates()) {
-							stepTwoPass(pos - 1, fstFinalState, 0);
-						}
-					}
-					for(State fstFinalCompleteState : edfaStateSequence.get(pos).getFstFinalCompleteStates()) {
-						stepTwoPass(pos - 1, fstFinalCompleteState, 0);
-					}
+				// look at all initial positions from which a final FST state can be reached
+				for (final int pos : initialPos) {
+					// for those positions, start with initial state
+					stepTwoPass(pos, fst.getInitialState(), 0);
 				}
 				inputId++;
 			}
 			edfaStateSequence.clear();
-			finalPos.clear();
+			initialPos.clear();
 			return;
 		}
 
@@ -217,11 +200,7 @@ public final class DesqCount extends DesqMiner {
 			int support = PrimitiveUtils.getLeft(value);
 			if (support >= sigma) {
 				if (ctx.patternWriter != null) {
-					if (useTwoPass) {
-						ctx.patternWriter.writeReverse(entry.getKey(), support);
-					} else {
-						ctx.patternWriter.write(entry.getKey(), support);
-					}
+					ctx.patternWriter.write(entry.getKey(), support);
 				}
 			}
 		}
@@ -295,25 +274,16 @@ public final class DesqCount extends DesqMiner {
 	}
 
 	/** Simulates the reverse FST starting from the given position and state. Maintains the invariant that the current
-	 * output is stored in {@link #prefix} in reverse order. Recursive version, used only for two-pass.
+	 * output is stored in {@link #prefix}. Recursive version
 	 *
 	 * @param pos position of next input item
 	 * @param state current state of FST
 	 * @param level recursion level (used for reusing iterators without conflict)
 	 */
 	private void stepTwoPass(int pos, State state, int level) {
-		// check if we reached the beginning of the input sequence
-		/*if(pos == -1) {
-			// we consumed entire input in reverse -> we must have reached the inital state by two-pass correctness
-			assert state.getId() == 0;
-			if (!prefix.isEmpty()) {
-				countSequence(prefix);
-			}
-			return;
-		}*/
-
 		// if we reached a final complete state or consumed the entire input (-> reached final state)
-		if (state.isFinalComplete() || pos == -1) {
+		// if consume the entire input, we are guaranteed to reach the final state (by two-pass correctness)
+		if (state.isFinalComplete() || pos == inputSequence.size()) {
 			if (!prefix.isEmpty()) {
 				countSequence(prefix);
 			}
@@ -324,13 +294,15 @@ public final class DesqCount extends DesqMiner {
 		// note that the reverse FST is used here (since we process inputs backwards)
 		// only iterates over states that we saw in the forward pass (the other ones can safely be skipped)
 		final int itemFid = inputSequence.getInt(pos);
+		final int edfaStatePos = inputSequence.size()-(pos+1); // since we compute reachable states backwards
+
 		Iterator<ItemState> itemStateIt;
 		if (level>=itemStateIterators.size()) {
-			itemStateIt = state.consume(itemFid, null, edfaStateSequence.get(pos).getFstStates());
+			itemStateIt = state.consume(itemFid, null, edfaStateSequence.get(edfaStatePos).getFstStates());
 			itemStateIterators.add(itemStateIt);
 		} else {
 			itemStateIt = state.consume(itemFid, itemStateIterators.get(level),
-					edfaStateSequence.get(pos).getFstStates());
+					edfaStateSequence.get(edfaStatePos).getFstStates());
 		}
 
 		// iterate over output item/state pairs
@@ -339,20 +311,20 @@ public final class DesqCount extends DesqMiner {
 
 			// we need to process that state because we saw it in the forward pass (assertion checks this)
 			final State toState = itemState.state;
-			assert edfaStateSequence.get(pos).getFstStates().get(toState.getId());
+			assert edfaStateSequence.get(edfaStatePos).getFstStates().get(toState.getId());
 
 			final int outputItemFid = itemState.itemFid;
 			if(outputItemFid == 0) { // EPS output
 				// we did not get an output, so continue with the current prefix
 				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
-				stepTwoPass(pos - 1, toState, newLevel);
+				stepTwoPass(pos + 1, toState, newLevel);
 			} else {
 				// we got an output; check whether it is relevant
 				if (!useFlist || largestFrequentFid >= outputItemFid) {
 					// now append this item to the prefix, continue running the FST, and remove the item once done
 					prefix.add(outputItemFid);
 					int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
-					stepTwoPass(pos - 1, toState, newLevel);
+					stepTwoPass(pos + 1, toState, newLevel);
 					prefix.removeInt(prefix.size() - 1);
 				}
 			}
