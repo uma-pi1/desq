@@ -12,20 +12,39 @@ import java.util.*;
  */
 public final class ExtendedDfa {
 
+	// initial state for ExtendedDfa
 	ExtendedDfaState initialDfaState;
 
+	// helpers
 	Fst fst;
 	Dictionary dict;
 
+
 	public ExtendedDfa(Fst fst, Dictionary dict) {
-		this.fst = fst;
-		this.dict = dict;
-		this.initialDfaState = new ExtendedDfaState(fst.getInitialState().getId(), fst, dict.size());
-		this.constructExtendedDfa();
+		this(fst,dict,false);
+	}
+
+	public ExtendedDfa(Fst fst, Dictionary dict, boolean reverse) {
+        this.fst = fst;
+        this.dict = dict;
+        IntSet initialStateIdSet;
+		// We reverse is true, we create a DFA for the reverse FST
+		if(reverse) {
+            List<State> initialStates = fst.reverse(false);
+            initialStateIdSet = new IntOpenHashSet();
+            for(State s : initialStates) {
+                initialStateIdSet.add(s.id);
+            }
+            fst.annotateFinalStates();
+		} else {
+            initialStateIdSet = IntSets.singleton(fst.getInitialState().getId());
+		}
+        this.initialDfaState = new ExtendedDfaState(initialStateIdSet, fst, dict.size());
+        this.constructExtendedDfa(initialStateIdSet);
 	}
 
 	/** Construct an extended-DFA from a given FST */
-	private void constructExtendedDfa() {
+	private void constructExtendedDfa(IntSet initialStateIdSet) {
 		// Map old states to new state
 		Map<IntSet, ExtendedDfaState> newStateForStateIdSet = new HashMap<>();
 
@@ -38,7 +57,6 @@ public final class ExtendedDfa {
 		Map<IntSet, IntList> reachableStatesForItemIds = new HashMap<>();
 
 		// Initialize conversion
-		IntSet initialStateIdSet = IntSets.singleton(fst.getInitialState().getId());
 		newStateForStateIdSet.put(initialStateIdSet, initialDfaState);
 		unprocessedStateIdSets.push(initialStateIdSet);
 
@@ -106,47 +124,48 @@ public final class ExtendedDfa {
 		}
 	}
 
-
 	/**
 	 * Returns true if the input sequence is relevant
 	 */
 	public boolean isRelevant(IntList inputSequence) {
-		ExtendedDfaState state = initialDfaState;
+		ExtendedDfaState eDfaState = initialDfaState;
 		int pos = 0;
 		while(pos < inputSequence.size()) {
-			state = state.consume(inputSequence.getInt(pos++));
+			eDfaState = eDfaState.consume(inputSequence.getInt(pos++));
 			// In this case is ok to return false, if there was a final state before
 			// we already retured true, final state can not be reached if state 
 			// was null
-			if(state == null)
+			if(eDfaState == null)
 				return false;
-			if(state.isFinalComplete())
+			if(eDfaState.isFinalComplete())
 				return true;
 		}
-		return state.isFinal(); //pos == inputSequence.size()
+		return eDfaState.isFinal(); //pos == inputSequence.size()
 	}
-
-
 
 	/**
 	 * Returns true if the input sequence is relevant
 	 *
-	 * Also adds to the given list with the sequence of states being visited before consuming each item + final one
-	 * i.e., stateSeq[pos] = state before consuming inputSequence[pos]
+	 * This method, reads the input sequence backwards and also adds
+	 * the given list with the sequence of states being visited before
+	 * consuming each item + initial one,
+	 * i.e., stateSeq[inputSequence.size() - (pos+1)] = state before consuming inputSequence[pos]
+     * The method also adds the given list with initial positions
+     * from which FST can be simulated
 	 */
-	public boolean isRelevant(IntList inputSequence, List<ExtendedDfaState> stateSeq, IntList finalPos) {
-		ExtendedDfaState state = initialDfaState;
-		stateSeq.add(state);
-		int pos = 0;
-		while(pos < inputSequence.size()) {
-			state = state.consume(inputSequence.getInt(pos++));
-			if(state == null)
-				break; // we may return true or false, as we might have reached a final state before
-			stateSeq.add(state);
-			if(state.isFinalComplete() || (state.isFinal() && pos == inputSequence.size())) {
-				finalPos.add(pos);
-			}
-		}
-		return (!finalPos.isEmpty());
-	}
+    public boolean isRelevant(IntList inputSequence, List<ExtendedDfaState> stateSeq, IntList initialPos) {
+        ExtendedDfaState state = initialDfaState;
+        stateSeq.add(state);
+        int pos = inputSequence.size();
+        while(pos > 0) {
+            state = state.consume(inputSequence.getInt(--pos));
+            if(state == null)
+                break; // we may return true or false, as we might have reached a final state before
+            stateSeq.add(state);
+            if(state.isFinalComplete() || (state.isFinal() && pos == 0)) {
+                initialPos.add(pos);
+            }
+        }
+        return (!initialPos.isEmpty());
+    }
 }

@@ -2,10 +2,8 @@ package de.uni_mannheim.desq.fst;
 
 import it.unimi.dsi.fastutil.ints.IntSet;
 
-import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Collections;
-import java.util.List;
+
 
 /**
  * ExtendedDfaState.java
@@ -15,18 +13,17 @@ public final class ExtendedDfaState {
 	
 	ExtendedDfaState[] transitionTable;
 
+	// corresponding FST states
 	BitSet fstStates;
-	List<State> fstFinalStates;
-	List<State> fstFinalCompleteStates;
+
+	// these are set to true if the corresponding states
+	// contain isFinal or isFinalComplete
+	boolean isFinal = false;
+	boolean isFinalComplete = false;
 
 	public ExtendedDfaState(IntSet stateIdSet, Fst fst, int size) {
 		initTransitionTable(size);
 		setFstStates(stateIdSet, fst);
-	}
-
-	public ExtendedDfaState(int stateId, Fst fst, int size) {
-		initTransitionTable(size);
-		setFstStates(stateId, fst);
 	}
 
 	private void initTransitionTable(int size){
@@ -41,60 +38,29 @@ public final class ExtendedDfaState {
 		return transitionTable[itemFid];
 	}
 
-	@SuppressWarnings("unchecked")
-	private void setFstStates(int stateId, Fst fst) {
-		this.fstStates = new BitSet(fst.numStates());
-		fstStates.set(stateId);
-		State state = fst.getState(stateId);
-		if (state.isFinal()) {
-			fstFinalStates = new ArrayList<>(1);
-			fstFinalStates.add(state);
-		} else{
-			fstFinalStates = (List<State>)Collections.EMPTY_LIST;
-		}
-
-		if(state.isFinalComplete()) {
-			fstFinalCompleteStates = new ArrayList<>(1);
-			fstFinalCompleteStates.add(state);
-		}
-		else {
-			fstFinalCompleteStates = (List<State>)Collections.EMPTY_LIST;
-		}
-	}
-	
 	private void setFstStates(IntSet stateIdSet, Fst fst) {
-		fstFinalStates = new ArrayList<>(fst.numStates());
-		fstFinalCompleteStates = new ArrayList<>(fst.numStates());
 		this.fstStates = new BitSet();
 		for(int stateId : stateIdSet) {
 			fstStates.set(stateId);
 			State state = fst.getState(stateId);
 			if (state.isFinal()) {
-				fstFinalStates.add(state);
+				isFinal = true;
 			}
 			if (state.isFinalComplete()) {
-				fstFinalCompleteStates.add(state);
+				isFinalComplete = true;
 			}
 		}
 	}
 
 	public boolean isFinal() {
-		return !fstFinalStates.isEmpty();
+		return isFinal;
 	}
 
 	public boolean isFinalComplete() {
-		return !fstFinalCompleteStates.isEmpty();
+		return isFinalComplete;
 	}
 
 	public BitSet getFstStates() {
 		return fstStates;
-	}
-
-	public List<State> getFstFinalStates() {
-		return fstFinalStates;
-	}
-
-	public List<State> getFstFinalCompleteStates() {
-		return fstFinalCompleteStates;
 	}
 }
