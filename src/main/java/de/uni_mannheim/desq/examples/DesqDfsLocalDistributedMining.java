@@ -479,23 +479,23 @@ public class DesqDfsLocalDistributedMining {
 
 		switch(scenario) {
 			case 0:
-				scenarioStr = "DesqCount";
+				scenarioStr = "Count, shuffle output sequences";
 				useDesqCount = true;
 				break;
 			case 1:
-				scenarioStr = "send-input-sequences";
+				scenarioStr = "Dfs, shuffle input sequences";
 				break;
 			case 2:
-				scenarioStr = "send-transactions";
+				scenarioStr = "Dfs, shuffle concatenated transitions";
 				useTransitionRepresentation = true;
 				break;
 			case 3:
-				scenarioStr = "send-trees";
+				scenarioStr = "Dfs, shuffle transition trees";
                 useTransitionRepresentation = true;
 				useTreeRepresentation = true;
 				break;
 			case 4:
-				scenarioStr = "send-trees, merge suffixes";
+				scenarioStr = "Dfs, shuffle transition DAGs";
 				useTransitionRepresentation = true;
 				useTreeRepresentation = true;
 				mergeSuffixes = true;
