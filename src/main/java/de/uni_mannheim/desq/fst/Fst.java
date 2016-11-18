@@ -298,4 +298,5 @@ public final class Fst {
 	}
 
 	public Transition getTransitionByNumber( int trNo ) { return numberedTransitions[trNo]; }
+	public BasicTransition getBasicTransitionByNumber( int trNo ) { return (BasicTransition) numberedTransitions[trNo]; }
 }

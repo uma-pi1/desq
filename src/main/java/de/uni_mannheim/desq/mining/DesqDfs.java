@@ -717,7 +717,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 		protected void write(IntList send) {
 			int numOutgoing = outTransitions.size();
 			int startOffset = send.size();
-
+			int inpItem;
+			int trId;
 			// note down that and where we have written this state
 			this.writtenAtPos = send.size();
 
@@ -734,8 +735,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 			for(Map.Entry<Long,PathState> entry : outTransitions.entrySet()) {
                 // fill in the placeholder, then write transition information: transition number and the input item
 				send.set(startOffset+1+outPathNo, send.size());
-                send.add(PrimitiveUtils.getLeft(entry.getKey()));
-				send.add(PrimitiveUtils.getRight(entry.getKey()));
+                trId = PrimitiveUtils.getLeft(entry.getKey());
+				send.add(trId);
+				inpItem = PrimitiveUtils.getRight(entry.getKey());
+				if(fst.getBasicTransitionByNumber(trId).getOutputLabelType() != OutputLabelType.CONSTANT)
+					send.add(inpItem); // don't add the input item for constant transitions
 				if(mergeSuffixes) {
 					// if we merge suffixes, multiple transitions can point to the same state, so we need a pointer for that
 					// if the state was already written, we know it's position and can write it down
@@ -912,7 +916,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 					}
 					// we put the current transition together with the input item onto the prefix and take it off when we come back from recursion
 					prefix.add(tr.getTransitionNumber());
-					prefix.add(addItem);
+                    if(tr.getOutputLabelType() == OutputLabelType.CONSTANT)
+                    	prefix.add(0);
+					else
+						prefix.add(addItem);
 					findPathsAndPivotsStepOnePassCompressed(newCurrentPivotItems, pos+1, toState, level+1);
 					prefix.removeInt(prefix.size()-1);
 					prefix.removeInt(prefix.size()-1);
@@ -1529,13 +1536,17 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 			// get (transition_id, input_item_fid) pair
 			trNo = args.inputSequence.getInt(readPos);
-			inputItem = args.inputSequence.getInt(readPos+1);
 			tr = (BasicTransition) fst.getTransitionByNumber(trNo);
+			if(tr.getOutputLabelType() != OutputLabelType.CONSTANT)
+				inputItem = args.inputSequence.getInt(readPos+1);
+			else
+				inputItem = 0;
 
-			// if we merge suffixes, we have one more integer: the following position. When not merging suffixes, that is always 2 items further
-            int followPos = readPos + 2;
+			// if we do not merge suffixes, the next state can be read two (one if this is a constant transition) positions from here.
+			// if we do merge suffixes, we read the the next read position from that integer
+            int followPos = readPos + (tr.getOutputLabelType() == OutputLabelType.CONSTANT ? 1 : 2);
 			if(mergeSuffixes)
-				followPos = args.inputSequence.getInt(readPos+2);
+				followPos = args.inputSequence.getInt(followPos);
 
             // for each of the new outputs, we update the according projected database
             IntList outputItems = tr.getOutputElements(inputItem);
