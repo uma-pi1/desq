@@ -139,7 +139,15 @@ public final class FstOperations {
 	public static List<State> reverse(Fst fst, boolean createNewInitialState) {
 	
 		Int2ObjectMap<List<Transition>> reversedIncomingTransitionsOfState = new Int2ObjectOpenHashMap<>();
-		reversedIncomingTransitionsOfState.put(fst.initialState.id, new ArrayList<>());
+
+		// Handle reverse FST for two-pass
+		if(!fst.initialState.isFinal)
+			reversedIncomingTransitionsOfState.put(fst.initialState.id, new ArrayList<>());
+		else {
+			for(State state : fst.getFinalStates()) {
+				reversedIncomingTransitionsOfState.put(state.id, new ArrayList<>());
+			}
+		}
 
 		for (State fromState : fst.states) {
 			for (Transition transition : fromState.transitionList) {
@@ -159,13 +167,27 @@ public final class FstOperations {
 		List<State> newInitialStates = new ArrayList<>(); // will be old final states
 		for (State s : fst.states) {
 			s.transitionList = reversedIncomingTransitionsOfState.get(s.id);
-			if(s.isFinal) {
+			/*if(s.isFinal) {
 				newInitialStates.add(s);
 				s.isFinal = false;
+			}*/
+		}
+
+		// Handle reverse FST for two-pass
+		if(!fst.initialState.isFinal) {
+			fst.initialState.isFinal = true;
+			for (State state : fst.getFinalStates()) {
+				state.isFinal = false;
+				newInitialStates.add(state);
 			}
 		}
-		
-		fst.initialState.isFinal = true;
+		else {
+			fst.initialState.isFinal = false;
+			for(State state : fst.getFinalStates()) {
+				state.isFinal = true;
+			}
+		}
+
 		if (createNewInitialState) {
 			// If we want one initial state
 			if(newInitialStates.size() > 1) {
