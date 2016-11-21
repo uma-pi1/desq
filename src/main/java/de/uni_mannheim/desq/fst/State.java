@@ -1,9 +1,7 @@
 package de.uni_mannheim.desq.fst;
 
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 
 public final class State {
@@ -243,9 +241,21 @@ public final class State {
 	public boolean isFinal() { 
 		return isFinal; 
 	}
-	
+
 	public List<Transition> getTransitions() {
 		return transitionList;
+	}
+
+	public List<BasicTransition> getSortedBasicTransitions() {
+		// quick & easy. to be improved
+		List<BasicTransition> basicTransitionList = transitionList.stream().map(e -> (BasicTransition) e).collect(Collectors.toList());
+		basicTransitionList.sort(Comparator.comparing((BasicTransition t)->t.outputLabelType)
+			.thenComparing(t->t.outputLabel)
+			.thenComparing(t->t.inputLabelType)
+			.thenComparing(t->t.inputLabel));
+		// now that we have sorted them, store them in this order
+		transitionList = basicTransitionList.stream().map(e -> (Transition) e).collect(Collectors.toList());
+		return basicTransitionList;
 	}
 	
 	private static class StateIterator implements Iterator<State> {

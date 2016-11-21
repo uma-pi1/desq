@@ -287,10 +287,11 @@ public final class Fst {
 		ArrayList<Transition> tempNumberedTransitions = new ArrayList<Transition>();
 		int trNo = 0;
 		for(State state : states) {
-			for(Transition gtr : state.getTransitions()) {
-				((BasicTransition) gtr).setTransitionNumber(trNo);
+            // we sort the transitions to get a consistent numbering
+			for(BasicTransition tr : state.getSortedBasicTransitions()) {
+				tr.setTransitionNumber(trNo);
 				trNo++;
-				tempNumberedTransitions.add(gtr);
+				tempNumberedTransitions.add(tr);
 			}
 		}
 		numberedTransitions = new Transition[tempNumberedTransitions.size()];
