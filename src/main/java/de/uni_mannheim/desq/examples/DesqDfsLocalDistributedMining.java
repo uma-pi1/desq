@@ -31,6 +31,8 @@ public class DesqDfsLocalDistributedMining {
 	static boolean mergeSuffixes;
 	static String baseFolder;
 	static boolean useDesqCount;
+	static PrintWriter statsWriter;
+	static int scenario;
 
 	/** main
 	 *
@@ -39,7 +41,7 @@ public class DesqDfsLocalDistributedMining {
 	 */
 	public static void main(String[] args) throws IOException {
 
-//		localCorrectnessTest(); System.exit(0);
+		localCorrectnessTest(); System.exit(0);
 
 		if(System.getProperty("os.name").startsWith("Mac")) {
 			baseFolder = "/Users/alex/";
@@ -49,7 +51,7 @@ public class DesqDfsLocalDistributedMining {
 		if(args.length > 0) {
 			runDistributedMiningLocally(args);
 		} else {
-			runDistributedMiningLocally("N5-1991", 1, 1);
+			runDistributedMiningLocally("IA2", 1, 1);
 		}
 	}
 
@@ -153,11 +155,13 @@ public class DesqDfsLocalDistributedMining {
 		System.out.println(ioTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
 
 		// run partition construction
+		openStatsWriter();
 		System.out.print("Determining pivot items... ");
 		Stopwatch pcTime = Stopwatch.createStarted();
 		Int2ObjectOpenHashMap<ObjectList<IntList>> partitions = miner.createPartitions(inputSequences, verbose);
 		pcTime.stop();
 		System.out.println(pcTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
+		closeStatsWriter();
 
 		// clear the memory
 		inputSequences.clear();
@@ -295,12 +299,14 @@ public class DesqDfsLocalDistributedMining {
 		System.out.println(ioTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
 
 		// run partition construction
+		openStatsWriter();
 		System.out.print("Adding input sequences to miner ...");
 		Stopwatch pcTime = Stopwatch.createStarted();
 		for(IntList sequence : inputSequences) {
 			miner.addInputSequence(sequence, 1, true);
 		}
 		System.out.println(pcTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
+		closeStatsWriter();
 
 		// clear the memory
 		inputSequences.clear();
@@ -470,13 +476,13 @@ public class DesqDfsLocalDistributedMining {
 		}
 	}
 
-	private static void setScenario(int scenario) {
+	private static void setScenario(int setScenario) {
 		//set some defaults
+		scenario = setScenario;
 		useTransitionRepresentation = false;
         useTreeRepresentation = false;
 		mergeSuffixes = false;
 		useDesqCount = false;
-
 		switch(scenario) {
 			case 0:
 				scenarioStr = "Count, shuffle output sequences";
@@ -526,5 +532,22 @@ public class DesqDfsLocalDistributedMining {
 
 		dict = Dictionary.loadFrom(dataDir + dataset + "-dict.avro.gz");
 		dataFile  = new File(dataDir + dataset + "-data.del");
+	}
+
+	public static void openStatsWriter() {
+		try{
+			statsWriter = new PrintWriter(new FileOutputStream(new File(baseFolder + "Dropbox/Master/Thesis/Experiments/F/shufflestats-"+runVersion+".txt"), true));
+		} catch (Exception e) {
+			System.out.println("Can't open file to write shuffle stats!");
+			e.printStackTrace();
+		}
+	}
+
+	public static void closeStatsWriter() {
+        statsWriter.close();
+	}
+
+	public static void writeShuffleStats(int seqNo, int pivotItem, int pathNo, int intNo) {
+		statsWriter.println(useCase + "\t" + scenario + "\t" + seqNo + "\t" + pivotItem + "\t" + pathNo + "\t" + intNo);
 	}
 }

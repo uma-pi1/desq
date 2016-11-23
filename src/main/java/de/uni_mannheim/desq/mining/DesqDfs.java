@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.mining;
 
+import de.uni_mannheim.desq.examples.DesqDfsLocalDistributedMining;
 import de.uni_mannheim.desq.fst.*;
 import de.uni_mannheim.desq.fst.BasicTransition.OutputLabelType;
 import de.uni_mannheim.desq.fst.graphviz.FstVisualizer;
@@ -303,7 +304,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			if (useTreeRepresentation) { // tree transition representation
 				getPivotItemsAndTreeRepresentationOfOneSequence(inputSequence, seqNo);
 			} else if(useTransitionRepresentation) { // concatenated transition representation
-				getPivotItemsAndTransitionRepresentationOfOneSequence(inputSequence);
+				getPivotItemsAndTransitionRepresentationOfOneSequence(inputSequence, seqNo);
 			} else {
 				pivotElements = getPivotItemsOfOneSequence(inputSequence);
 
@@ -318,6 +319,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 						newPartitionSeqList.add(inputSequence);
 						partitions.put(pivot, newPartitionSeqList);
 					}
+					DesqDfsLocalDistributedMining.writeShuffleStats(seqNo, pivot, 1, inputSequence.size());
 				}
 			}
 		}
@@ -381,7 +383,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	 * @param inputSequence
 	 * @return pivotItems set of frequent output items of input sequence inputSequence
 	 */
-	public IntSet getPivotItemsAndTransitionRepresentationOfOneSequence(IntList inputSequence) {
+	public IntSet getPivotItemsAndTransitionRepresentationOfOneSequence(IntList inputSequence, int seqNo) {
 		pivotItems.clear();
 		this.inputSequence = inputSequence;
 
@@ -418,6 +420,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 				sendList.addAll(path);
 			}
 
+			DesqDfsLocalDistributedMining.writeShuffleStats(seqNo, pivotItem, paths.size(), sendList.size());
+
 			// emit the list we constructed
 			if(!partitions.containsKey(pivotItem)) {
 				partitions.put(pivotItem, new ObjectArrayList<IntList>());
@@ -441,6 +445,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		ObjectList<PathState> leafs = new ObjectArrayList<PathState>();
         int numPathStates = 0;
 		private ObjectList<PathState> pathStates = new ObjectArrayList<PathState>(); // TODO: only for printing. can be removed
+		protected int numPaths = 0; // only for stat purposes, can be removed
 
 		public OutputNFA() {
 			root = new PathState(this);
@@ -452,6 +457,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		 * @param path
 		 */
 		protected void addPath(IntList path) {
+			numPaths++;
 			int trId = 0;
 			int inpItem = 0;
             PathState currentState;
@@ -791,6 +797,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 			// Next step: construct the sequence we will send to the partition
 			IntList sendList = new IntArrayList();
 			nfa.write(sendList);
+
+			DesqDfsLocalDistributedMining.writeShuffleStats(seqNo, pivotItem, nfa.numPaths, sendList.size());
 
 			// emit the list we constructed
 			if(!partitions.containsKey(pivotItem)) {
