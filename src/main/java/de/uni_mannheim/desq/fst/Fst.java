@@ -81,13 +81,16 @@ public final class Fst {
 	/* Returns a copy of FST with shallow copy of its transitions */
 	public Fst shallowCopy() {
 		Fst fstCopy = new Fst();
+		fstCopy.states.clear();
 		Map<State, State> stateMap = new HashMap<>();
 		for(State state : states) {
 			stateMap.put(state, new State());
 		}
 		for(State state : states) {
 			State stateCopy = stateMap.get(state);
+			stateCopy.id = state.id;
 			stateCopy.isFinal = state.isFinal;
+			stateCopy.isFinalComplete = state.isFinalComplete;
 			fstCopy.states.add(stateCopy);
 			if (state.isFinal) fstCopy.finalStates.add(stateCopy);
 			if(state == initialState) {
@@ -203,7 +206,11 @@ public final class Fst {
 				edges.add(new Edge(s.id, t.toState.id, t.toPatternExpression()));
 			}
 			if (s.isFinal()) {
-				edges.add(new Edge(s.id, -1, "")); // from final to dummy-final
+				if (s.isFinalComplete) {
+					edges.add(new Edge(s.id, -1, ".*")); // from final to dummy-final
+				} else {
+					edges.add(new Edge(s.id, -1, "")); // eps from final to dummy-final
+				}
 			}
 			if (s == initialState) {
 				edges.add(new Edge(-2, s.id, "")); // from dummy-initial to initial
@@ -287,6 +294,8 @@ public final class Fst {
      * reachable.
      */
 	public void annotateFinalStates() {
+		removeAnnotations();
+
         // Convert FST starting at final states to DFA by only looking of .:EPS transitions
 
 		// Map fst states to xdfa state

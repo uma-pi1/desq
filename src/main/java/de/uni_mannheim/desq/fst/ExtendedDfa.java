@@ -11,40 +11,38 @@ import java.util.*;
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
 public final class ExtendedDfa {
-
 	// initial state for ExtendedDfa
 	ExtendedDfaState initialDfaState;
-
-	// helpers
-	Fst fst;
-	Dictionary dict;
-
 
 	public ExtendedDfa(Fst fst, Dictionary dict) {
 		this(fst,dict,false);
 	}
 
 	public ExtendedDfa(Fst fst, Dictionary dict, boolean reverse) {
-        this.fst = fst;
-        this.dict = dict;
-        IntSet initialStateIdSet;
-		// We reverse is true, we create a DFA for the reverse FST
-		if(reverse) {
-            List<State> initialStates = fst.reverse(false);
-            initialStateIdSet = new IntOpenHashSet();
-            for(State s : initialStates) {
-                initialStateIdSet.add(s.id);
-            }
-            fst.annotateFinalStates();
+        IntSet dfaInitialState;
+        IntSet dfaStickyStates;
+        if (!reverse) {
+			dfaInitialState = IntSets.singleton( fst.getInitialState().getId() );
+			dfaStickyStates = IntSets.EMPTY_SET;
 		} else {
-            initialStateIdSet = IntSets.singleton(fst.getInitialState().getId());
+        	fst = fst.shallowCopy(); // don't change provided fst
+			List<State> initialStates = fst.reverse(false);
+            dfaInitialState = new IntOpenHashSet();
+			dfaStickyStates = new IntOpenHashSet();
+            for (State s : initialStates) {
+                dfaInitialState.add(s.id);
+                if (s.isFinalComplete()) {
+					dfaStickyStates.add(s.id);
+				}
+            }
+			fst.annotateFinalStates();
 		}
-        this.initialDfaState = new ExtendedDfaState(initialStateIdSet, fst, dict.size());
-        this.constructExtendedDfa(initialStateIdSet);
+        this.initialDfaState = new ExtendedDfaState(dfaInitialState, fst, dict.size());
+        this.constructExtendedDfa(fst, dict, dfaInitialState, dfaStickyStates);
 	}
 
 	/** Construct an extended-DFA from a given FST */
-	private void constructExtendedDfa(IntSet initialStateIdSet) {
+	private void constructExtendedDfa(Fst fst, Dictionary dict, IntSet initialStateIdSet, IntSet stickyStateIdSet) {
 		// Map old states to new state
 		Map<IntSet, ExtendedDfaState> newStateForStateIdSet = new HashMap<>();
 
@@ -88,6 +86,7 @@ public final class ExtendedDfa {
 							}
 						}
 					}
+					reachableStateIds.addAll(stickyStateIdSet); // sticky initial states
 					if (!reachableStateIds.isEmpty()) {
 						IntList itemIds = reachableStatesForItemIds.get(reachableStateIds);
 						if (itemIds == null) {
@@ -125,26 +124,27 @@ public final class ExtendedDfa {
 	}
 
 	/**
-	 * Returns true if the input sequence is relevant
+	 * Returns true if the reverse input sequence is relevant
 	 */
-	public boolean isRelevant(IntList inputSequence) {
-		ExtendedDfaState eDfaState = initialDfaState;
-		int pos = 0;
-		while(pos < inputSequence.size()) {
-			eDfaState = eDfaState.consume(inputSequence.getInt(pos++));
-			// In this case is ok to return false, if there was a final state before
-			// we already retured true, final state can not be reached if state 
-			// was null
-			if(eDfaState == null)
+	public boolean isRelevantReverse(IntList inputSequence) {
+		ExtendedDfaState state = initialDfaState;
+		int pos = inputSequence.size();
+		while (pos > 0) {
+			state = state.consume(inputSequence.getInt(--pos));
+			if(state == null) {
+				// we return false because we can't consume the current input and haven't seen a final-complete
+				// state before
 				return false;
-			if(eDfaState.isFinalComplete())
+			}
+			if (state.isFinalComplete()) {
 				return true;
+			}
 		}
-		return eDfaState.isFinal(); //pos == inputSequence.size()
+		return state.isFinal(); // all read and final state reached
 	}
 
 	/**
-	 * Returns true if the input sequence is relevant
+	 * Returns true if the reverse input sequence is relevant
 	 *
 	 * This method, reads the input sequence backwards and also adds
 	 * the given list with the sequence of states being visited before
@@ -153,7 +153,7 @@ public final class ExtendedDfa {
      * The method also adds the given list with initial positions
      * from which FST can be simulated
 	 */
-    public boolean isRelevant(IntList inputSequence, List<ExtendedDfaState> stateSeq, IntList initialPos) {
+    public boolean isRelevantReverse(IntList inputSequence, List<ExtendedDfaState> stateSeq, IntList initialPos) {
         ExtendedDfaState state = initialDfaState;
         stateSeq.add(state);
         int pos = inputSequence.size();
