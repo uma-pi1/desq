@@ -220,7 +220,7 @@ public class DesqDfsLocalDistributedMining {
 			patCount = pw.getPatterns().size();
 			for(WeightedSequence ws : pw.getPatterns()) {
 				System.out.println(ws);
-				patTotalFreq += ws.support;
+				patTotalFreq += ws.weight;
 			}
 		} else {
 			CountPatternWriter pw = (CountPatternWriter) result;
@@ -334,7 +334,7 @@ public class DesqDfsLocalDistributedMining {
 			patCount = pw.getPatterns().size();
 			for(WeightedSequence ws : pw.getPatterns()) {
 				System.out.println(ws);
-				patTotalFreq += ws.support;
+				patTotalFreq += ws.weight;
 			}
 		} else {
 			CountPatternWriter pw = (CountPatternWriter) result;

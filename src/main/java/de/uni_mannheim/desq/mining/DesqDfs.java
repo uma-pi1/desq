@@ -1560,7 +1560,7 @@ public final class DesqDfs extends MemoryDesqMiner {
             IntList outputItems = tr.getOutputElements(inputItem);
             for (int outputItem : outputItems) {
                 if (pivotItem >= outputItem) { // no check for largestFrequentFid necessary, as largestFrequentFid >= pivotItem
-                    args.node.expandWithTransition(outputItem, args.inputId, args.inputSequence.support, followPos);
+                    args.node.expandWithTransition(outputItem, args.inputId, args.inputSequence.weight, followPos);
                 }
             }
 		}
@@ -1632,7 +1632,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				IntList outputItems = tr.getOutputElements(inputItem);
 				for (int outputItem : outputItems) {
 					if (pivotItem >= outputItem) { // no check for largestFrequentFid necessary, as largestFrequentFid >= pivotItem
-						args.node.expandWithTransition(outputItem, args.inputId, args.inputSequence.support,
+						args.node.expandWithTransition(outputItem, args.inputId, args.inputSequence.weight,
 								localPos + 2);
 					}
 				}
@@ -1691,7 +1691,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 					// if we reached a final state without output, increment the support of this child node
 					if (reachedFinalStateWithoutOutput) {
-						support += incStepArgs.inputSequence.support;
+						support += incStepArgs.inputSequence.weight;
 					}
 
 					// now go to next posting (next input sequence)
@@ -1846,8 +1846,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				reachedFinalStateWithoutOutput |= incStepOnePassTraditional(args, pos + 1, toState, newLevel);
 			} else if (pivotItem >= outputItemFid) {
 				// we have an output and its frequent, so update the corresponding projected database
-				args.node.expandWithItemTraditional(outputItemFid, args.inputId, args.inputSequence.support,
-				args.node.expandWithItem(outputItemFid, args.inputId, args.inputSequence.weight,
+				args.node.expandWithItemTraditional(outputItemFid, args.inputId, args.inputSequence.weight,
 						pos+1, toState.getId());
 			}
 		}
@@ -1907,7 +1906,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 				// Note: we do not store pos-1 in the projected database to having avoid write -1's when the
                 // position was 0. When we read the posting list later, we substract 1
-				args.node.expandWithItem(outputItemFid, args.inputId, args.inputSequence.weight,
+				args.node.expandWithItemTraditional(outputItemFid, args.inputId, args.inputSequence.weight,
 						pos, toState.getId());
 			}
 		}

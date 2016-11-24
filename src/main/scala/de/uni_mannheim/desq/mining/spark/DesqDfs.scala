@@ -69,7 +69,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
           while (!outputIterator.hasNext && rows.hasNext) {
             // if not, go to the next input sequence
             currentSequence = rows.next()
-            currentSupport = currentSequence.support
+            currentSupport = currentSequence.weight
 
             // for that new input sequence, find all possible output sequences and add them to the outputIterator
             if (usesFids) {
@@ -192,7 +192,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
           while (!outputIterator.hasNext && rows.hasNext) {
             // if not, go to the next input sequence
             currentSequence = rows.next()
-            currentSupport = currentSequence.support
+            currentSupport = currentSequence.weight
 
             // for that new input sequence, find all possible output sequences and add them to the outputIterator
             if (usesFids) {

@@ -22,6 +22,8 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableUtils;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.spark.api.java.JavaSparkContext;
 
 import java.io.*;
 import java.net.URL;
