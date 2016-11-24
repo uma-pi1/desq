@@ -47,22 +47,21 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 	// -- helper variables for pruning and twopass --------------------------------------------------------------------
 
-	/** The DFA corresponding to the pattern expression. Accepts if the FST can reach a final state on an input */
-    final ExtendedDfa rdfa;
+	/** The DFA corresponding to the FST (pruning) or reverse FST (two-pass). */
+    final Dfa dfa;
 
-	// helper variables for twopass
-    /** For each relevant input sequence, the sequence of states taken by rdfa */
-	final ArrayList<ExtendedDfaState[]> rdfaStateSequences;
+    /** For each relevant input sequence, the sequence of states taken by dfa (two-pass only) */
+	final ArrayList<DfaState[]> dfaStateSequences;
 
     /** For each relevant input sequence, the set of positions from which the FST can reach a final state (before
-     * reading the item at that position) */
-    final ArrayList<int[]> rdfaInitialPos; // per relevant input sequence
+     * reading the item at that position) (two-pass only) */
+    final ArrayList<int[]> dfaInitialPositions; // per relevant input sequence
 
-    /** A sequence of EDFA states for reuse */
-    final ArrayList<ExtendedDfaState> stateSequence;
+    /** A sequence of EDFA states for reuse (two-pass only) */
+    final ArrayList<DfaState> dfaStateSequence;
 
-    /** A sequence of positions for reuse */
-    final IntList initialPos;
+    /** A sequence of positions for reuse (two-pass only) */
+    final IntList dfaInitialPos;
 
 
     // -- construction/clearing ---------------------------------------------------------------------------------------
@@ -91,38 +90,29 @@ public final class DesqDfs extends MemoryDesqMiner {
 			}
 
             // initialize helper variables for two-pass
-			rdfaStateSequences = new ArrayList<>();
-			rdfaInitialPos = new ArrayList<>();
-			stateSequence = new ArrayList<>();
-			initialPos = new IntArrayList();
+			dfaStateSequences = new ArrayList<>();
+			dfaInitialPositions = new ArrayList<>();
+			dfaStateSequence = new ArrayList<>();
+			dfaInitialPos = new IntArrayList();
 		} else { // invalidate helper variables for two-pass
-            rdfaStateSequences = null;
-			rdfaInitialPos = null;
-			stateSequence = null;
-			initialPos = null;
+            dfaStateSequences = null;
+			dfaInitialPositions = null;
+			dfaStateSequence = null;
+			dfaInitialPos = null;
 		}
 
 		// create DFA or reverse DFA (if needed)
 		if(useTwoPass) {
 			// construct the DFA for the FST (for the first pass)
-			// the DFA is constructed for the reverse FST!
-			this.rdfa = ExtendedDfa.createBackwardDfa(fst, ctx.dict);
+			// the DFA is constructed for the reverse FST
+			this.dfa = Dfa.createReverseDfa(fst, ctx.dict);
 		} else if (pruneIrrelevantInputs) {
 			// construct the DFA to prune irrelevant inputs
-			// the DFA is constructed for the forward FST!
-			this.rdfa = ExtendedDfa.createForwardDfa(fst, ctx.dict);
+			// the DFA is constructed for the forward FST
+			this.dfa = Dfa.createDfa(fst, ctx.dict);
 		} else {
-			this.rdfa = null;
+			this.dfa = null;
 		}
-
-
-		/*if (pruneIrrelevantInputs || useTwoPass) {
-			// construct the DFA for the FST (for the first pass)
-			// the DFA is constructed for the reverse FST!
-			this.rdfa = new ExtendedDfa(fst, ctx.dict, true);
-		} else {
-			this.rdfa = null;
-		}*/
 	}
 
 	public static DesqProperties createConf(String patternExpression, long sigma) {
@@ -139,10 +129,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 		inputSequences.clear();
         inputSequences.trimToSize();
 		if (useTwoPass) {
-			rdfaStateSequences.clear();
-            rdfaStateSequences.trimToSize();
-			rdfaInitialPos.clear();
-            rdfaInitialPos.trimToSize();
+			dfaStateSequences.clear();
+            dfaStateSequences.trimToSize();
+			dfaInitialPositions.clear();
+            dfaInitialPositions.trimToSize();
 		}
 	}
 
@@ -154,20 +144,20 @@ public final class DesqDfs extends MemoryDesqMiner {
         if (useTwoPass) {
             // run the input sequence through the EDFA and compute the state sequences as well as the positions from
             // which a final FST state is reached
-			if (rdfa.isRelevantReverse(inputSequence, stateSequence, initialPos)) {
+			if (dfa.acceptsReverse(inputSequence, dfaStateSequence, dfaInitialPos)) {
 			    // we now know that the sequence is relevant; remember it
 				super.addInputSequence(inputSequence, inputSupport, allowBuffering);
-				rdfaStateSequences.add(stateSequence.toArray(new ExtendedDfaState[stateSequence.size()]));
+				dfaStateSequences.add(dfaStateSequence.toArray(new DfaState[dfaStateSequence.size()]));
 				//TODO: directly do the first incStep to avoid copying and storing positions
-				rdfaInitialPos.add(initialPos.toIntArray());
-				initialPos.clear();
+				dfaInitialPositions.add(dfaInitialPos.toIntArray());
+				dfaInitialPos.clear();
 			}
-			stateSequence.clear();
+			dfaStateSequence.clear();
             return;
 		}
 
 		// one-pass version of DesqDfs
-		if (!pruneIrrelevantInputs || rdfa.isRelevant(inputSequence)) {
+		if (!pruneIrrelevantInputs || dfa.accepts(inputSequence)) {
 			// if we reach this place, we either don't want to prune irrelevant inputs or the input is relevant
             // -> remember it
 		    super.addInputSequence(inputSequence, inputSupport, allowBuffering);
@@ -198,8 +188,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 				for (int inputId = 0; inputId < inputSequences.size(); inputId++) {
 					incStepArgs.inputId = inputId;
 					incStepArgs.inputSequence = inputSequences.get(inputId);
-					incStepArgs.rdfaStateSequence = rdfaStateSequences.get(inputId);
-					final int[] initialStatePos = rdfaInitialPos.get(inputId);
+					incStepArgs.rdfaStateSequence = dfaStateSequences.get(inputId);
+					final int[] initialStatePos = dfaInitialPositions.get(inputId);
 
                     // look at all positions from which a final FST state can be reached
                     for (final int pos : initialStatePos) {
@@ -209,8 +199,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 				}
 
 				// we don't need this anymore, so let's save the memory
-				rdfaInitialPos.clear();
-                rdfaInitialPos.trimToSize();
+				dfaInitialPositions.clear();
+                dfaInitialPositions.trimToSize();
 			}
 
 			// recursively grow the patterns
@@ -304,7 +294,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				incStepArgs.inputId += projectedDatabaseIt.nextNonNegativeInt();
 				incStepArgs.inputSequence = inputSequences.get(incStepArgs.inputId);
 				if (useTwoPass) {
-					incStepArgs.rdfaStateSequence = rdfaStateSequences.get(incStepArgs.inputId);
+					incStepArgs.rdfaStateSequence = dfaStateSequences.get(incStepArgs.inputId);
 				}
 
 				// iterate over state@pos snapshots for this input sequence
@@ -346,7 +336,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	private static class IncStepArgs {
 		int inputId;
 		WeightedSequence inputSequence;
-		ExtendedDfaState[] rdfaStateSequence;
+		DfaState[] rdfaStateSequence;
 		DesqDfsTreeNode node;
 	}
 }

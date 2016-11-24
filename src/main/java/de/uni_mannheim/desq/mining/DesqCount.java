@@ -68,14 +68,14 @@ public final class DesqCount extends DesqMiner {
 
 	// -- helper variables for pruning and twopass --------------------------------------------------------------------
 
-	/** The DFA corresponding to the reverse FST (two-pass only). */
-	final ExtendedDfa rdfa;
+	/** The DFA corresponding to the FST (pruning) or reverse FST (two-pass). */
+	final Dfa dfa;
 
 	/** Sequence of EDFA states for current input (two-pass only) */
-	final ArrayList<ExtendedDfaState> rdfaStateSequence;
+	final ArrayList<DfaState> dfaStateSequence;
 
-	/** Positions for which rdfa reached an initial FST state (two-pass only) */
-	final IntList rdfaInitialPos;
+	/** Positions for which dfa reached an initial FST state (two-pass only) */
+	final IntList dfaInitalPos;
 
 
 	// -- construction/clearing ---------------------------------------------------------------------------------------
@@ -102,36 +102,25 @@ public final class DesqCount extends DesqMiner {
 				logger.warn("property desq.mining.prune.irrelevant.inputs=false will be ignored because " +
 						"desq.mining.use.two.pass=true");
 			}
-			rdfaStateSequence = new ArrayList<>();
-			rdfaInitialPos = new IntArrayList();
+			dfaStateSequence = new ArrayList<>();
+			dfaInitalPos = new IntArrayList();
 		} else {
-			rdfaStateSequence = null;
-			rdfaInitialPos = null;
+			dfaStateSequence = null;
+			dfaInitalPos = null;
 		}
-
-
 
 		// create DFA or reverse DFA (if needed)
 		if(useTwoPass) {
 			// construct the DFA for the FST (for the first pass)
-			// the DFA is constructed for the reverse FST!
-			this.rdfa = ExtendedDfa.createBackwardDfa(fst, ctx.dict);
+			// the DFA is constructed for the reverse FST
+			this.dfa = Dfa.createReverseDfa(fst, ctx.dict);
 		} else if (pruneIrrelevantInputs) {
 			// construct the DFA to prune irrelevant inputs
-			// the DFA is constructed for the forward FST!
-			this.rdfa = ExtendedDfa.createForwardDfa(fst, ctx.dict);
+			// the DFA is constructed for the forward FST
+			this.dfa = Dfa.createDfa(fst, ctx.dict);
 		} else {
-			this.rdfa = null;
+			this.dfa = null;
 		}
-
-		// create reverse DFA (if needed)
-		/*if (pruneIrrelevantInputs || useTwoPass) {
-			// construct the DFA for the FST (for the first pass)
-			// the DFA is constructed for the reverse FST!
-			this.rdfa = new ExtendedDfa(fst, ctx.dict, true);
-		} else {
-			this.rdfa = null;
-		}*/
 
 		// initalize helper variable for FST simulation
 		this.largestFrequentFid = ctx.dict.lastFidAbove(sigma);
@@ -164,22 +153,22 @@ public final class DesqCount extends DesqMiner {
 		if (useTwoPass) {
 			// run the input sequence through the EDFA and compute the state sequences as well as the positions
 			// at which, we start the FST simulation
-			if (rdfa.isRelevantReverse(sequence, rdfaStateSequence, rdfaInitialPos)) {
+			if (dfa.acceptsReverse(sequence, dfaStateSequence, dfaInitalPos)) {
 				// we now know that the sequence is relevant; process it
 				// look at all initial positions from which a final FST state can be reached
-				for (final int pos : rdfaInitialPos) {
+				for (final int pos : dfaInitalPos) {
 					// for those positions, start with initial state
 					step(pos, fst.getInitialState(), 0);
 				}
 				inputId++;
 			}
-			rdfaStateSequence.clear();
-			rdfaInitialPos.clear();
+			dfaStateSequence.clear();
+			dfaInitalPos.clear();
 			return;
 		}
 
 		// one-pass version of DesqCount
-		if (!pruneIrrelevantInputs /*without pruning*/ || rdfa.isRelevant(sequence) /*with pruning*/) {
+		if (!pruneIrrelevantInputs /*without pruning*/ || dfa.accepts(sequence) /*with pruning*/) {
 			step(0, fst.getInitialState(), 0);
 			inputId++;
 		}
@@ -235,7 +224,7 @@ public final class DesqCount extends DesqMiner {
 		// in two-pass, only iterates over states that we saw in the first pass (the other ones can safely be skipped)
 		final int itemFid = inputSequence.getInt(pos);
 		final BitSet validToStates = useTwoPass
-				? rdfaStateSequence.get( inputSequence.size()-(pos+1) ).getFstStates() // only states from first pass
+				? dfaStateSequence.get( inputSequence.size()-(pos+1) ).getFstStates() // only states from first pass
 				: null; // all states
 		Iterator<ItemState> itemStateIt;
 		if (level>=itemStateIterators.size()) {

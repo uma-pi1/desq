@@ -6,23 +6,15 @@ import it.unimi.dsi.fastutil.ints.*;
 import java.util.*;
 
 
-/**
- * ExtendedDfa.java
- * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
- */
-public final class ExtendedDfa {
-	// initial state for ExtendedDfa
-	ExtendedDfaState initialDfaState;
+/** A DFA corresponding (and linked to) an {@link Fst}. */
+public final class Dfa {
+	/** The initial state */
+	private DfaState initial;
 
-	private ExtendedDfa(Fst fst, Dictionary dict) {
-		this(fst,dict,false);
-	}
-
-	private ExtendedDfa(Fst fst, Dictionary dict, boolean reverse) {
-
+	private Dfa(Fst fst, Dictionary dict, boolean reverse) {
 		IntSet initialStateIdSet;
-		// When reverse is true, we create a DFA for the reverse FST (original FST is destroyed)
-		if(reverse) {
+		if(reverse) { // create a DFA for the reverse FST (original FST is destroyed)
+			fst.dropAnnotations();
 			List<State> initialStates = fst.reverse(false);
 			initialStateIdSet = new IntOpenHashSet();
 			for(State s : initialStates) {
@@ -30,33 +22,39 @@ public final class ExtendedDfa {
 			}
 			fst.annotate();
 			fst.dropCompleteFinalTransitions();
-		} else {
+		} else { // don't reverse, original FST remains unmodified
 			initialStateIdSet = IntSets.singleton(fst.getInitialState().getId());
 		}
-		this.initialDfaState = new ExtendedDfaState(initialStateIdSet, fst, dict.size());
+
+		// construct the DFA
+		this.initial = new DfaState(initialStateIdSet, fst, dict.size());
 		this.constructExtendedDfa(initialStateIdSet, fst, dict);
+
+		// when we are reversing, reverse back the FST to get an optimized new FST
+		if (reverse) {
+			fst.dropAnnotations();
+			fst.reverse(false);
+			fst.annotate();
+		}
 	}
 
-	/** Creates a DFA for the given FST */
-	public static ExtendedDfa createForwardDfa(Fst fst, Dictionary dict) {
-		return new ExtendedDfa(fst, dict, false);
+	/** Creates a DFA for the given FST. The DFA accepts each input for which the FST has an accepting run. */
+	public static Dfa createDfa(Fst fst, Dictionary dict) {
+		return new Dfa(fst, dict, false);
 	}
 
-	/** Creates a reverseDFA for the given FST, i.e., the FST is first reversed before
-	 * creating the DFA. Note that the given FST is may be modified. */
-	public static ExtendedDfa createBackwardDfa(Fst fst, Dictionary dict) {
-		fst.dropAnnotations();
-		ExtendedDfa rDfa = new ExtendedDfa(fst, dict, true);
-		fst.dropAnnotations();
-		fst.reverse(false);
-		fst.annotate();
-		return rDfa;
+	/** Creates a reverse DFA for the given FST and modifies the FST for efficient use in Desq's two-pass
+	 * algorithms. The DFA accepts each reversed input for which the (unmodified) FST has an accepting
+	 * run. Note that the modified FST should not be used directly anymore, but only in conjunction with
+	 * {@link #acceptsReverse(IntList, List, IntList)}. */
+	public static Dfa createReverseDfa(Fst fst, Dictionary dict) {
+		return new Dfa(fst, dict, true);
 	}
 
-	/** Construct an extended-DFA from a given FST */
+	/** Construct an extended DFA from the given FST */
 	private void constructExtendedDfa(IntSet initialStateIdSet, Fst fst, Dictionary dict) {
 		// Map old states to new state
-		Map<IntSet, ExtendedDfaState> newStateForStateIdSet = new HashMap<>();
+		Map<IntSet, DfaState> newStateForStateIdSet = new HashMap<>();
 
 		// Unprocessed edfa states
 		Stack<IntSet> unprocessedStateIdSets = new Stack<>();
@@ -67,7 +65,7 @@ public final class ExtendedDfa {
 		Map<IntSet, IntList> reachableStatesForItemIds = new HashMap<>();
 
 		// Initialize conversion
-		newStateForStateIdSet.put(initialStateIdSet, initialDfaState);
+		newStateForStateIdSet.put(initialStateIdSet, initial);
 		unprocessedStateIdSets.push(initialStateIdSet);
 
 		while(!unprocessedStateIdSets.isEmpty()) {
@@ -77,7 +75,7 @@ public final class ExtendedDfa {
 			if(!processedStateIdSets.contains(stateIdSet)) {
 
 				reachableStatesForItemIds.clear();
-				ExtendedDfaState fromEDfaState = newStateForStateIdSet.get(stateIdSet);
+				DfaState fromEDfaState = newStateForStateIdSet.get(stateIdSet);
 
 				// for all items, for all transitions
 				IntIterator intIt = dict.fids().iterator();
@@ -117,9 +115,9 @@ public final class ExtendedDfa {
 						unprocessedStateIdSets.push(reachableStateIds);
 
 					//create new extended dfa state if required
-					ExtendedDfaState toEDfaState = newStateForStateIdSet.get(reachableStateIds);
+					DfaState toEDfaState = newStateForStateIdSet.get(reachableStateIds);
 					if(toEDfaState == null) {
-						toEDfaState = new ExtendedDfaState(reachableStateIds, fst, dict.size());
+						toEDfaState = new DfaState(reachableStateIds, fst, dict.size());
 						newStateForStateIdSet.put(reachableStateIds, toEDfaState);
 					}
 
@@ -134,11 +132,9 @@ public final class ExtendedDfa {
 		}
 	}
 
-	/**
-	 * Returns true if the input sequence is relevant
-	 */
-	public boolean isRelevant(IntList inputSequence) {
-		ExtendedDfaState state = initialDfaState;
+	/** Returns true if the input sequence is relevant (DFA accepts). */
+	public boolean accepts(IntList inputSequence) {
+		DfaState state = initial;
 		int pos = 0;
 		while(pos < inputSequence.size()) {
 			state = state.consume(inputSequence.getInt(pos++));
@@ -150,21 +146,21 @@ public final class ExtendedDfa {
 			if(state.isFinalComplete())
 				return true;
 		}
-		return state.isFinal(); //pos == inputSequence.size()
+		return state.isFinal(); // last state; pos == inputSequence.size()
 	}
 
-	/**
-	 * Returns true if the reverse input sequence is relevant
+	/** Returns true if the reverse input sequence is relevant (DFA accepts reverse input).
 	 *
-	 * This method, reads the input sequence backwards and also adds
-	 * the given list with the sequence of states being visited before
-	 * consuming each item + initial one,
-	 * i.e., stateSeq[inputSequence.size() - (pos+1)] = state before consuming inputSequence[pos]
-     * The method also adds the given list with initial positions
-     * from which FST can be simulated
+	 * The method reads the input sequence backwards and records the sequence of states being traversed.
+	 *
+	 * @param inputSequence the input sequence
+	 * @param stateSeq sequence of DFA states being traversed on the reversed sequence, i.e.,
+	 *                    <code>stateSeq[inputSequence.size() - (pos+1)] = state before consuming inputSequence[pos]</code>
+	 * @param initialPos positions from which the FST (modified by {@link #createReverseDfa(Fst, Dictionary)}) needs
+	 *                   to be started to find all accepting runs.
 	 */
-    public boolean isRelevantReverse(IntList inputSequence, List<ExtendedDfaState> stateSeq, IntList initialPos) {
-        ExtendedDfaState state = initialDfaState;
+    public boolean acceptsReverse(IntList inputSequence, List<DfaState> stateSeq, IntList initialPos) {
+        DfaState state = initial;
         stateSeq.add(state);
         int pos = inputSequence.size();
         while(pos > 0) {
@@ -178,4 +174,5 @@ public final class ExtendedDfa {
         }
         return (!initialPos.isEmpty());
     }
+
 }

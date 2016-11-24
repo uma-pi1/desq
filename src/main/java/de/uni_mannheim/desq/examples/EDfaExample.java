@@ -2,7 +2,7 @@ package de.uni_mannheim.desq.examples;
 
 import com.google.common.base.Stopwatch;
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.fst.ExtendedDfa;
+import de.uni_mannheim.desq.fst.Dfa;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.patex.PatEx;
 
@@ -32,7 +32,7 @@ public class EDfaExample {
         fst.annotate();
 
         edfaTime.start();
-        ExtendedDfa edfa = ExtendedDfa.createBackwardDfa(fst, dict);
+        Dfa edfa = Dfa.createReverseDfa(fst, dict);
         edfaTime.stop();
 
         System.out.println(patternExpression);
