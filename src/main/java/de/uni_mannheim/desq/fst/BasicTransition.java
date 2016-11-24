@@ -297,4 +297,24 @@ public final class BasicTransition extends Transition {
 	public State getFromState() {
 		return fromState;
 	}
+
+	/**
+	 * Generalizes a given input item until one of two conditions is reached:
+	 *   1) the current generalized item has 0 or more than 1 parent
+	 *   2) the current generalized item is <= the pivot item
+	 * @param itemFid
+	 * @param pivotItem
+	 * @return
+	 */
+	public int generalizeItemForPivot(int itemFid, int pivotItem) {
+		IntArrayList parents;
+		while(itemFid> pivotItem) {
+			parents = outputDict.parentsOf(itemFid);
+			if(parents.size() != 1)  // if the item has no parents or more than 1, we stop generalizing
+				break;
+			else
+				itemFid = parents.getInt(0);
+		}
+		return itemFid ;
+	}
 }

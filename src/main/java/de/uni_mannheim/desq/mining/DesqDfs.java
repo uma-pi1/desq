@@ -114,6 +114,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** If true, DesqDfs Distributed merges shared suffixes in the tree representation */
 	final boolean mergeSuffixes;
 
+	/** If true, DesqDfs Distributed generalizes input items of self_generalize transitions for each pivot item before sending them */
+	final boolean generalizeInputItemsBeforeSending;
+
 	/** Stores one Transition iterator per recursion level for reuse */
 	final ArrayList<Iterator<Transition>> transitionIterators = new ArrayList<>();
 
@@ -161,6 +164,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		useTransitionRepresentation = ctx.conf.getBoolean("desq.mining.use.transition.representation", false);
 		useTreeRepresentation = ctx.conf.getBoolean("desq.mining.use.tree.representation", false);
 		mergeSuffixes = ctx.conf.getBoolean("desq.mining.merge.suffixes", false);
+		generalizeInputItemsBeforeSending = ctx.conf.getBoolean("desq.mining.generalize.input.items.before.sending", false);
 
 
 		// construct pattern expression and FST
@@ -444,11 +448,13 @@ public final class DesqDfs extends MemoryDesqMiner {
 		PathState root;
 		ObjectList<PathState> leafs = new ObjectArrayList<PathState>();
         int numPathStates = 0;
+		int pivot;
 		private ObjectList<PathState> pathStates = new ObjectArrayList<PathState>(); // TODO: only for printing. can be removed
 		protected int numPaths = 0; // only for stat purposes, can be removed
 
-		public OutputNFA() {
+		public OutputNFA(int pivot) {
 			root = new PathState(this);
+			this.pivot = pivot;
 		}
 
 		/**
@@ -461,12 +467,19 @@ public final class DesqDfs extends MemoryDesqMiner {
 			int trId = 0;
 			int inpItem = 0;
             PathState currentState;
+			BasicTransition tr;
 			// Run through the transitions of this path and add them to this NFA
             currentState = root;
             for(int i=0; i<path.size(); ) {
                 trId = path.getInt(i);
                 inpItem = path.getInt(i+1);
-                // TODO: if we change self-generalize input items up to their first ancestor<=pivot, we might be able to compress more here.
+
+                if(generalizeInputItemsBeforeSending) {
+					tr = fst.getBasicTransitionByNumber(trId);
+					if (tr.getOutputLabelType() == OutputLabelType.SELF_ASCENDANTS) {
+						inpItem = tr.generalizeItemForPivot(inpItem, this.pivot);
+					}
+				}
                 currentState = currentState.followTransition(trId, inpItem, this);
                 i = i+2;
             }
@@ -845,7 +858,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 						OutputNFA nfa;
 						if(!nfas.containsKey(pivotItem)) {
                             // create the nfa
-							nfa = new OutputNFA();
+							nfa = new OutputNFA(pivotItem);
                             nfas.put(pivotItem, nfa);
 						} else {
 							nfa = nfas.get(pivotItem);

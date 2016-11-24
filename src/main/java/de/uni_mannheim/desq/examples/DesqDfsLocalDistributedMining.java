@@ -29,6 +29,7 @@ public class DesqDfsLocalDistributedMining {
 	static boolean useTransitionRepresentation;
 	static boolean useTreeRepresentation;
 	static boolean mergeSuffixes;
+	static boolean generalizeInputItemsBeforeSending;
 	static String baseFolder;
 	static boolean useDesqCount;
 	static PrintWriter statsWriter;
@@ -62,7 +63,7 @@ public class DesqDfsLocalDistributedMining {
 			baseFolder = "/home/alex/";
 		}
 		String[] tests = {"I1@1", "I1@2", "I2", "IA2", "IA4", "IX1", "IX2"};
-		int[] scenarios = {0, 1, 2, 3, 4};
+		int[] scenarios = {0, 1, 2, 3, 4, 5};
 
 		String output = "";
 		for (String testCase : tests) {
@@ -114,6 +115,7 @@ public class DesqDfsLocalDistributedMining {
 		minerConf.setProperty("desq.mining.use.transition.representation", useTransitionRepresentation);
 		minerConf.setProperty("desq.mining.use.tree.representation", useTreeRepresentation);
         minerConf.setProperty("desq.mining.merge.suffixes", mergeSuffixes);
+		minerConf.setProperty("desq.mining.generalize.input.items.before.sending", generalizeInputItemsBeforeSending);
 
 		// default settings
 		minerConf.setProperty("desq.mining.skip.non.pivot.transitions", false);
@@ -483,6 +485,7 @@ public class DesqDfsLocalDistributedMining {
         useTreeRepresentation = false;
 		mergeSuffixes = false;
 		useDesqCount = false;
+		generalizeInputItemsBeforeSending = false;
 		switch(scenario) {
 			case 0:
 				scenarioStr = "Count, shuffle output sequences";
@@ -505,6 +508,13 @@ public class DesqDfsLocalDistributedMining {
 				useTransitionRepresentation = true;
 				useTreeRepresentation = true;
 				mergeSuffixes = true;
+				break;
+			case 5:
+				scenarioStr = "Dfs, shuffle transition DAGs, generalize inputs";
+				useTransitionRepresentation = true;
+				useTreeRepresentation = true;
+				mergeSuffixes = true;
+				generalizeInputItemsBeforeSending = true;
 				break;
 			default:
 				System.out.println("Unknown variant");
