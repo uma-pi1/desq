@@ -3,7 +3,7 @@ package de.uni_mannheim.desq.converters.netflix
 import java.io.{File, FileOutputStream, PrintWriter}
 import java.util.regex.Pattern
 
-import de.uni_mannheim.desq.dictionary.{Dictionary, Item}
+import de.uni_mannheim.desq.dictionary.Dictionary
 import de.uni_mannheim.desq.io.{DelSequenceWriter, SequenceReader}
 import de.uni_mannheim.desq.util.DesqProperties
 import it.unimi.dsi.fastutil.ints.{IntArrayList, IntList}
@@ -173,7 +173,7 @@ object MovieRating {
     sequenceReader
   }
 
-  /** Once sequence per user consisting of the id for the rated movie (need dictionary set to deep dictionary */
+  /** One sequence per user consisting of the id for the rated movie (need dictionary set to deep dictionary */
   def getRatedMovieSequenceReader : SequenceReader = {
     val sequenceIt = MovieRating.getMovieRatingsByUserIterator
     val sequenceReader = new SequenceReader {
@@ -187,9 +187,9 @@ object MovieRating {
 
         items.clear()
         for (movieRating <- sequenceIt.next) {
-          val movieSid = dict.getItemByGid(movieRating.movieId).sid
+          val movieSid = dict.sidOfGid(movieRating.movieId)
           val movieRatingSid = movieSid + "@" + movieRating.rating
-          items.add(dict.getItemBySid(movieRatingSid).gid)
+          items.add(dict.gidOf(movieRatingSid))
         }
         true
       }
@@ -206,14 +206,14 @@ object CreateFlatDictionary extends App {
   println("Reading movies...")
   val dict = new Dictionary
   for (movie <- Movie.readMovies) {
-    dict.addItem(new Item(movie.id, movie.unratedSid))
+    dict.addItem(movie.id, movie.unratedSid)
   }
 
   // now scan the data and count
   println("Reading training set...")
   val sequenceReader = MovieRating.getMovieIdSequenceReader
-  dict.clearCountsAndFids()
-  dict.incCounts(sequenceReader)
+  dict.clearFreqs()
+  dict.incFreqs(sequenceReader)
   dict.recomputeFids()
 
   // write the dictionary
@@ -251,44 +251,40 @@ object CreateDeepDictionary extends App {
   val yearStrings = new mutable.TreeSet[String].empty
   for (movie <- Movie.readMovies) {
     yearStrings.add(movie.yearString)
-    val item = new Item(movie.id, movie.unratedSid)
-    item.properties = new DesqProperties()
-    item.properties.setProperty("type", "movie")
-    dict.addItem(item)
+    val properties = new DesqProperties()
+    properties.setProperty("type", "movie")
+    dict.addItem(movie.id, movie.unratedSid, properties)
     nextId = Math.max(nextId, movie.id)
   }
   nextId = nextId + 1
 
   // create items for ratings and years
   for (yearString <- yearStrings) {
-    val item = new Item(nextId, yearString)
-    item.properties = new DesqProperties()
-    item.properties.setProperty("type", "year")
-    dict.addItem(item)
+    val properties = new DesqProperties()
+    properties.setProperty("type", "year")
+    dict.addItem(nextId, yearString, properties)
     nextId = nextId + 1
   }
   for (rating <- Range.inclusive(1,5)) {
-    val item = new Item(nextId, rating + "stars")
-    item.properties = new DesqProperties()
-    item.properties.setProperty("type", "rating")
-    dict.addItem(item)
+    val properties = new DesqProperties()
+    properties.setProperty("type", "rating")
+    dict.addItem(nextId, rating+"stars", properties)
     nextId = nextId + 1
   }
 
   // read them again and add hierarchy items
   for (movie <- Movie.readMovies) {
-    val movieItem = dict.getItemBySid(movie.unratedSid)
-    val yearItem = dict.getItemBySid(movie.yearString)
-    Item.addParent(movieItem, yearItem)
+    val movieFid = dict.fidOf(movie.unratedSid)
+    val yearFid = dict.fidOf(movie.yearString)
+    dict.addParent(movieFid, yearFid)
 
     for (rating <- Range.inclusive(1,5)) {
-      val newItem = new Item(nextId, movie.ratedSid(rating))
-      newItem.properties = new DesqProperties()
-      newItem.properties.setProperty("type", "ratedMovie")
+      val properties = new DesqProperties()
+      properties.setProperty("type", "ratedMovie")
+      val newFid = dict.addItem(nextId, movie.ratedSid(rating), properties)
       nextId = nextId + 1
-      dict.addItem(newItem)
-      Item.addParent(newItem, movieItem)
-      Item.addParent(newItem, dict.getItemBySid(rating+"stars"))
+      dict.addParent(newFid, movieFid)
+      dict.addParent(newFid, dict.fidOf(rating+"stars"))
     }
   }
 
@@ -296,8 +292,8 @@ object CreateDeepDictionary extends App {
   println("Reading training set...")
   val sequenceReader = MovieRating.getRatedMovieSequenceReader
   sequenceReader.setDictionary(dict)
-  dict.clearCountsAndFids()
-  dict.incCounts(sequenceReader)
+  dict.clearFreqs()
+  dict.incFreqs(sequenceReader)
   dict.recomputeFids()
 
   // write the dictionary

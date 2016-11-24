@@ -31,11 +31,13 @@ object DesqBuilderExample extends App {
 
   // test correctness of counts
   val fullDict = Dictionary.loadFrom("data-local/nyt-1991-dict.avro.gz")
-  for (item <- fullDict.getItems) {
-    if (item.children.size() == 0) { // only verify leafs
-      val otherItem = loadedData.dict.getItemBySid(Integer.toString(item.gid))
-      if (item.cFreq != otherItem.cFreq || item.dFreq != otherItem.dFreq) {
-        println(s"Incorrect item: $item != $otherItem")
+  for (fid <- fullDict.fids) {
+    if (fullDict.childrenOf(fid).size() == 0) { // only verify leafs
+      val otherFid = loadedData.dict.fidOf(fullDict.sidOfFid(fid))
+      if (otherFid != -1 && // the created dictionary may not contain some items (those which do not occur in the data)
+        (fullDict.cfreqOf(fid) != loadedData.dict.cfreqOf(otherFid) ||
+        fullDict.dfreqOf(fid) != loadedData.dict.dfreqOf(otherFid))) {
+        println("Incorrect item: " + fullDict.sidOfFid(fid) + " " + loadedData.dict.fidOf(otherFid))
       }
     }
   }

@@ -22,7 +22,7 @@ public abstract class SequenceReader extends WithDictionary {
 	 *
 	 * @return <code>false</code> if there are no more input sequences
      */
-	public boolean readAsIds(IntList itemIds) throws IOException {
+	public boolean readAsGids(IntList itemIds) throws IOException {
 		boolean hasNext = read(itemIds);
 		if (hasNext && usesFids()) {
 			dict.fidsToGids(itemIds);

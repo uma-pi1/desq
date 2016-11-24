@@ -151,7 +151,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	public DesqDfs(DesqMinerContext ctx) {
 		super(ctx);
 		sigma = ctx.conf.getLong("desq.mining.min.support");
-		largestFrequentFid = ctx.dict.getLargestFidAboveDfreq(sigma);
+		largestFrequentFid = ctx.dict.lastFidAbove(sigma);
 		pruneIrrelevantInputs = ctx.conf.getBoolean("desq.mining.prune.irrelevant.inputs");
 		useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
 		skipNonPivotTransitions = ctx.conf.getBoolean("desq.mining.skip.non.pivot.transitions", false);
@@ -1847,7 +1847,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 			} else if (pivotItem >= outputItemFid) {
 				// we have an output and its frequent, so update the corresponding projected database
 				args.node.expandWithItemTraditional(outputItemFid, args.inputId, args.inputSequence.support,
-						pos + 1, toState.getId());
+				args.node.expandWithItem(outputItemFid, args.inputId, args.inputSequence.weight,
+						pos+1, toState.getId());
 			}
 		}
 		return reachedFinalStateWithoutOutput;
@@ -1905,8 +1906,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 				// if we are mining a pivot partition, we don't expand with items largerthan the pivot
 
 				// Note: we do not store pos-1 in the projected database to having avoid write -1's when the
-				// position was 0. When we read the posting list later, we substract 1
-				args.node.expandWithItemTraditional(outputItemFid, args.inputId, args.inputSequence.support,
+                // position was 0. When we read the posting list later, we substract 1
+				args.node.expandWithItem(outputItemFid, args.inputId, args.inputSequence.weight,
 						pos, toState.getId());
 			}
 		}
@@ -1963,7 +1964,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 					// if we reached a final state without output, increment the support of this child node
 					if (reachedFinalStateWithoutOutput) {
-						support += incStepArgs.inputSequence.support;
+						support += incStepArgs.inputSequence.weight;
 					}
 
 					// now go to next posting (next input sequence)
@@ -1985,9 +1986,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 								reverseFst.getState(stateId), 0);
 					} while (projectedDatabaseIt.hasNext());
 
-					// if we reached the initial state without output, increment the support of this child node
-					if (reachedInitialStateWithoutOutput) {
-						support += incStepArgs.inputSequence.support;
+                    // if we reached the initial state without output, increment the support of this child node
+                    if (reachedInitialStateWithoutOutput) {
+						support += incStepArgs.inputSequence.weight;
 					}
 
 					// now go to next posting (next input sequence)

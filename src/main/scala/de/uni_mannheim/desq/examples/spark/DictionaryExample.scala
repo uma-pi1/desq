@@ -3,7 +3,6 @@ package de.uni_mannheim.desq.examples.spark
 import de.uni_mannheim.desq.Desq._
 import de.uni_mannheim.desq.dictionary.Dictionary
 import de.uni_mannheim.desq.mining.spark.DesqDataset
-import org.apache.spark.util.SizeEstimator
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.io.Source
@@ -15,9 +14,6 @@ object DictionaryExample extends App {
   val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
   initDesq(conf)
   implicit val sc = new SparkContext(conf)
-
-  val test = Dictionary.loadFrom("data-local/nyt-1991-dict.avro.gz")
-  println(SizeEstimator.estimate(test))
 
   val dictFile = getClass.getResource("/icdm16-example/dict.json")
   val dataFile = getClass.getResource("/icdm16-example/data.del")

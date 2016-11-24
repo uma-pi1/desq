@@ -31,7 +31,7 @@ public class DelSequenceWriter extends SequenceWriter {
 			writer.write(sep);
 			sep = "\t";
 			if (convertToIds) {
-				writer.print( dict.getItemByFid(fid).gid);
+				writer.print( dict.gidOf(fid));
 			} else {
 				writer.print( fid );
 			}

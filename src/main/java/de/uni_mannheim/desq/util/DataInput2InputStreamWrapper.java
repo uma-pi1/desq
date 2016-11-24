@@ -10,7 +10,12 @@ import java.io.InputStream;
  */
 public final class DataInput2InputStreamWrapper extends InputStream {
     public DataInput in;
-    public int remainingBytes;
+    public Integer remainingBytes;
+
+    public DataInput2InputStreamWrapper(DataInput in) {
+        this.in = in;
+        this.remainingBytes = null;
+    }
 
     public DataInput2InputStreamWrapper(DataInput in, int maxBytesToRead) {
         this.in = in;
@@ -19,12 +24,20 @@ public final class DataInput2InputStreamWrapper extends InputStream {
 
     @Override
     public int read() throws IOException {
-        remainingBytes--;
-        try {
-            return (remainingBytes >= 0) ? in.readUnsignedByte() : -1;
-        } catch (EOFException e) {
-            remainingBytes = 0;
-            return -1;
+        if (remainingBytes != null) {
+            remainingBytes--;
+            try {
+                return (remainingBytes >= 0) ? in.readUnsignedByte() : -1;
+            } catch (EOFException e) {
+                remainingBytes = 0;
+                return -1;
+            }
+        } else {
+            try {
+                return in.readUnsignedByte();
+            } catch (EOFException e) {
+                return -1;
+            }
         }
     }
 }

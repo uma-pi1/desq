@@ -30,7 +30,7 @@ public class CountPatternWriter extends PatternWriter {
     @Override
     public void write(WeightedSequence pattern) {
         count++;
-        totalFrequency += pattern.support;
+        totalFrequency += pattern.weight;
     }
 
     public long getCount() {
