@@ -323,7 +323,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 						newPartitionSeqList.add(inputSequence);
 						partitions.put(pivot, newPartitionSeqList);
 					}
-					DesqDfsLocalDistributedMining.writeShuffleStats(seqNo, pivot, 1, inputSequence.size());
+					if(DesqDfsLocalDistributedMining.writeShuffleStats) DesqDfsLocalDistributedMining.writeShuffleStats(seqNo, pivot, 1, inputSequence.size());
 				}
 			}
 		}
@@ -424,7 +424,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				sendList.addAll(path);
 			}
 
-			DesqDfsLocalDistributedMining.writeShuffleStats(seqNo, pivotItem, paths.size(), sendList.size());
+			if(DesqDfsLocalDistributedMining.writeShuffleStats) DesqDfsLocalDistributedMining.writeShuffleStats(seqNo, pivotItem, paths.size(), sendList.size());
 
 			// emit the list we constructed
 			if(!partitions.containsKey(pivotItem)) {
@@ -811,7 +811,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			IntList sendList = new IntArrayList();
 			nfa.write(sendList);
 
-			DesqDfsLocalDistributedMining.writeShuffleStats(seqNo, pivotItem, nfa.numPaths, sendList.size());
+			if(DesqDfsLocalDistributedMining.writeShuffleStats) DesqDfsLocalDistributedMining.writeShuffleStats(seqNo, pivotItem, nfa.numPaths, sendList.size());
 
 			// emit the list we constructed
 			if(!partitions.containsKey(pivotItem)) {
