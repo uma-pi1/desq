@@ -2,14 +2,12 @@ package de.uni_mannheim.desq.examples;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.fst.Fst;
-import de.uni_mannheim.desq.fst.State;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.patex.PatEx;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.List;
 
 // Requires dot software
 // Final states are marked with double circle
@@ -52,9 +50,13 @@ public class FstAnnotationExample {
         PatEx patEx = new PatEx(patternExpression, dict);
         Fst fst = patEx.translate();
         fst.minimize();
+        fst.annotate();
 
+        //fst.dropAnnotations();
         fst.reverse(false);
-        fst.annotateFinalStates();
+        fst.annotate();
+        fst.dropCompleteFinalTransitions();
+
 
 
         System.out.println("Minimized FST");
@@ -64,9 +66,9 @@ public class FstAnnotationExample {
 
 
 
-        fst.removeAnnotations();
+        fst.dropAnnotations();
         fst.reverse(false);
-        fst.annotateFinalStates();
+        fst.annotate();
 
 
         System.out.println("Minimized reverse FST");

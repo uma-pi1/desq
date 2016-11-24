@@ -293,8 +293,8 @@ public final class Fst {
      * if it accepts .* without further output and there is no state with output
      * reachable.
      */
-	public void annotateFinalStates() {
-		removeAnnotations();
+	public void annotate() {
+		dropAnnotations();
 
         // Convert FST starting at final states to DFA by only looking of .:EPS transitions
 
@@ -384,7 +384,7 @@ public final class Fst {
 					State fstState = getState(finalStateId);
                     fstState.isFinalComplete = true;
 					fstState.isFinal = true;
-					fstState.removeAllTransitions();
+					//fstState.removeAllTransitions();
                     break;
                 }
                 xDfaState = nextXDfaState;
@@ -393,7 +393,7 @@ public final class Fst {
 
 	}
 
-	/** Helper class for DFA states for annotating final fst states in {@link #annotateFinalStates()}*/
+	/** Helper class for DFA states for annotating final fst states in {@link #annotate()}*/
 	private class XDfaState {
 		XDfaState nextState = null;
 		boolean hasNonEpsOutput = false;
@@ -404,12 +404,19 @@ public final class Fst {
 		}
 	}
 
-	public void removeAnnotations() {
+	public void dropAnnotations() {
         for(State state : getStates()) {
 			if(state.isFinalComplete) {
 				state.isFinalComplete = false;
-				//state.isFinal = true;
 			}
         }
     }
+
+    public void dropCompleteFinalTransitions() {
+		for(State state : getStates()) {
+			if(state.isFinalComplete) {
+				state.removeAllTransitions();
+			}
+		}
+	}
 }

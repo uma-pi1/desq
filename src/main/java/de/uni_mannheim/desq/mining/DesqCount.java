@@ -92,7 +92,7 @@ public final class DesqCount extends DesqMiner {
 		PatEx p = new PatEx(patternExpression, ctx.dict);
 		this.fst = p.translate();
 		fst.minimize(); //TODO: move to translate
-		fst.annotateFinalStates();
+		fst.annotate();
 
 		// create two pass auxiliary variables (if needed)
 		if (useTwoPass) { // two-pass
@@ -109,14 +109,29 @@ public final class DesqCount extends DesqMiner {
 			rdfaInitialPos = null;
 		}
 
+
+
+		// create DFA or reverse DFA (if needed)
+		if(useTwoPass) {
+			// construct the DFA for the FST (for the first pass)
+			// the DFA is constructed for the reverse FST!
+			this.rdfa = ExtendedDfa.createBackwardDfa(fst, ctx.dict);
+		} else if (pruneIrrelevantInputs) {
+			// construct the DFA to prune irrelevant inputs
+			// the DFA is constructed for the forward FST!
+			this.rdfa = ExtendedDfa.createForwardDfa(fst, ctx.dict);
+		} else {
+			this.rdfa = null;
+		}
+
 		// create reverse DFA (if needed)
-		if (pruneIrrelevantInputs || useTwoPass) {
+		/*if (pruneIrrelevantInputs || useTwoPass) {
 			// construct the DFA for the FST (for the first pass)
 			// the DFA is constructed for the reverse FST!
 			this.rdfa = new ExtendedDfa(fst, ctx.dict, true);
 		} else {
 			this.rdfa = null;
-		}
+		}*/
 
 		// initalize helper variable for FST simulation
 		this.largestFrequentFid = ctx.dict.lastFidAbove(sigma);
@@ -164,7 +179,7 @@ public final class DesqCount extends DesqMiner {
 		}
 
 		// one-pass version of DesqCount
-		if (!pruneIrrelevantInputs /*without pruning*/ || rdfa.isRelevantReverse(sequence) /*with pruning*/) {
+		if (!pruneIrrelevantInputs /*without pruning*/ || rdfa.isRelevant(sequence) /*with pruning*/) {
 			step(0, fst.getInitialState(), 0);
 			inputId++;
 		}

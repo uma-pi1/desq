@@ -29,10 +29,10 @@ public class EDfaExample {
         Fst fst = p.translate();
         fst.minimize();
 
-        fst.annotateFinalStates();
+        fst.annotate();
 
         edfaTime.start();
-        ExtendedDfa edfa = new ExtendedDfa(fst, dict);
+        ExtendedDfa edfa = ExtendedDfa.createBackwardDfa(fst, dict);
         edfaTime.stop();
 
         System.out.println(patternExpression);

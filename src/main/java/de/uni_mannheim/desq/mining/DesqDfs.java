@@ -79,7 +79,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		PatEx p = new PatEx(patternExpression, ctx.dict);
 		this.fst = p.translate();
 		fst.minimize(); //TODO: move to translate
-		fst.annotateFinalStates();
+		fst.annotate();
 
 		// create two pass auxiliary variables (if needed)
 		if (useTwoPass) { // two-pass
@@ -102,14 +102,27 @@ public final class DesqDfs extends MemoryDesqMiner {
 			initialPos = null;
 		}
 
-		// create reverse DFA (if needed)
-		if (pruneIrrelevantInputs || useTwoPass) {
+		// create DFA or reverse DFA (if needed)
+		if(useTwoPass) {
+			// construct the DFA for the FST (for the first pass)
+			// the DFA is constructed for the reverse FST!
+			this.rdfa = ExtendedDfa.createBackwardDfa(fst, ctx.dict);
+		} else if (pruneIrrelevantInputs) {
+			// construct the DFA to prune irrelevant inputs
+			// the DFA is constructed for the forward FST!
+			this.rdfa = ExtendedDfa.createForwardDfa(fst, ctx.dict);
+		} else {
+			this.rdfa = null;
+		}
+
+
+		/*if (pruneIrrelevantInputs || useTwoPass) {
 			// construct the DFA for the FST (for the first pass)
 			// the DFA is constructed for the reverse FST!
 			this.rdfa = new ExtendedDfa(fst, ctx.dict, true);
 		} else {
 			this.rdfa = null;
-		}
+		}*/
 	}
 
 	public static DesqProperties createConf(String patternExpression, long sigma) {
@@ -154,7 +167,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 
 		// one-pass version of DesqDfs
-		if (!pruneIrrelevantInputs || rdfa.isRelevantReverse(inputSequence)) {
+		if (!pruneIrrelevantInputs || rdfa.isRelevant(inputSequence)) {
 			// if we reach this place, we either don't want to prune irrelevant inputs or the input is relevant
             // -> remember it
 		    super.addInputSequence(inputSequence, inputSupport, allowBuffering);

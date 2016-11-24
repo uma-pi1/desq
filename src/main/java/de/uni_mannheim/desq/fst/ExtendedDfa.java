@@ -14,35 +14,47 @@ public final class ExtendedDfa {
 	// initial state for ExtendedDfa
 	ExtendedDfaState initialDfaState;
 
-	public ExtendedDfa(Fst fst, Dictionary dict) {
+	private ExtendedDfa(Fst fst, Dictionary dict) {
 		this(fst,dict,false);
 	}
 
-	public ExtendedDfa(Fst fst, Dictionary dict, boolean reverse) {
-        IntSet dfaInitialState;
-        IntSet dfaStickyStates;
-        if (!reverse) {
-			dfaInitialState = IntSets.singleton( fst.getInitialState().getId() );
-			dfaStickyStates = IntSets.EMPTY_SET;
-		} else {
-        	fst = fst.shallowCopy(); // don't change provided fst
+	private ExtendedDfa(Fst fst, Dictionary dict, boolean reverse) {
+
+		IntSet initialStateIdSet;
+		// When reverse is true, we create a DFA for the reverse FST (original FST is destroyed)
+		if(reverse) {
 			List<State> initialStates = fst.reverse(false);
-            dfaInitialState = new IntOpenHashSet();
-			dfaStickyStates = new IntOpenHashSet();
-            for (State s : initialStates) {
-                dfaInitialState.add(s.id);
-                if (s.isFinalComplete()) {
-					dfaStickyStates.add(s.id);
-				}
-            }
-			fst.annotateFinalStates();
+			initialStateIdSet = new IntOpenHashSet();
+			for(State s : initialStates) {
+				initialStateIdSet.add(s.id);
+			}
+			fst.annotate();
+			fst.dropCompleteFinalTransitions();
+		} else {
+			initialStateIdSet = IntSets.singleton(fst.getInitialState().getId());
 		}
-        this.initialDfaState = new ExtendedDfaState(dfaInitialState, fst, dict.size());
-        this.constructExtendedDfa(fst, dict, dfaInitialState, dfaStickyStates);
+		this.initialDfaState = new ExtendedDfaState(initialStateIdSet, fst, dict.size());
+		this.constructExtendedDfa(initialStateIdSet, fst, dict);
+	}
+
+	/** Creates a DFA for the given FST */
+	public static ExtendedDfa createForwardDfa(Fst fst, Dictionary dict) {
+		return new ExtendedDfa(fst, dict, false);
+	}
+
+	/** Creates a reverseDFA for the given FST, i.e., the FST is first reversed before
+	 * creating the DFA. Note that the given FST is may be modified. */
+	public static ExtendedDfa createBackwardDfa(Fst fst, Dictionary dict) {
+		fst.dropAnnotations();
+		ExtendedDfa rDfa = new ExtendedDfa(fst, dict, true);
+		fst.dropAnnotations();
+		fst.reverse(false);
+		fst.annotate();
+		return rDfa;
 	}
 
 	/** Construct an extended-DFA from a given FST */
-	private void constructExtendedDfa(Fst fst, Dictionary dict, IntSet initialStateIdSet, IntSet stickyStateIdSet) {
+	private void constructExtendedDfa(IntSet initialStateIdSet, Fst fst, Dictionary dict) {
 		// Map old states to new state
 		Map<IntSet, ExtendedDfaState> newStateForStateIdSet = new HashMap<>();
 
@@ -86,7 +98,6 @@ public final class ExtendedDfa {
 							}
 						}
 					}
-					reachableStateIds.addAll(stickyStateIdSet); // sticky initial states
 					if (!reachableStateIds.isEmpty()) {
 						IntList itemIds = reachableStatesForItemIds.get(reachableStateIds);
 						if (itemIds == null) {
@@ -124,23 +135,22 @@ public final class ExtendedDfa {
 	}
 
 	/**
-	 * Returns true if the reverse input sequence is relevant
+	 * Returns true if the input sequence is relevant
 	 */
-	public boolean isRelevantReverse(IntList inputSequence) {
+	public boolean isRelevant(IntList inputSequence) {
 		ExtendedDfaState state = initialDfaState;
-		int pos = inputSequence.size();
-		while (pos > 0) {
-			state = state.consume(inputSequence.getInt(--pos));
-			if(state == null) {
-				// we return false because we can't consume the current input and haven't seen a final-complete
-				// state before
+		int pos = 0;
+		while(pos < inputSequence.size()) {
+			state = state.consume(inputSequence.getInt(pos++));
+			// In this case is ok to return false, if there was a final state before
+			// we already retured true, final state can not be reached if state
+			// was null
+			if(state == null)
 				return false;
-			}
-			if (state.isFinalComplete()) {
+			if(state.isFinalComplete())
 				return true;
-			}
 		}
-		return state.isFinal(); // all read and final state reached
+		return state.isFinal(); //pos == inputSequence.size()
 	}
 
 	/**
