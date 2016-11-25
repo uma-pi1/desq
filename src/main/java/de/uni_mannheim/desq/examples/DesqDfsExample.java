@@ -23,15 +23,15 @@ public class DesqDfsExample {
 		String patternExp= "[c|d]([A^|B=^]+)e";
 		int sigma = 2;
 
-		patternExp= "(a1)..$";
-		sigma = 1;
+		//patternExp= "(a1)..$";
+		//sigma = 1;
 
-		patternExp= "^.(a1)";
-		sigma = 1;
+		//patternExp= "^.(a1)";
+		//sigma = 1;
 
 		DesqProperties conf = DesqDfs.createConf(patternExp, sigma);
 		conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
-		conf.setProperty("desq.mining.use.two.pass", true);
+		conf.setProperty("desq.mining.use.two.pass", false);
 		ExampleUtils.runIcdm16(conf);
 	}
 

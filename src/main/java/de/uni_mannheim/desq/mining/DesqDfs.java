@@ -32,36 +32,37 @@ public final class DesqDfs extends MemoryDesqMiner {
 	// -- helper variables --------------------------------------------------------------------------------------------
 
     /** Stores the final state transducer for DesqDfs (one-pass) */
-	final Fst fst;
+	private final Fst fst;
 
     /** Stores the largest fid of an item with frequency at least sigma. Zsed to quickly determine
      * whether an item is frequent (if fid <= largestFrequentFid, the item is frequent */
-    final int largestFrequentFid;
+	private final int largestFrequentFid;
 
     /** Stores iterators over output item/next state pairs for reuse. */
-	final ArrayList<Iterator<ItemState>> itemStateIterators = new ArrayList<>();
+	private final ArrayList<Iterator<ItemState>> itemStateIterators = new ArrayList<>();
 
     /** An iterator over a projected database (a posting list) for reuse */
-    final PostingList.Iterator projectedDatabaseIt = new PostingList.Iterator();
+	private final PostingList.Iterator projectedDatabaseIt = new PostingList.Iterator();
 
+	/** The root node of the search tree. */
+	private final DesqDfsTreeNode root;
+
+	/** Bundles arguments for {@link #incStep(int, State, int)} */
+    private final IncStepArgs current = new IncStepArgs();
 
 	// -- helper variables for pruning and twopass --------------------------------------------------------------------
 
 	/** The DFA corresponding to the FST (pruning) or reverse FST (two-pass). */
-    final Dfa dfa;
+	private final Dfa dfa;
 
     /** For each relevant input sequence, the sequence of states taken by dfa (two-pass only) */
-	final ArrayList<DfaState[]> dfaStateSequences;
-
-    /** For each relevant input sequence, the set of positions from which the FST can reach a final state (before
-     * reading the item at that position) (two-pass only) */
-    final ArrayList<int[]> dfaInitialPositions; // per relevant input sequence
+	private final ArrayList<DfaState[]> dfaStateSequences;
 
     /** A sequence of EDFA states for reuse (two-pass only) */
-    final ArrayList<DfaState> dfaStateSequence;
+	private final ArrayList<DfaState> dfaStateSequence;
 
     /** A sequence of positions for reuse (two-pass only) */
-    final IntList dfaInitialPos;
+	private final IntList dfaInitialPos;
 
 
     // -- construction/clearing ---------------------------------------------------------------------------------------
@@ -91,12 +92,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 
             // initialize helper variables for two-pass
 			dfaStateSequences = new ArrayList<>();
-			dfaInitialPositions = new ArrayList<>();
 			dfaStateSequence = new ArrayList<>();
 			dfaInitialPos = new IntArrayList();
 		} else { // invalidate helper variables for two-pass
             dfaStateSequences = null;
-			dfaInitialPositions = null;
 			dfaStateSequence = null;
 			dfaInitialPos = null;
 		}
@@ -113,6 +112,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 		} else {
 			this.dfa = null;
 		}
+
+		// other auxiliary variables
+		root = new DesqDfsTreeNode(fst.numStates());
+		current.node = root;
 	}
 
 	public static DesqProperties createConf(String patternExpression, long sigma) {
@@ -131,9 +134,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 		if (useTwoPass) {
 			dfaStateSequences.clear();
             dfaStateSequences.trimToSize();
-			dfaInitialPositions.clear();
-            dfaInitialPositions.trimToSize();
 		}
+		root.clear();
+		current.node = root;
 	}
 
 	// -- processing input sequences ----------------------------------------------------------------------------------
@@ -142,14 +145,24 @@ public final class DesqDfs extends MemoryDesqMiner {
 	public void addInputSequence(IntList inputSequence, long inputSupport, boolean allowBuffering) {
         // two-pass version of DesqDfs
         if (useTwoPass) {
-            // run the input sequence through the EDFA and compute the state sequences as well as the positions from
+            // run the input sequence through the DFA and compute the state sequences as well as the positions from
             // which a final FST state is reached
 			if (dfa.acceptsReverse(inputSequence, dfaStateSequence, dfaInitialPos)) {
 			    // we now know that the sequence is relevant; remember it
 				super.addInputSequence(inputSequence, inputSupport, allowBuffering);
 				dfaStateSequences.add(dfaStateSequence.toArray(new DfaState[dfaStateSequence.size()]));
-				//TODO: directly do the first incStep to avoid copying and storing positions
-				dfaInitialPositions.add(dfaInitialPos.toIntArray());
+
+				// run the first incStep; start at all positions from which a final FST state can be reached
+				assert current.node == root;
+				current.inputId = inputSequences.size()-1;
+				current.inputSequence = inputSequences.get(current.inputId);
+				current.dfaStateSequence = dfaStateSequences.get(current.inputId);
+				for (int i = 0; i< dfaInitialPos.size(); i++) {
+					// for those positions, start with the initial state
+					incStep(dfaInitialPos.getInt(i), fst.getInitialState(), 0);
+				}
+
+				// clean up
 				dfaInitialPos.clear();
 			}
 			dfaStateSequence.clear();
@@ -161,6 +174,12 @@ public final class DesqDfs extends MemoryDesqMiner {
 			// if we reach this place, we either don't want to prune irrelevant inputs or the input is relevant
             // -> remember it
 		    super.addInputSequence(inputSequence, inputSupport, allowBuffering);
+
+		    // and run the first inc step
+			assert current.node == root;
+			current.inputId = inputSequences.size()-1;
+			current.inputSequence = inputSequences.get(current.inputId);
+			incStep(0, fst.getInitialState(), 0);
 		}
 	}
 
@@ -169,67 +188,32 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 	@Override
 	public void mine() {
-	    // this bundles common arguments to incStep
-		final IncStepArgs incStepArgs = new IncStepArgs();
-
 		if (sumInputSupports >= sigma) {
-			// stores the root of the search tree
-		    DesqDfsTreeNode root = new DesqDfsTreeNode(fst.numStates());
-			incStepArgs.node = root;
-
-			// process all input sequences to compute the roots children
-			if (!useTwoPass) { // one-pass
-				for (int inputId = 0; inputId < inputSequences.size(); inputId++) {
-					incStepArgs.inputId = inputId;
-					incStepArgs.inputSequence = inputSequences.get(inputId);
-					incStep(incStepArgs, 0, fst.getInitialState(), 0);
-				}
-			} else { // two-pass
-				for (int inputId = 0; inputId < inputSequences.size(); inputId++) {
-					incStepArgs.inputId = inputId;
-					incStepArgs.inputSequence = inputSequences.get(inputId);
-					incStepArgs.rdfaStateSequence = dfaStateSequences.get(inputId);
-					final int[] initialStatePos = dfaInitialPositions.get(inputId);
-
-                    // look at all positions from which a final FST state can be reached
-                    for (final int pos : initialStatePos) {
-                        // for those positions, start with the initial state
-						incStep(incStepArgs, pos, fst.getInitialState(), 0);
-					}
-				}
-
-				// we don't need this anymore, so let's save the memory
-				dfaInitialPositions.clear();
-                dfaInitialPositions.trimToSize();
-			}
-
-			// recursively grow the patterns
+			// the root has already been processed; now recursively grow the patterns
 			root.pruneInfrequentChildren(sigma);
 			expand(new IntArrayList(), root);
 		}
 	}
 
-    /** Updates the projected databases of the children of the current node (args.node) corresponding to each possible
-     * next output item for the current input sequence (also stored in args).
+    /** Updates the projected databases of the children of the current node (<code>current.node</code>) corresponding to each possible
+     * next output item for the current input sequence (also stored in <code>currect</code>).
      *
-     * @param args information about the input sequence and the current search tree node
      * @param pos next item to read
      * @param state current FST state
      * @param level recursion level (used for reusing iterators without conflict)
      *
      * @return true if the initial FST state can be reached without producing further output
      */
-	private boolean incStep(final IncStepArgs args, final int pos,
-							final State state, final int level) {
+	private boolean incStep(final int pos, final State state, final int level) {
 		// check if we reached a final complete state or consumed entire input and reached a final state
-		if ( state.isFinalComplete() || pos == args.inputSequence.size() )
+		if ( state.isFinalComplete() || pos == current.inputSequence.size() )
 		    return state.isFinal();
 
         // get iterator over next output item/state pairs; reuse existing ones if possible
 		// in two-pass, only iterates over states that we saw in the first pass (the other ones can safely be skipped)
-		final int itemFid = args.inputSequence.getInt(pos);
+		final int itemFid = current.inputSequence.getInt(pos);
 		final BitSet validToStates = useTwoPass
-				? args.rdfaStateSequence[ args.inputSequence.size()-(pos+1) ].getFstStates() // only states from first pass
+				? current.dfaStateSequence[ current.inputSequence.size()-(pos+1) ].getFstStates() // only states from first pass
 				: null; // all states
 		Iterator<ItemState> itemStateIt;
 		if (level>=itemStateIterators.size()) {
@@ -250,10 +234,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 			if (outputItemFid == 0) { // EPS output
                 // we did not get an output, so continue running the FST
 				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
-				reachedInitialStateWithoutOutput |= incStep(args, pos + 1, toState, newLevel);
+				reachedInitialStateWithoutOutput |= incStep(pos + 1, toState, newLevel);
 			} else if (largestFrequentFid >= outputItemFid) {
                 // we have an output and its frequent, so update the corresponding projected database
-				args.node.expandWithItem(outputItemFid, args.inputId, args.inputSequence.weight,
+				current.node.expandWithItem(outputItemFid, current.inputId, current.inputSequence.weight,
 						pos+1, toState.getId());
 			}
 		}
@@ -269,9 +253,6 @@ public final class DesqDfs extends MemoryDesqMiner {
      */
 
 	private void expand(IntList prefix, DesqDfsTreeNode node) {
-        // this bundles common arguments to incStepOnePass or incStepTwoPass
-        final IncStepArgs incStepArgs = new IncStepArgs();
-
 		// add a placeholder to prefix for the output item of the child being expanded
 		final int lastPrefixIndex = prefix.size();
 		prefix.add(-1);
@@ -286,15 +267,15 @@ public final class DesqDfs extends MemoryDesqMiner {
 			assert childNode.prefixSupport >= sigma;
 			prefix.set(lastPrefixIndex, childNode.itemFid);
 			projectedDatabaseIt.reset(childNode.projectedDatabase);
-			incStepArgs.inputId = -1;
-			incStepArgs.node = childNode;
+			current.inputId = -1;
+			current.node = childNode;
 
 			do {
 				// process next input sequence
-				incStepArgs.inputId += projectedDatabaseIt.nextNonNegativeInt();
-				incStepArgs.inputSequence = inputSequences.get(incStepArgs.inputId);
+				current.inputId += projectedDatabaseIt.nextNonNegativeInt();
+				current.inputSequence = inputSequences.get(current.inputId);
 				if (useTwoPass) {
-					incStepArgs.rdfaStateSequence = dfaStateSequences.get(incStepArgs.inputId);
+					current.dfaStateSequence = dfaStateSequences.get(current.inputId);
 				}
 
 				// iterate over state@pos snapshots for this input sequence
@@ -302,12 +283,12 @@ public final class DesqDfs extends MemoryDesqMiner {
 				do {
 					final int stateId = projectedDatabaseIt.nextNonNegativeInt();
 					final int pos = projectedDatabaseIt.nextNonNegativeInt(); // position of next input item
-					reachedFinalStateWithoutOutput |= incStep(incStepArgs, pos, fst.getState(stateId), 0);
+					reachedFinalStateWithoutOutput |= incStep(pos, fst.getState(stateId), 0);
 				} while (projectedDatabaseIt.hasNext());
 
                 // if we reached a final state without output, increment the support of this child node
 				if (reachedFinalStateWithoutOutput) {
-					support += incStepArgs.inputSequence.weight;
+					support += current.inputSequence.weight;
 				}
 
 				// now go to next posting (next input sequence)
@@ -336,7 +317,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 	private static class IncStepArgs {
 		int inputId;
 		WeightedSequence inputSequence;
-		DfaState[] rdfaStateSequence;
+		DfaState[] dfaStateSequence;
+		IntList dfaInitialPos;
 		DesqDfsTreeNode node;
 	}
 }
