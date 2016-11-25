@@ -3,7 +3,7 @@ package de.uni_mannheim.desq.fst.graphviz;
 import java.io.File;
 
 /**
- * Vdfa.java
+ * FstVisualizer.java
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
 public class FstVisualizer {
@@ -34,8 +34,15 @@ public class FstVisualizer {
 		gv.writeGraphToFile(gv.getGraph(gv.getDotSource(), type), out);
 	}
 	
-	public void addAccepted(String state) {
-		gv.add(state + " [shape=doublecircle]");
+	public void addFinalState(String state) {
+		addFinalState(state, false);
+	}
+
+	public void addFinalState(String state, boolean isFinalComplete) {
+		if(isFinalComplete)
+			gv.add(state + " [shape=doublecircle, style=filled, fillcolor=gray]");
+		else
+			gv.add(state + " [shape=doublecircle]");
 	}
 
 	public void add(String fromState, String iLabel, String oLabel,  String toState) {

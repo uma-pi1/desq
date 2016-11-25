@@ -1,7 +1,5 @@
 package de.uni_mannheim.desq.mining.spark
 
-import java.util.Collections
-
 import de.uni_mannheim.desq.mining.Sequence
 import de.uni_mannheim.desq.util.DesqProperties
 import it.unimi.dsi.fastutil.ints.IntArrayList
@@ -29,7 +27,6 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         var outputIterator: ObjectIterator[Sequence] = ObjectLists.emptyList[Sequence].iterator()
         var currentSupport = 0L
         val itemFids = new IntArrayList()
-        val reversedOutput = baseMiner.mine1reversedOutput()
 
         // here we check if we have an output sequence from the current row; if not, we more to the next row
         // that produces an output
@@ -54,10 +51,6 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 
         override def next(): (Sequence, Long) = {
           val pattern = outputIterator.next()
-          if (reversedOutput) {
-            // will change the pattern in our outputIterator as well, but that's fine as we don't need it again
-            Collections.reverse(pattern)
-          }
           (pattern, currentSupport)
         }
       }

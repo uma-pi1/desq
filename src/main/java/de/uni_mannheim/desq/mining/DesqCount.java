@@ -12,6 +12,7 @@ import it.unimi.dsi.fastutil.objects.ObjectSet;
 import org.apache.log4j.Logger;
 
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Iterator;
 
 public final class DesqCount extends DesqMiner {
@@ -31,17 +32,14 @@ public final class DesqCount extends DesqMiner {
 	/** If true, input sequences that do not match the pattern expression are pruned */
 	final boolean pruneIrrelevantInputs;
 
-	/** If true, the two-pass algorithm for DesqDfs is used */
+	/** If true, the two-pass algorithm is used */
 	final boolean useTwoPass;
 
 
 	// -- helper variables --------------------------------------------------------------------------------------------
 
-	/** Stores the final state transducer (one-pass) */
+	/** Stores the final state transducer  */
 	final Fst fst;
-
-	/** Stores the reverse final state transducer (two-pass) */
-	final Fst reverseFst;
 
 	/** Stores the largest fid of an item with frequency at least sigma. Used to quickly determine
 	 * whether an item is frequent (if fid <= largestFrequentFid, the item is frequent */
@@ -70,14 +68,14 @@ public final class DesqCount extends DesqMiner {
 
 	// -- helper variables for pruning and twopass --------------------------------------------------------------------
 
-	/** The DFA corresponding to the pattern expression. Accepts if the FST can reach a final state on an input */
-	final ExtendedDfa edfa;
+	/** The DFA corresponding to the FST (pruning) or reverse FST (two-pass). */
+	final Dfa dfa;
 
-	/** Sequence of EDFA states for current input */
-	final ArrayList<ExtendedDfaState> edfaStateSequence;
+	/** Sequence of EDFA states for current input (two-pass only) */
+	final ArrayList<DfaState> dfaStateSequence;
 
-	/** Positions for which current input reached a final state  */
-	final IntList finalPos;
+	/** Positions for which dfa reached an initial FST state (two-pass only) */
+	final IntList dfaInitalPos;
 
 
 	// -- construction/clearing ---------------------------------------------------------------------------------------
@@ -89,14 +87,20 @@ public final class DesqCount extends DesqMiner {
 		this.pruneIrrelevantInputs = ctx.conf.getBoolean("desq.mining.prune.irrelevant.inputs");
 		this.useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
 
+		// initalize helper variable for FST simulation
 		this.largestFrequentFid = ctx.dict.lastFidAbove(sigma);
 		this.inputId = 0;
-		
+		prefix = new Sequence();
+		outputSequences.defaultReturnValue(-1L);
+
+		// create FST
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
 		PatEx p = new PatEx(patternExpression, ctx.dict);
-		Fst tempFst = p.translate();
-		tempFst.minimize(); //TODO: move to translate
+		this.fst = p.translate();
+		fst.minimize(); //TODO: move to translate
+		fst.annotate();
 
+		// create two pass auxiliary variables (if needed)
 		if (useTwoPass) { // two-pass
 			// two-pass will always prune irrelevant input sequences, so notify the user when the corresponding
 			// property is not set
@@ -104,38 +108,26 @@ public final class DesqCount extends DesqMiner {
 				logger.warn("property desq.mining.prune.irrelevant.inputs=false will be ignored because " +
 						"desq.mining.use.two.pass=true");
 			}
-
-			// construct the DFA for the FST (for the forward pass)
-			this.edfa = new ExtendedDfa(tempFst, ctx.dict);
-
-			// and then reverse the FST (which we now only need for the backward pass)
-			tempFst.reverse(false); // here we need the reverse fst
-			fst = null;
-			reverseFst = tempFst;
-
-			// initialize helper variables for two-pass
-			edfaStateSequence = new ArrayList<>();
-			finalPos = new IntArrayList();
-		} else { // one-pass
-			// store the FST
-			fst = tempFst;
-			reverseFst = null;
-
-			// if we prune irrelevant inputs, construct the DFS for the FST
-			if (pruneIrrelevantInputs) {
-				this.edfa = new ExtendedDfa(fst, ctx.dict);
-			} else {
-				this.edfa = null;
-			}
-
-			// invalidate helper variables for two-pass
-			edfaStateSequence = null;
-			finalPos  = null;
+			dfaStateSequence = new ArrayList<>();
+			dfaInitalPos = new IntArrayList();
+		} else {
+			dfaStateSequence = null;
+			dfaInitalPos = null;
 		}
 
-		// initalize helper variable for FST simulation
-		prefix = new Sequence();
-		outputSequences.defaultReturnValue(-1L);
+		// create DFA or reverse DFA (if needed)
+		if(useTwoPass) {
+			// construct the DFA for the FST (for the first pass)
+			// the DFA is constructed for the reverse FST
+			this.dfa = Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid);
+		} else if (pruneIrrelevantInputs) {
+			// construct the DFA to prune irrelevant inputs
+			// the DFA is constructed for the forward FST
+			this.dfa = Dfa.createDfa(fst, ctx.dict, largestFrequentFid);
+		} else {
+			this.dfa = null;
+		}
+
 	}
 
 	public static DesqProperties createConf(String patternExpression, long sigma) {
@@ -160,27 +152,25 @@ public final class DesqCount extends DesqMiner {
 
 		// two-pass version of DesqCount
 		if (useTwoPass) {
-			// run the input sequence through the EDFA and compute the state sequences as well as the positions before
-			// which a final FST state is reached
-			if (edfa.isRelevant(sequence, 0, edfaStateSequence, finalPos)) {
+			// run the input sequence through the EDFA and compute the state sequences as well as the positions
+			// at which, we start the FST simulation
+			if (dfa.acceptsReverse(sequence, dfaStateSequence, dfaInitalPos)) {
 				// we now know that the sequence is relevant; process it
-				// look at all positions before which a final FST state can be reached
-				for (final int pos : finalPos) {
-					// for those positions, start with each possible final FST state and go backwards
-					for (State fstFinalState : edfaStateSequence.get(pos).getFstFinalStates()) {
-						stepTwoPass(pos-1, fstFinalState, 0);
-					}
+				// look at all initial positions from which a final FST state can be reached
+				for (final int pos : dfaInitalPos) {
+					// for those positions, start with initial state
+					step(pos, fst.getInitialState(), 0);
 				}
 				inputId++;
 			}
-			edfaStateSequence.clear();
-			finalPos.clear();
+			dfaStateSequence.clear();
+			dfaInitalPos.clear();
 			return;
 		}
 
 		// one-pass version of DesqCount
-		if (!pruneIrrelevantInputs || edfa.isRelevant(sequence, 0, 0)) {
-			stepOnePass(0, fst.getInitialState(), 0);
+		if (!pruneIrrelevantInputs /*without pruning*/ || dfa.accepts(sequence) /*with pruning*/) {
+			step(0, fst.getInitialState(), 0);
 			inputId++;
 		}
 	}
@@ -196,19 +186,14 @@ public final class DesqCount extends DesqMiner {
 			int support = PrimitiveUtils.getLeft(value);
 			if (support >= sigma) {
 				if (ctx.patternWriter != null) {
-					if (useTwoPass) {
-						ctx.patternWriter.writeReverse(entry.getKey(), support);
-					} else {
-						ctx.patternWriter.write(entry.getKey(), support);
-					}
+					ctx.patternWriter.write(entry.getKey(), support);
 				}
 			}
 		}
 	}
 
 	/** Produces all outputs of the given input sequence that would be generated by DesqCount. Note that if you
-	 * use this method, all inputs added previously will be cleared. Moreover, the output might be in reverse order
-	 * (determined by {@link #mine1reversedOutput()})
+	 * use this method, all inputs added previously will be cleared.
 	 *
 	 * @param inputSequence
 	 * @return
@@ -219,112 +204,55 @@ public final class DesqCount extends DesqMiner {
 		return outputSequences.keySet();
 	}
 
-	public boolean mine1reversedOutput() {
-		return useTwoPass;
-	}
-
 	/** Simulates the FST starting from the given position and state. Maintains the invariant that the current
-	 * output is stored in {@link #prefix}. Recursive version.
-	 *
- 	 * @param pos position of next input item
-	 * @param state current state of FST
-	 * @param level recursion level (used for reusing iterators without conflict)
-	 */
-	private void stepOnePass(int pos, State state, int level) {
-		// if we reached a final state, we count the current sequence (if any)
-		if(state.isFinal() && !prefix.isEmpty() && (!fst.getRequireFullMatch() || pos==inputSequence.size())) {
-			countSequence(prefix);
-		}
-
-		// check if we already read the entire input
-		if (pos == inputSequence.size()) {
-			return;
-		}
-
-		// get iterator over next output item/state pairs; reuse existing ones if possible
-		final int itemFid = inputSequence.getInt(pos); // the current input item
-		Iterator<ItemState> itemStateIt;
-		if(level >= itemStateIterators.size()) {
-			itemStateIt = state.consume(itemFid);
-			itemStateIterators.add(itemStateIt);
-		} else {
-			itemStateIt = state.consume(itemFid, itemStateIterators.get(level));
-		}
-
-		// iterate over output item/state pairs
-        while(itemStateIt.hasNext()) {
-            final ItemState itemState = itemStateIt.next();
-			final int outputItemFid = itemState.itemFid;
-			final State toState = itemState.state;
-
-			if(outputItemFid == 0) { // EPS output
-				// we did not get an output, so continue with the current prefix
-				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
-				stepOnePass(pos + 1, toState, newLevel);
-			} else {
-				// we got an output; check whether it is relevant
-				if (!useFlist || largestFrequentFid >= outputItemFid) {
-					// now append this item to the prefix, continue running the FST, and remove the item once done
-					prefix.add(outputItemFid);
-					int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
-					stepOnePass(pos + 1, toState, newLevel);
-					prefix.removeInt(prefix.size() - 1);
-				}
-			}
-		}
-	}
-
-	/** Simulates the reverse FST starting from the given position and state. Maintains the invariant that the current
-	 * output is stored in {@link #prefix} in reverse order. Recursive version, used only for two-pass.
+	 * output is stored in {@link #prefix}. Recursive version
 	 *
 	 * @param pos position of next input item
 	 * @param state current state of FST
 	 * @param level recursion level (used for reusing iterators without conflict)
 	 */
-	private void stepTwoPass(int pos, State state, int level) {
-		// check if we reached the beginning of the input sequence
-		if(pos == -1) {
-			// we consumed entire input in reverse -> we must have reached the inital state by two-pass correctness
-			assert state.getId() == 0;
-			if (!prefix.isEmpty()) {
+	private void step(int pos, State state, int level) {
+		// stop recursing if we reached a final-complete state or consumed the entire input
+		// and output if we stop at a final state
+		if (state.isFinalComplete() || pos == inputSequence.size()) {
+			if (!prefix.isEmpty() && state.isFinal()) {
 				countSequence(prefix);
 			}
 			return;
 		}
 
 		// get iterator over next output item/state pairs; reuse existing ones if possible
-		// note that the reverse FST is used here (since we process inputs backwards)
-		// only iterates over states that we saw in the forward pass (the other ones can safely be skipped)
+		// in two-pass, only iterates over states that we saw in the first pass (the other ones can safely be skipped)
 		final int itemFid = inputSequence.getInt(pos);
+		final BitSet validToStates = useTwoPass
+				? dfaStateSequence.get( inputSequence.size()-(pos+1) ).getFstStates() // only states from first pass
+				: null; // all states
 		Iterator<ItemState> itemStateIt;
 		if (level>=itemStateIterators.size()) {
-			itemStateIt = state.consume(itemFid, null, edfaStateSequence.get(pos).getFstStates());
+			itemStateIt = state.consume(itemFid, null, validToStates);
 			itemStateIterators.add(itemStateIt);
 		} else {
-			itemStateIt = state.consume(itemFid, itemStateIterators.get(level),
-					edfaStateSequence.get(pos).getFstStates());
+			itemStateIt = state.consume(itemFid, itemStateIterators.get(level), validToStates);
 		}
+
 
 		// iterate over output item/state pairs
 		while(itemStateIt.hasNext()) {
 			final ItemState itemState = itemStateIt.next();
-
-			// we need to process that state because we saw it in the forward pass (assertion checks this)
 			final State toState = itemState.state;
-			assert edfaStateSequence.get(pos).getFstStates().get(toState.getId());
-
 			final int outputItemFid = itemState.itemFid;
+
 			if(outputItemFid == 0) { // EPS output
 				// we did not get an output, so continue with the current prefix
-				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
-				stepTwoPass(pos - 1, toState, newLevel);
+				final int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
+				step(pos + 1, toState, newLevel);
 			} else {
 				// we got an output; check whether it is relevant
 				if (!useFlist || largestFrequentFid >= outputItemFid) {
 					// now append this item to the prefix, continue running the FST, and remove the item once done
 					prefix.add(outputItemFid);
-					int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
-					stepTwoPass(pos - 1, toState, newLevel);
+					final int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
+					step(pos + 1, toState, newLevel);
 					prefix.removeInt(prefix.size() - 1);
 				}
 			}
@@ -339,7 +267,7 @@ public final class DesqCount extends DesqMiner {
 		long supSid = outputSequences.getLong(sequence);
 
 		// add sequence if never mined before
-		if (supSid == -1) { // set as return value when key not present
+		if (supSid == -1) { // return value when key not present
 			outputSequences.put(new Sequence(sequence), PrimitiveUtils.combine((int)inputSupport, inputId)); // need to copy here
 			return;
 		}

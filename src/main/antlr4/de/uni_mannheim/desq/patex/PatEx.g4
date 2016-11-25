@@ -14,7 +14,7 @@ unionexp
 ;
 concatexp
 :
-	repeatexp concatexp 		#concatExpression
+	repeatexp concatexp      		#concatExpression
 	| repeatexp						#repeatExpression
 ;
 repeatexp

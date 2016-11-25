@@ -49,30 +49,6 @@ public class DelPatternWriter extends PatternWriter {
 		writer.println();
 	}
 
-	@Override
-	public void writeReverse(IntList reverseItemFids, long frequency) {
-		writer.print(frequency);
-		writer.print("\t");
-		String sep="";
-		for (int i=reverseItemFids.size()-1; i>=0; i--) {
-			int fid = reverseItemFids.getInt(i);
-			writer.write(sep);
-			sep = "\t";
-			switch (type) {
-				case FID:
-					writer.print( fid );
-					break;
-				case GID:
-					writer.print( dict.gidOf(fid));
-					break;
-				case SID:
-					writer.print( dict.sidOfFid(fid));
-					break;
-			}
-		}
-		writer.println();
-	}
-
 	public void close() {
 		writer.close();
 	}

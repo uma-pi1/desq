@@ -89,6 +89,9 @@ public final class FstOperations {
 	}
 	
 	public static Fst repeatMinMax(Fst a, int min, int max) {
+		if(min == max) {
+			return repeatExactly(a, min);
+		}
 		max -= min;
 		assert max>=0;
         if (max==0) return new Fst(true);
@@ -131,11 +134,20 @@ public final class FstOperations {
 	public static List<State> reverse(Fst fst) {
 		return reverse(fst, true);
 	}
-	
+
+	//TODO: handle fst annotations (remove annotations before reversing?)
 	public static List<State> reverse(Fst fst, boolean createNewInitialState) {
 	
 		Int2ObjectMap<List<Transition>> reversedIncomingTransitionsOfState = new Int2ObjectOpenHashMap<>();
-		reversedIncomingTransitionsOfState.put(fst.initialState.id, new ArrayList<>());
+
+		// Handle reverse FST for two-pass
+		if(!fst.initialState.isFinal)
+			reversedIncomingTransitionsOfState.put(fst.initialState.id, new ArrayList<>());
+		else {
+			for(State state : fst.getFinalStates()) {
+				reversedIncomingTransitionsOfState.put(state.id, new ArrayList<>());
+			}
+		}
 
 		for (State fromState : fst.states) {
 			for (Transition transition : fromState.transitionList) {
@@ -155,13 +167,27 @@ public final class FstOperations {
 		List<State> newInitialStates = new ArrayList<>(); // will be old final states
 		for (State s : fst.states) {
 			s.transitionList = reversedIncomingTransitionsOfState.get(s.id);
-			if(s.isFinal) {
+			/*if(s.isFinal) {
 				newInitialStates.add(s);
 				s.isFinal = false;
+			}*/
+		}
+
+		// Handle reverse FST for two-pass
+		if(!fst.initialState.isFinal) {
+			fst.initialState.isFinal = true;
+			for (State state : fst.getFinalStates()) {
+				state.isFinal = false;
+				newInitialStates.add(state);
 			}
 		}
-		
-		fst.initialState.isFinal = true;
+		else {
+			fst.initialState.isFinal = false;
+			for(State state : fst.getFinalStates()) {
+				state.isFinal = true;
+			}
+		}
+
 		if (createNewInitialState) {
 			// If we want one initial state
 			if(newInitialStates.size() > 1) {
@@ -185,7 +211,8 @@ public final class FstOperations {
 		initialStates.add(fst.initialState);
 		partiallyDeterminize(fst, initialStates);
 	}
-	
+
+	//TODO: handle fst annotations (remove annotations before determinizing?)
 	public static void partiallyDeterminize(Fst fst, List<State> initialStates) {
 		fst.initialState = new State();
 		

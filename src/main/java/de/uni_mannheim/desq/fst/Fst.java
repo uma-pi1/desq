@@ -3,6 +3,7 @@ package de.uni_mannheim.desq.fst;
 
 import com.google.common.base.Strings;
 import de.uni_mannheim.desq.fst.graphviz.FstVisualizer;
+import it.unimi.dsi.fastutil.ints.*;
 import org.apache.commons.io.FilenameUtils;
 
 import java.io.PrintStream;
@@ -16,12 +17,8 @@ public final class Fst {
 	
 	/** list of states; initialized only after state numbers are updated; see updateStates() */
 	List<State> states = new ArrayList<>();
-    List<State> finalStates = new ArrayList<>();
 
-	/** flag indicating whether full input must be consumed
-	 * TODO: remove once we annotate states with isComplete
-	 */
-	boolean requireFullMatch = false;
+    List<State> finalStates = new ArrayList<>();
 
     public Fst() {
         this(false);
@@ -31,14 +28,6 @@ public final class Fst {
 		initialState = new State();
         initialState.isFinal = isFinal;
         updateStates();
-	}
-
-	public boolean getRequireFullMatch() {
-		return requireFullMatch;
-	}
-
-	public void setRequireFullMatch(boolean requireFullMatch) {
-		this.requireFullMatch = requireFullMatch;
 	}
 
 	public State getInitialState() {
@@ -92,13 +81,16 @@ public final class Fst {
 	/* Returns a copy of FST with shallow copy of its transitions */
 	public Fst shallowCopy() {
 		Fst fstCopy = new Fst();
+		fstCopy.states.clear();
 		Map<State, State> stateMap = new HashMap<>();
 		for(State state : states) {
 			stateMap.put(state, new State());
 		}
 		for(State state : states) {
 			State stateCopy = stateMap.get(state);
+			stateCopy.id = state.id;
 			stateCopy.isFinal = state.isFinal;
+			stateCopy.isFinalComplete = state.isFinalComplete;
 			fstCopy.states.add(stateCopy);
 			if (state.isFinal) fstCopy.finalStates.add(stateCopy);
 			if(state == initialState) {
@@ -133,6 +125,7 @@ public final class Fst {
 		print(System.out, 2);
 	}
 
+	//TODO: prints states incorrectly when FST is reversed
 	public void print(PrintStream out, int indent) {
 		String indentString = Strings.repeat(" ", indent);
 
@@ -148,7 +141,17 @@ public final class Fst {
 			out.print(state.id);
 			separator = ",";
 		}
-		out.println("]");
+		out.print("]");
+        out.print(", finalComplete=[");
+        separator = "";
+        for (State state : getFinalStates()) {
+            if(state.isFinalComplete) {
+                out.print(separator);
+                out.print(state.id);
+                separator = ",";
+            }
+        }
+        out.println("]");
 
 		out.print(indentString);
 		out.print("Trans. : ");
@@ -182,7 +185,9 @@ public final class Fst {
 			for(Transition t : s.transitionList)
                 fstVisualizer.add(String.valueOf(s.id), t.labelString(), String.valueOf(t.getToState().id));
 			if(s.isFinal)
-				fstVisualizer.addAccepted(String.valueOf(s.id));
+				fstVisualizer.addFinalState(String.valueOf(s.id));
+			if(s.isFinalComplete)
+				fstVisualizer.addFinalState(String.valueOf(s.id), true);
 		}
 		fstVisualizer.endGraph();
 	}
@@ -201,7 +206,11 @@ public final class Fst {
 				edges.add(new Edge(s.id, t.toState.id, t.toPatternExpression()));
 			}
 			if (s.isFinal()) {
-				edges.add(new Edge(s.id, -1, "")); // from final to dummy-final
+				if (s.isFinalComplete) {
+					edges.add(new Edge(s.id, -1, ".*")); // from final to dummy-final
+				} else {
+					edges.add(new Edge(s.id, -1, "")); // eps from final to dummy-final
+				}
 			}
 			if (s == initialState) {
 				edges.add(new Edge(-2, s.id, "")); // from dummy-initial to initial
@@ -248,9 +257,8 @@ public final class Fst {
 			}
 		}
 
-		// now we have the desired pattern expression
-		assert edges.size() == 1; // from dummy-initial to dummy-final
-		return edges.get(0).label; // this edge's label is the result
+		// now all edges go from dummy-initial to dummy-final
+		return combinedExp(edges); // this edge's label is the result
 	}
 
 
@@ -279,6 +287,137 @@ public final class Fst {
 		if (edges.size()>1)
 			exp += "]";
 		return exp;
+	}
+
+	/** Annotates final states of the FST. An final FST state is finalComplete
+     * if it accepts .* without further output and there is no state with output
+     * reachable.
+     */
+	public void annotate() {
+		dropAnnotations();
+
+        // Convert FST starting at final states to DFA by only looking of .:EPS transitions
+
+		// Map fst states to xdfa state
+		Map<IntSet, XDfaState> xDfaStateForFstStateIdSet = new HashMap<>();
+		// Unprocessed xdfa states
+		Stack<IntSet> unprocessedStateIdSets = new Stack<>();
+		// Processed xdfa states
+		Set<IntSet> processedStateIdSets = new HashSet<>();
+
+		// Initialize list of final state ids
+        // if fst is reversed it will have only one final state
+        IntList finalStateIdList = new IntArrayList();
+        for(State finalState : finalStates) {
+            // if fst is reversed without creating a new initial state as in two pass
+            // then finalStates are not updated
+            if(finalState.isFinal)
+                finalStateIdList.add(finalState.id);
+        }
+        if(initialState.isFinal)
+            finalStateIdList.add(initialState.id);
+
+		for(int finalStateId : finalStateIdList) {
+			IntSet initialStateIdSet = IntSets.singleton(finalStateId);
+			xDfaStateForFstStateIdSet.put(initialStateIdSet, new XDfaState(true));
+			unprocessedStateIdSets.push(initialStateIdSet);
+		}
+
+		while(!unprocessedStateIdSets.isEmpty()) {
+			// process fst states
+			IntSet stateIdSet = unprocessedStateIdSets.pop();
+
+			if(!processedStateIdSets.contains(stateIdSet)) {
+				IntSet nextStateIdSet = new IntOpenHashSet();
+				boolean isFinal = false;
+				boolean hasNonEpsOutput = false;
+
+				// we look at only outgoing .:EPS transitions
+				for(int stateId : stateIdSet) {
+					for(Transition transition : getState(stateId).transitionList) {
+						isFinal = transition.toState.isFinal;
+						if(transition.isDotEps()) {
+							//add toState
+							nextStateIdSet.add(transition.toState.id);
+						} else {
+							// if there is an outgoing transition with non eps output
+							hasNonEpsOutput = true;
+						}
+					}
+				}
+
+				// add to stack
+				if(!processedStateIdSets.contains(nextStateIdSet))
+					unprocessedStateIdSets.push(nextStateIdSet);
+
+				// create the next xdfa state
+				XDfaState nextXDfaState = xDfaStateForFstStateIdSet.get(nextStateIdSet);
+				if(nextXDfaState == null) {
+					nextXDfaState = new XDfaState(isFinal);
+					xDfaStateForFstStateIdSet.put(nextStateIdSet, nextXDfaState);
+				}
+				XDfaState xDfaState = xDfaStateForFstStateIdSet.get(stateIdSet);
+				xDfaState.nextState = nextXDfaState;
+
+				// if there was an outgoing transition with non eps output
+				xDfaState.hasNonEpsOutput = hasNonEpsOutput;
+			}
+			// mark as processed
+			processedStateIdSets.add(stateIdSet);
+		}
+
+
+		// annotate final states
+        // If DFA starting at final state is a chain with all states final and a self loop at the end
+        // and there is no reachable transition that produces an output then the corresponding final
+        // fst state is complete
+		for(int finalStateId : finalStateIdList) {
+            // get xdfa state
+            XDfaState xDfaState = xDfaStateForFstStateIdSet.get(IntSets.singleton(finalStateId));
+            while(true) {
+                XDfaState nextXDfaState = xDfaState.nextState;
+                if(nextXDfaState == null || xDfaState.hasNonEpsOutput || !xDfaState.isFinal){
+                    // finalState.isFinalComplete = false; // false by construction
+                    break;
+                }
+                if(nextXDfaState == xDfaState) {
+					State fstState = getState(finalStateId);
+                    fstState.isFinalComplete = true;
+					fstState.isFinal = true;
+					//fstState.removeAllTransitions();
+                    break;
+                }
+                xDfaState = nextXDfaState;
+            }
+		}
+
+	}
+
+	/** Helper class for DFA states for annotating final fst states in {@link #annotate()}*/
+	private class XDfaState {
+		XDfaState nextState = null;
+		boolean hasNonEpsOutput = false;
+		boolean isFinal = false;
+
+		XDfaState(boolean isFinal) {
+			this.isFinal = isFinal;
+		}
+	}
+
+	public void dropAnnotations() {
+        for(State state : getStates()) {
+			if(state.isFinalComplete) {
+				state.isFinalComplete = false;
+			}
+        }
+    }
+
+    public void dropCompleteFinalTransitions() {
+		for(State state : getStates()) {
+			if(state.isFinalComplete) {
+				state.removeAllTransitions();
+			}
+		}
 	}
 
 	/** Numbers the transitions of this FST */

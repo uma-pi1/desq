@@ -16,11 +16,6 @@ public class CountPatternWriter extends PatternWriter {
         totalFrequency += frequency;
     }
 
-    public void writeReverse(IntList reverseItemFids, long frequency) {
-        count++;
-        totalFrequency += frequency;
-    }
-
     @Override
     public void write(int[] itemFids, long frequency) {
         count++;
