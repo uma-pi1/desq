@@ -23,7 +23,7 @@ public class DesqCountExample {
 
 		DesqProperties conf = DesqCount.createConf(patternExpression, sigma);
 		conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
-		conf.setProperty("desq.mining.use.two.pass", false);
+		conf.setProperty("desq.mining.use.two.pass", true);
 		ExampleUtils.runIcdm16(conf);
 	}
 

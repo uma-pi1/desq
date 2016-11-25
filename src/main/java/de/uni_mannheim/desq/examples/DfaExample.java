@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * @author kbeedkar {kbeedkar@uni-mannheim.de}.
  */
-public class EDfaExample {
+public class DfaExample {
 
     Stopwatch edfaTime = Stopwatch.createUnstarted();
 
@@ -32,7 +32,7 @@ public class EDfaExample {
         fst.annotate();
 
         edfaTime.start();
-        Dfa edfa = Dfa.createReverseDfa(fst, dict);
+        Dfa edfa = Dfa.createReverseDfa(fst, dict, Integer.MAX_VALUE);
         edfaTime.stop();
 
         System.out.println(patternExpression);
@@ -40,6 +40,6 @@ public class EDfaExample {
     }
 
     public static void main(String[] args) throws IOException {
-        new EDfaExample().amzn();
+        new DfaExample().amzn();
     }
 }

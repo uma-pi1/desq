@@ -87,6 +87,12 @@ public final class DesqCount extends DesqMiner {
 		this.pruneIrrelevantInputs = ctx.conf.getBoolean("desq.mining.prune.irrelevant.inputs");
 		this.useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
 
+		// initalize helper variable for FST simulation
+		this.largestFrequentFid = ctx.dict.lastFidAbove(sigma);
+		this.inputId = 0;
+		prefix = new Sequence();
+		outputSequences.defaultReturnValue(-1L);
+
 		// create FST
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
 		PatEx p = new PatEx(patternExpression, ctx.dict);
@@ -113,20 +119,15 @@ public final class DesqCount extends DesqMiner {
 		if(useTwoPass) {
 			// construct the DFA for the FST (for the first pass)
 			// the DFA is constructed for the reverse FST
-			this.dfa = Dfa.createReverseDfa(fst, ctx.dict);
+			this.dfa = Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid);
 		} else if (pruneIrrelevantInputs) {
 			// construct the DFA to prune irrelevant inputs
 			// the DFA is constructed for the forward FST
-			this.dfa = Dfa.createDfa(fst, ctx.dict);
+			this.dfa = Dfa.createDfa(fst, ctx.dict, largestFrequentFid);
 		} else {
 			this.dfa = null;
 		}
 
-		// initalize helper variable for FST simulation
-		this.largestFrequentFid = ctx.dict.lastFidAbove(sigma);
-		this.inputId = 0;
-		prefix = new Sequence();
-		outputSequences.defaultReturnValue(-1L);
 	}
 
 	public static DesqProperties createConf(String patternExpression, long sigma) {

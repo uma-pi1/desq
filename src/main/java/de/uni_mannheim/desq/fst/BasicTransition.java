@@ -126,10 +126,9 @@ public final class BasicTransition extends Transition {
 	public boolean matches(int itemFid) {
 		return inputLabel==0 || inputFids.contains(itemFid);
 	}
-	
-	@Override
-	public Iterator<ItemState> consume(int itemFid) {
-		return consume(itemFid, null);
+
+	public boolean hasOutput() {
+		return !outputLabelType.equals(OutputLabelType.EPSILON);
 	}
 
 	@Override
