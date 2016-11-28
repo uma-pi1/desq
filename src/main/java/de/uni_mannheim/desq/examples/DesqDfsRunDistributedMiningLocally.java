@@ -15,7 +15,7 @@ import java.io.*;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-public class DesqDfsLocalDistributedMining {
+public class DesqDfsRunDistributedMiningLocally {
 
 	static long sigma;
 	static String patternExp;
@@ -33,6 +33,7 @@ public class DesqDfsLocalDistributedMining {
 	static String baseFolder;
 	static boolean useDesqCount;
 	static PrintWriter statsWriter;
+	static boolean useTwoPass;
 	static int scenario;
 
 	public static boolean writeShuffleStats = false;
@@ -54,18 +55,13 @@ public class DesqDfsLocalDistributedMining {
 			runDistributedMiningLocally(args);
 		} else {
 			localCorrectnessTest(); System.exit(0);
-			runDistributedMiningLocally("IA2", 1, 1);
+			runDistributedMiningLocally("I2", 1, 1);
 		}
 	}
 
 	public static void localCorrectnessTest() throws IOException {
-		if(System.getProperty("os.name").startsWith("Mac")) {
-			baseFolder = "/Users/alex/";
-		} else {
-			baseFolder = "/home/alex/";
-		}
 		String[] tests = {"I1@1", "I1@2", "I2", "IA2", "IA4", "IX1", "IX2"};
-		int[] scenarios = {0, 1, 2, 3, 4, 5};
+		int[] scenarios = {1, 2, 3, 4, 5, 6};//{0, 1, 2, 3, 4, 5};
 
 		String output = "";
 		for (String testCase : tests) {
@@ -124,7 +120,7 @@ public class DesqDfsLocalDistributedMining {
 		minerConf.setProperty("desq.mining.use.minmax.pivot", false);
 		minerConf.setProperty("desq.mining.use.first.pc.version", false);
 		minerConf.setProperty("desq.mining.pc.use.compressed.transitions", true);
-		minerConf.setProperty("desq.mining.use.two.pass", false);
+		minerConf.setProperty("desq.mining.use.two.pass", useTwoPass);
 
 		// create context
 		DesqMinerContext ctx = new DesqMinerContext();
@@ -487,6 +483,7 @@ public class DesqDfsLocalDistributedMining {
         useTreeRepresentation = false;
 		mergeSuffixes = false;
 		useDesqCount = false;
+		useTwoPass = false;
 		generalizeInputItemsBeforeSending = false;
 		switch(scenario) {
 			case 0:
@@ -517,6 +514,14 @@ public class DesqDfsLocalDistributedMining {
 				useTreeRepresentation = true;
 				mergeSuffixes = true;
 				generalizeInputItemsBeforeSending = true;
+				break;
+			case 6:
+				scenarioStr = "Dfs, shuffle transition DAGs, two-pass, generalize inputs";
+				useTransitionRepresentation = true;
+				useTreeRepresentation = true;
+				mergeSuffixes = true;
+				generalizeInputItemsBeforeSending = true;
+				useTwoPass = true;
 				break;
 			default:
 				System.out.println("Unknown variant");

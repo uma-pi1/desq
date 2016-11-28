@@ -205,10 +205,12 @@ public final class State {
 	}
 
 
+	@Deprecated
 	public Iterator<Transition> consumeCompressed(int itemFid) {
 		return consumeCompressed(itemFid, null, null);
 	}
 
+	@Deprecated
 	public Iterator<Transition> consumeCompressed(int itemFid, Iterator<Transition> it) {
 		return consumeCompressed(itemFid, it, null);
 	}
