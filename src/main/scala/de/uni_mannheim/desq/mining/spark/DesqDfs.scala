@@ -5,6 +5,7 @@ import de.uni_mannheim.desq.mining.WeightedSequence
 import de.uni_mannheim.desq.util.DesqProperties
 import it.unimi.dsi.fastutil.ints._
 import de.uni_mannheim.desq.io.MemoryPatternWriter
+
 import scala.collection.JavaConverters._
 import org.apache.log4j.{LogManager, Logger}
 
@@ -107,38 +108,61 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     // Third, we flatMap over the (output item, Iterable[input sequences]) RDD to mine each partition,
     //   with respect to the pivot item (=output item) of each partition. 
     //   At each partition, we only output sequences where the respective output item is the maximum item
-    val patterns = outputItemPartitions.flatMap{ (row) =>
-      val partitionItem = row._1
-      val sequencesIt = row._2.iterator
-      
-      // grab the necessary variables
-      val dict = dictBroadcast.value
-      val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext()
-      baseContext.dict = dict
-      baseContext.conf = conf
-      
-      // Set a memory pattern writer so we are able to retrieve the patterns later
-      val result : MemoryPatternWriter = new MemoryPatternWriter()
-      baseContext.patternWriter = result
-      
-      // Set up the miner
-      val baseMiner = new de.uni_mannheim.desq.mining.DesqDfs(baseContext)
-      
-      // Add sequences to miner
-      // TODO: have an option to add many sequences at once?
-      for(s <- sequencesIt) {
-          baseMiner.addInputSequence(s, 1, true)
-      }
+    val patterns = outputItemPartitions.mapPartitions(rows => {
+      //val patterns = outputItemPartitions.flatMap { (row) =>
 
-      // Mine this partition, only output patterns where the output item is the maximum item
-      baseMiner.minePivot(partitionItem)
-              
-      // TODO: find a better way to get a Java List accepted as a Scala TraversableOnce
-      result.getPatterns().asScala
-    }
-    
+      new Iterator[WeightedSequence] {
+        // grab the necessary variables
+        val dict = dictBroadcast.value
+        val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext()
+        baseContext.dict = dict
+        baseContext.conf = conf
+
+        // Set a memory pattern writer so we are able to retrieve the patterns later
+        val result: MemoryPatternWriter = new MemoryPatternWriter()
+        baseContext.patternWriter = result
+
+        // Set up the miner
+        val baseMiner = new de.uni_mannheim.desq.mining.DesqDfs(baseContext)
+
+        var outputIterator: Iterator[WeightedSequence] = _
+        var currentPartition: (Int, Iterable[Sequence]) = _
+
+        var partitionItem: Int = _
+        var sequencesIt: Iterator[Sequence] = null
+
+
+        override def hasNext: Boolean = {
+          while ((outputIterator == null || !outputIterator.hasNext) && rows.hasNext) {
+            currentPartition = rows.next()
+            partitionItem = currentPartition._1
+            sequencesIt = currentPartition._2.iterator
+
+            baseMiner.clear()
+            result.clear()
+
+            for (s <- sequencesIt) {
+              baseMiner.addInputSequence(s, 1, true)
+            }
+
+            // Mine this partition, only output patterns where the output item is the maximum item
+            baseMiner.minePivot(partitionItem)
+
+            // TODO: find a better way to get a Java List accepted as a Scala TraversableOnce
+            outputIterator = result.getPatterns().asScala.iterator
+          }
+          outputIterator.hasNext
+        }
+
+        override def next: WeightedSequence = {
+          outputIterator.next()
+        }
+      }
+    })
+
     // all done, return result (last parameter is true because mining.DesqCount always produces fids)
     new DesqDataset(patterns, data, true)
+
   }
 }
 
