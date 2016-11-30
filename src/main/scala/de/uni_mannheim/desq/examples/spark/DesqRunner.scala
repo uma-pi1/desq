@@ -142,17 +142,16 @@ object DesqRunner {
     val result = miner.mine(data)
     val date = new Date();
     val sdf = new SimpleDateFormat("HHmmss")
-    result.sequences.saveAsTextFile(baseFolder + "Output/" + useCase + "-" + scenario + "-" + run + "-" + sdf.format(date));
-    //result.toSidsSupportPairs().saveAsTextFile(args(2))
-    val mineAndOutputTime = (System.nanoTime - t1) / 1e9d
-
-    val count = result.sequences.count()
-    println("Pattern count: " + count)
+    // for now, let's simply count (below)
+    //result.sequences.cache().saveAsTextFile(baseFolder + "Output/" + useCase + "-" + scenario + "-" + run + "-" + sdf.format(date));
     var freq = 0L
-    if(count > 0) {
+    val count = result.sequences.cache().count()
+    println("Pattern count: " + count)
+    if (count > 0) {
       freq = result.sequences.map(_.weight).reduce(_ + _)
       println("Pattern freq:  " + freq)
     }
+    val mineAndOutputTime = (System.nanoTime - t1) / 1e9d
     logger.fatal("mineAndOutputTime: " + mineAndOutputTime + "s")
 
     (count, freq)
