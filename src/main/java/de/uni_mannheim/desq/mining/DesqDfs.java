@@ -138,6 +138,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 	/** For each pivot item, a NFA producing the output sequences for that pivot item from the current input sequence */
 	private Int2ObjectOpenHashMap<OutputNFA> nfas = new Int2ObjectOpenHashMap<>();
+	private Int2ObjectOpenHashMap<Sequence> serializedNFAs = new Int2ObjectOpenHashMap<>();
 
 	/** The output partitions */
 	Int2ObjectOpenHashMap<ObjectList<IntList>> partitions;
@@ -331,10 +332,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 			inputSequence = inputSequences.get(seqNo);
 			if (useTreeRepresentation) {
 				// NFAs
-				createNFAPartitions(inputSequence, seqNo);
+				createNFAPartitions(inputSequence, true, seqNo);
 			} else if(useTransitionRepresentation) { // concatenated transition representation
                 // concatenated paths
-				createConcatenatedPathTransitions(inputSequence, seqNo);
+				createConcatenatedPathTransitions(inputSequence, true, seqNo);
 			} else {
 				// input sequences
 				pivotElements = getPivotItemsOfOneSequence(inputSequence);
@@ -415,13 +416,17 @@ public final class DesqDfs extends MemoryDesqMiner {
 	 * @param inputSequence
 	 * @return pivotItems set of frequent output items of input sequence inputSequence
 	 */
-	public void createConcatenatedPathTransitions(IntList inputSequence, int seqNo) {
+	public Int2ObjectOpenHashMap<Sequence> createConcatenatedPathTransitions(IntList inputSequence, boolean buildPartitions, int seqNo) {
 		pivotItems.clear();
 		this.inputSequence = inputSequence;
 
 		// get the pivot elements with the corresponding paths through the FST
 		prefix.clear();
 		paths.clear();
+
+		if(!buildPartitions) {
+			serializedNFAs.clear();
+		}
 
 		if(useTwoPass) {
 			if (dfa.acceptsReverse(inputSequence, dfaStateSequence, dfaInitialPos)) {
@@ -445,7 +450,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			int pivotItem = partition.getKey();
 			ObjectList<IntList> paths = partition.getValue();
 
-			IntList sendList = new IntArrayList();
+			Sequence sendList = new Sequence();
 			// first element of the sent list is the number N of paths we are sending
 			sendList.add(paths.size());
 
@@ -466,12 +471,17 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 			if(DesqDfsRunDistributedMiningLocally.writeShuffleStats) DesqDfsRunDistributedMiningLocally.writeShuffleStats(seqNo, pivotItem, paths.size(), sendList.size());
 
-			// emit the list we constructed
-			if(!partitions.containsKey(pivotItem)) {
-				partitions.put(pivotItem, new ObjectArrayList<IntList>());
+			if(buildPartitions) {
+				// emit the list we constructed
+				if (!partitions.containsKey(pivotItem)) {
+					partitions.put(pivotItem, new ObjectArrayList<IntList>());
+				}
+				partitions.get(pivotItem).add(sendList);
+			} else {
+				serializedNFAs.put(pivotItem, sendList);
 			}
-			partitions.get(pivotItem).add(sendList);
 		}
+		return serializedNFAs;
 	}
 
 
@@ -481,15 +491,18 @@ public final class DesqDfs extends MemoryDesqMiner {
 	 * @param inputSequence
 	 * @return pivotItems set of frequent output items of input sequence inputSequence
 	 */
-	public void createNFAPartitions(IntList inputSequence, int seqNo) {
+	public Int2ObjectOpenHashMap<Sequence> createNFAPartitions(IntList inputSequence, boolean buildPartitions, int seqNo) {
 
 		// get the pivot elements with the corresponding paths through the FST
 		this.inputSequence = inputSequence;
 		pivotItems.clear();
 		prefix.clear();
         nfas.clear();
+        if(!buildPartitions)
+        	serializedNFAs.clear();
 
 		if(useTwoPass) {
+			dfaStateSequence.clear();
 			if (dfa.acceptsReverse(inputSequence, dfaStateSequence, dfaInitialPos)) {
 				//dfaStateSequences.add(dfaStateSequence.toArray(new DfaState[dfaStateSequence.size()]));
 
@@ -501,7 +514,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 				// clean up
 				dfaInitialPos.clear();
 			}
-			dfaStateSequence.clear();
 		} else {
 			piStepCompressed(null, 0, fst.getInitialState(), 0);
 		}
@@ -519,19 +531,23 @@ public final class DesqDfs extends MemoryDesqMiner {
 //			System.out.println("Printing path tree for pivot " + pivotItem);
 //			nfa.exportGraphViz("./OutputNFAs/PathTree-pivot"+pivotItem+"-seqNo"+seqNo+".pdf", false);
 			// Next step: construct the sequence we will send to the partition
-			IntList sendList = new IntArrayList();
+			Sequence sendList = new Sequence();
 			nfa.write(sendList);
 
 			if(DesqDfsRunDistributedMiningLocally.writeShuffleStats) DesqDfsRunDistributedMiningLocally.writeShuffleStats(seqNo, pivotItem, nfa.numPaths, sendList.size());
 
-			// emit the list we constructed
-			if(!partitions.containsKey(pivotItem)) {
-				partitions.put(pivotItem, new ObjectArrayList<IntList>());
+			if(buildPartitions) {
+				// emit the list we constructed
+				if (!partitions.containsKey(pivotItem)) {
+					partitions.put(pivotItem, new ObjectArrayList<IntList>());
+				}
+				partitions.get(pivotItem).add(sendList);
+			} else {
+				serializedNFAs.put(pivotItem, sendList);
 			}
-			partitions.get(pivotItem).add(sendList);
 		}
+		return serializedNFAs;
 	}
-
 
 
 

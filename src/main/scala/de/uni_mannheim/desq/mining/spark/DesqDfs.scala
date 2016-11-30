@@ -1,16 +1,11 @@
 package de.uni_mannheim.desq.mining.spark
 
-import java.util.Collections
-
-import de.uni_mannheim.desq.dictionary.Dictionary
+import de.uni_mannheim.desq.mining.Sequence
 import de.uni_mannheim.desq.mining.WeightedSequence
 import de.uni_mannheim.desq.util.DesqProperties
-import it.unimi.dsi.fastutil.ints.{IntArrayList, IntList, IntSet, IntIterator, IntArraySet}
-import it.unimi.dsi.fastutil.objects.{ObjectIterator, ObjectLists}
-import de.uni_mannheim.desq.io.MemoryPatternWriter;
+import it.unimi.dsi.fastutil.ints._
+import de.uni_mannheim.desq.io.MemoryPatternWriter
 import scala.collection.JavaConverters._
-import org.apache.spark.rdd.RDD
-
 import org.apache.log4j.{LogManager, Logger}
 
 /**
@@ -22,8 +17,13 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     val dictBroadcast = data.broadcastDictionary()
     val conf = ctx.conf
     val usesFids = data.usesFids
+    assert(usesFids)  // assume we are using fids (for now)
+
     val minSupport = conf.getLong("desq.mining.min.support")
+    val useTransitionRepresentation = conf.getBoolean("desq.mining.use.transition.representation")
+    val useTreeRepresentation = conf.getBoolean("desq.mining.use.tree.representation")
     //val numPartitions = conf.getInt("desq.mining.num.mine.partitions")
+
 
     // In a first step, we map over each input sequence and output (output item, input sequence) pairs
     //   for all possible output items in that input sequence
@@ -35,7 +35,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 
       // for each row, determine the possible output elements from that input sequence and create 
       //   a (output item, input sequence) pair for all of the possible output items
-      new Iterator[(Int, IntList)] {
+      new Iterator[(Int, Sequence)] {
         val logger = LogManager.getLogger("DesqDfs")
         var t1 = System.nanoTime
         // initialize the sequential desq miner
@@ -57,12 +57,12 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         var itemFids = new IntArrayList
         var currentSequence : WeightedSequence = _
 
-
         val t2 = System.nanoTime()
         val mapSetupTime = (t2 - t1) / 1e9d
         logger.fatal("map-setup: " + mapSetupTime + "s")
+        var serializedNFAs = new Int2ObjectOpenHashMap[Sequence]()
 
-        // We want to output all (output item, input sequence pairs for the current 
+        // We want to output all (output item, input sequence) pairs for the current
         //   sequence. Once we are done, we move on to the next input sequence in this partition.
         override def hasNext: Boolean = {
           // do we still have pairs to output for this sequence?
@@ -71,12 +71,15 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
             currentSequence = rows.next()
             currentSupport = currentSequence.weight
 
-            // for that new input sequence, find all possible output sequences and add them to the outputIterator
-            if (usesFids) {
-              outputIterator = baseMiner.getPivotItemsOfOneSequence(currentSequence).iterator()
+            if(useTransitionRepresentation) {
+              if(useTreeRepresentation)
+                serializedNFAs = baseMiner.createNFAPartitions(currentSequence, false, 0)
+              else
+                serializedNFAs = baseMiner.createConcatenatedPathTransitions(currentSequence, false, 0)
+
+              outputIterator = serializedNFAs.keySet().iterator()
             } else {
-              dict.gidsToFids(currentSequence, itemFids)
-              outputIterator = baseMiner.getPivotItemsOfOneSequence(itemFids).iterator()
+              outputIterator = baseMiner.getPivotItemsOfOneSequence(currentSequence).iterator()
             }
           }
 
@@ -84,30 +87,23 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
             val t3 = System.nanoTime()
             val mapTime = (t3 - t2) / 1e9d
             logger.fatal("map-processing: " + mapTime + "s")
-            logger.fatal("foi-totalRecursions:   " + baseMiner.counterTotalRecursions)
-            logger.fatal("foi-nonPivotTrSkipped: " + baseMiner.counterNonPivotTransitionsSkipped)
-            //logger.fatal("foi-minPivotUsed:   " + baseMiner.counterMinPivotUsed)
-            logger.fatal("foi-maxPivotUsed:   " + baseMiner.counterMaxPivotUsed)
-            //logger.fatal("foi-createObject:   " + baseMiner.counterCreateObject)
           }
           outputIterator.hasNext
         }
 
         // we simply output (output item, input sequence)
-        override def next(): (Int, IntList) = {
-          val outputItem = outputIterator.next()
-          
-          // There is some weird behavior if we use itemFids here. So for now, let's just emit
-          //   the sequene as is and convert it later, again.
-          //   Not as bad as it sounds as we will mostly use fid-data sets
-          (outputItem, currentSequence.clone()) 
-                // TODO: if we don't clone the sequence, the wrong sequences appear in the emits. but maybe there is a better way than cloning?
+        override def next(): (Int, Sequence) = {
+          val partitionItem : Int = outputIterator.next()
+          if(useTransitionRepresentation) {
+            val partitionNFA = serializedNFAs.get(partitionItem)
+            (partitionItem, partitionNFA.clone())
+          } else {
+            (partitionItem, currentSequence.clone())
+          }
         }
       }
     }).groupByKey()
 
-    
-    
     // Third, we flatMap over the (output item, Iterable[input sequences]) RDD to mine each partition,
     //   with respect to the pivot item (=output item) of each partition. 
     //   At each partition, we only output sequences where the respective output item is the maximum item
@@ -122,7 +118,6 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
       baseContext.conf = conf
       
       // Set a memory pattern writer so we are able to retrieve the patterns later
-      // TODO: Check whether this intended like this 
       val result : MemoryPatternWriter = new MemoryPatternWriter()
       baseContext.patternWriter = result
       
@@ -131,19 +126,10 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
       
       // Add sequences to miner
       // TODO: have an option to add many sequences at once?
-      var s : IntList = new IntArrayList
-      var fids : IntList = new IntArrayList
-      while(sequencesIt.hasNext) {
-      //for(s <- sequencesIt) {   // can't use this in Scala 2.10 (which is on the cluster)
-        s = sequencesIt.next()
-        if(usesFids) {
+      for(s <- sequencesIt) {
           baseMiner.addInputSequence(s, 1, true)
-        } else {
-          dict.gidsToFids(s, fids)
-          baseMiner.addInputSequence(fids, 1, true)
-        }
       }
-        
+
       // Mine this partition, only output patterns where the output item is the maximum item
       baseMiner.minePivot(partitionItem)
               
@@ -153,74 +139,6 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     
     // all done, return result (last parameter is true because mining.DesqCount always produces fids)
     new DesqDataset(patterns, data, true)
-  }
-  
-  @Deprecated // diagnostic method to check the partitions
-  def minePart1(data: DesqDataset): RDD[(Int, IntList)] = {
-     // localize the variables we need in the RDD
-    val dictBroadcast = data.broadcastDictionary()
-    val conf = ctx.conf
-    val usesFids = data.usesFids
-    val minSupport = conf.getLong("desq.mining.min.support")
-
-    // In a first step, we map over each input sequence and output (output item, input sequence) pairs
-    //   for all possible output items in that input sequence
-    // Second, we group these pairs by key [output item], so that we get an RDD like this:
-    //   (output item, Iterable[input sequences])
-    // Third step: see below
-    val outputItemPartitions = data.sequences.mapPartitions(rows => {
-      
-      // for each row, determine the possible output elements from that input sequence and create 
-      //   a (output item, input sequence) pair for all of the possible output items
-      new Iterator[(Int, IntList)] {
-        // initialize the sequential desq miner
-        val dict = dictBroadcast.value
-        val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext()
-        baseContext.dict = dict
-        baseContext.conf = conf
-        val baseMiner = new de.uni_mannheim.desq.mining.DesqDfs(baseContext)
-        
-        var outputIterator: IntIterator = new IntArraySet(0).iterator
-        var currentSupport = 0L
-        var itemFids = new IntArrayList
-        var currentSequence : WeightedSequence = _
-
-        // We want to output all (output item, input sequence pairs for the current 
-        //   sequence. Once we are done, we move on to the next input sequence in this partition.
-        override def hasNext: Boolean = {
-          // do we still have pairs to output for this sequence?
-          while (!outputIterator.hasNext && rows.hasNext) {
-            // if not, go to the next input sequence
-            currentSequence = rows.next()
-            currentSupport = currentSequence.weight
-
-            // for that new input sequence, find all possible output sequences and add them to the outputIterator
-            if (usesFids) {
-              outputIterator = baseMiner.getPivotItemsOfOneSequence(currentSequence).iterator()
-            } else {
-              dict.gidsToFids(currentSequence, itemFids)
-              outputIterator = baseMiner.getPivotItemsOfOneSequence(itemFids).iterator()
-            }
-            println("Starting to emit: " + currentSequence)
-          }
-
-          outputIterator.hasNext
-        }
-
-        // we simply output (output item, input sequence)
-        override def next(): (Int, IntList) = {
-          val outputItem = outputIterator.next()
-          
-          // There is some weird behavior if we use itemFids here. So for now, let's just emit
-          //   the sequene as is and convert it later, again.
-          //   Not as bad as it sounds as we will mostly use fid-data sets
-          println("Emitting: (" + outputItem + ", " +  currentSequence + ")")
-          (outputItem, currentSequence.clone())
-        }
-      }
-    })//.groupByKey()
-    
-    return outputItemPartitions
   }
 }
 
