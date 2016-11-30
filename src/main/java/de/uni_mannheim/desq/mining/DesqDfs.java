@@ -226,8 +226,12 @@ public final class DesqDfs extends MemoryDesqMiner {
 	}
 
 	public void clear() {
+		clear(false);
+	}
+
+	public void clear(boolean trimInputSequences) {
 		inputSequences.clear();
-		inputSequences.trimToSize();
+		if(trimInputSequences) inputSequences.trimToSize();
 		if (useTwoPass) {
 			dfaStateSequences.clear();
             dfaStateSequences.trimToSize();

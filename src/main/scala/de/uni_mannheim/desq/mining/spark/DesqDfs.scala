@@ -138,7 +138,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
             partitionItem = currentPartition._1
             sequencesIt = currentPartition._2.iterator
 
-            baseMiner.clear()
+            baseMiner.clear(false)
             result.clear()
 
             for (s <- sequencesIt) {
