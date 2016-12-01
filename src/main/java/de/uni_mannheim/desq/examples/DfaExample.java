@@ -14,16 +14,30 @@ import java.util.concurrent.TimeUnit;
  */
 public class DfaExample {
 
-    Stopwatch edfaTime = Stopwatch.createUnstarted();
+    Stopwatch dfaTime = Stopwatch.createUnstarted();
 
     public void amzn() throws IOException {
 
         Dictionary dict = Dictionary.loadFrom("data-local/amzn-dict.avro.gz");
 
-        String patternExpression = "(Books) [.?{2} (Books)]{1,4}";
-        //String patternExpression = "(Electronics^) [.?{2} (Electronics^)]{1,4}";
-        //String patternExpression = "(Musical_Instruments^) [.?{2} (Musical_Instruments^)]{1,4}";
-        //String patternExpression = "Digital_Cameras@Electronics [.?{3} (.^)]{1,4}";
+        long sigma = 0L;
+        String patternExpression = "";
+
+        // SLOW
+        sigma = 100;
+        patternExpression = "(Books) [.?{2} (Books)]{1,4}";
+
+        // SLOW
+        // sigma = 500;
+        // patternExpression = "(Electronics^) [.?{2} (Electronics^)]{1,4}";
+
+        // SLOW
+        // sigma = 100;
+        // patternExpression = "(Musical_Instruments^) [.?{2} (Musical_Instruments^)]{1,4}";
+
+        // VERY SLOW
+        // sigma = 100;
+        // patternExpression = "Digital_Cameras@Electronics [.?{3} (.^)]{1,4}";
 
         PatEx p = new PatEx(patternExpression, dict);
         Fst fst = p.translate();
@@ -31,12 +45,17 @@ public class DfaExample {
 
         fst.annotate();
 
-        edfaTime.start();
-        Dfa edfa = Dfa.createReverseDfa(fst, dict, Integer.MAX_VALUE);
-        edfaTime.stop();
+        dfaTime.start();
+        Dfa.createReverseDfa(fst, dict, dict.lastFidAbove(sigma));
+        dfaTime.stop();
+        System.out.println("Reverse Dfa for " + patternExpression + " took " + dfaTime.elapsed(TimeUnit.SECONDS) + "s");
 
-        System.out.println(patternExpression);
-        System.out.println("Took " + edfaTime.elapsed(TimeUnit.SECONDS) + "s");
+
+        dfaTime.reset();
+        dfaTime.start();
+        Dfa.createDfa(fst, dict, dict.lastFidAbove(sigma));
+        dfaTime.stop();
+        System.out.println("Dfa for " + patternExpression + " took " + dfaTime.elapsed(TimeUnit.SECONDS) + "s");
     }
 
     public static void main(String[] args) throws IOException {
