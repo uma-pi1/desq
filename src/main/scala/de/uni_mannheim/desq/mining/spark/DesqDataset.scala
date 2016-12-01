@@ -5,7 +5,7 @@ import java.util.Calendar
 import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
 import de.uni_mannheim.desq.avro.AvroDesqDatasetDescriptor
-import de.uni_mannheim.desq.dictionary.{DesqBuilder, Dictionary, DictionaryBuilder, SequenceBuilder}
+import de.uni_mannheim.desq.dictionary.{DefaultDictionaryBuilder, DefaultSequenceBuilder, Dictionary, DictionaryBuilder}
 import de.uni_mannheim.desq.io.DelSequenceReader
 import de.uni_mannheim.desq.mining.WeightedSequence
 import de.uni_mannheim.desq.util.DesqProperties
@@ -329,7 +329,7 @@ object DesqDataset {
   /** Builds a DesqDataset from an RDD of string arrays. Every array corresponds to one sequence, every element to
     * one item. The generated hierarchy is flat. */
   def buildFromStrings(rawData: RDD[Array[String]]): DesqDataset = {
-    val parse = (strings: Array[String], seqBuilder: DesqBuilder) => {
+    val parse = (strings: Array[String], seqBuilder: DictionaryBuilder) => {
       seqBuilder.newSequence(1)
       for (string <- strings) {
         seqBuilder.appendItem(string)
@@ -343,14 +343,14 @@ object DesqDataset {
     *
     * @param rawData the input data as an RDD
     * @param parse method that takes an input element, parses it, and registers the resulting items (and their parents)
-    *              with the provided DesqBuilder. Used to construct the dictionary and to translate the data.
+    *              with the provided DictionaryBuilder. Used to construct the dictionary and to translate the data.
     * @tparam T type of input data elements
     * @return the created DesqDataset
     */
-  def build[T](rawData: RDD[T], parse: (T, DesqBuilder) => _): DesqDataset = {
+  def build[T](rawData: RDD[T], parse: (T, DictionaryBuilder) => _): DesqDataset = {
     // construct the dictionary
     val dict = rawData.mapPartitions(rows => {
-      val dictBuilder = new DictionaryBuilder()
+      val dictBuilder = new DefaultDictionaryBuilder()
       while (rows.hasNext) {
         parse.apply(rows.next(), dictBuilder)
       }
@@ -363,7 +363,7 @@ object DesqDataset {
     val dictBroadcast = rawData.context.broadcast(dict)
     val sequences = rawData.mapPartitions(rows => new Iterator[WeightedSequence] {
       val dict = dictBroadcast.value
-      val seqBuilder = new SequenceBuilder(dict)
+      val seqBuilder = new DefaultSequenceBuilder(dict)
 
       override def hasNext: Boolean = rows.hasNext
 

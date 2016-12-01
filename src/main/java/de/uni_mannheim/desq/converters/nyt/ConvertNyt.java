@@ -3,8 +3,8 @@ package de.uni_mannheim.desq.converters.nyt;
 import de.uni_mannheim.desq.converters.nyt.avroschema.Article;
 import de.uni_mannheim.desq.converters.nyt.avroschema.Sentence;
 import de.uni_mannheim.desq.converters.nyt.avroschema.Token;
+import de.uni_mannheim.desq.dictionary.DefaultDictionaryBuilder;
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.dictionary.DictionaryBuilder;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.DelSequenceWriter;
 import de.uni_mannheim.desq.io.SequenceReader;
@@ -50,7 +50,7 @@ public class ConvertNyt {
 
 
         // Create desqbuilder and writers
-        DictionaryBuilder dictionaryBuilder = new DictionaryBuilder();
+        DefaultDictionaryBuilder dictionaryBuilder = new DefaultDictionaryBuilder();
         SequenceWriter sequenceWriter = new DelSequenceWriter(new FileOutputStream(processedNytDataFileGid), false);
         IntList itemFids = new IntArrayList();
 

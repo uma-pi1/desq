@@ -1,6 +1,7 @@
 package de.uni_mannheim.desq.converters.amazon;
 
 
+import de.uni_mannheim.desq.dictionary.DefaultSequenceBuilder;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.dictionary.SequenceBuilder;
 import de.uni_mannheim.desq.io.DelSequenceReader;
@@ -222,7 +223,7 @@ public class ConvertAmazon {
 
         // Build sequences
         logger.info("Building sequences");
-        SequenceBuilder sequenceBuilder = new SequenceBuilder(dict);
+        SequenceBuilder sequenceBuilder = new DefaultSequenceBuilder(dict);
 
         SequenceWriter writer = new DelSequenceWriter(new FileOutputStream(processedAmazonDataFileGid), false);
 
