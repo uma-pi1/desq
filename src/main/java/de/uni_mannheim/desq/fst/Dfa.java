@@ -1,6 +1,8 @@
 package de.uni_mannheim.desq.fst;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
+import de.uni_mannheim.desq.util.IntSetUtils;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntList;
@@ -18,19 +20,22 @@ public final class Dfa {
 
 	/** Creates a DFA for the given FST. The DFA accepts each input for which the FST has an accepting run
 	 * with all output items <= largestFrequentItemFid. */
-	public static Dfa createDfa(Fst fst, Dictionary dict, int largestFrequentItemFid) {
-		return create(fst, dict, largestFrequentItemFid, false);
+	public static Dfa createDfa(Fst fst, Dictionary dict, int largestFrequentItemFid,
+								boolean processFinalCompleteStates) {
+		return create(fst, dict, largestFrequentItemFid, false, processFinalCompleteStates);
 	}
 
 	/** Creates a reverse DFA for the given FST and modifies the FST for efficient use in Desq's two-pass
 	 * algorithms. The DFA accepts each reversed input for which the (unmodified) FST has an accepting
 	 * run with all output items <= largestFrequentItemFid. Note that the modified FST should not be used
 	 * directly anymore, but only in conjunction with {@link #acceptsReverse(IntList, List, IntList)}. */
-	public static Dfa createReverseDfa(Fst fst, Dictionary dict, int largestFrequentItemFid) {
-		return create(fst, dict, largestFrequentItemFid, true);
+	public static Dfa createReverseDfa(Fst fst, Dictionary dict, int largestFrequentItemFid,
+									   boolean processFinalCompleteStates) {
+		return create(fst, dict, largestFrequentItemFid, true, processFinalCompleteStates);
 	}
 
-	private static Dfa create(Fst fst, Dictionary dict, int largestFrequentItemFid, boolean reverse) {
+	private static Dfa create(Fst fst, Dictionary dict, int largestFrequentItemFid, boolean reverse,
+							  boolean processFinalCompleteStates) {
 		// compute the initial states
 		BitSet initialStateIdSet = new BitSet(fst.numStates());
 		if(reverse) { // create a DFA for the reverse FST (original FST is destroyed)
@@ -47,8 +52,8 @@ public final class Dfa {
 
 		// construct the DFA
 		Dfa dfa = new Dfa();
-		dfa.initial = new EagerDfaState(initialStateIdSet, fst, dict.size());
-		dfa.constructEager(initialStateIdSet, fst, dict, largestFrequentItemFid);
+		dfa.initial = new EagerDfaState(initialStateIdSet, fst);
+		dfa.constructEager(initialStateIdSet, fst, dict, largestFrequentItemFid, processFinalCompleteStates);
 
 		// when we are reversing, reverse back the FST to get an optimized new FST
 		if (reverse) {
@@ -61,85 +66,144 @@ public final class Dfa {
 	}
 
 	/** Construct an extended DFA from the given FST */
-	private void constructEager(BitSet initialStateIdSet, Fst fst, Dictionary dict, int largestFrequentItemFid) {
+	private void constructEager(BitSet initialStateIdSet, Fst fst, Dictionary dict, int largestFrequentItemFid,
+								boolean processFinalCompleteStates) {
 		states.clear();
 
-		// Unprocessed dfa states
-		Stack<BitSet> unprocessedStateIdSets = new Stack<>();
+		// unprocessed dfa states
+		Stack<BitSet> unprocessedToStates = new Stack<>();
 
-		// processed dfa states
-		Set<BitSet> processedStateIdSets = new HashSet<>();
+		// map from transition label to items that fire (used as cache)
+		Map<String, IntList> firedItemsFor = new HashMap<>();
 
-		Map<BitSet, IntList> reachableStatesForItemIds = new HashMap<>();
+		// map from transition label to reachable FST states (for currently processed DFA state)
+		Map<String, BitSet> toStatesFor = new HashMap<>();
 
-		// Initialize conversion
+		// fst states reachable by all items (for currently processed DFA state)
+		BitSet defaultTransition = new BitSet(fst.numStates());
+
+		// for all items that are not covered by the defaultTransition above, the set of reachable fst states
+		// (for currently processed DFA state)
+		BitSet activeTransitions = new BitSet(dict.lastFid()+1); // indexed by item
+		BitSet[] transitions = new BitSet[dict.lastFid()+1]; // indexed by item
+		for (int i=0; i<transitions.length; i++) {
+			transitions[i] = new BitSet(fst.numStates());
+		}
+
+		// we start with the initial state
 		states.put(initialStateIdSet, initial);
-		unprocessedStateIdSets.push(initialStateIdSet);
+		unprocessedToStates.push(initialStateIdSet);
 
-		while(!unprocessedStateIdSets.isEmpty()) {
-			// process fst states
-			BitSet stateIdSet = unprocessedStateIdSets.pop();
+		// while there is an unprocessed state, compute all its transitions
+next:	while (!unprocessedToStates.isEmpty()) {
+			// get next state
+			BitSet fromStates = unprocessedToStates.pop();
+			EagerDfaState fromDfaState = (EagerDfaState)states.get(fromStates);
 
-			if(!processedStateIdSets.contains(stateIdSet)) {
-				reachableStatesForItemIds.clear();
-				EagerDfaState fromDfaState = (EagerDfaState)states.get(stateIdSet);
+			// System.out.println("Processing " + fromStates.toString());
 
-				// for all items, for all transitions
-				IntIterator intIt = dict.fids().iterator();
-				while (intIt.hasNext()) {
-					int itemFid = intIt.nextInt();
-					// compute reachable states for this item
-					BitSet reachableStateIds = new BitSet(fst.numStates());
+			// if a states is final complete, we may stop
+			if (!processFinalCompleteStates && fromDfaState.isFinalComplete()) {
+				fromDfaState.freeze();
+				continue next;
+			}
 
-					for (int stateId = stateIdSet.nextSetBit(0);
-						 stateId >= 0;
-						 stateId = stateIdSet.nextSetBit(stateId+1)) {
 
-						// ignore outgoing transitions from final complete states
-						State state = fst.getState(stateId);
-						if (!state.isFinalComplete()) {
-							for (Transition t : state.getTransitions()) {
-								boolean matches = t.hasOutput()
-										? t.matchesWithFrequentOutput(itemFid, largestFrequentItemFid) : t.matches(itemFid);
-								if (matches) {
-									reachableStateIds.set(t.getToState().getId());
+			// iterate over all relevant transitions and compute reachable FST states per transition label encounterd
+			// if we see a label that we haven't seen before, we also compute the set of items that fire the transition
+			defaultTransition.clear();
+			toStatesFor.clear();
+			for (int stateId = fromStates.nextSetBit(0);
+				 stateId >= 0;
+				 stateId = fromStates.nextSetBit(stateId+1)) {
+
+				// ignore outgoing transitions from final complete states
+				State state = fst.getState(stateId);
+				if (!state.isFinalComplete()) {
+					for (Transition t : state.getTransitions()) {
+						if (t.firesAll(largestFrequentItemFid)) {
+							// this is an optmization which often helps when the pattern expression contains .
+							defaultTransition.set(t.getToState().getId());
+						} else {
+							// otherwise we remember the transition
+							String label = t.toPatternExpression();
+							BitSet toStates = toStatesFor.get(label);
+							if (toStates == null) {
+								toStates = new BitSet(fst.numStates());
+								toStatesFor.put(label, toStates);
+							}
+							toStates.set(t.getToState().getId());
+
+							// if it was a new label, compute the fired items
+							if (!firedItemsFor.containsKey(label)) {
+								IntArrayList firedItems = new IntArrayList(dict.lastFid()+1);
+								IntIterator it = t.matchedFidIterator();
+								while (it.hasNext()) {
+									int fid = it.nextInt();
+									boolean matches = t.hasOutput()
+											? t.matchesWithFrequentOutput(fid, largestFrequentItemFid) : true;
+									if (matches) {
+										firedItems.add(fid);
+									}
 								}
+								firedItems.trim();
+								firedItemsFor.put(label, firedItems);
+								// System.out.println(label + " fires for " + firedItems.size() + " items");
 							}
 						}
 					}
-					if (!reachableStateIds.isEmpty()) {
-						IntList itemIds = reachableStatesForItemIds.get(reachableStateIds);
-						if (itemIds == null) {
-							itemIds = new IntArrayList();
-							reachableStatesForItemIds.put(reachableStateIds, itemIds);
-						}
-						itemIds.add(itemFid);
-					}
 				}
-
-				for(Map.Entry<BitSet, IntList> entry : reachableStatesForItemIds.entrySet()) {
-					BitSet reachableStateIds = entry.getKey();
-					IntList itemFids = entry.getValue();
-
-					//check if we already processed these reachableStateIds
-					if(!processedStateIdSets.contains(reachableStateIds))
-						unprocessedStateIdSets.push(reachableStateIds);
-
-					//create new extended dfa state if required
-					EagerDfaState toDfaState = (EagerDfaState)states.get(reachableStateIds);
-					if(toDfaState == null) {
-						toDfaState = new EagerDfaState(reachableStateIds, fst, dict.size());
-						states.put(reachableStateIds, toDfaState);
-					}
-
-					for(int itemFid : itemFids) {
-						// add to dfa transition table
-						fromDfaState.setTransition(itemFid, toDfaState);
-					}
-
-				}
-				processedStateIdSets.add(stateIdSet);
 			}
+
+			// now set the default transition in case there where any . transitions
+			if (!defaultTransition.isEmpty()) {
+				EagerDfaState toDfaState = (EagerDfaState)states.get(defaultTransition);
+				if (toDfaState == null) {
+					BitSet toStates = IntSetUtils.copyOf(defaultTransition);
+					toDfaState = new EagerDfaState(toStates, fst);
+					states.put(toStates, toDfaState);
+					unprocessedToStates.add(toStates);
+				}
+				fromDfaState.setDefaultTransition(toDfaState);
+			}
+
+			// now compute for each item not covered by the default transition the set of fst states that can be reached
+			activeTransitions.clear();
+			for (Map.Entry<String,BitSet> entry : toStatesFor.entrySet()) {
+				String label = entry.getKey();
+				BitSet toStatesToAdd = entry.getValue();
+				IntList firedItems = firedItemsFor.get(label);
+				for (int i=0; i<firedItems.size(); i++) {
+					int fid = firedItems.get(i);
+					if (!activeTransitions.get(fid)) {
+						// activate and initialize fid if not yet seen
+						activeTransitions.set(fid);
+						transitions[fid].clear();
+						transitions[fid].or(defaultTransition);
+					}
+
+					// add the states we can reach with this fid
+					transitions[fid].or(toStatesToAdd);
+				}
+			}
+
+			// finally, iterate over those fids and add transitions to the DFA
+			fromDfaState.transitions = new Int2ObjectOpenHashMap<>(activeTransitions.cardinality());
+			for (int fid=activeTransitions.nextSetBit(0); fid>=0; fid=activeTransitions.nextSetBit(fid+1)) {
+				BitSet toStates = transitions[fid];
+				EagerDfaState toDfaState = (EagerDfaState)states.get(toStates);
+				if (toDfaState == null) {
+					toDfaState = new EagerDfaState(toStates, fst);
+					states.put(toStates, toDfaState);
+					unprocessedToStates.add(toStates);
+				}
+				fromDfaState.setTransition(fid, toDfaState);
+			}
+		}
+
+		// freeze all states (allows them to optimize)
+		for (DfaState state : states.values()) {
+			state.freeze();
 		}
 	}
 
@@ -184,5 +248,9 @@ public final class Dfa {
 			}
 		}
 		return (!initialPos.isEmpty());
+	}
+
+	public int numStates() {
+		return states.size();
 	}
 }

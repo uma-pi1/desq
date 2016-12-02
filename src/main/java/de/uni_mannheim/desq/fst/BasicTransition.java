@@ -21,11 +21,13 @@ public final class BasicTransition extends Transition {
 	final String outputLabelSid;
 
 	// internal indexes
+	final Dictionary dict;
 	final IntSet inputFids;
 	final Dictionary outputDict;
 	final boolean isForest;
 
 	private BasicTransition(BasicTransition other) {
+		this.dict = other.dict;
 		this.inputLabel = other.inputLabel;
 		this.inputLabelType = other.inputLabelType;
 		this.outputLabel = other.outputLabel;
@@ -41,6 +43,7 @@ public final class BasicTransition extends Transition {
 	public BasicTransition(int inputLabel, InputLabelType inputLabelType, 
 			int outputLabel, OutputLabelType outputLabelType, 
 			State toState, Dictionary dict) {
+		this.dict = dict;
 		this.inputLabel = inputLabel;
 		this.inputLabelType = inputLabelType;
 		this.outputLabel = outputLabel;
@@ -135,6 +138,39 @@ public final class BasicTransition extends Transition {
 	@Override
 	public boolean matches(int itemFid) {
 		return inputLabel==0 || inputFids.contains(itemFid);
+	}
+
+	@Override
+	public boolean matchesAll() {
+		return inputLabel == 0 || inputFids.size() == dict.size();
+	}
+
+	@Override
+	public boolean matchesAllWithFrequentOutput(int largestFrequentItemFid) {
+		if (!hasOutput() || !matchesAll()) return false;
+		switch (outputLabelType) {
+		case SELF:
+			// check if all items frequent
+			return dict.lastFid() <= largestFrequentItemFid;
+		case SELF_ASCENDANTS:
+			assert dict.size() == outputDict.size(); // because all items are matched, we produce all ancestors
+			return dict.largestRootFid() <= largestFrequentItemFid; // then every item has a frequent root ancestor
+		case CONSTANT:
+			// check if only one output
+			return dict.size() == 1 && dict.firstFid() == outputLabel;
+		case EPSILON:
+		default:
+			return false;
+		}
+	}
+
+	@Override
+	public IntIterator matchedFidIterator() {
+		if (inputLabel == 0) {
+			return dict.fidIterator();
+		} else {
+			return inputFids.iterator();
+		}
 	}
 
 	public boolean hasOutput() {
@@ -257,13 +293,6 @@ public final class BasicTransition extends Transition {
 		if (outputLabel != other.outputLabel)
 			return false;
 		return outputLabelType == other.outputLabelType;
-	}
-	
-	public void getInputFids(IntSet inputFids) {
-		if(this.inputFids == null) 
-			inputFids.add(0);
-		else
-			inputFids.addAll(this.inputFids);
 	}
 
 	@Override

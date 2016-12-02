@@ -46,4 +46,6 @@ public abstract class DfaState {
 
     public abstract DfaState consume(int itemFid);
 
+    /** Call when state is guaranteed to not be achanged anymore; may trigger internal optimizations. */
+    public void freeze() { }
 }
