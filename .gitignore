@@ -19,3 +19,5 @@ fst-example-minimized.gv
 fst-example-minimized.pdf
 board.scala
 *.iml
+*.pdf
+.DS_Store

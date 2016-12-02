@@ -209,6 +209,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 
 		fst.numberTransitions();
+//		fst.exportGraphViz("fst.pdf");
 
 		// other auxiliary variables
 		root = new DesqDfsTreeNode(fst.numStates());
@@ -528,7 +529,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				nfa.mergeSuffixes();
 			}
 
-//			System.out.println("Printing path tree for pivot " + pivotItem);
+//			System.out.println("Printing path tree for pivot " + pivotItem + " and seqNo " + seqNo);
 //			nfa.exportGraphViz("./OutputNFAs/PathTree-pivot"+pivotItem+"-seqNo"+seqNo+".pdf", false);
 			// Next step: construct the sequence we will send to the partition
 			Sequence sendList = new Sequence();
@@ -676,9 +677,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 					if(useTransitionRepresentation) {
 						prefix.add(tr.getTransitionNumber());
 
-						if (tr.getOutputLabelType() == OutputLabelType.CONSTANT)
-							prefix.add(0);
-						else
+						// TODO: instead of doing this, we should write transitions according to output item equivalency
+						// meaning, we should store both CONSTANT and SELF like <-outputItemFid, 0>
+//						if (tr.getOutputLabelType() == OutputLabelType.CONSTANT)
+//							prefix.add(0);
+//						else
 							prefix.add(addItem);
 					}
 					piStepCompressed(newCurrentPivotItems, pos+1, toState, level+1);
@@ -1016,44 +1019,39 @@ public final class DesqDfs extends MemoryDesqMiner {
 	 * @return true if a final FST state can be reached without producing further output
 	 */
 	private boolean incStepOnePassTree(final IncStepArgs args, final int pos) {
-		int numOutgoing = args.inputSequence.get(pos);
-		boolean stateIsFinal = false;
-		if (numOutgoing < 0) {
-			stateIsFinal = true;
-			numOutgoing = -numOutgoing;
-		} else if (numOutgoing == 0) {
-			return true;
-		}
 		// in transition representation, we store pairs of integers: (transition id, input element)
 		int trNo;
 		int inputItem;
-		BasicTransition tr = null;
-		OutputLabelType ol;
-		int readPos;
-		for (int pathNo = 0; pathNo < numOutgoing; pathNo++) {
-			readPos = args.inputSequence.getInt(pos + 1 + pathNo);
-			// get (transition_id, input_item_fid) pair
-			trNo = args.inputSequence.getInt(readPos);
-			tr = (BasicTransition) fst.getTransitionByNumber(trNo);
-			if (tr.getOutputLabelType() != OutputLabelType.CONSTANT)
-				inputItem = args.inputSequence.getInt(readPos + 1);
-			else
-				inputItem = 0;
-			// if we do not merge suffixes, the next state can be read two (one if this is a constant transition) positions from here.
-			// if we do merge suffixes, we read the the next read position from that integer
-			int followPos = readPos + (tr.getOutputLabelType() == OutputLabelType.CONSTANT ? 1 : 2);
-			if (mergeSuffixes)
-				followPos = args.inputSequence.getInt(followPos);
-			// for each of the new outputs, we update the according projected database
-			IntList outputItems = tr.getOutputElements(inputItem);
-			for (int outputItem : outputItems) {
-				if (pivotItem >= outputItem) { // no check for largestFrequentFid necessary, as largestFrequentFid >= pivotItem
-					args.node.expandWithTransition(outputItem, args.inputId, args.inputSequence.weight, followPos);
+		int followPos;
+		IntList outputItems;
+		int readPos = pos;
+		int nextInt = args.inputSequence.getInt(readPos);
+		while(nextInt != Integer.MIN_VALUE && nextInt != Integer.MAX_VALUE) {
+
+			if(nextInt < 0) { // CONSTANT or SELF transition, nextInt is -inputItem
+				inputItem = -nextInt;
+				assert inputItem <= pivotItem; // otherwise, this path should not have been sent to the partition
+				followPos = args.inputSequence.getInt(readPos+ 1); // next int is the offset of the next state
+				args.node.expandWithTransition(inputItem, args.inputId, args.inputSequence.weight, followPos); // expand with this output item
+				readPos = readPos+2; // we read 2 items from the list
+			} else { // SELF_ASCENDANTS transition, so we stored the inputItem (in nextInt) and the number of the transition
+                inputItem = nextInt;
+                trNo = args.inputSequence.getInt(readPos+1);
+                followPos = args.inputSequence.getInt(readPos+2);
+				outputItems = fst.getBasicTransitionByNumber(trNo).getOutputElements(inputItem);
+
+				for (int outputItem : outputItems) {
+					if (pivotItem >= outputItem) { // no check for largestFrequentFid necessary, as largestFrequentFid >= pivotItem
+						args.node.expandWithTransition(outputItem, args.inputId, args.inputSequence.weight, followPos);
+					}
 				}
+				readPos = readPos + 3; // we read 3 elements
 			}
+
+			nextInt = args.inputSequence.getInt(readPos);
 		}
 
-		return stateIsFinal;
+		return nextInt == Integer.MIN_VALUE; // is true if this state is final
 	}
 
 
@@ -1294,6 +1292,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		int numPathStates = 0;
 		int pivot;
 		private ObjectList<PathState> pathStates = new ObjectArrayList<PathState>(); // TODO: only for printing. can be removed
+		private PathState[] pathStatesByNumber;
 		protected int numPaths = 0; // only for stat purposes, can be removed
 
 		public OutputNFA(int pivot) {
@@ -1348,12 +1347,75 @@ public final class DesqDfs extends MemoryDesqMiner {
 			}
 		}
 
+
+		/**
+		 * Setup numbered array to access states
+		 */
+		private void setupNumberedPathStates() {
+			pathStatesByNumber = new PathState[numPathStates];
+			for(PathState s : pathStates) {
+				pathStatesByNumber[s.id] = s;
+			}
+		}
+
+		public PathState getPathStateByNumber(int num) {
+		    if(pathStatesByNumber == null) {
+		    	System.out.println("PathState access by number wasn't set up yet");
+		    	System.exit(1);
+			}
+			return pathStatesByNumber[num];
+		}
+
 		/**
 		 * Serialize this NFA to a given IntList
 		 * @param send
 		 */
 		public void write(IntList send) {
-			root.write(send);
+			// set up a way to reliably get states by number
+			setupNumberedPathStates();
+			// keep track of where we wrote state IDs
+			BitSet stateIdAtPos = new BitSet();
+			int inpItem;
+			int trId;
+			OutputLabelType olt;
+
+			// for each each state, write all outgoing transitions
+			for(PathState state : pathStates) {
+				state.writtenAtPos = send.size();
+				// write all outgoing transitions
+
+
+				for(Map.Entry<Long,PathState> entry : state.outTransitions.entrySet()) {
+					trId = PrimitiveUtils.getLeft(entry.getKey());
+					inpItem = PrimitiveUtils.getRight(entry.getKey());
+					olt = fst.getBasicTransitionByNumber(trId).getOutputLabelType();
+
+					if(olt == OutputLabelType.CONSTANT) {
+						send.add(-inpItem);
+					} else if(olt == OutputLabelType.SELF) {
+						send.add(-inpItem);
+					} else {
+						send.add(inpItem);
+						send.add(trId);
+					}
+
+					// write to-state
+					stateIdAtPos.set(send.size());
+					send.add(entry.getValue().id);
+				}
+
+				// write state end symbol
+				if(state.isFinal)
+					send.add(Integer.MIN_VALUE);
+				else
+					send.add(Integer.MAX_VALUE);
+			}
+
+			System.out.println(stateIdAtPos);
+			for(int i=stateIdAtPos.nextSetBit(0); i!=-1; i=stateIdAtPos.nextSetBit(i+1)) {
+					send.set(i, getPathStateByNumber(send.getInt(i)).writtenAtPos);
+			}
+
 		}
 
 		/**
@@ -1369,7 +1431,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 					int trId = PrimitiveUtils.getLeft(trEntry.getKey());
 					int inputId = PrimitiveUtils.getRight(trEntry.getKey());
 
-					fstVisualizer.add(String.valueOf(s.id), trId+"{"+inputId+"}", String.valueOf(trEntry.getValue().id));
+					fstVisualizer.add(String.valueOf(s.id), "i" + inputId + "@T" + trId+(fst.getBasicTransitionByNumber(trId).getOutputLabelType() == OutputLabelType.SELF_ASCENDANTS ? "^" : ""), String.valueOf(trEntry.getValue().id));
 				}
 				if(paintIncoming && s.inTransitions!=null) {
 					for(Map.Entry<Long, ObjectList<PathState>> trEntry : s.inTransitions.entrySet()) {
@@ -1577,6 +1639,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		 *
 		 * @param send
 		 */
+		@Deprecated
 		protected void write(IntList send) {
 			int numOutgoing = outTransitions.size();
 			int startOffset = send.size();

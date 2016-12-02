@@ -194,7 +194,7 @@ public final class BasicTransition extends Transition {
 	@Override
 	public String labelString() {
 		StringBuilder sb = new StringBuilder();
-        sb.append("[" + transitionNumber + "] ");
+        sb.append("T" + transitionNumber + (outputLabelType == OutputLabelType.SELF_ASCENDANTS ? "^" : "") + " ");
 		if (inputLabel == 0)
 			sb.append(".");
 		else {
@@ -284,6 +284,14 @@ public final class BasicTransition extends Transition {
 	}
 	public int getTransitionNumber() { return transitionNumber; }
 
+	/**
+	 * Returns a list of output elements produced by this transition, given the passed input item
+	 *
+	 * NFA encoding uses this method only for SELF_ASCENDANT transitions,
+	 * concat encoding also for SELF and CONSTANT
+	 * @param inputItem
+	 * @return
+	 */
     public IntList getOutputElements(int inputItem) {
         IntList outputElements = new IntArrayList();
         // retrieve input item
