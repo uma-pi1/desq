@@ -3,7 +3,7 @@ package de.uni_mannheim.desq.dictionary;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 /**
- * Created by rgemulla on 01.12.2016.
+ * Converts user-defined input data into sequences of gids given a dictionary.
  */
 public interface SequenceBuilder extends DictionaryBuilder {
     long getCurrentWeight();

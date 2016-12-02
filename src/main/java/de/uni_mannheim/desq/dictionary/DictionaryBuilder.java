@@ -5,8 +5,7 @@ import org.apache.spark.rdd.RDD;
 import scala.Function2;
 
 /** A DictionaryBuilder is used to make user-defined data formats accessible to Desq. Implementations of this interface can
- * be used to automatically build {@link Dictionary}s (via {@link DefaultDictionaryBuilder}) or convert datasets into
- * Desq formats using a dictionary (via {@link DefaultSequenceBuilder}).
+ * be used to automatically build {@link Dictionary}s (via {@link DefaultDictionaryBuilder}).
  *
  * Users of a builder can process arbitrary datasets by registering every input sequence, every encountered item,
  * as well as all of its ancestors using the appropriate methods. For building datasets in Spark, see

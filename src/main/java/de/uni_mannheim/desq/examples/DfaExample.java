@@ -5,6 +5,7 @@ import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.fst.Dfa;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.patex.PatEx;
+import org.apache.spark.util.SizeEstimator;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -42,6 +43,8 @@ public class DfaExample {
         PatEx p = new PatEx(patternExpression, dict);
         Fst fst = p.translate();
         fst.minimize();
+
+        System.out.println("Estimated in-memory FST size (including dictionary): " + SizeEstimator.estimate(fst));
 
         fst.annotate();
 

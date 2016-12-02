@@ -3,7 +3,8 @@ package de.uni_mannheim.desq.dictionary;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
-/** Builds a dictionary and the resulting sequences. Should only be used in single-pass sequential code. */
+/** Builds a dictionary from user-defined input data and simultaneously converts the input into sequences of
+ * gids. This is a single-pass method; it must only be used in sequential code. */
 public class DefaultDictionaryAndSequenceBuilder extends DefaultDictionaryBuilder implements SequenceBuilder {
     private IntList currentGids = new IntArrayList();
 

@@ -508,6 +508,10 @@ public class Dictionary implements Externalizable, Writable {
 		return children.get(fid);
 	}
 
+	public boolean isLeaf(int fid) {
+		return children.get(fid).isEmpty();
+	}
+
 	/** Returns the fids of the parents of the specified fid or -1 if not present */
 	public IntArrayList parentsOf(int fid) {
 		return parents.get(fid);

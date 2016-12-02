@@ -2,6 +2,7 @@ package de.uni_mannheim.desq.fst;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.dictionary.RestrictedDictionary;
+import de.uni_mannheim.desq.util.BitNonNegativeIntSet;
 import it.unimi.dsi.fastutil.ints.*;
 
 import java.util.Iterator;
@@ -55,7 +56,16 @@ public final class BasicTransition extends Transition {
 			inputFids = IntSets.singleton(inputLabel);
 			break;
 		case SELF_DESCENDANTS:
-			inputFids = dict.descendantsFids(inputLabel);
+			if (dict.isLeaf(inputLabel)) {
+				inputFids = IntSets.singleton(inputLabel);
+			} else {
+				// use a bit set
+				// TODO: here we may optimize to switch between bitset and hashset depending on the number
+				// TODO: of matched input fids
+				inputFids = new BitNonNegativeIntSet(inputLabel+1); // that's exactly how many bits we need
+				inputFids.add(inputLabel);
+				dict.addDescendantFids(inputLabel, inputFids); // because all descendents have fid < inputLabel
+			}
 			break;
 		default: // unreachable
 			 inputFids = null;

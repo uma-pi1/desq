@@ -5,9 +5,6 @@ import it.unimi.dsi.fastutil.ints.IntList;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
-/**
- * Builds a sequence consisting of {@link Item#gid}s given a dictionary.
- */
 public class DefaultSequenceBuilder implements SequenceBuilder {
     private long currentWeight = 0;
     private IntList currentGids = new IntArrayList();
