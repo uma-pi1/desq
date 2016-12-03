@@ -232,7 +232,15 @@ public final class DesqDfs extends MemoryDesqMiner {
 			final State toState = itemState.state;
 
 			if (outputItemFid == 0) { // EPS output
-                // we did not get an output, so continue running the FST
+				// we did not get an output
+				// in the two pass algorithm, we don't need to consider empty-output paths that reach the initial state
+				// because we'll start from those positions later on anyway. Those paths are only possible
+				// in DesqDfs when we expand the empty prefix (equiv. current node is root)
+				if (useTwoPass && current.node==root && toState == fst.getInitialState()) {
+					continue;
+				}
+
+				// otherwise continue running the FST
 				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
 				reachedInitialStateWithoutOutput |= incStep(pos + 1, toState, newLevel);
 			} else if (largestFrequentFid >= outputItemFid) {

@@ -243,7 +243,15 @@ public final class DesqCount extends DesqMiner {
 			final int outputItemFid = itemState.itemFid;
 
 			if(outputItemFid == 0) { // EPS output
-				// we did not get an output, so continue with the current prefix
+				// we did not get an output
+				// in the two pass algorithm, we don't need to consider empty-output paths that reach the initial state
+				// because we'll start from those positions later on anyway.
+				if (useTwoPass && prefix.isEmpty() && toState == fst.getInitialState()) {
+					System.out.println("Test");
+					continue;
+				}
+
+				// otherwise, continue with the current prefix
 				final int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
 				step(pos + 1, toState, newLevel);
 			} else {
