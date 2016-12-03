@@ -248,7 +248,7 @@ public final class PatEx {
 				BasicTransition cachedT = transitionCache.get(transitionKey);
 				t = cachedT.shallowCopy();
 				t.setToState(new State(true));
-				System.out.println(transitionKey);
+				//System.out.println(transitionKey);
 			} else {
 				// otherwise compute it
 				InputLabelType inputLabelType;

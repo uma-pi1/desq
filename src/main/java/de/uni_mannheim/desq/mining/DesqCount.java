@@ -247,7 +247,6 @@ public final class DesqCount extends DesqMiner {
 				// in the two pass algorithm, we don't need to consider empty-output paths that reach the initial state
 				// because we'll start from those positions later on anyway.
 				if (useTwoPass && prefix.isEmpty() && toState == fst.getInitialState()) {
-					System.out.println("Test");
 					continue;
 				}
 
