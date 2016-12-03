@@ -202,7 +202,7 @@ public final class BasicTransition extends Transition {
 	}
 
 	@Override
-	public Transition shallowCopy() {
+	public BasicTransition shallowCopy() {
 		return new BasicTransition(this);
 	}
 

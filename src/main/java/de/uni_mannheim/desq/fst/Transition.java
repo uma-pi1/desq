@@ -38,7 +38,7 @@ public abstract class Transition {
 
 	public abstract Iterator<ItemState> consume(int item, Iterator<ItemState> it);
 
-	// new transitions that can share all data but toStateId
+	/** Copy that can share all data but toState */
 	public abstract Transition shallowCopy();
 
 	// setToState

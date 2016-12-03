@@ -9,17 +9,22 @@ import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 
+import java.util.HashMap;
+import java.util.Map;
+
 
 public final class PatEx {
 	String expression;
 	Dictionary dict;
-	
+	Map<String,BasicTransition> transitionCache = new HashMap<>(); // caches transition
+
 	public PatEx(String expression, Dictionary dict) {
 		this.expression = expression;
 		this.dict = dict;
 	}
 	
 	public Fst translate() {
+		transitionCache.clear();
 		ANTLRInputStream input = new ANTLRInputStream(expression);
 
 		// Lexer
@@ -231,49 +236,61 @@ public final class PatEx {
 				force = true;
 				generalize = true;
 			}
-			
+
+			// build the two-state FST
 			Fst fst = new Fst();
-			InputLabelType inputLabelType;
-			int outputLabel;
-			OutputLabelType outputLabelType;
-			
-			if (capture) {
-				if (force && generalize) { // case: A=^
-					inputLabelType = InputLabelType.SELF_DESCENDANTS;
-					outputLabel = inputLabel;
-					outputLabelType = OutputLabelType.CONSTANT;
-				} else if (force & !generalize) { // case A=
-					inputLabelType = InputLabelType.SELF;
-					outputLabel = inputLabel;
-					outputLabelType = OutputLabelType.CONSTANT;
-				} else if (!force && generalize) { // case A^
-					inputLabelType = InputLabelType.SELF_DESCENDANTS;
-					outputLabel = inputLabel;
-					outputLabelType = OutputLabelType.SELF_ASCENDANTS;
-				} else { // case A
-					inputLabelType = InputLabelType.SELF_DESCENDANTS;
-					outputLabel = -1;
-					outputLabelType = OutputLabelType.SELF;
-				}
+
+			// see if we have a cached transition
+			String transitionKey = Integer.toString(fid) + force + generalize + capture;
+			BasicTransition t;
+			if (transitionCache.containsKey(transitionKey)) {
+				// if so, , use a shallow copy of this one (to share data structures)
+				BasicTransition cachedT = transitionCache.get(transitionKey);
+				t = cachedT.shallowCopy();
+				t.setToState(new State(true));
+				System.out.println(transitionKey);
 			} else {
-				assert !generalize;
-				outputLabel = -1;
-				outputLabelType = OutputLabelType.EPSILON;
-				if (force) {
-					inputLabelType = InputLabelType.SELF;
+				// otherwise compute it
+				InputLabelType inputLabelType;
+				int outputLabel;
+				OutputLabelType outputLabelType;
+
+				if (capture) {
+					if (force && generalize) { // case: A=^
+						inputLabelType = InputLabelType.SELF_DESCENDANTS;
+						outputLabel = inputLabel;
+						outputLabelType = OutputLabelType.CONSTANT;
+					} else if (force & !generalize) { // case A=
+						inputLabelType = InputLabelType.SELF;
+						outputLabel = inputLabel;
+						outputLabelType = OutputLabelType.CONSTANT;
+					} else if (!force && generalize) { // case A^
+						inputLabelType = InputLabelType.SELF_DESCENDANTS;
+						outputLabel = inputLabel;
+						outputLabelType = OutputLabelType.SELF_ASCENDANTS;
+					} else { // case A
+						inputLabelType = InputLabelType.SELF_DESCENDANTS;
+						outputLabel = -1;
+						outputLabelType = OutputLabelType.SELF;
+					}
 				} else {
-					inputLabelType = InputLabelType.SELF_DESCENDANTS;
+					assert !generalize;
+					outputLabel = -1;
+					outputLabelType = OutputLabelType.EPSILON;
+					if (force) {
+						inputLabelType = InputLabelType.SELF;
+					} else {
+						inputLabelType = InputLabelType.SELF_DESCENDANTS;
+					}
 				}
+
+				t = new BasicTransition(inputLabel, inputLabelType, outputLabel, outputLabelType,
+						new State(true), dict);
+				transitionCache.put(transitionKey, t); // remember for reuse
 			}
-			
-			Transition t = new BasicTransition(inputLabel, inputLabelType, outputLabel, outputLabelType, new State(true), dict);
 			fst.getInitialState().addTransition(t);
 			fst.updateStates();
 			return fst;
 		}
-		
-		
-
-	
 	}
 }
