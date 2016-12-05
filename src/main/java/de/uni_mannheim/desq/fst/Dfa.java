@@ -2,7 +2,7 @@ package de.uni_mannheim.desq.fst;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.util.IntSetUtils;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ShortOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntList;
@@ -188,7 +188,7 @@ next:	while (!unprocessedToStates.isEmpty()) {
 			}
 
 			// finally, iterate over those fids and add transitions to the DFA
-			fromDfaState.transitions = new Int2ObjectOpenHashMap<>(activeTransitions.cardinality());
+			fromDfaState.transitions = new Int2ShortOpenHashMap(activeTransitions.cardinality());
 			for (int fid=activeTransitions.nextSetBit(0); fid>=0; fid=activeTransitions.nextSetBit(fid+1)) {
 				BitSet toStates = transitions[fid];
 				EagerDfaState toDfaState = (EagerDfaState)states.get(toStates);
@@ -232,7 +232,7 @@ next:	while (!unprocessedToStates.isEmpty()) {
 	 * @param inputSequence the input sequence
 	 * @param stateSeq sequence of DFA states being traversed on the reversed sequence, i.e.,
 	 *                    <code>stateSeq[inputSequence.size() - (pos+1)] = state before consuming inputSequence[pos]</code>
-	 * @param initialPos positions from which the FST (modified by {@link #createReverseDfa(Fst, Dictionary, int)}) needs
+	 * @param initialPos positions from which the FST (modified by {@link #createReverseDfa(Fst, Dictionary, int, boolean)}) needs
 	 *                   to be started to find all accepting runs.
 	 */
 	public boolean acceptsReverse(IntList inputSequence, List<DfaState> stateSeq, IntList initialPos) {
