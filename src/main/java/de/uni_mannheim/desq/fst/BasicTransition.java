@@ -178,6 +178,28 @@ public final class BasicTransition extends Transition {
 	}
 
 	@Override
+	public boolean matchesWithFrequentOutput(int inputFid, int largestFrequentItemFid) {
+		if (!hasOutput()) {
+			return false;
+		}
+		switch (outputLabelType) {
+		case SELF:
+			return inputFid <= largestFrequentItemFid;
+		case SELF_ASCENDANTS:
+			if (outputLabel != 0) {
+				return outputLabel <= largestFrequentItemFid; // we generalize up to there
+			} else {
+				return dict.hasAscendantWithFidBelow(inputFid, largestFrequentItemFid);
+			}
+		case CONSTANT:
+			return outputLabel <= largestFrequentItemFid;
+		case EPSILON:
+		default:
+			throw new IllegalStateException("unreachable");
+		}
+	}
+
+	@Override
 	public Iterator<ItemState> consume(int itemFid, Iterator<ItemState> it) {
 		ItemStateIterator resultIt;
 		if (it != null && it instanceof ItemStateIterator)

@@ -703,9 +703,25 @@ public class Dictionary implements Externalizable, Writable {
 		}
 	}
 
+
 	/** Returns the fids of all ascendants of the given item (including the given item) */
 	public IntSet ascendantsFids(int fid) {
 		return ascendantsFids(IntSets.singleton(fid));
+	}
+
+	/** Checks whether the given item or one of its ascendants has a fid below the given one. Quick way to check whether
+      * an item has a frequent fid when {@link #hasConsistentFids} is true. */
+	public boolean hasAscendantWithFidBelow(int fid, int maxFid) {
+		// TODO: may be slow when there are lots of ancendants that can be reached via multiple paths and are all
+		// infrequent
+		if (fid <= maxFid) return true;
+		IntList parents = parentsOf(fid);
+		for (int i=0; i<parents.size(); i++) {
+			int parentFid = parents.getInt(i);
+			if (hasAscendantWithFidBelow(parentFid, maxFid))
+				return true;
+		}
+		return false;
 	}
 
 	/** Returns the fids of all ascendants of the given items (including the given items) */

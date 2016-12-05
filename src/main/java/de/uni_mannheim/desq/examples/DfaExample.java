@@ -40,6 +40,10 @@ public class DfaExample {
         sigma = 100;
         patternExpression = "Digital_Cameras@Electronics [.?{3} (.^)]{1,4}";
 
+        //Dictionary dict = Dictionary.loadFrom("data-local/nyt-dict.avro.gz");
+        //sigma = 100;
+        //patternExpression = "(ENTITY^ VB+ NN+? IN? ENTITY^)";
+
         PatEx p = new PatEx(patternExpression, dict);
         Fst fst = p.translate();
         fst.minimize();
@@ -62,19 +66,6 @@ public class DfaExample {
         dfaTime.stop();
         System.out.println("Reverse Dfa for " + patternExpression + " took " + dfaTime.elapsed(TimeUnit.SECONDS) + "s");
         System.out.println(backwardDfa.numStates() + " states");
-
-        /*
-        // test code
-        System.out.println(dict.fidOf("Digital_Cameras@Electronics"));
-        SequenceReader reader = new DelSequenceReader(new FileInputStream("data-local/amzn-prob-seq.del"), true);
-        IntList seq = new IntArrayList();
-        IntList initialPos = new IntArrayList();
-        List<DfaState> temp = new ArrayList<>();
-        reader.read(seq);
-        System.out.println(forwardDfa.accepts(seq));
-        System.out.println(backwardDfa.acceptsReverse(seq, temp, initialPos));
-        System.out.println(initialPos);
-        */
     }
 
     public static void main(String[] args) throws IOException {
