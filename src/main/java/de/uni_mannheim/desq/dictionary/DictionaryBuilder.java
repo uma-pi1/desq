@@ -1,75 +1,39 @@
 package de.uni_mannheim.desq.dictionary;
 
-import it.unimi.dsi.fastutil.ints.*;
-import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.spark.rdd.RDD;
+import scala.Function2;
 
-/**
- * Builds (or extends) a custom dictionary by scanning an input dataset.
+/** A DictionaryBuilder is used to make user-defined data formats accessible to Desq. Implementations of this interface can
+ * be used to automatically build {@link Dictionary}s (via {@link DefaultDictionaryBuilder}).
+ *
+ * Users of a builder can process arbitrary datasets by registering every input sequence, every encountered item,
+ * as well as all of its ancestors using the appropriate methods. For building datasets in Spark, see
+ * {@link de.uni_mannheim.desq.mining.spark.DesqDataset#build(RDD, Function2)}.
  */
-public class DictionaryBuilder implements DesqBuilder {
-    private Dictionary dict;
-    private IntList currentFids = new IntArrayList();
-    private IntSet ascendantFids = new IntOpenHashSet();
-    private long currentWeight = 0;
-    private Int2LongMap itemCfreqs = new Int2LongOpenHashMap();
-    private int maxGidSoFar = 0;
-    private MutablePair<Integer,Boolean> pair = new MutablePair<>();
+public interface DictionaryBuilder {
+    /** Informs the builder that a new input sequence is being processed. Must also be called before the first
+     * and after the last input sequence has been processed. Uses a support of 1. */
+    void newSequence();
 
-    public DictionaryBuilder(Dictionary dict) {
-        this.dict = dict;
-    }
+    /** Informs the builder that a new input sequence is being processed. Must also be called before the first
+     * and after the last input sequence has been processed. Uses the given weight for the started sequence. */
+    void newSequence(long weight);
 
-    public DictionaryBuilder() {
-        this(new Dictionary());
-    }
+    /** Appends an item to the current input sequence using its sid.
+     *
+     * @return the fid of the item being added and a flag indicating whether the item is new (true) or has been seen
+     *         before (false). Note that the returned pair may be reused if another method of this class is called.
+     */
+    Pair<Integer,Boolean> appendItem(String sid);
 
-    @Override
-    public void newSequence() {
-        newSequence(1);
-    }
-
-    /** Informs the dictionary builder that a new input sequences is being processed. Must also be called after
-      * the last input sequence has been processed. */
-    public void newSequence(long weight) {
-        dict.incFreqs(currentFids, itemCfreqs, ascendantFids, true, currentWeight);
-        currentWeight = weight;
-        currentFids.clear();
-    }
-
-    @Override
-    public Pair<Integer,Boolean> appendItem(String sid) {
-        boolean newItem = false;
-        int fid = dict.fidOf(sid);
-        if (fid < 0) {
-            newItem = true;
-            maxGidSoFar++;
-            fid = dict.addItem(maxGidSoFar, sid);
-        }
-        currentFids.add(fid);
-        pair.setLeft(fid);
-        pair.setRight(newItem);
-        return pair;
-    }
-
-    @Override
-    public Pair<Integer,Boolean> addParent(int childFid, String parentSid) {
-        boolean newItem = false;
-        int parentFid = dict.fidOf(parentSid);
-        if (parentFid < 0) {
-            newItem = true;
-            maxGidSoFar++;
-            parentFid = dict.addItem(maxGidSoFar, parentSid);
-        }
-        assert !dict.childrenOf(parentFid).contains(childFid); // because the child was new
-        dict.addParent(childFid, parentFid);
-        pair.setLeft(parentFid);
-        pair.setRight(newItem);
-        return pair;
-    }
-
-    /** Returns the dictionary built so far (including item counts). */
-    public Dictionary getDictionary() {
-        return dict;
-    }
+    /** Adds a parent item to the child item with the given fid using the specified sid for the parent. The
+     * method must (and must only) be called on items returned from {@link #appendItem(String)} or
+     * {@link #addParent(int, String)} for which the is-new flag was set. It must also be called before any
+     * other invocations of {@link #appendItem(String)} or {@link #newSequence()}.
+     *
+     * @return the fid of the item being added and a flag indicating whether the item is new (true) or has been seen
+     *         before (false). Note that the returned pair may be reused if another method of this class is called.
+     */
+    Pair<Integer,Boolean> addParent(int childFid, String parentSid);
 }

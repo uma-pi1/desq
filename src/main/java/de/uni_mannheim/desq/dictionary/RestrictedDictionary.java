@@ -44,6 +44,7 @@ public class RestrictedDictionary extends Dictionary {
         size = availableFids.cardinality();
         isForest = null;
         hasConsistentFids = null;
+        largestRootFid = null;
     }
 
     private static IntArrayList restrict(IntArrayList fids, IntSet fidsToRetain) {

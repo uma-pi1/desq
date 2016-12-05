@@ -1,13 +1,19 @@
 package de.uni_mannheim.desq.fst;
 
+import it.unimi.dsi.fastutil.ints.IntIterator;
+
 import java.util.Iterator;
 
 public abstract class Transition {
 	State toState;
-	
-	public abstract boolean matches(int item);
+
+	public abstract IntIterator matchedFidIterator();
 
 	public abstract boolean hasOutput();
+
+	public abstract boolean matches(int item);
+
+	public abstract boolean matchesAll();
 
 	public boolean matchesWithFrequentOutput(int inputFid, int largestFrequentItemFid) {
 		if (!hasOutput()) {
@@ -21,9 +27,18 @@ public abstract class Transition {
 		return false;
 	}
 
+	public abstract boolean matchesAllWithFrequentOutput(int largestFrequentItemFid);
+
+	/** Whether the transition is relevant for each input item (each item matches and the transition either produces
+	 * epsilon output or has at least one freuqent output item for each input item). */
+	public boolean firesAll(int largestFreuentItemFid) {
+		return (hasOutput() && matchesAllWithFrequentOutput(largestFreuentItemFid)) // (.) or (.^)
+				|| (!hasOutput() && matchesAll()); // .
+	}
+
 	public abstract Iterator<ItemState> consume(int item, Iterator<ItemState> it);
 
-	// new transitions that can share all data but toStateId
+	/** Copy that can share all data but toState */
 	public abstract Transition shallowCopy();
 
 	// setToState

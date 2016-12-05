@@ -2,6 +2,7 @@ package de.uni_mannheim.desq.fst;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.dictionary.RestrictedDictionary;
+import de.uni_mannheim.desq.util.BitNonNegativeIntSet;
 import it.unimi.dsi.fastutil.ints.*;
 
 import java.util.Iterator;
@@ -20,6 +21,7 @@ public final class BasicTransition extends Transition {
 	final String outputLabelSid;
 
 	// internal indexes
+	final Dictionary dict;
 	final IntSet inputFids;
 	final Dictionary outputDict;
 	final boolean isForest;
@@ -29,6 +31,7 @@ public final class BasicTransition extends Transition {
 	private int transitionNumber = -1;
 
 	private BasicTransition(BasicTransition other) {
+		this.dict = other.dict;
 		this.inputLabel = other.inputLabel;
 		this.inputLabelType = other.inputLabelType;
 		this.outputLabel = other.outputLabel;
@@ -41,9 +44,10 @@ public final class BasicTransition extends Transition {
 	}
 
 	// */* (no dots)
-	public BasicTransition(int inputLabel, InputLabelType inputLabelType,
-						   int outputLabel, OutputLabelType outputLabelType,
-						   State toState, Dictionary dict) {
+	public BasicTransition(int inputLabel, InputLabelType inputLabelType, 
+			int outputLabel, OutputLabelType outputLabelType, 
+			State toState, Dictionary dict) {
+		this.dict = dict;
 		this.inputLabel = inputLabel;
 		this.inputLabelType = inputLabelType;
 		this.outputLabel = outputLabel;
@@ -55,14 +59,23 @@ public final class BasicTransition extends Transition {
 		if (inputLabel == 0)
 			inputFids = null;
 		else switch (inputLabelType) {
-			case SELF:
+		case SELF:
+			inputFids = IntSets.singleton(inputLabel);
+			break;
+		case SELF_DESCENDANTS:
+			if (dict.isLeaf(inputLabel)) {
 				inputFids = IntSets.singleton(inputLabel);
-				break;
-			case SELF_DESCENDANTS:
-				inputFids = dict.descendantsFids(inputLabel);
-				break;
-			default: // unreachable
-				inputFids = null;
+			} else {
+				// use a bit set
+				// TODO: here we may optimize to switch between bitset and hashset depending on the number
+				// TODO: of matched input fids
+				inputFids = new BitNonNegativeIntSet(inputLabel+1); // that's exactly how many bits we need
+				inputFids.add(inputLabel);
+				dict.addDescendantFids(inputLabel, inputFids); // because all descendents have fid < inputLabel
+			}
+			break;
+		default: // unreachable
+			 inputFids = null;
 		}
 
 		isForest = dict.isForest();
@@ -131,8 +144,63 @@ public final class BasicTransition extends Transition {
 		return inputLabel == 0 || inputFids.contains(itemFid);
 	}
 
+	@Override
+	public boolean matchesAll() {
+		return inputLabel == 0 || inputFids.size() == dict.size();
+	}
+
+	@Override
+	public boolean matchesAllWithFrequentOutput(int largestFrequentItemFid) {
+		if (!hasOutput() || !matchesAll()) return false;
+		switch (outputLabelType) {
+		case SELF:
+			// check if all items frequent
+			return dict.lastFid() <= largestFrequentItemFid;
+		case SELF_ASCENDANTS:
+			assert dict.size() == outputDict.size(); // because all items are matched, we produce all ancestors
+			return dict.largestRootFid() <= largestFrequentItemFid; // then every item has a frequent root ancestor
+		case CONSTANT:
+			// check if only one output
+			return dict.size() == 1 && dict.firstFid() == outputLabel;
+		case EPSILON:
+		default:
+			return false;
+		}
+	}
+
+	@Override
+	public IntIterator matchedFidIterator() {
+		if (inputLabel == 0) {
+			return dict.fidIterator();
+		} else {
+			return inputFids.iterator();
+		}
+	}
+
 	public boolean hasOutput() {
 		return !outputLabelType.equals(OutputLabelType.EPSILON);
+	}
+
+	@Override
+	public boolean matchesWithFrequentOutput(int inputFid, int largestFrequentItemFid) {
+		if (!hasOutput()) {
+			return false;
+		}
+		switch (outputLabelType) {
+		case SELF:
+			return inputFid <= largestFrequentItemFid;
+		case SELF_ASCENDANTS:
+			if (outputLabel != 0) {
+				return outputLabel <= largestFrequentItemFid; // we generalize up to there
+			} else {
+				return dict.hasAscendantWithFidBelow(inputFid, largestFrequentItemFid);
+			}
+		case CONSTANT:
+			return outputLabel <= largestFrequentItemFid;
+		case EPSILON:
+		default:
+			throw new IllegalStateException("unreachable");
+		}
 	}
 
 	@Override
@@ -160,7 +228,7 @@ public final class BasicTransition extends Transition {
 	}
 
 	@Override
-	public Transition shallowCopy() {
+	public BasicTransition shallowCopy() {
 		return new BasicTransition(this);
 	}
 
@@ -252,13 +320,6 @@ public final class BasicTransition extends Transition {
 		if (outputLabel != other.outputLabel)
 			return false;
 		return outputLabelType == other.outputLabelType;
-	}
-
-	public void getInputFids(IntSet inputFids) {
-		if (this.inputFids == null)
-			inputFids.add(0);
-		else
-			inputFids.addAll(this.inputFids);
 	}
 
 	@Override

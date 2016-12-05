@@ -3,6 +3,8 @@ package de.uni_mannheim.desq.util;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.ints.IntSets;
 
+import java.util.BitSet;
+
 /** Utility methods for working with IntSet */
 public final class IntSetUtils {
 	/** Returns an optimized representation of the given intset. Note that the result may
@@ -17,5 +19,11 @@ public final class IntSetUtils {
 		}
 		return intSet;
 	}
-	
+
+	public static BitSet copyOf(BitSet b) {
+		BitSet result = new BitSet(b.length());
+		result.or(b);
+		return result;
+	}
+
 }

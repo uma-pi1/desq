@@ -19,6 +19,8 @@ public class CompareDesqCount {
 	//String patternExpression = "(.^){0,3}";
 	String patternExpression = "(.^ JJ@ NN@)";
 	int sigma = 1000;
+	//String patternExpression = "(ENTITY@^ VB@+ NN@+? IN@? ENTITY@^)";
+	//int sigma = 100;
 	
 	
 	// IO

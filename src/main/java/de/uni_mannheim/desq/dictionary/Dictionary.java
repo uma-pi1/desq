@@ -87,6 +87,8 @@ public class Dictionary implements Externalizable, Writable {
 	/** Whether the fids in this dictionary are consistent or <code>null</code> if unknown. See {@link #hasConsistentFids()}. */
 	protected Boolean hasConsistentFids = null;
 
+	/** The largest FID of a root item or <code>null</code> if unknown. See {@link #largestRootFid()}. */
+	protected Integer largestRootFid = null;
 
 	// -- construction ------------------------------------------------------------------------------------------------
 
@@ -136,6 +138,7 @@ public class Dictionary implements Externalizable, Writable {
 
 		isForest = other.isForest;
 		hasConsistentFids = other.hasConsistentFids;
+		largestRootFid = other.largestRootFid;
 	}
 
 	/** Creates a new dictionary backed by given dictionary, except parents and children. Used
@@ -208,6 +211,7 @@ public class Dictionary implements Externalizable, Writable {
 		size += 1;
 		isForest = null;
 		hasConsistentFids = null;
+		largestRootFid = null;
 	}
 
 	/** Adds an item and returns the fid assigned to the added item. */
@@ -301,6 +305,7 @@ public class Dictionary implements Externalizable, Writable {
 		sidIndex.clear();
 		isForest = null;
 		hasConsistentFids = null;
+		largestRootFid = null;
 	}
 
 	/** Clears item frequencies */
@@ -419,6 +424,24 @@ public class Dictionary implements Externalizable, Writable {
 		return -1;
 	}
 
+	public IntIterator fidIterator() {
+		return new AbstractIntIterator() {
+			int nextFid = firstFid();
+
+			@Override
+			public boolean hasNext() {
+				return nextFid >= 0;
+			}
+
+			@Override
+			public int nextInt() {
+				int result = nextFid;
+				nextFid = nextFid(result);
+				return result;
+			}
+		};
+	}
+
 	/** Returns the fid for the specified gid or -1 if not present */
 	public int fidOf(int gid) {
 		return gidIndex.get(gid);
@@ -514,6 +537,10 @@ public class Dictionary implements Externalizable, Writable {
 		return children.get(fid);
 	}
 
+	public boolean isLeaf(int fid) {
+		return children.get(fid).isEmpty();
+	}
+
 	/** Returns the fids of the parents of the specified fid or -1 if not present */
 	public IntArrayList parentsOf(int fid) {
 		return parents.get(fid);
@@ -573,6 +600,23 @@ public class Dictionary implements Externalizable, Writable {
 			}
 		}
 		return hasConsistentFids;
+	}
+
+
+	/** Determines the fid of the root item with the largest fid. */
+	public int largestRootFid() {
+		if (largestRootFid != null) {
+			return largestRootFid;
+		}
+		for (int fid=lastFid(); fid >= 0; fid=prevFid(fid)) {
+			if (parentsOf(fid).size() == 0) {
+				largestRootFid = fid;
+				return largestRootFid;
+			}
+		}
+
+		// every dictionary has at least one root, so we shouldn't reach this place
+		throw new IllegalStateException();
 	}
 
 	/** Gets the largest fid of in item with document frequency at least as large as specified. Returns -1 if
@@ -665,9 +709,25 @@ public class Dictionary implements Externalizable, Writable {
 		}
 	}
 
+
 	/** Returns the fids of all ascendants of the given item (including the given item) */
 	public IntSet ascendantsFids(int fid) {
 		return ascendantsFids(IntSets.singleton(fid));
+	}
+
+	/** Checks whether the given item or one of its ascendants has a fid below the given one. Quick way to check whether
+      * an item has a frequent fid when {@link #hasConsistentFids} is true. */
+	public boolean hasAscendantWithFidBelow(int fid, int maxFid) {
+		// TODO: may be slow when there are lots of ancendants that can be reached via multiple paths and are all
+		// infrequent
+		if (fid <= maxFid) return true;
+		IntList parents = parentsOf(fid);
+		for (int i=0; i<parents.size(); i++) {
+			int parentFid = parents.getInt(i);
+			if (hasAscendantWithFidBelow(parentFid, maxFid))
+				return true;
+		}
+		return false;
 	}
 
 	/** Returns the fids of all ascendants of the given items (including the given items) */
@@ -915,6 +975,7 @@ public class Dictionary implements Externalizable, Writable {
 
 		// remember that the fids are valid
 		hasConsistentFids = true;
+		largestRootFid = null;
 	}
 
 	private void swap(int fid1, int fid2) {
@@ -1320,6 +1381,7 @@ public class Dictionary implements Externalizable, Writable {
 		WritableUtils.writeVInt(out, size());
 		out.writeBoolean(isForest());
 		out.writeBoolean(hasConsistentFids());
+		WritableUtils.writeVInt(out, largestRootFid());
 
 		// each item
 		DesqProperties EMPTY_PROPERTIES = new DesqProperties();
@@ -1359,6 +1421,7 @@ public class Dictionary implements Externalizable, Writable {
 		ensureCapacity(size);
 		boolean isForest = in.readBoolean();
 		boolean hasConsistentFids = in.readBoolean();
+		largestRootFid = WritableUtils.readVInt(in);
 
 		// each item
 		DesqProperties propertiesBuffer = new DesqProperties();

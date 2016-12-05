@@ -198,11 +198,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 		if(useTwoPass) {
 			// construct the DFA for the FST (for the first pass)
 			// the DFA is constructed for the reverse FST
-			this.dfa = Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid);
+			this.dfa = Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid, true);
 		} else if (pruneIrrelevantInputs) {
 			// construct the DFA to prune irrelevant inputs
 			// the DFA is constructed for the forward FST
-			this.dfa = Dfa.createDfa(fst, ctx.dict, largestFrequentFid);
+			this.dfa = Dfa.createDfa(fst, ctx.dict, largestFrequentFid, false);
 		} else {
 			this.dfa = null;
 			
