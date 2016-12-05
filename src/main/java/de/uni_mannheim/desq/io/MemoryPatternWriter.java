@@ -27,4 +27,8 @@ public class MemoryPatternWriter extends PatternWriter {
 	public List<WeightedSequence> getPatterns() {
 		return patterns;
 	}
+
+	public void clear() {
+		patterns.clear();
+	}
 }
