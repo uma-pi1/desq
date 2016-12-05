@@ -193,6 +193,7 @@ next:	while (!unprocessedToStates.isEmpty()) {
 				BitSet toStates = transitions[fid];
 				EagerDfaState toDfaState = (EagerDfaState)states.get(toStates);
 				if (toDfaState == null) {
+					toStates = IntSetUtils.copyOf(toStates);
 					toDfaState = new EagerDfaState(toStates, fst);
 					states.put(toStates, toDfaState);
 					unprocessedToStates.add(toStates);

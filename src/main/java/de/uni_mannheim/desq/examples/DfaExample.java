@@ -49,21 +49,32 @@ public class DfaExample {
 
         System.out.println("Estimated in-memory FST size (including dictionary): " + SizeEstimator.estimate(fst));
 
-        Dfa dfa;
-
         dfaTime.reset();
         dfaTime.start();
-        dfa = Dfa.createDfa(fst, dict, dict.lastFidAbove(sigma), false);
+        Dfa forwardDfa = Dfa.createDfa(fst, dict, dict.lastFidAbove(sigma), false);
         dfaTime.stop();
         System.out.println("Dfa for " + patternExpression + " took " + dfaTime.elapsed(TimeUnit.SECONDS) + "s");
-        System.out.println(dfa.numStates() + " states");
+        System.out.println(forwardDfa.numStates() + " states");
 
         dfaTime.reset();
         dfaTime.start();
-        dfa = Dfa.createReverseDfa(fst, dict, dict.lastFidAbove(sigma), true);
+        Dfa backwardDfa  = Dfa.createReverseDfa(fst, dict, dict.lastFidAbove(sigma), true);
         dfaTime.stop();
         System.out.println("Reverse Dfa for " + patternExpression + " took " + dfaTime.elapsed(TimeUnit.SECONDS) + "s");
-        System.out.println(dfa.numStates() + " states");
+        System.out.println(backwardDfa.numStates() + " states");
+
+        /*
+        // test code
+        System.out.println(dict.fidOf("Digital_Cameras@Electronics"));
+        SequenceReader reader = new DelSequenceReader(new FileInputStream("data-local/amzn-prob-seq.del"), true);
+        IntList seq = new IntArrayList();
+        IntList initialPos = new IntArrayList();
+        List<DfaState> temp = new ArrayList<>();
+        reader.read(seq);
+        System.out.println(forwardDfa.accepts(seq));
+        System.out.println(backwardDfa.acceptsReverse(seq, temp, initialPos));
+        System.out.println(initialPos);
+        */
     }
 
     public static void main(String[] args) throws IOException {
