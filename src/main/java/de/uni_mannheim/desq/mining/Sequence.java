@@ -5,6 +5,7 @@ import com.esotericsoftware.kryo.io.Input;
 import de.uni_mannheim.desq.util.Writable2Serializer;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableUtils;
 
@@ -89,5 +90,9 @@ public class Sequence extends IntArrayList implements Externalizable, Writable {
         public Sequence newInstance(Kryo kryo, Input input, Class<Sequence> type) {
             return new Sequence(null, true);
         }
+    }
+
+    public void reverse() {
+        ArrayUtils.reverse(this.a, 0, this.size);
     }
 }

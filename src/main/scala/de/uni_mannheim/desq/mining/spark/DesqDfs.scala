@@ -72,10 +72,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
             currentSupport = currentSequence.weight
 
             if(useTransitionRepresentation) {
-              if(useTreeRepresentation)
-                serializedNFAs = baseMiner.createNFAPartitions(currentSequence, false, 0)
-              else
-                serializedNFAs = baseMiner.createConcatenatedPathTransitions(currentSequence, false, 0)
+              serializedNFAs = baseMiner.createNFAPartitions(currentSequence, false, 0)
 
               outputIterator = serializedNFAs.keySet().iterator()
             } else {

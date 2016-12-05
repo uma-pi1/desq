@@ -23,7 +23,7 @@ public class DesqDfsRunDistributedMiningLocally {
 	static Dictionary dict;
 	static String runVersion;
 	static int expNo;
-	static boolean verbose;
+	public static boolean verbose;
 	static String scenarioStr;
 	static String useCase;
 	static boolean useTransitionRepresentation;
@@ -60,8 +60,9 @@ public class DesqDfsRunDistributedMiningLocally {
 	}
 
 	public static void localCorrectnessTest() throws IOException {
-		String[] tests = {"I1@1", "I1@2", "I2", "IA2", "IA4", "IX1", "IX2"};
-		int[] scenarios = {1, 2, 3, 4, 5, 6};//{0, 1, 2, 3, 4, 5};
+		String[] tests = {"I1@1", "I1@2", "I2", "IA2", "IA4", "IX1", "IX2", "IX3"};
+//		String[] tests = {"N1", "N2", "N3", "N4", "N5", "A1", "A2", "A3", "A4"};
+		int[] scenarios = {0, 2};
 
 		String output = "";
 		for (String testCase : tests) {
@@ -470,6 +471,12 @@ public class DesqDfsRunDistributedMiningLocally {
 				verbose = true;
 				setICDMData();
 				break;
+			case "IX3":
+				patternExp = "(a1* b12 e)";
+				sigma = 1;
+				verbose = true;
+				setICDMData();
+				break;
 			default:
 				System.out.println("Do not know the use case " + useCase);
 				System.exit(1);
@@ -489,34 +496,20 @@ public class DesqDfsRunDistributedMiningLocally {
 			case 0:
 				scenarioStr = "Count, shuffle output sequences";
 				useDesqCount = true;
+				useTwoPass = true;
 				break;
 			case 1:
 				scenarioStr = "Dfs, shuffle input sequences";
+				useTwoPass = true;
 				break;
 			case 2:
-				scenarioStr = "Dfs, shuffle concatenated transitions";
-				useTransitionRepresentation = true;
-				break;
-			case 3:
 				scenarioStr = "Dfs, shuffle transition trees";
                 useTransitionRepresentation = true;
 				useTreeRepresentation = true;
+				useTwoPass = true;
 				break;
-			case 4:
-				scenarioStr = "Dfs, shuffle transition DAGs";
-				useTransitionRepresentation = true;
-				useTreeRepresentation = true;
-				mergeSuffixes = true;
-				break;
-			case 5:
+			case 3:
 				scenarioStr = "Dfs, shuffle transition DAGs, generalize inputs";
-				useTransitionRepresentation = true;
-				useTreeRepresentation = true;
-				mergeSuffixes = true;
-				generalizeInputItemsBeforeSending = true;
-				break;
-			case 6:
-				scenarioStr = "Dfs, shuffle transition DAGs, two-pass, generalize inputs";
 				useTransitionRepresentation = true;
 				useTreeRepresentation = true;
 				mergeSuffixes = true;
