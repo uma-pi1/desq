@@ -32,24 +32,43 @@ public abstract class DfaState {
 
     /** For each active item, the index of the next DFA state in {@link #reachableDfaStates}. For eager DFAs, all items
      * stored in this map have at least an index of 1; for all other items, <code>reachableDfsStates[0]</code> is used.
-     * For lazy DFAs, 0-indexes may also be stored. */
+     * For lazy DFAs, 0-indexes may also be stored.
+     *
+     * Shared by all states with the same outgoing transition labels.
+     */
     Int2ShortMap indexByFid = Int2ShortMaps.EMPTY_MAP;
 
     /** The distinct labels of the outgoing transitions of the {@link #fstStates} corresponding to this DFA state.
-     * Sorted lexicigraphically. */
+     * Sorted lexicigraphically.
+     *
+     * Shared by all states with the same outgoing transition labels.
+     */
     String[] transitionLabels = EMPTY_STRING_ARRAY;
 
     /** For each label in {@link #transitionLabels}, the set of FST states that can be reached for an item that matches
-     * the corresponding transition. Parallel array to {@link #transitionLabels}. */
+     * the corresponding transition. Parallel array to {@link #transitionLabels}.
+     */
     BitSet[] toStatesByLabel = EMPTY_BITSET_ARRAY;
 
     /** For each label in {@link #transitionLabels}, an arbitrary FST transition with this label.
-     * Parallel array to {@link #transitionLabels}. */
+     * Parallel array to {@link #transitionLabels}.
+     *
+     * Shared by all states with the same outgoing transition labels.
+     */
     Transition[] transitionByLabel = null;
 
     /** For each combination of transitions in {@link #transitionLabels} that can be fired jointly by an
-     * item, the position of the next DFA state in {@link #reachableDfaStates}. */
+     * item, the position of the next DFA state in {@link #reachableDfaStates}.
+     *
+     * Shared by all states with the same outgoing transition labels.
+     */
     Object2ShortMap<BitSet> indexByFiredTransitions = Object2ShortMaps.EMPTY_MAP;
+
+    /** Inverse of {@link #indexByFiredTransitions}.
+     *
+     * Shared by all states with the same outgoing transition labels.
+     */
+    List<BitSet> firedTransitionsByIndex = new ArrayList<>();
 
 
     public DfaState(Dfa dfa, BitSet fstStates) {
@@ -152,6 +171,18 @@ public abstract class DfaState {
             this.toStatesByLabel = toStatesByLabel.values().toArray(new BitSet[]{}); // sorted conformingly
             this.transitionByLabel = transitionByLabel.values().toArray(new Transition[]{}); // sorted conformingly
         }
+    }
 
+    BitSet computeToStates(BitSet firedTransitions) {
+        BitSet toStates = new BitSet();
+        DfaState defaultToState = reachableDfaStates.get(0);
+        if (defaultToState != null)
+            toStates.or(defaultToState.fstStates); // always fires
+        for (int t = firedTransitions.nextSetBit(0);
+             t >= 0;
+             t = firedTransitions.nextSetBit(t + 1)) {
+            toStates.or(toStatesByLabel[t]);
+        }
+        return toStates;
     }
 }

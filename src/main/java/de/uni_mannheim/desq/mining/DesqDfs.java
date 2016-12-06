@@ -124,9 +124,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 		conf.setProperty("desq.mining.miner.class", DesqDfs.class.getCanonicalName());
 		conf.setProperty("desq.mining.min.support", sigma);
 		conf.setProperty("desq.mining.pattern.expression", patternExpression);
-		conf.setProperty("desq.mining.prune.irrelevant.inputs", false);
+		conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
 		conf.setProperty("desq.mining.use.lazy.dfa", false);
-		conf.setProperty("desq.mining.use.two.pass", false);
+		conf.setProperty("desq.mining.use.two.pass", true);
 		return conf;
 	}
 

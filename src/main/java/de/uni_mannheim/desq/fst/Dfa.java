@@ -17,6 +17,11 @@ public final class Dfa {
 	int largestFrequentItemFid;
 	boolean processFinalCompleteStates;
 
+	// map from set of transition labels (=key) to some DFA state for these transitions (used to avoid duplicate computations)
+	// whenever two DFA states have the same set of outgoing transition transition labels (ignoring where they go
+	// and how often), we share indexByFid between those states
+	Map<String, DfaState> stateByTransitions = new HashMap<>();
+
 	/** The initial state. */
 	DfaState initial;
 

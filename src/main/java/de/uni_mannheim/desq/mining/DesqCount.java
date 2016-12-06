@@ -137,9 +137,9 @@ public final class DesqCount extends DesqMiner {
 		conf.setProperty("desq.mining.min.support", sigma);
 		conf.setProperty("desq.mining.pattern.expression", patternExpression);
 		conf.setProperty("desq.mining.use.flist", true);
-		conf.setProperty("desq.mining.prune.irrelevant.inputs", false);
+		conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
 		conf.setProperty("desq.mining.use.lazy.dfa", false);
-		conf.setProperty("desq.mining.use.two.pass", false);
+		conf.setProperty("desq.mining.use.two.pass", true);
 		return conf;
 	}
 

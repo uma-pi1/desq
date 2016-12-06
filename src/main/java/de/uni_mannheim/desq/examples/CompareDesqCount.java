@@ -53,7 +53,7 @@ public class CompareDesqCount {
 	public static void main(String[] args) throws Exception {
 		CompareDesqCount cdc = new CompareDesqCount();
 
-		//cdc.run(false, false, false);
+		cdc.run(false, false, false);
 		cdc.run(true, false,false);
 		cdc.run(true, true,false);
 		cdc.run(true, false,true);

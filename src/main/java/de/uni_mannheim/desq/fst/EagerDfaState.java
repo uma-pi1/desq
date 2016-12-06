@@ -17,6 +17,7 @@ public final class EagerDfaState extends DfaState {
     public EagerDfaState(Dfa dfa, BitSet fstStates) {
         super(dfa, fstStates);
         reachableDfaStates.add(null); // position 0 is default transition
+        firedTransitionsByIndex.add(null); // unused / placeholser
     }
 
     public DfaState consume(int itemFid) {
@@ -29,6 +30,7 @@ public final class EagerDfaState extends DfaState {
     void construct() {
         dfa.initial = this;
         dfa.states.clear();
+        dfa.stateByTransitions.clear();
         Fst fst = dfa.fst;
         Dictionary dict = dfa.dict;
         boolean processFinalCompleteStates = dfa.processFinalCompleteStates;
@@ -39,11 +41,6 @@ public final class EagerDfaState extends DfaState {
 
         // map from transition label (e.g., "(.^)") to items that fire (used as cache)
         Map<String, IntList> firedItemsByLabel = new HashMap<>();
-
-        // map from set of transition labels (=key) to a DFA state (used to avoid duplicate computations)
-        // whenever two DFA states have the same set of outgoing transition transition labels (ignoring where they go
-        // and how often), we share indexByFid between those states
-        Map<String, EagerDfaState> dfaStateByKey = new HashMap<>();
 
         // DATA STRUCTURES FOR CURRENTLY PROCESSED DFA STATE
         // fst states reachable by all items
@@ -88,16 +85,16 @@ public final class EagerDfaState extends DfaState {
 
             // index the transitions to the DFA state
             String key = String.join(" ", fromDfaState.transitionLabels);
-            if (!dfaStateByKey.containsKey(key)) {
+            if (!dfa.stateByTransitions.containsKey(key)) {
                 // we haven't seen this combination of transitions -> compute everything from scratch
                 fromDfaState.indexTransitions(activeFids, firedTransitionsByFid, firedItemsByLabel,
                         defaultTransition, unprocessedStates);
 
                 // cache the just created DFA state to reuse indexByFid later on if possible
-                dfaStateByKey.put(key, fromDfaState);
+                dfa.stateByTransitions.put(key, fromDfaState);
             } else {
                 // reuse transition index from a previously processed state with the same outgoing FST transisions
-                EagerDfaState similarState = dfaStateByKey.get(key);
+                EagerDfaState similarState = (EagerDfaState)dfa.stateByTransitions.get(key);
                 fromDfaState.indexTransitions(similarState, defaultTransition, unprocessedStates);
             }
         }
@@ -167,7 +164,8 @@ public final class EagerDfaState extends DfaState {
                 if (reachableDfaStates.size() > Short.MAX_VALUE)
                     throw new IllegalStateException("Only up to 32767 to-states supported");
                 index = (short) (reachableDfaStates.size() - 1);
-                indexByFiredTransitions.put(IntSetUtils.copyOf(firedTransitions), index);
+                firedTransitionsByIndex.add(IntSetUtils.copyOf(firedTransitions));
+                indexByFiredTransitions.put(firedTransitionsByIndex.get(index), index);
             }
 
             // add the transition
@@ -181,6 +179,7 @@ public final class EagerDfaState extends DfaState {
     private void indexTransitions(EagerDfaState similarState, BitSet defaultTransition, List<BitSet> unprocessedStates) {
         indexByFid = similarState.indexByFid;
         indexByFiredTransitions = similarState.indexByFiredTransitions;
+        firedTransitionsByIndex = similarState.firedTransitionsByIndex;
         reachableDfaStates.addAll(Collections.nCopies( similarState.reachableDfaStates.size() - 1, null)); // resize to correct size
 
         // iterate over active combinations of fired transitions and set the corresponding toStates
