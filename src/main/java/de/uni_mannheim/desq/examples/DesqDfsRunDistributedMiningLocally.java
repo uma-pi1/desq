@@ -34,7 +34,7 @@ public class DesqDfsRunDistributedMiningLocally {
 	static boolean useDesqCount;
 	static PrintWriter statsWriter;
 	static boolean useTwoPass;
-	static int scenario;
+	public static int scenario;
 
 	public static boolean writeShuffleStats = false;
 
@@ -55,7 +55,7 @@ public class DesqDfsRunDistributedMiningLocally {
 			runDistributedMiningLocally(args);
 		} else {
 			localCorrectnessTest(); System.exit(0);
-			runDistributedMiningLocally("I2", 1, 1);
+			runDistributedMiningLocally("IA2", 2, 1);
 		}
 	}
 
@@ -354,7 +354,7 @@ public class DesqDfsRunDistributedMiningLocally {
 		System.out.println(out);
 
 		try{
-			PrintWriter writer = new PrintWriter(new FileOutputStream(new File(baseFolder + "Dropbox/Master/Thesis/Experiments/F/log-"+runVersion+".txt"), true));
+			PrintWriter writer = new PrintWriter(new FileOutputStream(new File(baseFolder + "Dropbox/Master/Thesis/Experiments/H/log-"+runVersion+".txt"), true));
 			writer.println(out);
 			writer.close();
 		} catch (Exception e) {
@@ -557,7 +557,7 @@ public class DesqDfsRunDistributedMiningLocally {
         statsWriter.close();
 	}
 
-	public static void writeShuffleStats(int seqNo, int pivotItem, int pathNo, int intNo) {
-		statsWriter.println(useCase + "\t" + scenario + "\t" + seqNo + "\t" + pivotItem + "\t" + pathNo + "\t" + intNo);
+	public static void writeShuffleStats(int seqNo, int pivotItem, int intNo) {
+		statsWriter.println(useCase + "\t" + scenario + "\t" + seqNo + "\t" + pivotItem + "\t" + intNo);
 	}
 }
