@@ -9,7 +9,7 @@ import java.util.List;
 public final class State {
 	
 	int id;
-	// List of transitions
+	// List of indexByFid
 	List<Transition> transitionList;
 	boolean isFinal;
 	boolean isFinalComplete = false;
@@ -208,7 +208,7 @@ public final class State {
 		transitionList.remove(i);
 	}
 
-	/** Remove all outgoing transitions from this state */
+	/** Remove all outgoing indexByFid from this state */
 	public void removeAllTransitions() {
 		transitionList.clear();
 	}

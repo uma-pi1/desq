@@ -225,7 +225,7 @@ public final class FstOperations {
 		Map<IntSet, State> newStateForStateIdSet = new HashMap<>();
 		newStateForStateIdSet.put(initialStateIds, fst.initialState);
 		
-		//Maps transitions(input-output label) to toState ids
+		//Maps indexByFid(input-output label) to toState ids
 		Map<Transition, IntSet> toStateIdSetForTransition = new HashMap<>();
 		
 		//Unprocessed pFstStates (cFstStateIds)

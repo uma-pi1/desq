@@ -78,7 +78,7 @@ public final class Fst {
 		return states.size();
 	}
 	
-	/* Returns a copy of FST with shallow copy of its transitions */
+	/* Returns a copy of FST with shallow copy of its indexByFid */
 	public Fst shallowCopy() {
 		Fst fstCopy = new Fst();
 		fstCopy.states.clear();
@@ -275,7 +275,7 @@ public final class Fst {
 		}
 	}
 
-	/** Returns a pattern experssion that combines all edge labels via an alternativ (|) */
+	/** Returns a pattern experssion that combines all edge transitionLabels via an alternativ (|) */
 	private static String combinedExp(List<Edge> edges) {
 		Collections.sort(edges, (o1, o2) -> o1.label.compareTo(o2.label)); // just to make output more readable
 		String exp = edges.size() > 1 ? "[" : "";
@@ -296,7 +296,7 @@ public final class Fst {
 	public void annotate() {
 		dropAnnotations();
 
-        // Convert FST starting at final states to DFA by only looking of .:EPS transitions
+        // Convert FST starting at final states to DFA by only looking of .:EPS indexByFid
 
 		// Map fst states to xdfa state
 		Map<IntSet, XDfaState> xDfaStateForFstStateIdSet = new HashMap<>();
@@ -332,7 +332,7 @@ public final class Fst {
 				boolean isFinal = false;
 				boolean hasNonEpsOutput = false;
 
-				// we look at only outgoing .:EPS transitions
+				// we look at only outgoing .:EPS indexByFid
 				for(int stateId : stateIdSet) {
 					for(Transition transition : getState(stateId).transitionList) {
 						isFinal = transition.toState.isFinal;
