@@ -78,7 +78,7 @@ public final class Fst {
 		return states.size();
 	}
 	
-	/* Returns a copy of FST with shallow copy of its indexByFid */
+	/* Returns a copy of FST with shallow copy of its transitions */
 	public Fst shallowCopy() {
 		Fst fstCopy = new Fst();
 		fstCopy.states.clear();
@@ -296,7 +296,7 @@ public final class Fst {
 	public void annotate() {
 		dropAnnotations();
 
-        // Convert FST starting at final states to DFA by only looking of .:EPS indexByFid
+        // Convert FST starting at final states to DFA by only looking of .:EPS transitions
 
 		// Map fst states to xdfa state
 		Map<IntSet, XDfaState> xDfaStateForFstStateIdSet = new HashMap<>();
@@ -332,7 +332,7 @@ public final class Fst {
 				boolean isFinal = false;
 				boolean hasNonEpsOutput = false;
 
-				// we look at only outgoing .:EPS indexByFid
+				// we look at only outgoing .:EPS transitions
 				for(int stateId : stateIdSet) {
 					for(Transition transition : getState(stateId).transitionList) {
 						isFinal = transition.toState.isFinal;

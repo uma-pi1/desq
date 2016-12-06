@@ -55,14 +55,14 @@ public class DfaExample {
 
         dfaTime.reset();
         dfaTime.start();
-        Dfa forwardDfa = Dfa.createDfa(fst, dict, dict.lastFidAbove(sigma), false);
+        Dfa forwardDfa = Dfa.createDfa(fst, dict, dict.lastFidAbove(sigma), false, false);
         dfaTime.stop();
         System.out.println("Dfa for " + patternExpression + " took " + dfaTime.elapsed(TimeUnit.SECONDS) + "s");
         System.out.println(forwardDfa.numStates() + " states");
 
         dfaTime.reset();
         dfaTime.start();
-        Dfa backwardDfa  = Dfa.createReverseDfa(fst, dict, dict.lastFidAbove(sigma), true);
+        Dfa backwardDfa  = Dfa.createReverseDfa(fst, dict, dict.lastFidAbove(sigma), true, false);
         dfaTime.stop();
         System.out.println("Reverse Dfa for " + patternExpression + " took " + dfaTime.elapsed(TimeUnit.SECONDS) + "s");
         System.out.println(backwardDfa.numStates() + " states");

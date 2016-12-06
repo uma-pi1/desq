@@ -86,6 +86,7 @@ public final class DesqCount extends DesqMiner {
 		this.useFlist = ctx.conf.getBoolean("desq.mining.use.flist");
 		this.pruneIrrelevantInputs = ctx.conf.getBoolean("desq.mining.prune.irrelevant.inputs");
 		this.useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
+		boolean useLazyDfa = ctx.conf.getBoolean("desq.mining.use.lazy.dfa");
 
 		// initalize helper variable for FST simulation
 		this.largestFrequentFid = ctx.dict.lastFidAbove(sigma);
@@ -119,11 +120,11 @@ public final class DesqCount extends DesqMiner {
 		if(useTwoPass) {
 			// construct the DFA for the FST (for the first pass)
 			// the DFA is constructed for the reverse FST
-			this.dfa = Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid, true);
+			this.dfa = Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid, true, useLazyDfa);
 		} else if (pruneIrrelevantInputs) {
 			// construct the DFA to prune irrelevant inputs
 			// the DFA is constructed for the forward FST
-			this.dfa = Dfa.createDfa(fst, ctx.dict, largestFrequentFid, false);
+			this.dfa = Dfa.createDfa(fst, ctx.dict, largestFrequentFid, false, useLazyDfa);
 		} else {
 			this.dfa = null;
 		}
@@ -137,6 +138,7 @@ public final class DesqCount extends DesqMiner {
 		conf.setProperty("desq.mining.pattern.expression", patternExpression);
 		conf.setProperty("desq.mining.use.flist", true);
 		conf.setProperty("desq.mining.prune.irrelevant.inputs", false);
+		conf.setProperty("desq.mining.use.lazy.dfa", false);
 		conf.setProperty("desq.mining.use.two.pass", false);
 		return conf;
 	}

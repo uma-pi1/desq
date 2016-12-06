@@ -2,9 +2,9 @@ package de.uni_mannheim.desq.fst;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.util.IntSetUtils;
-import it.unimi.dsi.fastutil.ints.*;
+import it.unimi.dsi.fastutil.ints.Int2ShortOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.Object2ShortMap;
-import it.unimi.dsi.fastutil.objects.Object2ShortMaps;
 import it.unimi.dsi.fastutil.objects.Object2ShortOpenHashMap;
 
 import java.util.*;
@@ -13,44 +13,25 @@ import java.util.*;
  * Created by rgemulla on 02.12.2016.
  */
 public final class EagerDfaState extends DfaState {
-    private static final String[] EMPTY_STRING_ARRAY = new String[] {};
-    private static final BitSet[] EMPTY_BITSET_ARRAY = new BitSet[] {};
-
-    /** All DFA states reachable from this state. Position 0 is special (see {@link #indexByFid}) and may be null. */
-    List<EagerDfaState> reachableDfaStates = new ArrayList<>();
-
-    /** For each active item, the index of the next DFA state in {@link #reachableDfaStates}. All indexes stored
-     * in this map have at least a value of 1. If an item does not appear in this map,
-     * <code>reachableDfsStates[0]</code> is used. */
-    Int2ShortMap indexByFid = Int2ShortMaps.EMPTY_MAP;
-
-    /** The distinct labels of the outgoing transitions of the {@link #fstStates} corresponding to this DFA state. */
-    String[] transitionLabels = EMPTY_STRING_ARRAY;
-
-    /** For each label in {@link #transitionLabels}, the set of FST states that can be reached for an item that matches
-     * the corresponding transition. Parallel array to {@link #transitionLabels}. */
-    BitSet[] toStatesByLabel = EMPTY_BITSET_ARRAY;
-
-    /** For each combinations of transitions in {@link #transitionLabels} that can be fired jointly by an
-     * item, the position of the next DFA state in {@link #reachableDfaStates}. */
-    Object2ShortMap<BitSet> indexByFiredTransitions = Object2ShortMaps.EMPTY_MAP;
 
     public EagerDfaState(Dfa dfa, BitSet fstStates) {
         super(dfa, fstStates);
         reachableDfaStates.add(null); // position 0 is default transition
     }
 
-    public EagerDfaState consume(int itemFid) {
+    public DfaState consume(int itemFid) {
         return reachableDfaStates.get( indexByFid.get(itemFid) );
     }
 
     // -- Eager DFA construction --------------------------------------------------------------------------------------
 
     @Override
-    void construct(Dictionary dict, int largestFrequentItemFid, boolean processFinalCompleteStates) {
+    void construct() {
         dfa.initial = this;
         dfa.states.clear();
         Fst fst = dfa.fst;
+        Dictionary dict = dfa.dict;
+        boolean processFinalCompleteStates = dfa.processFinalCompleteStates;
 
         // GLOBAL DATA STRUCTURES
         // unprocessed dfa states
@@ -67,10 +48,7 @@ public final class EagerDfaState extends DfaState {
         // DATA STRUCTURES FOR CURRENTLY PROCESSED DFA STATE
         // fst states reachable by all items
         // used to represent all outgoing FST transitions where Transition#firesAll is true
-        BitSet defaultTransition = new BitSet(fst.numStates());
-
-        // map from transition label to reachable FST states (excluding fires-all transitions)
-        SortedMap<String, BitSet> toStatesByLabel = new TreeMap<>();
+        BitSet defaultTransition = new BitSet(dfa.fst.numStates());
 
         // for all items, which of the outgoing transitions fire (excluding fires-all transitions)
         BitSet activeFids = new BitSet(dict.lastFid() + 1); // indexed by item
@@ -97,9 +75,7 @@ public final class EagerDfaState extends DfaState {
             }
 
             // collect all transitions with distinct labels and compute target FST states for each
-            collectTransitions(dfa.fst, fromStates,
-                    defaultTransition, toStatesByLabel, firedItemsByLabel, // these three will be updated
-                    dict, largestFrequentItemFid);
+            fromDfaState.collectTransitions(defaultTransition, firedItemsByLabel);
 
             // now set the default transition in case there were transitions that fire on all items
             if (!defaultTransition.isEmpty()) {
@@ -107,15 +83,11 @@ public final class EagerDfaState extends DfaState {
             }
 
             // if there are no other transitions, we are done with this DFA state
-            if (toStatesByLabel.isEmpty())
+            if (fromDfaState.transitionLabels.length == 0)
                 continue; // no non-default transitions
 
-            // otherwise remember the remaining transitions
-            fromDfaState.transitionLabels = toStatesByLabel.keySet().toArray(new String[]{}); // sorted (since sorted map)
-            fromDfaState.toStatesByLabel = toStatesByLabel.values().toArray(new BitSet[]{}); // sorted conformingly
-            String key = String.join(" ", fromDfaState.transitionLabels);
-
             // index the transitions to the DFA state
+            String key = String.join(" ", fromDfaState.transitionLabels);
             if (!dfaStateByKey.containsKey(key)) {
                 // we haven't seen this combination of transitions -> compute everything from scratch
                 fromDfaState.indexTransitions(activeFids, firedTransitionsByFid, firedItemsByLabel,
@@ -142,56 +114,6 @@ public final class EagerDfaState extends DfaState {
             unprocessedStates.add(fstStates);
         }
         return dfaState;
-    }
-
-    /** Iterate over all outgoing transitions in <code>fromStates</code> and compute reachable FST states per
-     * distinct	transition label. If we see a label that we haven't seen before, we also compute the set of items
-     * that fire the transition and store it in <code>firedItemsCache</code>. */
-    private static void collectTransitions(
-            Fst fst, BitSet fromStates,
-            BitSet defaultTransition, SortedMap<String, BitSet> toStatesByLabelMap,
-            Map<String, IntList> firedItemsCache,
-            de.uni_mannheim.desq.dictionary.Dictionary dict, int largestFrequentItemFid) {
-        defaultTransition.clear(); // computed now
-        toStatesByLabelMap.clear(); // computed now
-        for (int stateId = fromStates.nextSetBit(0); // iterate over states
-             stateId >= 0;
-             stateId = fromStates.nextSetBit(stateId + 1)) {
-
-            // ignore outgoing transitions from final complete states
-            State state = fst.getState(stateId);
-            if (state.isFinalComplete())
-                continue;
-
-            // iterate over transitions
-            for (Transition t : state.getTransitions()) {
-                if (t.firesAll(largestFrequentItemFid)) {
-                    // this is an optmization which often helps when the pattern expression contains .
-                    defaultTransition.set(t.getToState().getId());
-                } else {
-                    // otherwise we remember the transition
-                    String label = t.toPatternExpression();
-                    BitSet toStates = toStatesByLabelMap.computeIfAbsent(label, k -> new BitSet(fst.numStates()));
-                    toStates.set(t.getToState().getId());
-
-                    // if it was a new label, compute the fired items
-                    if (!firedItemsCache.containsKey(label)) {
-                        IntArrayList firedItems = new IntArrayList(dict.lastFid() + 1);
-                        IntIterator it = t.matchedFidIterator();
-                        while (it.hasNext()) {
-                            int fid = it.nextInt();
-                            boolean matches = !t.hasOutput() || t.matchesWithFrequentOutput(fid, largestFrequentItemFid);
-                            if (matches) {
-                                firedItems.add(fid);
-                            }
-                        }
-                        firedItems.trim();
-                        firedItemsCache.put(label, firedItems);
-                        // System.out.println(label + " fires for " + firedItems.size() + " items");
-                    }
-                }
-            }
-        }
     }
 
     /** Index transitions from scratch. Computes {@link #reachableDfaStates}, {@link #indexByFid},

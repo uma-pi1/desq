@@ -29,6 +29,14 @@ public abstract class Transition {
 
 	public abstract boolean matchesAllWithFrequentOutput(int largestFrequentItemFid);
 
+	public boolean fires(int inputFid, int largestFrequentItemFid) {
+		if (hasOutput()) {
+			return matchesWithFrequentOutput(inputFid, largestFrequentItemFid);
+		} else {
+			return matches(inputFid);
+		}
+	}
+
 	/** Whether the transition is relevant for each input item (each item matches and the transition either produces
 	 * epsilon output or has at least one freuqent output item for each input item). */
 	public boolean firesAll(int largestFreuentItemFid) {

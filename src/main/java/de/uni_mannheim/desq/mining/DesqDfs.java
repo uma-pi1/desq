@@ -73,6 +73,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		largestFrequentFid = ctx.dict.lastFidAbove(sigma);
 		pruneIrrelevantInputs = ctx.conf.getBoolean("desq.mining.prune.irrelevant.inputs");
         useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
+		boolean useLazyDfa = ctx.conf.getBoolean("desq.mining.use.lazy.dfa");
 
 		// create FST
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
@@ -104,11 +105,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 		if(useTwoPass) {
 			// construct the DFA for the FST (for the first pass)
 			// the DFA is constructed for the reverse FST
-			this.dfa = Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid, true);
+			this.dfa = Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid, true, useLazyDfa);
 		} else if (pruneIrrelevantInputs) {
 			// construct the DFA to prune irrelevant inputs
 			// the DFA is constructed for the forward FST
-			this.dfa = Dfa.createDfa(fst, ctx.dict, largestFrequentFid, false);
+			this.dfa = Dfa.createDfa(fst, ctx.dict, largestFrequentFid, false, useLazyDfa);
 		} else {
 			this.dfa = null;
 		}
@@ -124,6 +125,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		conf.setProperty("desq.mining.min.support", sigma);
 		conf.setProperty("desq.mining.pattern.expression", patternExpression);
 		conf.setProperty("desq.mining.prune.irrelevant.inputs", false);
+		conf.setProperty("desq.mining.use.lazy.dfa", false);
 		conf.setProperty("desq.mining.use.two.pass", false);
 		return conf;
 	}

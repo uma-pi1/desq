@@ -17,14 +17,15 @@ public class DesqCountExample {
 	}
 
 	public static void icdm16() throws IOException {
-		String patternExpression = "[[c|d]([A^|B=^]+)e]";
+		//String patternExpression = "[[c|d]([A^|B=^]+)e]";
 		//String patternExpression = "(A^) .* (A^) .* (A)";
-		patternExpression = "(a1)..";
-		int sigma = 2;
+		String patternExpression = "(a1)..$";
+		int sigma = 3;
 
 		DesqProperties conf = DesqCount.createConf(patternExpression, sigma);
 		conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
-		conf.setProperty("desq.mining.use.two.pass", false);
+		conf.setProperty("desq.mining.use.lazy.dfa", true);
+		conf.setProperty("desq.mining.use.two.pass", true);
 		ExampleUtils.runIcdm16(conf);
 	}
 
