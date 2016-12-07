@@ -47,6 +47,10 @@ public class RestrictedDictionary extends Dictionary {
         largestRootFid = null;
     }
 
+    public void freeze() {
+        // do nothing; parent dictionary needs to be frozen
+    }
+
     private static IntArrayList restrict(IntArrayList fids, IntSet fidsToRetain) {
         // count how many fids are contained in l
         int count = 0;

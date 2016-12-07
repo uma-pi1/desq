@@ -84,6 +84,9 @@ public class Dictionary implements Externalizable, Writable {
 	/** The largest FID of a root item or <code>null</code> if unknown. See {@link #largestRootFid()}. */
 	protected Integer largestRootFid = null;
 
+	/** Whether this dictionary is frozen. Frozen dictionaries take less space but can't be modified. */
+	protected boolean isFrozen = false;
+
 	// -- construction ------------------------------------------------------------------------------------------------
 
 	public Dictionary() {
@@ -154,7 +157,7 @@ public class Dictionary implements Externalizable, Writable {
 
 	/** Always false. Subclasses may override. */
 	public boolean isReadOnly() {
-		return false;
+		return isFrozen;
 	}
 
 	protected void ensureWritable() {
@@ -359,6 +362,48 @@ public class Dictionary implements Externalizable, Writable {
 	private static void trim(LongArrayList l, int newSize) {
 		l.size(newSize);
 		l.trim();
+	}
+
+	/** Freezes this dictionary. When calling this method, the dictionary is reorganized to save memory, but can't
+	 * be modified anymore afterwards.
+	 */
+	public void freeze() {
+		if (isFrozen) return;
+
+		// optimize parents
+		Map<IntArrayList,IntArrayList> intArrayLists = new HashMap<>(gids.size()*2);
+		for (int i=0; i<parents.size(); i++) {
+			IntArrayList l = parents.get(i);
+			if (l==null) continue;
+			// Collections.sort(l);
+			IntArrayList ll = intArrayLists.get(l);
+			if (ll == null) {
+				intArrayLists.put(l, l);
+			} else {
+				parents.set(i, ll);
+			}
+		}
+
+		// optimize children
+		for (int i=0; i<children.size(); i++) {
+			IntArrayList l = children.get(i);
+			if (l==null) continue;
+			// Collections.sort(l);
+			IntArrayList ll = intArrayLists.get(l);
+			if (ll == null) {
+				intArrayLists.put(l, l);
+			} else {
+				children.set(i, ll);
+			}
+		}
+		intArrayLists = null;
+
+		// TODO: optimize properties
+
+		// trim all data structures
+		trim();
+
+		isFrozen = true;
 	}
 
 	/** Returns a copy of this dictionary. */

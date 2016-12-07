@@ -63,7 +63,7 @@ public final class EagerDfaState extends DfaState {
             BitSet fromStates = unprocessedStates.pop();
             EagerDfaState fromDfaState = (EagerDfaState) dfa.states.get(fromStates);
 
-            //System.out.println("Processing " + fromStates.toString());
+            // System.out.println("Processing " + fromStates.toString());
 
             // if the state is final complete and the option to not process those state is set, we do compute
             // the outgoing transitions of this state
