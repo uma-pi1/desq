@@ -25,6 +25,7 @@ public class RestrictedDictionary extends Dictionary {
         super(dict, true);
 
         // copy parents and children
+        IntArrayList tempList = new IntArrayList();
         IntIterator it = fidsToRetain.iterator();
         while (it.hasNext()) {
             int fid = it.nextInt();
@@ -33,12 +34,12 @@ public class RestrictedDictionary extends Dictionary {
             // copy parents
             while (parents.size() <= fid) parents.add(null);
             IntArrayList parentFids = dict.parentsOf(fid);
-            parents.set(fid, restrict(parentFids, fidsToRetain));
+            parents.set(fid, restrict(parentFids, fidsToRetain, tempList));
 
             // copy children
             while (children.size() <= fid) children.add(null);
             IntArrayList childrenFids = dict.childrenOf(fid);
-            children.set(fid, restrict(childrenFids, fidsToRetain));
+            children.set(fid, restrict(childrenFids, fidsToRetain, tempList));
         }
 
         size = availableFids.cardinality();
@@ -51,31 +52,15 @@ public class RestrictedDictionary extends Dictionary {
         // do nothing; parent dictionary needs to be frozen
     }
 
-    private static IntArrayList restrict(IntArrayList fids, IntSet fidsToRetain) {
-        // count how many fids are contained in l
-        int count = 0;
-        IntIterator it = fids.iterator();
-        while (it.hasNext()) {
-            int fid = it.next();
+    private static IntArrayList restrict(IntArrayList fids, IntSet fidsToRetain, IntArrayList tempList) {
+        tempList.clear();
+        for (int i=0; i<fids.size(); i++) {
+            int fid = fids.getInt(i);
             if (fidsToRetain.contains(fid)) {
-                count++;
+                tempList.add(fid);
             }
         }
-
-        // if everything is retained, just return the list
-        if (count == fids.size())
-            return fids;
-
-        // else we need to copy
-        IntArrayList retainedFids = new IntArrayList(count);
-        it = fids.iterator();
-        while (it.hasNext()) {
-            int fid = it.next();
-            if (fidsToRetain.contains(fid)) {
-                retainedFids.add(fid);
-            }
-        }
-        return retainedFids;
+        return tempList.size() != fids.size() ? new IntArrayList(tempList) : fids;
     }
 
     /** Always true. */
