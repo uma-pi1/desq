@@ -144,10 +144,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 	private OutputNFA nfa;
 
 	/** We keep a list of pivot items (for the current sequence) and the corresponding final states */
-	private Int2ObjectOpenHashMap<IntSet> finalStatesByPivotItems = new Int2ObjectOpenHashMap<>();
+	private Int2ObjectOpenHashMap<BitSet> finalStatesByPivotItems = new Int2ObjectOpenHashMap<>();
 
 	/** When determining pathes through the FST and the corresponding pivot items, we store the final states seen so far */
-	IntList finalStatesOnCurrentPath = new IntArrayList();
+	BitSet finalStatesOnCurrentPath = new BitSet();
 
 	/** Store current set of states, indexed by their outgoing transitions. We use this to efficiently find states we can merge. */
 	Object2ObjectOpenHashMap<Long2ObjectOpenHashMap<PathState>,IntSet> stateIdsByOutTransitions = new Object2ObjectOpenHashMap<>();
@@ -442,7 +442,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		this.inputSequence = inputSequence;
         nfa = new OutputNFA();
         finalStatesByPivotItems.clear();
-        finalStatesOnCurrentPath.size(0);
+        finalStatesOnCurrentPath.clear();
 
         if(!buildPartitions)
         	serializedNFAs.clear();
@@ -467,9 +467,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 //		if(verbose && nfa.numPathStates > 1) nfa.exportGraphViz(DesqDfsRunDistributedMiningLocally.scenario + "-NFA-seq" + seqNo + ".pdf", true);
 
 		// For each pivot item, trim the NFA and output it
-		for(Map.Entry<Integer, IntSet> pivotAndFinalStates : finalStatesByPivotItems.entrySet()) {
+		for(Map.Entry<Integer, BitSet> pivotAndFinalStates : finalStatesByPivotItems.entrySet()) {
 			int pivotItem = pivotAndFinalStates.getKey();
-			IntSet finalStates = pivotAndFinalStates.getValue();
+			BitSet finalStates = pivotAndFinalStates.getValue();
 
 			if(verbose) System.out.println("Sequence " + seqNo + ", pivot " + pivotItem + ", final States="+finalStates);
 
@@ -507,7 +507,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	private void piStepCompressed(CloneableIntHeapPriorityQueue currentPivotItems, int pos, State state, int level, PathState currentPathState) {
 		counterTotalRecursions++;
 
-        int finalStateOriginalListLength = finalStatesOnCurrentPath.size();
+        int finalStateAddedHere = -1;
 
 		// if we reached a final state, we add the current set of pivot items at this state to the global set of pivot items for this sequences
 		if(state.isFinal() && currentPivotItems.size() != 0) {
@@ -516,6 +516,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				// we might arrive multiple times here (if we have eps-transitions) But we don't need to do all this work again.
                 // (if we arrive here multiple times, the path (and ergo, the pivot items) are the same every time.
 			    if(!currentPathState.isFinal) {
+			    	finalStateAddedHere = currentPathState.id;
 					currentPathState.setFinal();
 					IntSet emittedPivots = new IntAVLTreeSet(); // until now, we have held the potential pivot items in a heap, so in some cases there might be duplicates, which we eliminate here
 
@@ -525,18 +526,18 @@ public final class DesqDfs extends MemoryDesqMiner {
 							emittedPivots.add(pivotItem);
 
 							if (!finalStatesByPivotItems.containsKey(pivotItem)) {
-								finalStatesByPivotItems.put(pivotItem, new IntAVLTreeSet());
+								finalStatesByPivotItems.put(pivotItem, new BitSet());
 							}
 
 							// remove final states we have seen on this path for this pivot
 							// (as it is sufficent if we start the trimming from this state)
-							finalStatesByPivotItems.get(pivotItem).removeAll(finalStatesOnCurrentPath);
+							finalStatesByPivotItems.get(pivotItem).andNot(finalStatesOnCurrentPath);
 
 							// add the current state to the list of states
-							finalStatesByPivotItems.get(pivotItem).add(currentPathState.id);
+							finalStatesByPivotItems.get(pivotItem).set(currentPathState.id);
 						}
 					}
-					finalStatesOnCurrentPath.add(currentPathState.id);
+					finalStatesOnCurrentPath.set(currentPathState.id);
 				}
 			} else {
 			    // if we don't build the transition representation, just keep track of the pivot items
@@ -548,7 +549,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		// check if we already read the entire input
 		if (state.isFinalComplete() || pos == inputSequence.size()) {
-			finalStatesOnCurrentPath.size(finalStateOriginalListLength);
+			if(finalStateAddedHere != -1) finalStatesOnCurrentPath.clear(finalStateAddedHere);
 			return;
 		}
 
@@ -663,7 +664,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				}
 			}
 		}
-		finalStatesOnCurrentPath.size(finalStateOriginalListLength);
+		if(finalStateAddedHere != -1) finalStatesOnCurrentPath.clear(finalStateAddedHere);
 	}
 	/** Runs one step in the FST in order to produce the set of frequent output items
 	 *  returns: - 0 if no accepting path was found in the recursion branch
@@ -1216,7 +1217,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		 * @param finalStates
 		 * @return
 		 */
-		public Sequence serializeForPivot(int pivot, IntSet finalStates) {
+		public Sequence serializeForPivot(int pivot, BitSet finalStates) {
 
 			// we will build the shuffle sequence backwards and reverse it before we output it
 			Sequence send = new Sequence();
@@ -1246,12 +1247,13 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 			// sort the final states into the outTransitions->set(states) map and determine the maximum level of the states
 			// (which is going to be our starting level)
-			for(int sId : finalStates) {
-				state = getPathStateByNumber(sId);
-				maxLevel = Math.max(maxLevel, state.level);
+			for (int j = finalStates.nextSetBit(0); j >= 0; j = finalStates.nextSetBit(j+1)) {
+                state = getPathStateByNumber(j);
+                maxLevel = Math.max(maxLevel, state.level);
 
-				addStateToMap(state);
-			}
+                addStateToMap(state);
+            }
+
 
 
 			for(int level=maxLevel; level>=0; level--) {
