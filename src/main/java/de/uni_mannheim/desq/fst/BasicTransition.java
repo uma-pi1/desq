@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.fst;
 
+import de.uni_mannheim.desq.dictionary.BasicDictionary;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.dictionary.RestrictedDictionary;
 import de.uni_mannheim.desq.util.BitNonNegativeIntSet;
@@ -21,9 +22,9 @@ public final class BasicTransition extends Transition {
 	final String outputLabelSid;
 
 	// internal indexes
-	final Dictionary dict;
+	final BasicDictionary dict;
 	final IntSet inputFids;
-	final Dictionary outputDict;
+	final BasicDictionary outputDict;
 	final boolean isForest;
 
 	private BasicTransition(BasicTransition other) {

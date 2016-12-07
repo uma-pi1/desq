@@ -33,8 +33,8 @@ public class DictionaryExample {
 		System.out.println("Desc: " + dict.sidsOfFids(fids));
 
 		// restrict the dictionary to specified subset
-		Dictionary restricted = new RestrictedDictionary(dict, dict.descendantsFids(dict.fidOf("DT@")));
-		restricted.writeJson(System.out);
+		RestrictedDictionary restricted = new RestrictedDictionary(dict, dict.descendantsFids(dict.fidOf("DT@")));
+		// restricted.writeJson(System.out);
 		System.out.println();
 	
 		// clear the counts in the dictionary and recopute

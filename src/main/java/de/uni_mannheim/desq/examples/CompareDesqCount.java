@@ -28,9 +28,14 @@ public class CompareDesqCount {
 	String dictFile = "data-local/nyt-1991-dict.avro.gz";
 	String outputFile = "tmp/output";
 
+	Dictionary dict;
+
+	public CompareDesqCount() throws IOException {
+		dict = Dictionary.loadFrom(dictFile);
+		dict.freeze();
+	}
 
 	public void run(boolean pruneIrrelevantInputs, boolean useLazyDfa, boolean useTwoPass) throws IOException {
-		Dictionary dict = Dictionary.loadFrom(dictFile);
 		SequenceReader dataReader = new DelSequenceReader(new FileInputStream(inputFile), true);
 		dataReader.setDictionary(dict);
 		DesqMinerContext ctx = new DesqMinerContext();

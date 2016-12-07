@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.examples;
 
+import de.uni_mannheim.desq.dictionary.BasicDictionary;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.fst.Dfa;
 import de.uni_mannheim.desq.fst.Fst;
@@ -57,6 +58,12 @@ public class DfaExample {
         profiler.stop();
         System.out.println(profiler);
 
+        System.out.print("Compute basic dictionary... ");
+        profiler.start();
+        BasicDictionary basicDict = dict.deepCopyAsBasicDictionary();
+        profiler.stop();
+        System.out.println(profiler);
+
         // SLOW
         //run(dict, "(Books) [.?{2} (Books)]{1,4}", 100);
         //run(dict, "(Electronics^) [.?{2} (Electronics^)]{1,4}", 500);
@@ -80,11 +87,17 @@ public class DfaExample {
         profiler.stop();
         System.out.println(profiler);
 
+        System.out.print("Compute basic dictionary... ");
+        profiler.start();
+        BasicDictionary basicDict = dict.deepCopyAsBasicDictionary();
+        profiler.stop();
+        System.out.println(profiler);
+
         run(dict, "(ENTITY^ VB+ NN+? IN? ENTITY^)", 100);
     }
 
     public static void main(String[] args) throws IOException {
-        // new DfaExample().amzn();
+        //new DfaExample().amzn();
         new DfaExample().nyt();
     }
 }
