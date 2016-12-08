@@ -34,6 +34,7 @@ public class DesqDfsDriver extends Driver {
 
         // Set IO paths
         Dictionary dict = Dictionary.loadFrom(dictFile);
+        dict.freeze();
         SequenceReader dataReader = new DelSequenceReader(new FileInputStream(inputFile), true);
         dataReader.setDictionary(dict);
 

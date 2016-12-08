@@ -35,6 +35,7 @@ public class DesqCountDriver extends Driver {
 
         // Set IO paths
         Dictionary dict = Dictionary.loadFrom(dictFile);
+        dict.freeze();
         //Dictionary dict = DictionaryIO.loadFromDel(new FileInputStream(dictFile), true);
 
         SequenceReader dataReader = new DelSequenceReader(new FileInputStream(inputFile), true);
