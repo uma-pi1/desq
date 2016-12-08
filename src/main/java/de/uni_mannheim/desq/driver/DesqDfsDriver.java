@@ -16,6 +16,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -54,6 +55,7 @@ public class DesqDfsDriver extends Driver {
         ctx.conf = DesqDfs.createConf(patternExpression, sigma);
         ctx.conf.setProperty("desq.mining.prune.irrelevant.inputs", pruneIrrelevantInputs);
         ctx.conf.setProperty("desq.mining.use.two.pass", useTwoPass);
+        ctx.conf.setProperty("desq.mining.use.lazy.dfa", false);
 
         Stopwatch constructionTime = Stopwatch.createStarted();
         DesqMiner miner = DesqMiner.create(ctx);
@@ -85,8 +87,8 @@ public class DesqDfsDriver extends Driver {
 
     public static void main(String[] args) throws IOException {
         // get command line options
-        if (args.length != 5) {
-            System.out.println("usage: inputFile dictFile outDir \"patternExpression\" sigma");
+        if (args.length != 7) {
+            System.out.println("usage: inputFile dictFile outDir \"patternExpression\" sigma pruneIrrelevantInputs useTwoPass");
             System.exit(-1);
         }
         String inputFile = args[0];
@@ -94,15 +96,14 @@ public class DesqDfsDriver extends Driver {
         String outDir = args[2];
         String patternExpression = args[3];
         int sigma = Integer.parseInt(args[4]);
+        boolean pruneIrrelevantInputs = Boolean.parseBoolean(args[5]);
+        boolean useTwoPass = Boolean.parseBoolean(args[6]);
 
         DesqDfsDriver ddd = new DesqDfsDriver(inputFile, dictFile, outDir, patternExpression, sigma);
 
         logger.setLevel(Level.INFO);
-        logger.info(patternExpression + "-" + sigma + "\n");
-
-        ddd.runDesqDfs(false, false); // desq-dfs
-        ddd.runDesqDfs(true, false); // desq-dfs with pruning irrelevant inputs
-        ddd.runDesqDfs(true, true); // desq-dfs with two-pass
+        logger.info(Arrays.toString(args));
+        ddd.runDesqDfs(pruneIrrelevantInputs, useTwoPass);
 
     }
 }
