@@ -1,7 +1,9 @@
 package de.uni_mannheim.desq.dictionary;
 
+import de.uni_mannheim.desq.util.IntListOptimizer;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntCollection;
+import it.unimi.dsi.fastutil.ints.IntList;
 import org.apache.commons.lang.NotImplementedException;
 
 import java.util.BitSet;
@@ -26,16 +28,17 @@ public class RestrictedDictionary extends BasicDictionary {
 
         // copy parents and children
         IntArrayList tempList = new IntArrayList();
+        IntListOptimizer optimizer = new IntListOptimizer(false);
         for (int fid = fidsToRetain.nextSetBit(0); fid >= 0; fid = fidsToRetain.nextSetBit(fid+1)) {
             // copy parents
             while (parents.size() <= fid) parents.add(null);
-            IntArrayList parentFids = dict.parentsOf(fid);
-            parents.set(fid, restrict(parentFids, fidsToRetain, tempList));
+            IntList parentFids = dict.parentsOf(fid);
+            parents.set(fid, restrict(optimizer, parentFids, fidsToRetain, tempList));
 
             // copy children
             while (children.size() <= fid) children.add(null);
-            IntArrayList childrenFids = dict.childrenOf(fid);
-            children.set(fid, restrict(childrenFids, fidsToRetain, tempList));
+            IntList childrenFids = dict.childrenOf(fid);
+            children.set(fid, restrict(optimizer, childrenFids, fidsToRetain, tempList));
         }
 
         size = availableFids.cardinality();
@@ -44,7 +47,7 @@ public class RestrictedDictionary extends BasicDictionary {
         largestRootFid = null;
     }
 
-    private static IntArrayList restrict(IntArrayList fids, BitSet fidsToRetain, IntArrayList tempList) {
+    private static IntList restrict(IntListOptimizer optimizer, IntList fids, BitSet fidsToRetain, IntArrayList tempList) {
         tempList.clear();
         for (int i=0; i<fids.size(); i++) {
             int fid = fids.getInt(i);
@@ -52,7 +55,7 @@ public class RestrictedDictionary extends BasicDictionary {
                 tempList.add(fid);
             }
         }
-        return tempList.size() != fids.size() ? new IntArrayList(tempList) : fids;
+        return tempList.size() != fids.size() ? optimizer.optimize(tempList) : fids;
     }
 
     @Override

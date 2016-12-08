@@ -3,6 +3,7 @@ package de.uni_mannheim.desq.util;
 import com.google.common.base.Stopwatch;
 import it.unimi.dsi.fastutil.ints.*;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -14,7 +15,7 @@ public class IntSetOptimizer {
     /** We may create {@link IntArraySet}s up to this size. */
     public static int MAX_ARRAY_SET_SIZE = 5;
 
-    private Map<IntSet, IntSet> cache;
+    private Map<IntSet, IntSet> cache = new HashMap<>();
     private boolean allowReuse;
 
     public IntSetOptimizer(boolean allowReuse) {

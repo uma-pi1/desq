@@ -23,13 +23,21 @@ import java.util.*;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-/** A set of items arranged in a hierarchy. Extends {@link BasicDictionary} by adding support for dictionary
- * modification and adding the following addiitional information for each item
+/** A set of items arranged in a hierarchy. Each item is associated with
  * <ul>
- *     <li>a unique string identifier called sid (chosen by application),</li>
- *     <li>a set of properties.</li>
+ *   <li>a stable string identifier called sid (chosen by application)</li>
+ *   <li>a stable non-negative integer identifier called gid (for "global identifier").
+ *       This identifier is chosen by the underlying application and does not need to fulfil any requirements (and,
+ *       in particular, gids do not need to be dense).</li>
+ *   <li>an internal positive numeric identifier called fid (for "frequency identifier"). The fid is not stable and
+ *       may change when the dictionary is changed. Generally, fids should be dense. For many mining tasks, fids
+ *       need to satisfy additional properties; see {@link #hasConsistentFids}.</li>
+ *   <li>information about the item's document frequency, collection frequency, parents, and children.</li>
+ *   <li>a set of properties.</li>
  * </ul>
  *
+ * Instances of this class may consume substantial amount of memory if there are many items. See
+ * {@link BasicDictionary} for a more light-weight variant without string identifiers.
  */
 public class Dictionary extends BasicDictionary implements Externalizable, Writable {
 
@@ -63,7 +71,7 @@ public class Dictionary extends BasicDictionary implements Externalizable, Writa
 
 	/** Deep clone */
 	private Dictionary(Dictionary other) {
-		super(other);
+		super(other, false, false);
 		sids = new ArrayList<>(other.sids);
 		sidIndex = other.sidIndex.clone();
 		properties = new ArrayList<>(gids.size());
@@ -545,8 +553,8 @@ public class Dictionary extends BasicDictionary implements Externalizable, Writa
 		cfreqs.set(fid1, s2);
 		cfreqs.set(fid2, s1);
 
-		IntArrayList l1 = parents.get(fid1);
-		IntArrayList l2 = parents.get(fid2);
+		IntList l1 = parents.get(fid1);
+		IntList l2 = parents.get(fid2);
 		parents.set(fid1, l2);
 		parents.set(fid2, l1);
 
@@ -814,9 +822,9 @@ public class Dictionary extends BasicDictionary implements Externalizable, Writa
 				properties.write(out);
 			}
 
-			IntArrayList parents = this.parents.get(fid);
+			IntList parents = this.parents.get(fid);
 			WritableUtils.writeVInt(out, parents.size());
-			IntArrayList children = this.children.get(fid);
+			IntList children = this.children.get(fid);
 			WritableUtils.writeVInt(out, children.size());
 
 			for (int j=0; j<parents.size(); j++) {

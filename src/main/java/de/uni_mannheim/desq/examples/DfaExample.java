@@ -58,7 +58,7 @@ public class DfaExample {
         profiler.stop();
         System.out.println(profiler);
 
-        System.out.print("Compute basic dictionary... ");
+        System.out.print("Compute basic dictionary copy... ");
         profiler.start();
         BasicDictionary basicDict = dict.deepCopyAsBasicDictionary();
         profiler.stop();
@@ -87,7 +87,7 @@ public class DfaExample {
         profiler.stop();
         System.out.println(profiler);
 
-        System.out.print("Compute basic dictionary... ");
+        System.out.print("Compute basic dictionary copy... ");
         profiler.start();
         BasicDictionary basicDict = dict.deepCopyAsBasicDictionary();
         profiler.stop();

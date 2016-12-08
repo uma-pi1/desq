@@ -1,28 +1,16 @@
 package de.uni_mannheim.desq.dictionary;
 
+import de.uni_mannheim.desq.util.IntListOptimizer;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 
-/** A set of items arranged in a hierarchy.
+/** A {@link Dictionary} without string identifiers and support for modification.
  *
- * Each item is associated with
- * <ul>
- *   <li>a stable non-negative integer identifier called gid (for "global identifier").
- *       This identifier is chosen by the underlying application and does not need to fulfil any requirements (and,
- *       in particular, gids do not need to be dense).</li>
- *   <li>an internal positive numeric identifier called fid (for "frequency identifier"). The fid is not stable and
- *       may change when the dictionary is changed. Generally, fids should be dense. For many mining tasks, fids
- *       need to satisfy additional properties; see {@link #hasConsistentFids}.</li>
- *   <li>information about its document frequency, its collection frequency, its parents, and its children.</li>
- * </ul>
- *
- * This class does not provide a public constructor or methods to modify the dictionary; use {@link Dictionary}
- * instead. It is mainly used internally during mining.
+ * Mainly used internally during mining. To obtain a basic dictionary, use
+ * {@link Dictionary#shallowCopyAsBasicDictionary()} or {@link Dictionary#deepCopyAsBasicDictionary()}.
  */
 public class BasicDictionary {
     // -- information about items -------------------------------------------------------------------------------------
@@ -40,10 +28,10 @@ public class BasicDictionary {
     protected final LongArrayList cfreqs;
 
     /** The fids of the parents of this dictionary's items. Indexed by fid; null if fid not present. */
-    protected final ArrayList<IntArrayList> parents;
+    protected final ArrayList<IntList> parents;
 
     /** The fids of the children of this dictionary's items. Indexed by fid; null if fid not present. */
-    protected final ArrayList<IntArrayList> children;
+    protected final ArrayList<IntList> children;
 
     // -- indexes -----------------------------------------------------------------------------------------------------
 
@@ -73,7 +61,7 @@ public class BasicDictionary {
     }
 
     /** Deep clone. */
-    protected BasicDictionary(BasicDictionary other) {
+    protected BasicDictionary(BasicDictionary other, boolean freeze, boolean dummy) {
         size = other.size;
         gids = other.gids.clone();
         dfreqs = other.dfreqs.clone();
@@ -84,11 +72,17 @@ public class BasicDictionary {
         isForest = other.isForest;
         hasConsistentFids = other.hasConsistentFids;
         largestRootFid = other.largestRootFid;
+        IntListOptimizer optimizer = new IntListOptimizer(false);
         for (int i=0; i<gids.size(); i++) {
             int gid = gids.getInt(i);
             if (gid >= 0) {
-                parents.add(other.parents.get(i).clone());
-                children.add(other.children.get(i).clone());
+                if (freeze) {
+                    parents.add(optimizer.optimize(other.parents.get(i)));
+                    children.add(optimizer.optimize(other.children.get(i)));
+                } else {
+                    parents.add(new IntArrayList(other.parents.get(i)));
+                    children.add(new IntArrayList(other.children.get(i)));
+                }
             } else {
                 parents.add(null);
                 children.add(null);
@@ -137,8 +131,10 @@ public class BasicDictionary {
         gidIndex.trim();
 
         for (int fid=firstFid(); fid>=0; fid=nextFid(fid)) {
-            parentsOf(fid).trim();
-            childrenOf(fid).trim();
+            IntList l = parentsOf(fid);
+            if (l instanceof IntArrayList) ((IntArrayList)l).trim();
+            l = childrenOf(fid);
+            if (l instanceof IntArrayList) ((IntArrayList)l).trim();
         }
     }
 
@@ -161,33 +157,20 @@ public class BasicDictionary {
 
     /** Freezes this dictionary. When calling this method, the dictionary is reorganized to save memory. */
     protected void freeze() {
+        IntListOptimizer optimizer = new IntListOptimizer(true);
+
         // optimize parents
-        Map<IntArrayList,IntArrayList> intArrayLists = new HashMap<>(gids.size()*2);
         for (int i=0; i<parents.size(); i++) {
-            IntArrayList l = parents.get(i);
+            IntList l = parents.get(i);
             if (l==null) continue;
-            // Collections.sort(l);
-            IntArrayList ll = intArrayLists.get(l);
-            if (ll == null) {
-                l.trim();
-                intArrayLists.put(l, l);
-            } else {
-                parents.set(i, ll);
-            }
+            parents.set(i, optimizer.optimize(l));
         }
 
         // optimize children
         for (int i=0; i<children.size(); i++) {
-            IntArrayList l = children.get(i);
+            IntList l = children.get(i);
             if (l==null) continue;
-            // Collections.sort(l);
-            IntArrayList ll = intArrayLists.get(l);
-            if (ll == null) {
-                l.trim();
-                intArrayLists.put(l, l);
-            } else {
-                children.set(i, ll);
-            }
+            children.set(i, optimizer.optimize(l));
         }
 
         trim();
@@ -195,9 +178,7 @@ public class BasicDictionary {
 
     /** Returns a memory-optimized deep copy of this dictionary. */
     public BasicDictionary deepCopy() {
-        BasicDictionary result = new BasicDictionary(this);
-        result.freeze();
-        return result;
+        return new BasicDictionary(this, true, false);
     }
 
     // -- querying ----------------------------------------------------------------------------------------------------
@@ -298,7 +279,7 @@ public class BasicDictionary {
     }
 
     /** Returns the fids of the children of the specified fid or -1 if not present */
-    public IntArrayList childrenOf(int fid) {
+    public IntList childrenOf(int fid) {
         return children.get(fid);
     }
 
@@ -307,7 +288,7 @@ public class BasicDictionary {
     }
 
     /** Returns the fids of the parents of the specified fid or -1 if not present */
-    public IntArrayList parentsOf(int fid) {
+    public IntList parentsOf(int fid) {
         return parents.get(fid);
     }
 
@@ -494,7 +475,6 @@ public class BasicDictionary {
 
     /** Adds all ascendants of the specified item to fids, excluding the given item and all
      * ascendants of items already present in itemFids. This method is performance-critical for many mining methods.
-     * Best performance is achieved if fids is as obtained from {@link #newFidCollection()}.
      *
      * If the dictionary does not form a forest (see {@link #isForest()}) or if <code>fids</code> is not initially
      * empty, <code>fids</code> *must* be an {@link IntSet}, ideally one that allows for fast look-ups
