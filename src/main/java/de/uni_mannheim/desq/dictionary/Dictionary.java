@@ -5,6 +5,7 @@ import com.esotericsoftware.kryo.io.Input;
 import de.uni_mannheim.desq.avro.AvroItem;
 import de.uni_mannheim.desq.avro.AvroItemProperties;
 import de.uni_mannheim.desq.io.SequenceReader;
+import de.uni_mannheim.desq.util.CollectionUtils;
 import de.uni_mannheim.desq.util.DesqProperties;
 import de.uni_mannheim.desq.util.Writable2Serializer;
 import it.unimi.dsi.fastutil.ints.*;
@@ -286,8 +287,8 @@ public class Dictionary extends BasicDictionary implements Externalizable, Writa
 	public void trim() {
 		super.trim();
 		int newSize = lastFid()+1;
-		trim(sids, newSize);
-		trim(properties, newSize);
+		CollectionUtils.trim(sids, newSize);
+		CollectionUtils.trim(properties, newSize);
 		sidIndex.trim();
 	}
 

@@ -1,8 +1,11 @@
 package de.uni_mannheim.desq.dictionary;
 
+import de.uni_mannheim.desq.util.CollectionUtils;
 import de.uni_mannheim.desq.util.IntListOptimizer;
+import de.uni_mannheim.desq.util.IntLongArrayList;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongList;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -22,10 +25,10 @@ public class BasicDictionary {
     protected final IntArrayList gids;
 
     /** The document frequencies of this dictionary's items. Indexed by fid; -1 if fid not present. */
-    protected final LongArrayList dfreqs;
+    protected LongList dfreqs;
 
     /** The collection frequencies of this dictionary's items. Indexed by fid; -1 if fid not present. */
-    protected final LongArrayList cfreqs;
+    protected LongList cfreqs;
 
     /** The fids of the parents of this dictionary's items. Indexed by fid; null if fid not present. */
     protected final ArrayList<IntList> parents;
@@ -64,8 +67,16 @@ public class BasicDictionary {
     protected BasicDictionary(BasicDictionary other, boolean freeze, boolean dummy) {
         size = other.size;
         gids = other.gids.clone();
-        dfreqs = other.dfreqs.clone();
-        cfreqs = other.cfreqs.clone();
+        if (freeze && CollectionUtils.max(other.dfreqs)<=Integer.MAX_VALUE) {
+            dfreqs = new IntLongArrayList(other.dfreqs);
+        } else {
+            dfreqs = new LongArrayList(other.dfreqs);
+        }
+        if (freeze && CollectionUtils.max(other.cfreqs)<=Integer.MAX_VALUE) {
+            cfreqs = new IntLongArrayList(other.cfreqs);
+        } else {
+            cfreqs = new LongArrayList(other.cfreqs);
+        }
         gidIndex = other.gidIndex.clone();
         parents = new ArrayList<>(gids.size());
         children = new ArrayList<>(gids.size());
@@ -114,8 +125,16 @@ public class BasicDictionary {
     /** Ensures sufficent storage storage for items */
     protected void ensureCapacity(int capacity) {
         gids.ensureCapacity(capacity+1);
-        dfreqs.ensureCapacity(capacity+1);
-        cfreqs.ensureCapacity(capacity+1);
+        if (dfreqs instanceof LongArrayList) {
+            ((LongArrayList)dfreqs).ensureCapacity(capacity+1);
+        } else if (dfreqs instanceof IntLongArrayList) {
+            ((IntLongArrayList)dfreqs).data().ensureCapacity(capacity+1);
+        }
+        if (cfreqs instanceof LongArrayList) {
+            ((LongArrayList)cfreqs).ensureCapacity(capacity+1);
+        } else if (dfreqs instanceof IntLongArrayList) {
+            ((IntLongArrayList)cfreqs).data().ensureCapacity(capacity+1);
+        }
         parents.ensureCapacity(capacity+1);
         children.ensureCapacity(capacity+1);
     }
@@ -123,36 +142,17 @@ public class BasicDictionary {
     /** Reduces the memory footprint of this dictionary as much as possible. */
     public void trim() {
         int newSize = lastFid()+1;
-        trim(gids, newSize);
-        trim(dfreqs, newSize);
-        trim(cfreqs, newSize);
-        trim(parents, newSize);
-        trim(children, newSize);
+        CollectionUtils.trim(gids, newSize);
+        CollectionUtils.trim(dfreqs, newSize);
+        CollectionUtils.trim(cfreqs, newSize);
+        CollectionUtils.trim(parents, newSize);
+        CollectionUtils.trim(children, newSize);
         gidIndex.trim();
 
         for (int fid=firstFid(); fid>=0; fid=nextFid(fid)) {
-            IntList l = parentsOf(fid);
-            if (l instanceof IntArrayList) ((IntArrayList)l).trim();
-            l = childrenOf(fid);
-            if (l instanceof IntArrayList) ((IntArrayList)l).trim();
+            CollectionUtils.trim( parentsOf(fid) );
+            CollectionUtils.trim( childrenOf(fid) );
         }
-    }
-
-    protected static <T> void trim(ArrayList<T> l, int newSize) {
-        while (l.size() > newSize) {
-            l.remove(l.size()-1);
-        }
-        l.trimToSize();
-    }
-
-    protected static void trim(IntArrayList l, int newSize) {
-        l.size(newSize);
-        l.trim();
-    }
-
-    protected static void trim(LongArrayList l, int newSize) {
-        l.size(newSize);
-        l.trim();
     }
 
     /** Freezes this dictionary. When calling this method, the dictionary is reorganized to save memory. */
@@ -171,6 +171,34 @@ public class BasicDictionary {
             IntList l = children.get(i);
             if (l==null) continue;
             children.set(i, optimizer.optimize(l));
+        }
+
+        // optimize document frequencies
+        if (!(dfreqs instanceof IntLongArrayList)) {
+            boolean fits = true;
+            for (int i = 0; i < dfreqs.size(); i++) {
+                if (dfreqs.get(i) > Integer.MAX_VALUE) {
+                    fits=false;
+                    break;
+                }
+            }
+            if (fits) {
+                dfreqs = new IntLongArrayList(dfreqs);
+            }
+        }
+
+        // optimize collection frequencies
+        if (!(cfreqs instanceof IntLongArrayList)) {
+            boolean fits = true;
+            for (int i = 0; i < cfreqs.size(); i++) {
+                if (cfreqs.get(i) > Integer.MAX_VALUE) {
+                    fits=false;
+                    break;
+                }
+            }
+            if (fits) {
+                cfreqs = new IntLongArrayList(cfreqs);
+            }
         }
 
         trim();

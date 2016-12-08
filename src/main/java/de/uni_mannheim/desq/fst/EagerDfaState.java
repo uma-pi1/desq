@@ -2,10 +2,9 @@ package de.uni_mannheim.desq.fst;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.util.CollectionUtils;
-import it.unimi.dsi.fastutil.ints.Int2ShortOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntList;
-import it.unimi.dsi.fastutil.objects.Object2ShortMap;
-import it.unimi.dsi.fastutil.objects.Object2ShortOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 
 import java.util.*;
 
@@ -21,7 +20,7 @@ public final class EagerDfaState extends DfaState {
     }
 
     public DfaState consume(int itemFid) {
-        return reachableDfaStates.get( indexByFid.get(itemFid) );
+        return reachableDfaStates.get(indexByFid.getInt(itemFid));
     }
 
     // -- Eager DFA construction --------------------------------------------------------------------------------------
@@ -72,7 +71,7 @@ public final class EagerDfaState extends DfaState {
             }
 
             // collect all transitions with distinct labels and compute target FST states for each
-            fromDfaState.collectTransitions(defaultTransition, firedItemsByLabel);
+            fromDfaState.collectTransitions(defaultTransition, (short)0, firedItemsByLabel);
 
             // now set the default transition in case there were transitions that fire on all items
             if (!defaultTransition.isEmpty()) {
@@ -137,15 +136,14 @@ public final class EagerDfaState extends DfaState {
         }
 
         // now iterate over the items and add transitions to the DFA
-        indexByFid = new Int2ShortOpenHashMap(activeFids.cardinality());
-        indexByFiredTransitions = new Object2ShortOpenHashMap<>();
+        indexByFiredTransitions = new Object2IntOpenHashMap<>();
         for (int fid = activeFids.nextSetBit(0);
              fid >= 0;
              fid = activeFids.nextSetBit(fid + 1)) {
 
             // get the position of the corresponding next state in EagerDfaState#reachableDfaStates
             BitSet firedTransitions = firedTransitionsByFid[fid];
-            short index = indexByFiredTransitions.getShort(firedTransitions);
+            int index = indexByFiredTransitions.getInt(firedTransitions);
             if (index == 0) { // not present
                 // compute subsequent state
                 BitSet toStates = new BitSet();
@@ -161,15 +159,13 @@ public final class EagerDfaState extends DfaState {
 
                 // add the state as a successor state to the DFA
                 reachableDfaStates.add(toDfaState);
-                if (reachableDfaStates.size() > Short.MAX_VALUE)
-                    throw new IllegalStateException("Only up to 32767 to-states supported");
-                index = (short) (reachableDfaStates.size() - 1);
+                index = reachableDfaStates.size() - 1;
                 firedTransitionsByIndex.add(CollectionUtils.copyOf(firedTransitions));
                 indexByFiredTransitions.put(firedTransitionsByIndex.get(index), index);
             }
 
             // add the transition
-            indexByFid.put(fid, index);
+            indexByFid.set(fid, index);
         }
     }
 
@@ -183,9 +179,9 @@ public final class EagerDfaState extends DfaState {
         reachableDfaStates.addAll(Collections.nCopies( similarState.reachableDfaStates.size() - 1, null)); // resize to correct size
 
         // iterate over active combinations of fired transitions and set the corresponding toStates
-        for (Object2ShortMap.Entry<BitSet> entry : indexByFiredTransitions.object2ShortEntrySet()) {
+        for (Object2IntMap.Entry<BitSet> entry : indexByFiredTransitions.object2IntEntrySet()) {
             BitSet firedTransitions = entry.getKey();
-            short index = entry.getShortValue();
+            int index = entry.getIntValue();
 
             // compute subsequent state for this combination of fired transitions
             BitSet toStates = new BitSet();

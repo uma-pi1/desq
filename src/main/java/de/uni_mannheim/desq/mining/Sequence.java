@@ -48,10 +48,15 @@ public class Sequence extends IntArrayList implements Externalizable, Writable {
 
     @Override
     public int hashCode() {
-        int result = 1;
-        for (int i=0; i<size(); i++)
-            result = 31 * result + a[i];
-        return result;
+        return super.hashCode();
+    }
+
+    public boolean equals(Object o) {
+        if (o instanceof IntArrayList) {
+            return super.equals((IntArrayList)o);
+        } else {
+            return super.equals(o);
+        }
     }
 
     @Override

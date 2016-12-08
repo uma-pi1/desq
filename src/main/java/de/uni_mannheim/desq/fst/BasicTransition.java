@@ -3,7 +3,7 @@ package de.uni_mannheim.desq.fst;
 import de.uni_mannheim.desq.dictionary.BasicDictionary;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.dictionary.RestrictedDictionary;
-import de.uni_mannheim.desq.util.BitNonNegativeIntSet;
+import de.uni_mannheim.desq.util.IntBitSet;
 import de.uni_mannheim.desq.util.IntSetOptimizer;
 import it.unimi.dsi.fastutil.ints.*;
 
@@ -64,7 +64,7 @@ public final class BasicTransition extends Transition {
 			break;
 		case SELF_DESCENDANTS:
 			// by default, use a bit set
-			BitNonNegativeIntSet inputFidsBitSet = descendantFids(inputLabel, dict);
+			IntBitSet inputFidsBitSet = descendantFids(inputLabel, dict);
 			if (outputLabelType == OutputLabelType.SELF_ASCENDANTS) {
 				// store as bitset and reuse it for the output dictionary
 				inputFidsBitSet.trim();
@@ -85,7 +85,7 @@ public final class BasicTransition extends Transition {
 			} else {
 				if (inputLabel != outputLabel) // this is the only case we handle
 					throw new IllegalStateException();
-				outputDict = new RestrictedDictionary(dict, ((BitNonNegativeIntSet)inputFids).bitSet());
+				outputDict = new RestrictedDictionary(dict, ((IntBitSet)inputFids).bitSet());
 			}
 		} else outputDict = null;
 
@@ -93,8 +93,8 @@ public final class BasicTransition extends Transition {
 		isForest = outputDict == null ? dict.isForest() : outputDict.isForest();
 	}	
 
-	private static BitNonNegativeIntSet descendantFids(int fid, Dictionary dict) {
-		BitNonNegativeIntSet descendants = new BitNonNegativeIntSet(dict.lastFid()+1);
+	private static IntBitSet descendantFids(int fid, Dictionary dict) {
+		IntBitSet descendants = new IntBitSet(dict.lastFid()+1);
 		descendants.add(fid);
 		dict.addDescendantFids(fid, descendants);
 		return descendants;

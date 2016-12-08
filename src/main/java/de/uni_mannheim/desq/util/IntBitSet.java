@@ -6,15 +6,15 @@ import it.unimi.dsi.fastutil.ints.IntIterator;
 
 import java.util.BitSet;
 
-/** An {@link it.unimi.dsi.fastutil.ints.IntSet} for storing small non-negative integers using a bit list. */
-public class BitNonNegativeIntSet extends AbstractIntSet {
+/** An {@link it.unimi.dsi.fastutil.ints.IntSet} for storing (small) non-negative integers using a bit list. */
+public class IntBitSet extends AbstractIntSet {
     private BitSet bits;
 
-    public BitNonNegativeIntSet() {
+    public IntBitSet() {
         bits = new BitSet();
     }
 
-    public BitNonNegativeIntSet(int nbits) {
+    public IntBitSet(int nbits) {
         bits = new BitSet(nbits);
     }
 

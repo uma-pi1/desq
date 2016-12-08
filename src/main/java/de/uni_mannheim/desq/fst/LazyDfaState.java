@@ -1,8 +1,7 @@
 package de.uni_mannheim.desq.fst;
 
 import de.uni_mannheim.desq.util.CollectionUtils;
-import it.unimi.dsi.fastutil.ints.Int2ShortOpenHashMap;
-import it.unimi.dsi.fastutil.objects.Object2ShortOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 
 import java.util.BitSet;
 
@@ -16,19 +15,17 @@ public class LazyDfaState extends DfaState {
     public LazyDfaState(Dfa dfa, BitSet fstStates) {
         super(dfa, fstStates);
         reachableDfaStates.add(null); // stores default transition
-        indexByFid = new Int2ShortOpenHashMap();
-        indexByFiredTransitions = new Object2ShortOpenHashMap<BitSet>();
+        indexByFiredTransitions = new Object2IntOpenHashMap<>();
         firedTransitionsByIndex.add(null); // unused / placeholser
     }
 
     @Override
     public DfaState consume(int fid) {
         // get the index of the next DFA state
-        short index = indexByFid.get(fid);
+        int index = indexByFid.getInt(fid);
 
         // if we haven't seen this item, compute the next state
-        // note: if index == 0 and one of the next two conditions below does not hold, we want to use the default transition
-        if (index == 0 && transitionLabels.length>0 && !indexByFid.containsKey(fid)) {
+        if (index < 0) {
             // figure out which transitions fire for the given fid
             firedTransitions.clear();
             for (int t = 0; t < transitionLabels.length; t++) { // iterate over transitions
@@ -40,19 +37,20 @@ public class LazyDfaState extends DfaState {
 
             // if we haven't see this combination of fired transitions before, remoember it
             if (!firedTransitions.isEmpty()) {
-                index = indexByFiredTransitions.getShort(firedTransitions);
+                index = indexByFiredTransitions.getInt(firedTransitions);
                 if (index == 0) {
                     // combination not yet encountered here; mark it for indexing
                     firedTransitionsByIndex.add(CollectionUtils.copyOf(firedTransitions));
-                    if (firedTransitionsByIndex.size() > Short.MAX_VALUE)
-                        throw new IllegalStateException("Only up to 32767 to-states supported");
-                    index = (short) (firedTransitionsByIndex.size() - 1);
+                    index = firedTransitionsByIndex.size() - 1;
                     indexByFiredTransitions.put(firedTransitionsByIndex.get(index), index);
                 }
-            } // else we keep index 0 (default transition)
+            } else {
+                // default transition
+                index = 0;
+            }
 
             // add the index
-            indexByFid.put(fid, index);
+            indexByFid.set(fid, index);
         }
 
         // if we computed the fired transitions of an item for which we did not determine the reachable states,
@@ -77,7 +75,7 @@ public class LazyDfaState extends DfaState {
 
         //  and collect the transitions of the initial state
         BitSet defaultTransition = new BitSet(dfa.fst.numStates());
-        collectTransitions(defaultTransition, null);
+        collectTransitions(defaultTransition, (short)-1, null);
         String key = String.join(" ", transitionLabels);
         dfa.stateByTransitions.put(key, this);
         if (!defaultTransition.isEmpty()) {
@@ -93,7 +91,7 @@ public class LazyDfaState extends DfaState {
             dfaState = new LazyDfaState(dfa, fstStates);
             dfa.states.put(fstStates, dfaState);
             BitSet defaultTransition = new BitSet(dfa.fst.numStates());
-            dfaState.collectTransitions(defaultTransition, null);
+            dfaState.collectTransitions(defaultTransition, (short)-1, null);
 
             String key = String.join(" ", dfaState.transitionLabels);
             DfaState similarState = dfa.stateByTransitions.get(key);

@@ -1,8 +1,13 @@
 package de.uni_mannheim.desq.fst;
 
-import it.unimi.dsi.fastutil.ints.*;
-import it.unimi.dsi.fastutil.objects.Object2ShortMap;
-import it.unimi.dsi.fastutil.objects.Object2ShortMaps;
+import de.uni_mannheim.desq.util.IntByteArrayList;
+import de.uni_mannheim.desq.util.IntConstantList;
+import de.uni_mannheim.desq.util.IntShortArrayList;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntMaps;
 
 import java.util.*;
 
@@ -27,19 +32,20 @@ public abstract class DfaState {
     /** True if one of the corresponding FST states is final-complete */
     boolean isFinalComplete = false;
 
-    /** All DFA states reachable from this state. Position 0 is special (see {@link #indexByFid}) and may be null. */
+    /** All DFA states reachable from this state. Position 0 is special: It stores the next state for all items
+     * that are not matched by a transition in {@link #transitionByLabel} and may be <code>null</code>. */
     List<DfaState> reachableDfaStates = new ArrayList<>();
 
-    /** For each active item, the index of the next DFA state in {@link #reachableDfaStates}. For eager DFAs, all items
-     * stored in this map have at least an index of 1; for all other items, <code>reachableDfsStates[0]</code> is used.
-     * For lazy DFAs, 0-indexes may also be stored.
+    /** For each item (fid), the index of the next DFA state in {@link #reachableDfaStates}. If
+     * {@link #transitionByLabel} is empty, this list is not used and set to <code>null</code>. In this case,
+     * the next state is given by <code>reachableDfaStates.get(0)</code>.
      *
      * Shared by all states with the same outgoing transition labels.
      */
-    Int2ShortMap indexByFid = Int2ShortMaps.EMPTY_MAP;
+    IntList indexByFid = null;
 
     /** The distinct labels of the outgoing transitions of the {@link #fstStates} corresponding to this DFA state.
-     * Sorted lexicigraphically.
+     * Only transitions that do not fire on all items are relevant and stored here. Sorted lexicigraphically.
      *
      * Shared by all states with the same outgoing transition labels.
      */
@@ -62,7 +68,7 @@ public abstract class DfaState {
      *
      * Shared by all states with the same outgoing transition labels.
      */
-    Object2ShortMap<BitSet> indexByFiredTransitions = Object2ShortMaps.EMPTY_MAP;
+    Object2IntMap<BitSet> indexByFiredTransitions = Object2IntMaps.EMPTY_MAP;
 
     /** Inverse of {@link #indexByFiredTransitions}.
      *
@@ -120,7 +126,9 @@ public abstract class DfaState {
      *
      * If <code>firedItemsByLabel</code> is non-null and we encounter a label that is not stored in
      * it, we also compute the set of items that fire the transition and store it. This is only used for eager DFAs. */
-    void collectTransitions(BitSet defaultTransition, Map<String, IntList> firedItemsByLabel /* not used if null */) {
+    void collectTransitions(BitSet defaultTransition,
+                            short indexByFidDefaultValue,
+                            Map<String, IntList> firedItemsByLabel /* not used if null */) {
         // map from transition label to reachable FST states (excluding fires-all transitions)
         SortedMap<String, BitSet> toStatesByLabel = new TreeMap<>();
         SortedMap<String, Transition> transitionByLabel = new TreeMap<>();
@@ -165,11 +173,27 @@ public abstract class DfaState {
         }
 
         // we are done, update the member variables
+        int n = dfa.dict.lastFid()+1;
         if (!toStatesByLabel.isEmpty()) {
             // remember the remaining transitions
             this.transitionLabels = toStatesByLabel.keySet().toArray(new String[]{}); // sorted (since sorted map)
             this.toStatesByLabel = toStatesByLabel.values().toArray(new BitSet[]{}); // sorted conformingly
             this.transitionByLabel = transitionByLabel.values().toArray(new Transition[]{}); // sorted conformingly
+
+            // and initialize the index
+            if (transitionLabels.length <=7) {
+                indexByFid = new IntByteArrayList(n);
+            } else if (transitionLabels.length <= 15) {
+                indexByFid = new IntShortArrayList(n);
+            } else {
+                indexByFid = new IntArrayList(n);
+            }
+
+            for (int i=0; i<n; i++) {
+                indexByFid.add(indexByFidDefaultValue);
+            }
+        } else {
+            indexByFid = new IntConstantList(n, 0); // always use default transition
         }
     }
 

@@ -57,9 +57,9 @@ public class IntSetOptimizer {
 
         // determine minimum and maximum value
         int min, max;
-        if (set instanceof BitNonNegativeIntSet) {
-            min = ((BitNonNegativeIntSet)set).bitSet().nextSetBit(0);
-            max = ((BitNonNegativeIntSet)set).bitSet().length()-1;
+        if (set instanceof IntBitSet) {
+            min = ((IntBitSet)set).bitSet().nextSetBit(0);
+            max = ((IntBitSet)set).bitSet().length()-1;
         } else {
             IntIterator it = set.iterator();
             min = it.nextInt();
@@ -74,11 +74,11 @@ public class IntSetOptimizer {
         // use a bit set whenever it takes the least space
         int nbits = max+1; // number of bits needed in bitset
         if (min>=0 && nbits <= set.size()*32) {
-            if (allowReuse && set instanceof BitNonNegativeIntSet) {
-                ((BitNonNegativeIntSet)set).trim();
+            if (allowReuse && set instanceof IntBitSet) {
+                ((IntBitSet)set).trim();
                 return set;
             } else {
-                BitNonNegativeIntSet optimizedSet = new BitNonNegativeIntSet(nbits);
+                IntBitSet optimizedSet = new IntBitSet(nbits);
                 optimizedSet.addAll(set);
                 return optimizedSet;
             }
@@ -110,7 +110,7 @@ public class IntSetOptimizer {
         int[] data = new int[size];
         IntArraySet aset = new IntArraySet();
         IntOpenHashSet hset = new IntOpenHashSet();
-        BitNonNegativeIntSet bset = new BitNonNegativeIntSet();
+        IntBitSet bset = new IntBitSet();
         for (int i=0; i<size; i++) {
             int v = random.nextInt(bound);
             data[i] = v;

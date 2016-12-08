@@ -52,10 +52,12 @@ public class IntListOptimizer {
         }
 
         // otherwise use arrays
-        if (allowReuse && list instanceof IntArrayList) {
-            ((IntArrayList)list).trim();
+        if (allowReuse
+                && (list instanceof IntArrayList || list instanceof IntByteArrayList || list instanceof IntShortArrayList)) {
+            CollectionUtils.trim(list);
             return list;
         } else {
+            // should we consider using IntShortArrayList or IntByteArrayList here?
             return new IntArrayList(list);
         }
     }
