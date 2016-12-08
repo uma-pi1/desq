@@ -191,7 +191,8 @@ public final class PatEx {
 				// operator generalize
 				generalize = true;
 			}
-			
+
+			// TODO: use transition cache here as well
 			Fst fst = new Fst();
 			Transition t;
 			if(capture){

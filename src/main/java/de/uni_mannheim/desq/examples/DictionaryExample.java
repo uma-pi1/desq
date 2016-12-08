@@ -1,7 +1,6 @@
 package de.uni_mannheim.desq.examples;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.dictionary.RestrictedDictionary;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.SequenceReader;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -33,9 +32,9 @@ public class DictionaryExample {
 		System.out.println("Desc: " + dict.sidsOfFids(fids));
 
 		// restrict the dictionary to specified subset
-		RestrictedDictionary restricted = new RestrictedDictionary(dict, dict.descendantsFids(dict.fidOf("DT@")));
+		//RestrictedDictionary restricted = new RestrictedDictionary(dict, dict.descendantsFids(dict.fidOf("DT@")));
 		// restricted.writeJson(System.out);
-		System.out.println();
+		//System.out.println();
 	
 		// clear the counts in the dictionary and recopute
 		System.out.println("Recomputing counts");

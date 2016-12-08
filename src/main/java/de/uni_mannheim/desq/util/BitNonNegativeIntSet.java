@@ -77,12 +77,18 @@ public class BitNonNegativeIntSet extends AbstractIntSet {
     }
 
     public void trim() {
-        if (bits.length() > bits.size()) {
+        if (bits.size() > bits.length()+63) {
+            // then we can use fewer bits
             BitSet newBits = new BitSet(bits.length());
             newBits.or(bits);
             bits = newBits;
         };
-        assert bits.length() == bits.size();
+        assert bits.size() <= bits.length()+63;
+    }
+
+    /** returns backing bitset */
+    public BitSet bitSet() {
+        return bits;
     }
 }
 

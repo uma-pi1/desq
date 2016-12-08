@@ -1,6 +1,6 @@
 package de.uni_mannheim.desq.fst;
 
-import de.uni_mannheim.desq.util.IntSetUtils;
+import de.uni_mannheim.desq.util.CollectionUtils;
 import it.unimi.dsi.fastutil.ints.Int2ShortOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ShortOpenHashMap;
 
@@ -43,7 +43,7 @@ public class LazyDfaState extends DfaState {
                 index = indexByFiredTransitions.getShort(firedTransitions);
                 if (index == 0) {
                     // combination not yet encountered here; mark it for indexing
-                    firedTransitionsByIndex.add(IntSetUtils.copyOf(firedTransitions));
+                    firedTransitionsByIndex.add(CollectionUtils.copyOf(firedTransitions));
                     if (firedTransitionsByIndex.size() > Short.MAX_VALUE)
                         throw new IllegalStateException("Only up to 32767 to-states supported");
                     index = (short) (firedTransitionsByIndex.size() - 1);

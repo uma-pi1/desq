@@ -1,7 +1,7 @@
 package de.uni_mannheim.desq.fst;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.util.IntSetUtils;
+import de.uni_mannheim.desq.util.CollectionUtils;
 import it.unimi.dsi.fastutil.ints.Int2ShortOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.Object2ShortMap;
@@ -105,7 +105,7 @@ public final class EagerDfaState extends DfaState {
     private EagerDfaState getDfaState(BitSet fstStates, List<BitSet> unprocessedStates) {
         EagerDfaState dfaState = (EagerDfaState) dfa.states.get(fstStates);
         if (dfaState == null) {
-            fstStates = IntSetUtils.copyOf(fstStates); // store our own copy
+            fstStates = CollectionUtils.copyOf(fstStates); // store our own copy
             dfaState = new EagerDfaState(dfa, fstStates);
             dfa.states.put(fstStates, dfaState);
             unprocessedStates.add(fstStates);
@@ -164,7 +164,7 @@ public final class EagerDfaState extends DfaState {
                 if (reachableDfaStates.size() > Short.MAX_VALUE)
                     throw new IllegalStateException("Only up to 32767 to-states supported");
                 index = (short) (reachableDfaStates.size() - 1);
-                firedTransitionsByIndex.add(IntSetUtils.copyOf(firedTransitions));
+                firedTransitionsByIndex.add(CollectionUtils.copyOf(firedTransitions));
                 indexByFiredTransitions.put(firedTransitionsByIndex.get(index), index);
             }
 

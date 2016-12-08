@@ -4,6 +4,7 @@ import de.uni_mannheim.desq.dictionary.BasicDictionary;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.dictionary.RestrictedDictionary;
 import de.uni_mannheim.desq.util.BitNonNegativeIntSet;
+import de.uni_mannheim.desq.util.IntSetOptimizer;
 import it.unimi.dsi.fastutil.ints.*;
 
 import java.util.Iterator;
@@ -44,6 +45,7 @@ public final class BasicTransition extends Transition {
 	public BasicTransition(int inputLabel, InputLabelType inputLabelType, 
 			int outputLabel, OutputLabelType outputLabelType, 
 			State toState, Dictionary dict) {
+		// initialize
 		this.dict = dict;
 		this.inputLabel = inputLabel;
 		this.inputLabelType = inputLabelType;
@@ -53,6 +55,7 @@ public final class BasicTransition extends Transition {
 		this.outputLabelSid = outputLabel > 0 ? dict.sidOfFid(outputLabel) : null;
 		this.toState = toState;
 
+		// compute the set of fids that match this transition
 		if (inputLabel == 0)
 			inputFids = null;
 		else switch (inputLabelType) {
@@ -60,31 +63,43 @@ public final class BasicTransition extends Transition {
 			inputFids = IntSets.singleton(inputLabel);
 			break;
 		case SELF_DESCENDANTS:
-			if (dict.isLeaf(inputLabel)) {
-				inputFids = IntSets.singleton(inputLabel);
+			// by default, use a bit set
+			BitNonNegativeIntSet inputFidsBitSet = descendantFids(inputLabel, dict);
+			if (outputLabelType == OutputLabelType.SELF_ASCENDANTS) {
+				// store as bitset and reuse it for the output dictionary
+				inputFidsBitSet.trim();
+				inputFids = inputFidsBitSet;
 			} else {
-				// use a bit set
-				// TODO: here we may optimize to switch between bitset and hashset depending on the number
-				// TODO: of matched input fids
-				inputFids = new BitNonNegativeIntSet(inputLabel+1); // that's exactly how many bits we need
-				inputFids.add(inputLabel);
-				dict.addDescendantFids(inputLabel, inputFids); // because all descendents have fid < inputLabel
+				// store optimized
+				inputFids = IntSetOptimizer.optimize(inputFidsBitSet, true);
 			}
 			break;
 		default: // unreachable
-			 inputFids = null;
+			 throw new IllegalStateException();
 		}
 
-		isForest = dict.isForest();
+		// compute the output dictionary
 		if (outputLabelType == OutputLabelType.SELF_ASCENDANTS) {
-			if (outputLabel == 0) 
+			if (outputLabel == 0) {
 				outputDict = dict;
-			else
-				outputDict = new RestrictedDictionary(dict, dict.descendantsFids(outputLabel));
+			} else {
+				if (inputLabel != outputLabel) // this is the only case we handle
+					throw new IllegalStateException();
+				outputDict = new RestrictedDictionary(dict, ((BitNonNegativeIntSet)inputFids).bitSet());
+			}
 		} else outputDict = null;
+
+		// check whether every output item has at most one parent (to optimize iteration)
+		isForest = outputDict == null ? dict.isForest() : outputDict.isForest();
 	}	
 
-	
+	private static BitNonNegativeIntSet descendantFids(int fid, Dictionary dict) {
+		BitNonNegativeIntSet descendants = new BitNonNegativeIntSet(dict.lastFid()+1);
+		descendants.add(fid);
+		dict.addDescendantFids(fid, descendants);
+		return descendants;
+	}
+
 	private static final class ItemStateIterator implements Iterator<ItemState> {
 		BasicTransition transition;
 	    int nextFid;
@@ -327,6 +342,4 @@ public final class BasicTransition extends Transition {
 //
 		return (inputLabel == 0 && outputLabelType == OutputLabelType.EPSILON);
 	}
-	
-
 }

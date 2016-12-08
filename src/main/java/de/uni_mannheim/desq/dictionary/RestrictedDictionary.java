@@ -2,8 +2,6 @@ package de.uni_mannheim.desq.dictionary;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntCollection;
-import it.unimi.dsi.fastutil.ints.IntIterator;
-import it.unimi.dsi.fastutil.ints.IntSet;
 import org.apache.commons.lang.NotImplementedException;
 
 import java.util.BitSet;
@@ -19,18 +17,16 @@ import java.util.BitSet;
  * different semantics.
  */
 public class RestrictedDictionary extends BasicDictionary {
-    private BitSet availableFids = new BitSet();
+    private BitSet availableFids;
 
-    public RestrictedDictionary(BasicDictionary dict, IntSet fidsToRetain) {
+    /** fidsToRetain is stored internally so don't modify */
+    public RestrictedDictionary(BasicDictionary dict, BitSet fidsToRetain) {
         super(dict, false);
+        availableFids = fidsToRetain;
 
         // copy parents and children
         IntArrayList tempList = new IntArrayList();
-        IntIterator it = fidsToRetain.iterator();
-        while (it.hasNext()) {
-            int fid = it.nextInt();
-            availableFids.set(fid);
-
+        for (int fid = fidsToRetain.nextSetBit(0); fid >= 0; fid = fidsToRetain.nextSetBit(fid+1)) {
             // copy parents
             while (parents.size() <= fid) parents.add(null);
             IntArrayList parentFids = dict.parentsOf(fid);
@@ -48,11 +44,11 @@ public class RestrictedDictionary extends BasicDictionary {
         largestRootFid = null;
     }
 
-    private static IntArrayList restrict(IntArrayList fids, IntSet fidsToRetain, IntArrayList tempList) {
+    private static IntArrayList restrict(IntArrayList fids, BitSet fidsToRetain, IntArrayList tempList) {
         tempList.clear();
         for (int i=0; i<fids.size(); i++) {
             int fid = fids.getInt(i);
-            if (fidsToRetain.contains(fid)) {
+            if (fidsToRetain.get(fid)) {
                 tempList.add(fid);
             }
         }

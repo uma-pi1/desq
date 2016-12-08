@@ -1,6 +1,5 @@
 package de.uni_mannheim.desq.dictionary;
 
-import de.uni_mannheim.desq.util.IntSetUtils;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 
@@ -429,17 +428,6 @@ public class BasicDictionary {
 
     // -- computing descendants and ascendants ------------------------------------------------------------------------
 
-    /** Returns a suitable IntCollection that can be passed to various methods for ancestor and descendant computation
-     * performed in this class. */
-    public IntCollection newFidCollection() {
-        if (isForest()) {
-            return new IntArrayList();
-        } else {
-            // TODO: we may want to make a more informed choice here
-            return new IntAVLTreeSet();
-        }
-    }
-
     /** Returns the fids of all descendants of the given item (including the given item) */
     public IntSet descendantsFids(int fid) {
         return descendantsFids(IntSets.singleton(fid));
@@ -455,7 +443,7 @@ public class BasicDictionary {
                 addDescendantFids(fid, descendants);
             }
         }
-        return IntSetUtils.optimize(descendants);
+        return descendants;
     }
 
     /** Adds all descendants of the specified item to fids, excluding the given item and all
