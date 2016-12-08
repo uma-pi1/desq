@@ -3,23 +3,24 @@ package de.uni_mannheim.desq.util;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.AbstractLongList;
 import it.unimi.dsi.fastutil.longs.LongList;
+import org.apache.commons.lang3.tuple.Pair;
 
 /** An long list backed by an array of ints. Can only store longs that fit into an integer. */
-public final class IntLongArrayList extends AbstractLongList {
+public final class LongIntArrayList extends AbstractLongList {
     private final IntArrayList data;
 
-    public IntLongArrayList(LongList l) {
+    public LongIntArrayList(LongList l) {
         data = new IntArrayList(l.size());
         for (int i=0; i<l.size(); i++) {
             add(i, l.getLong(i));
         }
     }
 
-    public IntLongArrayList(int capacity) {
+    public LongIntArrayList(int capacity) {
         data = new IntArrayList(capacity);
     }
 
-    public IntLongArrayList() {
+    public LongIntArrayList() {
        data = new IntArrayList();
     }
 
@@ -65,5 +66,12 @@ public final class IntLongArrayList extends AbstractLongList {
     /** Exposes the underlying int array list */
     public IntArrayList data() {
         return data;
+    }
+
+    public static boolean fits(LongList l) {
+        if (l.isEmpty() || l instanceof LongIntArrayList)
+            return true;
+        Pair<Long,Long> range = CollectionUtils.range(l);
+        return range.getLeft() >= Integer.MIN_VALUE && range.getRight() <= Integer.MAX_VALUE;
     }
 }

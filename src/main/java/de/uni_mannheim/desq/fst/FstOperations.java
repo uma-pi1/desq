@@ -138,7 +138,7 @@ public final class FstOperations {
 	//TODO: handle fst annotations (remove annotations before reversing?)
 	public static List<State> reverse(Fst fst, boolean createNewInitialState) {
 	
-		Int2ObjectMap<List<Transition>> reversedIncomingTransitionsOfState = new Int2ObjectOpenHashMap<>();
+		Int2ObjectMap<ArrayList<Transition>> reversedIncomingTransitionsOfState = new Int2ObjectOpenHashMap<>();
 
 		// Handle reverse FST for two-pass
 		if(!fst.initialState.isFinal)
@@ -151,7 +151,7 @@ public final class FstOperations {
 
 		for (State fromState : fst.states) {
 			for (Transition transition : fromState.transitionList) {
-				List<Transition> reversedIncomingTransitionsOfToState
+				ArrayList<Transition> reversedIncomingTransitionsOfToState
 						= reversedIncomingTransitionsOfState.get(transition.toState.id);
 				if (reversedIncomingTransitionsOfToState == null) {
 					reversedIncomingTransitionsOfToState = new ArrayList<>();

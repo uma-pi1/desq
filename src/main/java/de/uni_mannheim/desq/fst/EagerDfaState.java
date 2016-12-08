@@ -4,7 +4,6 @@ import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.util.CollectionUtils;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 
 import java.util.*;
 
@@ -16,7 +15,6 @@ public final class EagerDfaState extends DfaState {
     public EagerDfaState(Dfa dfa, BitSet fstStates) {
         super(dfa, fstStates);
         reachableDfaStates.add(null); // position 0 is default transition
-        firedTransitionsByIndex.add(null); // unused / placeholser
     }
 
     public DfaState consume(int itemFid) {
@@ -79,11 +77,11 @@ public final class EagerDfaState extends DfaState {
             }
 
             // if there are no other transitions, we are done with this DFA state
-            if (fromDfaState.transitionLabels.length == 0)
+            if (fromDfaState.transitionLabels == null)
                 continue; // no non-default transitions
 
             // index the transitions to the DFA state
-            String key = String.join(" ", fromDfaState.transitionLabels);
+            String key = fromDfaState.transitionLabels != null ? String.join(" ", fromDfaState.transitionLabels) : "null";
             if (!dfa.stateByTransitions.containsKey(key)) {
                 // we haven't seen this combination of transitions -> compute everything from scratch
                 fromDfaState.indexTransitions(activeFids, firedTransitionsByFid, firedItemsByLabel,
@@ -136,7 +134,6 @@ public final class EagerDfaState extends DfaState {
         }
 
         // now iterate over the items and add transitions to the DFA
-        indexByFiredTransitions = new Object2IntOpenHashMap<>();
         for (int fid = activeFids.nextSetBit(0);
              fid >= 0;
              fid = activeFids.nextSetBit(fid + 1)) {

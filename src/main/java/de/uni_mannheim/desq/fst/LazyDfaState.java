@@ -1,7 +1,6 @@
 package de.uni_mannheim.desq.fst;
 
 import de.uni_mannheim.desq.util.CollectionUtils;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 
 import java.util.BitSet;
 
@@ -15,8 +14,6 @@ public class LazyDfaState extends DfaState {
     public LazyDfaState(Dfa dfa, BitSet fstStates) {
         super(dfa, fstStates);
         reachableDfaStates.add(null); // stores default transition
-        indexByFiredTransitions = new Object2IntOpenHashMap<>();
-        firedTransitionsByIndex.add(null); // unused / placeholser
     }
 
     @Override
@@ -27,6 +24,7 @@ public class LazyDfaState extends DfaState {
         // if we haven't seen this item, compute the next state
         if (index < 0) {
             // figure out which transitions fire for the given fid
+            assert transitionLabels != null; // otherwise index would be 0
             firedTransitions.clear();
             for (int t = 0; t < transitionLabels.length; t++) { // iterate over transitions
                 Transition transition = transitionByLabel[t];
@@ -56,6 +54,7 @@ public class LazyDfaState extends DfaState {
         // if we computed the fired transitions of an item for which we did not determine the reachable states,
         // do so now (this can happen above or by another state that shares index structures)
         while (index >= reachableDfaStates.size()) {
+            assert transitionLabels != null; // otherwise index would be 0
             BitSet firedTransitions = firedTransitionsByIndex.get(reachableDfaStates.size());
             BitSet toStates = computeToStates(firedTransitions);
             reachableDfaStates.add(getDfaState(toStates));
@@ -76,7 +75,7 @@ public class LazyDfaState extends DfaState {
         //  and collect the transitions of the initial state
         BitSet defaultTransition = new BitSet(dfa.fst.numStates());
         collectTransitions(defaultTransition, (short)-1, null);
-        String key = String.join(" ", transitionLabels);
+        String key = transitionLabels != null ? String.join(" ", transitionLabels) : "null";
         dfa.stateByTransitions.put(key, this);
         if (!defaultTransition.isEmpty()) {
             reachableDfaStates.set(0, getDfaState(defaultTransition));
@@ -93,7 +92,7 @@ public class LazyDfaState extends DfaState {
             BitSet defaultTransition = new BitSet(dfa.fst.numStates());
             dfaState.collectTransitions(defaultTransition, (short)-1, null);
 
-            String key = String.join(" ", dfaState.transitionLabels);
+            String key = dfaState.transitionLabels != null ? String.join(" ", dfaState.transitionLabels) : "null";
             DfaState similarState = dfa.stateByTransitions.get(key);
             if (similarState != null) {
                 dfaState.indexByFid = similarState.indexByFid;

@@ -52,17 +52,22 @@ public class DfaExample {
         profiler.stop();
         System.out.println(profiler);
 
+        System.out.print("Compute basic dictionary copy... ");
+        profiler.start();
+        BasicDictionary basicDict = dict.deepCopyAsBasicDictionary();
+        profiler.stop();
+        System.out.println(profiler);
+
         System.out.print("Freezing dictionary... ");
         profiler.start();
         dict.freeze();
         profiler.stop();
         System.out.println(profiler);
 
-        System.out.print("Compute basic dictionary copy... ");
-        profiler.start();
-        BasicDictionary basicDict = dict.deepCopyAsBasicDictionary();
-        profiler.stop();
-        System.out.println(profiler);
+        System.out.println("Dictionary properties: " +
+                dict.size() + " items, " +
+                (dict.isForest() ? "forest" : "dag")
+        );
 
         // SLOW
         //run(dict, "(Books) [.?{2} (Books)]{1,4}", 100);
@@ -81,23 +86,28 @@ public class DfaExample {
         profiler.stop();
         System.out.println(profiler);
 
-        System.out.print("Freezing dictionary... ");
-        profiler.start();
-        dict.freeze();
-        profiler.stop();
-        System.out.println(profiler);
-
         System.out.print("Compute basic dictionary copy... ");
         profiler.start();
         BasicDictionary basicDict = dict.deepCopyAsBasicDictionary();
         profiler.stop();
         System.out.println(profiler);
 
+        System.out.print("Freezing dictionary... ");
+        profiler.start();
+        dict.freeze();
+        profiler.stop();
+        System.out.println(profiler);
+
+        System.out.println("Dictionary properties: " +
+                dict.size() + " items, " +
+                (dict.isForest() ? "forest" : "dag")
+        );
+
         run(dict, "(ENTITY^ VB+ NN+? IN? ENTITY^)", 100);
     }
 
     public static void main(String[] args) throws IOException {
-        //new DfaExample().amzn();
-        new DfaExample().nyt();
+        new DfaExample().amzn();
+        //new DfaExample().nyt();
     }
 }

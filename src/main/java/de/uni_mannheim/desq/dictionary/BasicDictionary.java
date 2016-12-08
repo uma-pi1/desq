@@ -2,7 +2,7 @@ package de.uni_mannheim.desq.dictionary;
 
 import de.uni_mannheim.desq.util.CollectionUtils;
 import de.uni_mannheim.desq.util.IntListOptimizer;
-import de.uni_mannheim.desq.util.IntLongArrayList;
+import de.uni_mannheim.desq.util.LongIntArrayList;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongList;
@@ -67,13 +67,13 @@ public class BasicDictionary {
     protected BasicDictionary(BasicDictionary other, boolean freeze, boolean dummy) {
         size = other.size;
         gids = other.gids.clone();
-        if (freeze && CollectionUtils.max(other.dfreqs)<=Integer.MAX_VALUE) {
-            dfreqs = new IntLongArrayList(other.dfreqs);
+        if (freeze && LongIntArrayList.fits(other.dfreqs)) {
+            dfreqs = new LongIntArrayList(other.dfreqs);
         } else {
             dfreqs = new LongArrayList(other.dfreqs);
         }
-        if (freeze && CollectionUtils.max(other.cfreqs)<=Integer.MAX_VALUE) {
-            cfreqs = new IntLongArrayList(other.cfreqs);
+        if (freeze && LongIntArrayList.fits(other.cfreqs)) {
+            cfreqs = new LongIntArrayList(other.cfreqs);
         } else {
             cfreqs = new LongArrayList(other.cfreqs);
         }
@@ -125,16 +125,8 @@ public class BasicDictionary {
     /** Ensures sufficent storage storage for items */
     protected void ensureCapacity(int capacity) {
         gids.ensureCapacity(capacity+1);
-        if (dfreqs instanceof LongArrayList) {
-            ((LongArrayList)dfreqs).ensureCapacity(capacity+1);
-        } else if (dfreqs instanceof IntLongArrayList) {
-            ((IntLongArrayList)dfreqs).data().ensureCapacity(capacity+1);
-        }
-        if (cfreqs instanceof LongArrayList) {
-            ((LongArrayList)cfreqs).ensureCapacity(capacity+1);
-        } else if (dfreqs instanceof IntLongArrayList) {
-            ((IntLongArrayList)cfreqs).data().ensureCapacity(capacity+1);
-        }
+        CollectionUtils.ensureCapacity(dfreqs, capacity+1);
+        CollectionUtils.ensureCapacity(cfreqs, capacity+1);
         parents.ensureCapacity(capacity+1);
         children.ensureCapacity(capacity+1);
     }
@@ -173,34 +165,15 @@ public class BasicDictionary {
             children.set(i, optimizer.optimize(l));
         }
 
-        // optimize document frequencies
-        if (!(dfreqs instanceof IntLongArrayList)) {
-            boolean fits = true;
-            for (int i = 0; i < dfreqs.size(); i++) {
-                if (dfreqs.get(i) > Integer.MAX_VALUE) {
-                    fits=false;
-                    break;
-                }
-            }
-            if (fits) {
-                dfreqs = new IntLongArrayList(dfreqs);
-            }
+        // optimize frequencies
+        if (!(dfreqs instanceof LongIntArrayList) && LongIntArrayList.fits(dfreqs)){
+            dfreqs = new LongIntArrayList(dfreqs);
+        }
+        if (!(cfreqs instanceof LongIntArrayList) && LongIntArrayList.fits(cfreqs)){
+            cfreqs = new LongIntArrayList(cfreqs);
         }
 
-        // optimize collection frequencies
-        if (!(cfreqs instanceof IntLongArrayList)) {
-            boolean fits = true;
-            for (int i = 0; i < cfreqs.size(); i++) {
-                if (cfreqs.get(i) > Integer.MAX_VALUE) {
-                    fits=false;
-                    break;
-                }
-            }
-            if (fits) {
-                cfreqs = new IntLongArrayList(cfreqs);
-            }
-        }
-
+        // now trim everything
         trim();
     }
 
