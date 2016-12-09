@@ -16,6 +16,9 @@ final class DesqDfsTreeNode {
 
 	// -- member variables --------------------------------------------------------------------------------------------
 
+	// number of states in FST
+	final int numStates;
+
 	/** The output item associated with this node */
 	int itemFid;
 
@@ -34,19 +37,15 @@ final class DesqDfsTreeNode {
 	int currentInputId;
 
 	/** Buffers all snapshots of the current input sequence. Used to avoid adding duplicate snapshots to the
-	 * projected database. The index is the state id of the FST, and each bitset contains one bit per position
-	 * in the current input sequence.
- 	 */
-	BitSet[] currentSnapshots; // buffers all the snapshots for the current input sequence
+	 * projected database. Index of a snapshot is <code>position*fst.numStates() + stateId</code>. */
+	BitSet currentSnapshots;
 
 
 	// -- construction and clearing -----------------------------------------------------------------------------------
 
-	DesqDfsTreeNode(int noFstStates) {
-		currentSnapshots = new BitSet[noFstStates];
-		for(int i = 0; i < noFstStates; i++) {
-			currentSnapshots[i] = new BitSet();
-		}
+	DesqDfsTreeNode(int numStates) {
+		this.numStates = numStates;
+		currentSnapshots = new BitSet(numStates*16);
 		clear();
 	}
 
@@ -56,19 +55,13 @@ final class DesqDfsTreeNode {
 		prefixSupport = 0;
 		currentInputId = -1;
 		projectedDatabase = new PostingList();
-		clearSnapshots();
+		currentSnapshots.clear();
 
 		// clear the children
 		if (childrenByFid == null) {
 			childrenByFid = new Int2ObjectOpenHashMap<>();
 		} else {
 			childrenByFid.clear();
-		}
-	}
-
-	void clearSnapshots() {
-		for (int i = 0; i < currentSnapshots.length; i++) {
-			currentSnapshots[i].clear();
 		}
 	}
 
@@ -92,23 +85,25 @@ final class DesqDfsTreeNode {
 	void expandWithItem(int itemFid, int inputId, long inputSupport, int position, int stateId) {
 		DesqDfsTreeNode child = childrenByFid.get(itemFid);
 		if (child == null) {
-			child = new DesqDfsTreeNode(currentSnapshots.length);
+			child = new DesqDfsTreeNode(numStates);
 			child.itemFid = itemFid;
 			childrenByFid.put(itemFid, child);
 		}
-		
+
+		assert stateId < numStates;
+		final int spIndex = position*numStates + stateId;
 		if (child.currentInputId != inputId) {
 			// start a new posting
 			child.projectedDatabase.newPosting();
-			child.clearSnapshots();
+			child.currentSnapshots.clear();
 			child.prefixSupport += inputSupport;
-			child.currentSnapshots[stateId].set(position);
+			child.currentSnapshots.set(spIndex);
 			child.projectedDatabase.addNonNegativeInt(inputId-child.currentInputId);
 			child.currentInputId = inputId;
 			child.projectedDatabase.addNonNegativeInt(stateId);
 			child.projectedDatabase.addNonNegativeInt(position);
-		} else if (!child.currentSnapshots[stateId].get(position)) {
-			child.currentSnapshots[stateId].set(position);
+		} else if (!child.currentSnapshots.get(spIndex)) {
+			child.currentSnapshots.set(spIndex);
 			child.projectedDatabase.addNonNegativeInt(stateId);
 			child.projectedDatabase.addNonNegativeInt(position);
 		}

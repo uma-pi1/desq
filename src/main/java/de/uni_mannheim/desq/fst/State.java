@@ -7,7 +7,6 @@ import java.util.List;
 
 
 public final class State {
-	
 	int id;
 	// List of transitions
 	ArrayList<Transition> transitionList;
@@ -45,69 +44,64 @@ public final class State {
 		}
 	}
 	
-	private static final class TransitionIterator implements Iterator<ItemState> {
-		Iterator<Transition> transitionsIt;
-		Iterator<ItemState> currentIt;
-		BitSet validToStates;
-		int fid;
-        boolean isNew;
+	public static final class ItemStateIterator implements Iterator<ItemState> {
+		private ArrayList<Transition> transitions;
+		private int nextTransitionIndex;
+		private Iterator<ItemState> currentIt;
+		private boolean currentItHasNext;
+		private BitSet validToStates;
+		private int fid;
 
-		@Override
 		public boolean hasNext() {
-			if (currentIt == null || isNew) {
-				Transition nextTransition = nextTransition();
-				if (nextTransition != null) {
-					currentIt = nextTransition.consume(fid, currentIt);
-                    isNew = false;
-				} else {
-					return false;
-				}
+			if (!currentItHasNext) {
+				moveToNextTransition();
 			}
-			while (!currentIt.hasNext()) {
-				Transition nextTransition = nextTransition();
-				if (nextTransition != null) {
-					currentIt = nextTransition.consume(fid, currentIt);
-				} else {
-					return false;
-				}
-			}
-			return true;
+			return currentItHasNext;
 		}
 
-		@Override
 		public ItemState next() {
-			return currentIt.next();
+			ItemState result = currentIt.next();
+			currentItHasNext = currentIt.hasNext();
+			return result;
 		}
 
-		@Override
 		public void remove() {
 			throw new UnsupportedOperationException();
 		}
 
-		private Transition nextTransition() {
-			if (validToStates==null) {
-				if (transitionsIt.hasNext()) {
-					return transitionsIt.next();
-				} else {
-					return null;
-				}
-			} else {
-				while (transitionsIt.hasNext()) {
-					Transition nextTransition = transitionsIt.next();
-					if (validToStates.get(nextTransition.toState.getId())) {
-						return nextTransition;
+		void moveToNextTransition() {
+			if (validToStates == null) {
+				do {
+					if (nextTransitionIndex >= transitions.size()) {
+						currentItHasNext = false;
+						return;
 					}
-				}
-				return null;
+					Transition nextTransition = transitions.get(nextTransitionIndex++);
+					currentIt = nextTransition.consume(fid, currentIt);
+					currentItHasNext = currentIt.hasNext();
+				} while (!currentItHasNext);
+			} else { // validToStates != null
+				currentItHasNext = false;
+				do {
+					if (nextTransitionIndex >= transitions.size()) {
+						return;
+					}
+					Transition nextTransition = transitions.get( nextTransitionIndex++ );
+					if (validToStates.get(nextTransition.toState.getId())) {
+						currentIt = nextTransition.consume(fid, currentIt);
+						currentItHasNext = currentIt.hasNext();
+					}
+				} while (!currentItHasNext);
 			}
+
 		}
 	}
 	
-	public Iterator<ItemState> consume(int itemFid) {
+	public ItemStateIterator consume(int itemFid) {
 		return consume(itemFid, null, null);
 	}
 	
-	public Iterator<ItemState> consume(int itemFid, Iterator<ItemState> it) {
+	public ItemStateIterator consume(int itemFid, ItemStateIterator it) {
 		return consume(itemFid, it, null);
 	}
 
@@ -116,25 +110,24 @@ public final class State {
 	 *
 	 * If the output item is epsilon, returns (0, next state) pair.
 	 *
-	 * @param itemFid input item
+	 * @param fid input item
 	 * @param it iterator to reuse
 	 * @param validToStates set of next states to consider
 	 *
 	 * @return an iterator over (output item fid, next state) pairs
 	 */
-	public Iterator<ItemState> consume(int itemFid, Iterator<ItemState> it, BitSet validToStates) {
-		TransitionIterator resultIt;
-		if(it != null && it instanceof TransitionIterator)
-			resultIt = (TransitionIterator)it;
-		else
-			resultIt = new TransitionIterator();
+	public ItemStateIterator consume(int fid, ItemStateIterator it, BitSet validToStates) {
+		if (it == null) {
+			it = new ItemStateIterator();
+		}
 
-		resultIt.transitionsIt = transitionList.iterator();
-		resultIt.validToStates = validToStates;
-		resultIt.fid = itemFid;
-		resultIt.isNew = true;
+		it.transitions = transitionList;
+		it.nextTransitionIndex = 0;
+		it.validToStates = validToStates;
+		it.fid = fid;
+		it.moveToNextTransition();
 
-		return resultIt;
+		return it;
 	}
 
 	public boolean isFinal() { 
