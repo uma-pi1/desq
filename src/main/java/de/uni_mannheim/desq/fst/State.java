@@ -10,7 +10,7 @@ public final class State {
 	
 	int id;
 	// List of transitions
-	List<Transition> transitionList;
+	ArrayList<Transition> transitionList;
 	boolean isFinal;
 	boolean isFinalComplete = false;
 
@@ -159,7 +159,7 @@ public final class State {
 		public boolean hasNext() {
 			while(transitionsIt.hasNext()) {
 				transition = transitionsIt.next();
-				if(transition.matches(fid) &&  !toStatesOutput.get(transition.toState.id)) { // returns false if toStatesOutput is to small
+				if(!toStatesOutput.get(transition.toState.id) && transition.matches(fid)) { // returns false if toStatesOutput is to small
 					toState = transition.toState; 
 					toStatesOutput.set(toState.id); // automatically resizes upwards if necessary
 					return true;
@@ -186,14 +186,15 @@ public final class State {
 	
 	public Iterator<State> toStateIterator(int itemFid, Iterator<State> it) {
 		StateIterator resultIt ;
-		if(it != null && it instanceof StateIterator) 
+		if(it != null && it instanceof StateIterator) {
 			resultIt = (StateIterator) it;
-		else
+			resultIt.toStatesOutput.clear();
+		} else {
 			resultIt = new StateIterator();
+		}
 		
 		resultIt.transitionsIt = transitionList.iterator();
 		resultIt.fid = itemFid;
-		resultIt.toStatesOutput.clear();
 		resultIt.toState = null;
 		return resultIt;
 	}

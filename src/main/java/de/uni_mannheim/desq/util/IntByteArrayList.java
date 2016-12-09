@@ -2,6 +2,8 @@ package de.uni_mannheim.desq.util;
 
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 import it.unimi.dsi.fastutil.ints.AbstractIntList;
+import it.unimi.dsi.fastutil.ints.IntList;
+import org.apache.commons.lang3.tuple.Pair;
 
 /** An int list backed by an array of bytes. Can only store integers that fit into a byte. */
 public final class IntByteArrayList extends AbstractIntList {
@@ -56,5 +58,12 @@ public final class IntByteArrayList extends AbstractIntList {
     /** Exposes the underlying byte array list */
     public ByteArrayList data() {
         return data;
+    }
+
+    public static boolean fits(IntList l) {
+        if (l.isEmpty() || l instanceof IntByteArrayList)
+            return true;
+        Pair<Integer,Integer> range = CollectionUtils.range(l);
+        return range.getLeft() >= Byte.MIN_VALUE && range.getRight() <= Byte.MAX_VALUE;
     }
 }

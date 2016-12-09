@@ -6,8 +6,7 @@ import de.uni_mannheim.desq.util.IntShortArrayList;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntList;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.Object2IntMaps;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 
 import java.util.*;
 
@@ -17,9 +16,6 @@ import java.util.*;
  * @author Rainer Gemulla [rgemulla@uni-mannheim.de]
  */
 public abstract class DfaState {
-    private static final String[] EMPTY_STRING_ARRAY = new String[] {};
-    private static final BitSet[] EMPTY_BITSET_ARRAY = new BitSet[] {};
-
     /** The DFA to which this state belongs. */
     Dfa dfa;
 
@@ -34,7 +30,7 @@ public abstract class DfaState {
 
     /** All DFA states reachable from this state. Position 0 is special: It stores the next state for all items
      * that are not matched by a transition in {@link #transitionByLabel} and may be <code>null</code>. */
-    List<DfaState> reachableDfaStates = new ArrayList<>();
+    ArrayList<DfaState> reachableDfaStates = new ArrayList<>();
 
     /** For each item (fid), the index of the next DFA state in {@link #reachableDfaStates}. If
      * {@link #transitionByLabel} is empty, this list is not used and set to <code>null</code>. In this case,
@@ -46,15 +42,17 @@ public abstract class DfaState {
 
     /** The distinct labels of the outgoing transitions of the {@link #fstStates} corresponding to this DFA state.
      * Only transitions that do not fire on all items are relevant and stored here. Sorted lexicigraphically.
+     * Can be <code>null</code> (no such transitions).
      *
      * Shared by all states with the same outgoing transition labels.
      */
-    String[] transitionLabels = EMPTY_STRING_ARRAY;
+    String[] transitionLabels = null;
 
     /** For each label in {@link #transitionLabels}, the set of FST states that can be reached for an item that matches
-     * the corresponding transition. Parallel array to {@link #transitionLabels}.
+     * the corresponding transition. Parallel array to {@link #transitionLabels}. Can be <code>null</code> (no
+     * such transitions).
      */
-    BitSet[] toStatesByLabel = EMPTY_BITSET_ARRAY;
+    BitSet[] toStatesByLabel = null;
 
     /** For each label in {@link #transitionLabels}, an arbitrary FST transition with this label.
      * Parallel array to {@link #transitionLabels}.
@@ -64,17 +62,18 @@ public abstract class DfaState {
     Transition[] transitionByLabel = null;
 
     /** For each combination of transitions in {@link #transitionLabels} that can be fired jointly by an
-     * item, the position of the next DFA state in {@link #reachableDfaStates}.
+     * item, the position of the next DFA state in {@link #reachableDfaStates}. Can be <code>null</code> (no
+     * such transitions).
      *
      * Shared by all states with the same outgoing transition labels.
      */
-    Object2IntMap<BitSet> indexByFiredTransitions = Object2IntMaps.EMPTY_MAP;
+    Object2IntOpenHashMap<BitSet> indexByFiredTransitions = null;
 
-    /** Inverse of {@link #indexByFiredTransitions}.
+    /** Inverse of {@link #indexByFiredTransitions}. Can be null.
      *
      * Shared by all states with the same outgoing transition labels.
      */
-    List<BitSet> firedTransitionsByIndex = new ArrayList<>();
+    List<BitSet> firedTransitionsByIndex = null;
 
 
     public DfaState(Dfa dfa, BitSet fstStates) {
@@ -179,6 +178,9 @@ public abstract class DfaState {
             this.transitionLabels = toStatesByLabel.keySet().toArray(new String[]{}); // sorted (since sorted map)
             this.toStatesByLabel = toStatesByLabel.values().toArray(new BitSet[]{}); // sorted conformingly
             this.transitionByLabel = transitionByLabel.values().toArray(new Transition[]{}); // sorted conformingly
+            this.indexByFiredTransitions = new Object2IntOpenHashMap<>();
+            this.firedTransitionsByIndex = new ArrayList<>();
+            this.firedTransitionsByIndex.add(null); // unused / placeholser
 
             // and initialize the index
             if (transitionLabels.length <=7) {

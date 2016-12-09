@@ -303,7 +303,7 @@ public class Dictionary extends BasicDictionary implements Externalizable, Writa
 		isFrozen = true;
 	}
 
-	/** Returns a copy of this dictionary. */
+	/** Returns a copy of this dictionary. Even if this dictionary is frozen, the copy will be writable. */
 	@Override
 	public Dictionary deepCopy() {
 		return new Dictionary(this);
@@ -375,9 +375,10 @@ public class Dictionary extends BasicDictionary implements Externalizable, Writa
 		return new BasicDictionary(this, true);
 	}
 
-	/** Returns a memory-optimized {@link BasicDictionary} copy of this dictionary. */
+	/** Returns a memory-optimized {@link BasicDictionary} copy of this dictionary. When the dictionary is frozen,
+	 * this method has the same behaviour as {@link #shallowCopyAsBasicDictionary()}. */
 	public BasicDictionary deepCopyAsBasicDictionary() {
-		return super.deepCopy();
+		return isFrozen ? shallowCopyAsBasicDictionary() : super.deepCopy();
 	}
 
 	// -- computing supports ------------------------------------------------------------------------------------------
