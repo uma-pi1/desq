@@ -31,7 +31,7 @@ public class DesqDfsDriver extends Driver {
     }
 
     public void runDesqDfs(boolean pruneIrrelevantInputs, boolean useTwoPass) throws IOException {
-
+        logger.setLevel(Level.INFO);
         // Set IO paths
         Dictionary dict = Dictionary.loadFrom(dictFile);
         dict.freeze();
