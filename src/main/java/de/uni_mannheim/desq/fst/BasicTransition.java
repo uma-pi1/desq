@@ -216,7 +216,7 @@ public final class BasicTransition extends Transition {
 	}
 
 	@Override
-	public Iterator<ItemState> consume(int itemFid, Iterator<ItemState> it) {
+	public ItemStateIterator consume(int itemFid, Iterator<ItemState> it) {
 		ItemStateIterator resultIt;
 		if (it != null && it instanceof ItemStateIterator)
             resultIt = (ItemStateIterator) it;

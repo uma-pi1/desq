@@ -45,7 +45,7 @@ public class StateExample {
 		fromState.addTransition(t4);
 
 		fid = dict.fidOf("NN@");
-		Iterator<ItemState> it = fromState.consume(fid);
+		State.ItemStateIterator it = fromState.consume(fid);
 		while (it.hasNext()) {
 			System.out.println();
 			ItemState itemState = it.next();

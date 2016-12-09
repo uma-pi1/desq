@@ -136,6 +136,7 @@ public class ExampleUtils {
     public static DesqMiner runProtein(DesqProperties minerConf) throws IOException {
         Dictionary dict = Dictionary.loadFrom("data-local/sma-protein/protein-dict.avro.gz");
         dict.recomputeFids();
+        dict.freeze();
         File dataFile = new File("data-local/sma-protein/protein-data-gid.del");
         SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), false);
         dataReader.setDictionary(dict);

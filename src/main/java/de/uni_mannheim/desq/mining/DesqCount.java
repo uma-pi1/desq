@@ -13,7 +13,6 @@ import org.apache.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Iterator;
 
 public final class DesqCount extends DesqMiner {
 	private static final Logger logger = Logger.getLogger(DesqCount.class);
@@ -61,7 +60,7 @@ public final class DesqCount extends DesqMiner {
 	final Object2LongOpenHashMap<Sequence> outputSequences = new Object2LongOpenHashMap<>();
 
 	/** Stores iterators over output item/next state pairs for reuse. Indexed by input position. */
-	final ArrayList<Iterator<ItemState>> itemStateIterators = new ArrayList<>();
+	final ArrayList<State.ItemStateIterator> itemStateIterators = new ArrayList<>();
 
 	/** Stores the part of the output sequence produced so far. */
 	final Sequence prefix;
@@ -229,7 +228,7 @@ public final class DesqCount extends DesqMiner {
 		final BitSet validToStates = useTwoPass
 				? dfaStateSequence.get( inputSequence.size()-(pos+1) ).getFstStates() // only states from first pass
 				: null; // all states
-		Iterator<ItemState> itemStateIt;
+		State.ItemStateIterator itemStateIt;
 		if (level>=itemStateIterators.size()) {
 			itemStateIt = state.consume(itemFid, null, validToStates);
 			itemStateIterators.add(itemStateIt);

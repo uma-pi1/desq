@@ -1,9 +1,6 @@
 package de.uni_mannheim.desq.fst;
 
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 
 public final class State {
@@ -45,16 +42,16 @@ public final class State {
 		}
 	}
 	
-	private static final class TransitionIterator implements Iterator<ItemState> {
-		Iterator<Transition> transitionsIt;
-		Iterator<ItemState> currentIt;
-		BitSet validToStates;
-		int fid;
-        boolean isNew;
+	public static final class ItemStateIterator implements Iterator<ItemState> {
+		private ArrayList<Transition> transitions;
+		private int nextTransitionIndex;
+		private Iterator<ItemState> currentIt;
+		private BitSet validToStates;
+		private int fid;
+		private boolean isNew;
 
-		@Override
 		public boolean hasNext() {
-			if (currentIt == null || isNew) {
+			if (isNew) {
 				Transition nextTransition = nextTransition();
 				if (nextTransition != null) {
 					currentIt = nextTransition.consume(fid, currentIt);
@@ -74,26 +71,24 @@ public final class State {
 			return true;
 		}
 
-		@Override
 		public ItemState next() {
 			return currentIt.next();
 		}
 
-		@Override
 		public void remove() {
 			throw new UnsupportedOperationException();
 		}
 
 		private Transition nextTransition() {
 			if (validToStates==null) {
-				if (transitionsIt.hasNext()) {
-					return transitionsIt.next();
+				if (nextTransitionIndex < transitions.size()) {
+					return transitions.get( nextTransitionIndex++ );
 				} else {
 					return null;
 				}
 			} else {
-				while (transitionsIt.hasNext()) {
-					Transition nextTransition = transitionsIt.next();
+				while (nextTransitionIndex < transitions.size()) {
+					Transition nextTransition = transitions.get( nextTransitionIndex++ );
 					if (validToStates.get(nextTransition.toState.getId())) {
 						return nextTransition;
 					}
@@ -103,11 +98,11 @@ public final class State {
 		}
 	}
 	
-	public Iterator<ItemState> consume(int itemFid) {
+	public ItemStateIterator consume(int itemFid) {
 		return consume(itemFid, null, null);
 	}
 	
-	public Iterator<ItemState> consume(int itemFid, Iterator<ItemState> it) {
+	public ItemStateIterator consume(int itemFid, ItemStateIterator it) {
 		return consume(itemFid, it, null);
 	}
 
@@ -122,19 +117,19 @@ public final class State {
 	 *
 	 * @return an iterator over (output item fid, next state) pairs
 	 */
-	public Iterator<ItemState> consume(int itemFid, Iterator<ItemState> it, BitSet validToStates) {
-		TransitionIterator resultIt;
-		if(it != null && it instanceof TransitionIterator)
-			resultIt = (TransitionIterator)it;
-		else
-			resultIt = new TransitionIterator();
+	public ItemStateIterator consume(int itemFid, ItemStateIterator it, BitSet validToStates) {
+		if (it == null) {
+			it = new ItemStateIterator();
+			it.currentIt = Collections.emptyIterator();
+		}
 
-		resultIt.transitionsIt = transitionList.iterator();
-		resultIt.validToStates = validToStates;
-		resultIt.fid = itemFid;
-		resultIt.isNew = true;
+		it.transitions = transitionList;
+		it.nextTransitionIndex = 0;
+		it.validToStates = validToStates;
+		it.fid = itemFid;
+		it.isNew = true;
 
-		return resultIt;
+		return it;
 	}
 
 	public boolean isFinal() { 

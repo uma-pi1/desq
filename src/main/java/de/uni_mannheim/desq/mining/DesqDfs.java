@@ -5,14 +5,18 @@ import de.uni_mannheim.desq.patex.PatEx;
 import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Iterator;
 
 public final class DesqDfs extends MemoryDesqMiner {
 	private static final Logger logger = Logger.getLogger(DesqDfs.class);
+	private static final boolean DEBUG = false;
+	static {
+		if (DEBUG) logger.setLevel(Level.TRACE);
+	}
 
 	// -- parameters for mining ---------------------------------------------------------------------------------------
 
@@ -39,7 +43,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	private final int largestFrequentFid;
 
     /** Stores iterators over output item/next state pairs for reuse. */
-	private final ArrayList<Iterator<ItemState>> itemStateIterators = new ArrayList<>();
+	private final ArrayList<State.ItemStateIterator> itemStateIterators = new ArrayList<>();
 
     /** An iterator over a projected database (a posting list) for reuse */
 	private final PostingList.Iterator projectedDatabaseIt = new PostingList.Iterator();
@@ -159,6 +163,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				current.inputId = inputSequences.size()-1;
 				current.inputSequence = inputSequences.get(current.inputId);
 				current.dfaStateSequence = dfaStateSequences.get(current.inputId);
+				current.reachedWithoutOutput.clear();
 				for (int i = 0; i< dfaInitialPos.size(); i++) {
 					// for those positions, start with the initial state
 					incStep(dfaInitialPos.getInt(i), fst.getInitialState(), 0);
@@ -181,6 +186,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			assert current.node == root;
 			current.inputId = inputSequences.size()-1;
 			current.inputSequence = inputSequences.get(current.inputId);
+			current.reachedWithoutOutput.clear();
 			incStep(0, fst.getInitialState(), 0);
 		}
 	}
@@ -217,7 +223,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		final BitSet validToStates = useTwoPass
 				? current.dfaStateSequence[ current.inputSequence.size()-(pos+1) ].getFstStates() // only states from first pass
 				: null; // all states
-		Iterator<ItemState> itemStateIt;
+		State.ItemStateIterator itemStateIt;
 		if (level>=itemStateIterators.size()) {
 			itemStateIt = state.consume(itemFid, null, validToStates);
 			itemStateIterators.add(itemStateIt);
@@ -241,6 +247,14 @@ public final class DesqDfs extends MemoryDesqMiner {
 				if (useTwoPass && current.node==root && toState == fst.getInitialState()) {
 					continue;
 				}
+
+				// if we saw this state at this position without output (for this input sequence and for the currently
+				// expanded node) before, we do not need to process it again
+				int spIndex = pos*fst.numStates() + toState.getId();
+				if (current.reachedWithoutOutput.get(spIndex)) {
+					continue;
+				}
+				current.reachedWithoutOutput.set(spIndex);
 
 				// otherwise continue running the FST
 				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
@@ -273,12 +287,19 @@ public final class DesqDfs extends MemoryDesqMiner {
 			// to output it (and then output it if the support is large enough)
 			long support = 0;
 
+
 			// set up the expansion
 			assert childNode.prefixSupport >= sigma;
 			prefix.set(lastPrefixIndex, childNode.itemFid);
 			projectedDatabaseIt.reset(childNode.projectedDatabase);
 			current.inputId = -1;
 			current.node = childNode;
+
+			// print debug information
+			if (DEBUG) {
+				logger.trace("Expanding " + prefix + ", prefix support=" + childNode.prefixSupport +
+						", #bytes=" + childNode.projectedDatabase.noBytes());
+			}
 
 			do {
 				// process next input sequence
@@ -287,6 +308,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				if (useTwoPass) {
 					current.dfaStateSequence = dfaStateSequences.get(current.inputId);
 				}
+				current.reachedWithoutOutput.clear();
 
 				// iterate over state@pos snapshots for this input sequence
                 boolean reachedFinalStateWithoutOutput = false;
@@ -328,7 +350,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		int inputId;
 		WeightedSequence inputSequence;
 		DfaState[] dfaStateSequence;
-		IntList dfaInitialPos;
 		DesqDfsTreeNode node;
+		BitSet reachedWithoutOutput = new BitSet();
 	}
 }
