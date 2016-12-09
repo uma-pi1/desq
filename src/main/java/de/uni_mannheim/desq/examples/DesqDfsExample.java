@@ -64,10 +64,22 @@ public class DesqDfsExample {
         ExampleUtils.runNetflixDeep(conf);
     }
 
+    public static void protein() throws  IOException {
+		String patternExpression = "([S|T]).*(.).*([R|K])";
+		//String patternExpression = "([S=|T=]).*(.).*([R=|K=])";
+		int sigma = 500;
+
+		DesqProperties conf = DesqDfs.createConf(patternExpression, sigma);
+		conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
+		conf.setProperty("desq.mining.use.two.pass", true);
+		ExampleUtils.runProtein(conf);
+	}
+
 	public static void main(String[] args) throws IOException {
 		icdm16();
 		//nyt();
 		//netflixFlat();
         //netflixDeep();
+		//protein();
 	}
 }
