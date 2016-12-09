@@ -351,6 +351,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 		WeightedSequence inputSequence;
 		DfaState[] dfaStateSequence;
 		DesqDfsTreeNode node;
+
+		/** For each state/position pair, whether we have reached this state and position without further output
+		 * already. Index of a pair is <code>pos*fst.numStates() + toState.getId()</code>.
+		 */
 		BitSet reachedWithoutOutput = new BitSet();
 	}
 }
