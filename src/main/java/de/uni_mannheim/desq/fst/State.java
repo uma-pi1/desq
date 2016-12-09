@@ -1,10 +1,12 @@
 package de.uni_mannheim.desq.fst;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.Iterator;
+import java.util.List;
 
 
 public final class State {
-	
 	int id;
 	// List of transitions
 	ArrayList<Transition> transitionList;
@@ -46,55 +48,52 @@ public final class State {
 		private ArrayList<Transition> transitions;
 		private int nextTransitionIndex;
 		private Iterator<ItemState> currentIt;
+		private boolean currentItHasNext;
 		private BitSet validToStates;
 		private int fid;
-		private boolean isNew;
 
 		public boolean hasNext() {
-			if (isNew) {
-				Transition nextTransition = nextTransition();
-				if (nextTransition != null) {
-					currentIt = nextTransition.consume(fid, currentIt);
-                    isNew = false;
-				} else {
-					return false;
-				}
+			if (!currentItHasNext) {
+				moveToNextTransition();
 			}
-			while (!currentIt.hasNext()) {
-				Transition nextTransition = nextTransition();
-				if (nextTransition != null) {
-					currentIt = nextTransition.consume(fid, currentIt);
-				} else {
-					return false;
-				}
-			}
-			return true;
+			return currentItHasNext;
 		}
 
 		public ItemState next() {
-			return currentIt.next();
+			ItemState result = currentIt.next();
+			currentItHasNext = currentIt.hasNext();
+			return result;
 		}
 
 		public void remove() {
 			throw new UnsupportedOperationException();
 		}
 
-		private Transition nextTransition() {
-			if (validToStates==null) {
-				if (nextTransitionIndex < transitions.size()) {
-					return transitions.get( nextTransitionIndex++ );
-				} else {
-					return null;
-				}
-			} else {
-				while (nextTransitionIndex < transitions.size()) {
+		void moveToNextTransition() {
+			if (validToStates == null) {
+				do {
+					if (nextTransitionIndex >= transitions.size()) {
+						currentItHasNext = false;
+						return;
+					}
+					Transition nextTransition = transitions.get(nextTransitionIndex++);
+					currentIt = nextTransition.consume(fid, currentIt);
+					currentItHasNext = currentIt.hasNext();
+				} while (!currentItHasNext);
+			} else { // validToStates != null
+				currentItHasNext = false;
+				do {
+					if (nextTransitionIndex >= transitions.size()) {
+						return;
+					}
 					Transition nextTransition = transitions.get( nextTransitionIndex++ );
 					if (validToStates.get(nextTransition.toState.getId())) {
-						return nextTransition;
+						currentIt = nextTransition.consume(fid, currentIt);
+						currentItHasNext = currentIt.hasNext();
 					}
-				}
-				return null;
+				} while (!currentItHasNext);
 			}
+
 		}
 	}
 	
@@ -111,23 +110,22 @@ public final class State {
 	 *
 	 * If the output item is epsilon, returns (0, next state) pair.
 	 *
-	 * @param itemFid input item
+	 * @param fid input item
 	 * @param it iterator to reuse
 	 * @param validToStates set of next states to consider
 	 *
 	 * @return an iterator over (output item fid, next state) pairs
 	 */
-	public ItemStateIterator consume(int itemFid, ItemStateIterator it, BitSet validToStates) {
+	public ItemStateIterator consume(int fid, ItemStateIterator it, BitSet validToStates) {
 		if (it == null) {
 			it = new ItemStateIterator();
-			it.currentIt = Collections.emptyIterator();
 		}
 
 		it.transitions = transitionList;
 		it.nextTransitionIndex = 0;
 		it.validToStates = validToStates;
-		it.fid = itemFid;
-		it.isNew = true;
+		it.fid = fid;
+		it.moveToNextTransition();
 
 		return it;
 	}
