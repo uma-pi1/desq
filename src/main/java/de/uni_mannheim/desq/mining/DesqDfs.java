@@ -183,7 +183,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				currentSpReachedWithoutOutput.clear();
 				for (int i = 0; i< dfaInitialPos.size(); i++) {
 					// for those positions, start with the initial state
-					incStep(dfaInitialPos.getInt(i), fst.getInitialState(), 0);
+					incStep(dfaInitialPos.getInt(i), fst.getInitialState(), 0, true);
 				}
 
 				// clean up
@@ -206,7 +206,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			currentInputId = inputSequences.size()-1;
 			currentInputSequence = inputSequences.get(currentInputId);
 			currentSpReachedWithoutOutput.clear();
-			incStep(0, fst.getInitialState(), 0);
+			incStep(0, fst.getInitialState(), 0, true);
 		}
 	}
 
@@ -228,10 +228,11 @@ public final class DesqDfs extends MemoryDesqMiner {
      * @param pos next item to read
      * @param state current FST state
      * @param level recursion level (used for reusing iterators without conflict)
+	 * @param expand if an item is produced, whether to add it to the corresponding child node
      *
      * @return true if the FST can accept without further output
      */
-	private boolean incStep(int pos, State state, final int level) {
+	private boolean incStep(int pos, State state, final int level, final boolean expand) {
 		boolean reachedFinalStateWithoutOutput = false;
 
 pos: 	do { // loop over positions; used for tail recursion optimization
@@ -272,7 +273,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 						currentSpReachedWithoutOutput.set(spIndex);
 						if (itemStateIt.hasNext()) {
 							// recurse
-							reachedFinalStateWithoutOutput |= incStep(pos + 1, toState, level + 1);
+							reachedFinalStateWithoutOutput |= incStep(pos + 1, toState, level + 1, expand);
 							continue itemState;
 						} else {
 							// tail recurse
@@ -281,15 +282,15 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 							continue pos;
 						}
 					}
-				} else if (largestFrequentFid >= outputItemFid) {
+				} else if (expand & largestFrequentFid >= outputItemFid) {
 					// we have an output and its frequent, so update the corresponding projected database
 					currentNode.expandWithItem(outputItemFid, currentInputId, currentInputSequence.weight,
-							pos + 1, toState.getId());
-					continue itemState;
+							pos + 1, toState);
 				}
+				continue itemState;
 			}
 
-			break; // skipped only bycall to "continue pos" above (tail recursion optimization)
+			break; // skipped only by call to "continue pos" above (tail recursion optimization)
 		} while (true);
 		return reachedFinalStateWithoutOutput;
 	}
@@ -308,50 +309,56 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 		// iterate over all children
 		for (final DesqDfsTreeNode childNode : node.childrenByFid.values() )  {
+			assert childNode.partialSupport + childNode.prefixSupport >= sigma;
+
 			// while we expand the child node, we also compute its actual support to determine whether or not
 			// to output it (and then output it if the support is large enough)
-			long support = 0;
+			// we start with the partial support; may be increased when processing the projected database
+			long support = childNode.partialSupport;
 
-
-			// set up the expansion
-			assert childNode.prefixSupport >= sigma;
+			// set the current (parial) output sequence
 			prefix.set(lastPrefixIndex, childNode.itemFid);
-			projectedDatabaseIt.reset(childNode.projectedDatabase);
-			currentInputId = -1;
-			currentNode = childNode;
 
 			// print debug information
 			if (DEBUG) {
-				logger.trace("Expanding " + prefix + ", prefix support=" + childNode.prefixSupport +
-						", #bytes=" + childNode.projectedDatabase.noBytes());
+				logger.trace("Expanding " + prefix + ", partial support=" + support + ", prefix support="
+						+ childNode.prefixSupport + ", #bytes=" + childNode.projectedDatabase.noBytes());
 			}
 
-			do {
-				// process next input sequence
-				currentInputId += projectedDatabaseIt.nextNonNegativeInt();
-				currentInputSequence = inputSequences.get(currentInputId);
-				if (useTwoPass) {
-					currentDfaStateSequence = dfaStateSequences.get(currentInputId);
-				}
-				currentSpReachedWithoutOutput.clear();
+			if (childNode.prefixSupport > 0) { // otherwise projected DB is empty and support = partial support
+				// set up the expansion
+				boolean expand = childNode.prefixSupport >= sigma; // otherwise expansions will be infrequent anyway
+				projectedDatabaseIt.reset(childNode.projectedDatabase);
+				currentInputId = -1;
+				currentNode = childNode;
 
-				// iterate over state@pos snapshots for this input sequence
-                boolean reachedFinalStateWithoutOutput = false;
 				do {
-					final int stateId = projectedDatabaseIt.nextNonNegativeInt();
-					final int pos = projectedDatabaseIt.nextNonNegativeInt(); // position of next input item
-					reachedFinalStateWithoutOutput |= incStep(pos, fst.getState(stateId), 0);
-				} while (projectedDatabaseIt.hasNext());
+					// process next input sequence
+					currentInputId += projectedDatabaseIt.nextNonNegativeInt();
+					currentInputSequence = inputSequences.get(currentInputId);
+					if (useTwoPass) {
+						currentDfaStateSequence = dfaStateSequences.get(currentInputId);
+					}
+					currentSpReachedWithoutOutput.clear();
 
-                // if we reached a final state without output, increment the support of this child node
-				if (reachedFinalStateWithoutOutput) {
-					support += currentInputSequence.weight;
-				}
+					// iterate over state@pos snapshots for this input sequence
+					boolean reachedFinalStateWithoutOutput = false;
+					do {
+						final int stateId = projectedDatabaseIt.nextNonNegativeInt();
+						final int pos = projectedDatabaseIt.nextNonNegativeInt(); // position of next input item
+						reachedFinalStateWithoutOutput |= incStep(pos, fst.getState(stateId), 0, expand);
+					} while (projectedDatabaseIt.hasNext());
 
-				// now go to next posting (next input sequence)
-			} while (projectedDatabaseIt.nextPosting());
+					// if we reached a final state without output, increment the support of this child node
+					if (reachedFinalStateWithoutOutput) {
+						support += currentInputSequence.weight;
+					}
 
-			// output the patterns for the current child node if it turns out to be frequent
+					// now go to next posting (next input sequence)
+				} while (projectedDatabaseIt.nextPosting());
+			}
+
+			// output the pattern for the current child node if it turns out to be frequent
 			if (support >= sigma) {
 				if (ctx.patternWriter != null) {
 					ctx.patternWriter.write(prefix, support);

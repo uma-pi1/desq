@@ -7,8 +7,8 @@ import java.io.IOException;
 
 public class DesqDfsExample {
 	public static void nyt() throws IOException {
-		int sigma = 100;
-		int gamma = 0;
+		int sigma = 10;
+		int gamma = 1;
 		int lambda = 3;
 		boolean generalize = false;
 		String patternExp = DesqDfs.patternExpressionFor(gamma, lambda, generalize);
@@ -65,7 +65,7 @@ public class DesqDfsExample {
         ExampleUtils.runNetflixDeep(conf);
     }
 
-    public static void protein() throws  IOException {
+    public static void protein() throws IOException {
 		String patternExpression = "([S|T]).*(.).*([R|K])";
 		//String patternExpression = "([S=|T=]).*(.).*([R=|K=])";
 		int sigma = 500;
