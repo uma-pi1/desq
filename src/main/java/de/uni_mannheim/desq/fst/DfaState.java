@@ -147,7 +147,7 @@ public abstract class DfaState {
                     defaultTransition.set(t.getToState().getId());
                 } else {
                     // otherwise we remember the transition
-                    String label = t.toPatternExpression();
+                    String label = t.itemExpression();
                     BitSet toStates = toStatesByLabel.computeIfAbsent(label, k -> new BitSet(dfa.fst.numStates()));
                     transitionByLabel.put(label, t);
                     toStates.set(t.getToState().getId());
@@ -155,13 +155,9 @@ public abstract class DfaState {
                     // if it was a new label, compute the fired items
                     if (firedItemsByLabel!= null && !firedItemsByLabel.containsKey(label)) {
                         IntArrayList firedItems = new IntArrayList(dfa.dict.lastFid() + 1);
-                        IntIterator it = t.matchedFidIterator();
+                        IntIterator it = t.firedFidIterator(dfa.largestFrequentItemFid);
                         while (it.hasNext()) {
-                            int fid = it.nextInt();
-                            boolean matches = !t.hasOutput() || t.matchesWithFrequentOutput(fid, dfa.largestFrequentItemFid);
-                            if (matches) {
-                                firedItems.add(fid);
-                            }
+                            firedItems.add(it.nextInt());
                         }
                         firedItems.trim();
                         firedItemsByLabel.put(label, firedItems);

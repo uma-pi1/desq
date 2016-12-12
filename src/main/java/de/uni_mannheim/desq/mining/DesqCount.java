@@ -127,7 +127,6 @@ public final class DesqCount extends DesqMiner {
 		} else {
 			this.dfa = null;
 		}
-
 	}
 
 	public static DesqProperties createConf(String patternExpression, long sigma) {
@@ -230,7 +229,7 @@ public final class DesqCount extends DesqMiner {
 				: null; // all states
 		State.ItemStateIterator itemStateIt;
 		if (level>=itemStateIterators.size()) {
-			itemStateIt = state.consume(itemFid, null, validToStates);
+			itemStateIt = state.consume(itemFid, new State.ItemStateIterator(ctx.dict.isForest()), validToStates);
 			itemStateIterators.add(itemStateIt);
 		} else {
 			itemStateIt = state.consume(itemFid, itemStateIterators.get(level), validToStates);

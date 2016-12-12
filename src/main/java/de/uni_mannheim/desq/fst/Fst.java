@@ -16,9 +16,9 @@ public final class Fst {
 	State initialState;
 	
 	/** list of states; initialized only after state numbers are updated; see updateStates() */
-	List<State> states = new ArrayList<>();
+	ArrayList<State> states = new ArrayList<>();
 
-    List<State> finalStates = new ArrayList<>();
+	ArrayList<State> finalStates = new ArrayList<>();
 
     public Fst() {
         this(false);
@@ -117,6 +117,17 @@ public final class Fst {
 	/** Minimizes this FST to the extent possible */
 	public void minimize() {
 		FstOperations.minimize(this);
+		optimize();
+	}
+
+	/** Performs various internal optimizations without logically modifying this FST. Currently reorders
+	 * transitions so that emtpy-output transitions occur last.
+	 */
+	public void optimize() {
+		for (int s=0; s<states.size(); s++) {
+			State state = states.get(s);
+			Collections.sort(state.transitionList, (o1,o2) -> Boolean.compare(!o1.hasOutput(), !o2.hasOutput()));
+		}
 	}
 
 	// -- printing ----------------------------------------------------------------------------------------------------
@@ -183,7 +194,7 @@ public final class Fst {
 		fstVisualizer.beginGraph();
 		for(State s : states) {
 			for(Transition t : s.transitionList)
-                fstVisualizer.add(String.valueOf(s.id), t.labelString(), String.valueOf(t.getToState().id));
+                fstVisualizer.add(String.valueOf(s.id), t.itemExpression(), String.valueOf(t.getToState().id));
 			if(s.isFinal)
 				fstVisualizer.addFinalState(String.valueOf(s.id));
 			if(s.isFinalComplete)
@@ -203,7 +214,7 @@ public final class Fst {
 		List<Edge> edges = new LinkedList<>();
 		for (State s : getStates()) {
 			for (Transition t : s.getTransitions()) {
-				edges.add(new Edge(s.id, t.toState.id, t.toPatternExpression()));
+				edges.add(new Edge(s.id, t.toState.id, t.itemExpression()));
 			}
 			if (s.isFinal()) {
 				if (s.isFinalComplete) {
@@ -336,7 +347,7 @@ public final class Fst {
 				for(int stateId : stateIdSet) {
 					for(Transition transition : getState(stateId).transitionList) {
 						isFinal = transition.toState.isFinal;
-						if(transition.isDotEps()) {
+						if(transition.isUncapturedDot()) {
 							//add toState
 							nextStateIdSet.add(transition.toState.id);
 						} else {

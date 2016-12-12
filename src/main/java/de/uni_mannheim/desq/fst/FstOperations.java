@@ -129,6 +129,8 @@ public final class FstOperations {
 		// reverse back and determinize
 		initialStates = fst.reverse(false);
 		partiallyDeterminize(fst, initialStates);
+
+		fst.optimize();
 	}
 	
 	public static List<State> reverse(Fst fst) {
@@ -202,6 +204,8 @@ public final class FstOperations {
 			newInitialStates.clear();
 			newInitialStates.add(fst.initialState);
 		}
+
+		fst.optimize();
 		return newInitialStates;
 	}
 	

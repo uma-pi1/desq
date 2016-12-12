@@ -13,7 +13,6 @@ public final class State {
 	boolean isFinal;
 	boolean isFinalComplete = false;
 
-	
 	public State() {
 		this(false);
 	}
@@ -51,6 +50,11 @@ public final class State {
 		private boolean currentItHasNext;
 		private BitSet validToStates;
 		private int fid;
+		private final Transition.ItemStateIteratorCache itCache;
+
+		public ItemStateIterator(boolean isForest) {
+			 itCache = new Transition.ItemStateIteratorCache(isForest);
+		}
 
 		public boolean hasNext() {
 			if (!currentItHasNext) {
@@ -77,7 +81,7 @@ public final class State {
 						return;
 					}
 					Transition nextTransition = transitions.get(nextTransitionIndex++);
-					currentIt = nextTransition.consume(fid, currentIt);
+					currentIt = nextTransition.consume(fid, itCache);
 					currentItHasNext = currentIt.hasNext();
 				} while (!currentItHasNext);
 			} else { // validToStates != null
@@ -88,17 +92,16 @@ public final class State {
 					}
 					Transition nextTransition = transitions.get( nextTransitionIndex++ );
 					if (validToStates.get(nextTransition.toState.getId())) {
-						currentIt = nextTransition.consume(fid, currentIt);
+						currentIt = nextTransition.consume(fid, itCache);
 						currentItHasNext = currentIt.hasNext();
 					}
 				} while (!currentItHasNext);
 			}
-
 		}
 	}
 	
-	public ItemStateIterator consume(int itemFid) {
-		return consume(itemFid, null, null);
+	public ItemStateIterator newIterator(boolean isForest) {
+		return new ItemStateIterator(isForest);
 	}
 	
 	public ItemStateIterator consume(int itemFid, ItemStateIterator it) {
@@ -117,16 +120,11 @@ public final class State {
 	 * @return an iterator over (output item fid, next state) pairs
 	 */
 	public ItemStateIterator consume(int fid, ItemStateIterator it, BitSet validToStates) {
-		if (it == null) {
-			it = new ItemStateIterator();
-		}
-
 		it.transitions = transitionList;
 		it.nextTransitionIndex = 0;
 		it.validToStates = validToStates;
 		it.fid = fid;
 		it.moveToNextTransition();
-
 		return it;
 	}
 
@@ -173,33 +171,21 @@ public final class State {
 		}
 	}
 	
-	public Iterator<State> toStateIterator(int itemFid) {
+	public StateIterator toStateIterator(int itemFid) {
 		return toStateIterator(itemFid, null);
 	}
 	
-	public Iterator<State> toStateIterator(int itemFid, Iterator<State> it) {
-		StateIterator resultIt ;
-		if(it != null && it instanceof StateIterator) {
-			resultIt = (StateIterator) it;
-			resultIt.toStatesOutput.clear();
+	public StateIterator toStateIterator(int itemFid, StateIterator it) {
+		if(it != null) {
+			it.toStatesOutput.clear();
 		} else {
-			resultIt = new StateIterator();
+			it = new StateIterator();
 		}
 		
-		resultIt.transitionsIt = transitionList.iterator();
-		resultIt.fid = itemFid;
-		resultIt.toState = null;
-		return resultIt;
-	}
-
-	public void removeTransition(Transition t) {
-		//TODO:swap with the last element and delete the last element
-		int i = 0;
-		for(; i < transitionList.size(); i++) {
-			if(t == transitionList.get(i))
-				break;
-		}
-		transitionList.remove(i);
+		it.transitionsIt = transitionList.iterator();
+		it.fid = itemFid;
+		it.toState = null;
+		return it;
 	}
 
 	/** Remove all outgoing transitions from this state */

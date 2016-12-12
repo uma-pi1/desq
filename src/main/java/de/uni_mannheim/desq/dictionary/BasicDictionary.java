@@ -248,6 +248,24 @@ public class BasicDictionary {
         };
     }
 
+    public IntIterator fidIterator(final int maxFid) {
+        return new AbstractIntIterator() {
+            int nextFid = firstFid();
+
+            @Override
+            public boolean hasNext() {
+                return nextFid >= 0 & nextFid <= maxFid;
+            }
+
+            @Override
+            public int nextInt() {
+                int result = nextFid;
+                nextFid = nextFid(result);
+                return result;
+            }
+        };
+    }
+
     /** Returns the fid for the specified gid or -1 if not present */
     public int fidOf(int gid) {
         return gidIndex.get(gid);
@@ -451,6 +469,7 @@ public class BasicDictionary {
     public boolean hasAscendantWithFidBelow(int fid, int maxFid) {
         // TODO: may be slow when there are lots of ancendants that can be reached via multiple paths and are all
         // infrequent
+        if (!containsFid(fid)) return false;
         if (fid <= maxFid) return true;
         IntList parents = parentsOf(fid);
         for (int i=0; i<parents.size(); i++) {

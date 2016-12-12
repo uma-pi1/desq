@@ -7,15 +7,16 @@ import java.io.IOException;
 
 public class DesqDfsExample {
 	public static void nyt() throws IOException {
-		int sigma = 1000;
+		int sigma = 100;
 		int gamma = 0;
 		int lambda = 3;
-		boolean generalize = true;
+		boolean generalize = false;
 		String patternExp = DesqDfs.patternExpressionFor(gamma, lambda, generalize);
 		//patternExp = "(JJ@ JJ@ NN@)";
 
 		DesqProperties conf = DesqDfs.createConf(patternExp, sigma);
-		// conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
+		conf.setProperty("desq.mining.prune.irrelevant.inputs", false);
+		conf.setProperty("desq.mining.use.two.pass", false);
 		ExampleUtils.runNyt(conf);
 	}
 
@@ -77,9 +78,9 @@ public class DesqDfsExample {
 
 	public static void main(String[] args) throws IOException {
 		//icdm16();
-		//nyt();
+		nyt();
 		//netflixFlat();
         //netflixDeep();
-		protein();
+		//protein();
 	}
 }

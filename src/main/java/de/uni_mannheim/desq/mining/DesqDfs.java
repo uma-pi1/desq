@@ -21,16 +21,16 @@ public final class DesqDfs extends MemoryDesqMiner {
 	// -- parameters for mining ---------------------------------------------------------------------------------------
 
 	/** Minimum support */
-    final long sigma;
+    private final long sigma;
 
     /** The pattern expression used for mining */
-	final String patternExpression;
+	private final String patternExpression;
 
     /** If true, input sequences that do not match the pattern expression are pruned */
-	final boolean pruneIrrelevantInputs;
+	private final boolean pruneIrrelevantInputs;
 
     /** If true, the two-pass algorithm for DesqDfs is used */
-	final boolean useTwoPass;
+	private final boolean useTwoPass;
 
 
 	// -- helper variables --------------------------------------------------------------------------------------------
@@ -51,9 +51,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** The root node of the search tree. */
 	private final DesqDfsTreeNode root;
 
-	/** Bundles arguments for {@link #incStep(int, State, int)} */
-    private final IncStepArgs current = new IncStepArgs();
-
 	// -- helper variables for pruning and twopass --------------------------------------------------------------------
 
 	/** The DFA corresponding to the FST (pruning) or reverse FST (two-pass). */
@@ -68,8 +65,26 @@ public final class DesqDfs extends MemoryDesqMiner {
     /** A sequence of positions for reuse (two-pass only) */
 	private final IntList dfaInitialPos;
 
+	// -- implicit arguments for incStep() ----------------------------------------------------------------------------
 
-    // -- construction/clearing ---------------------------------------------------------------------------------------
+	/** The ID of the input sequence we are processing */
+	int currentInputId;
+
+	/** The items in the input sequence we are processing */
+	WeightedSequence currentInputSequence;
+
+	/** The state sequence of the accepting DFA run for the current intput sequence (two-pass only). */
+	DfaState[] currentDfaStateSequence;
+
+	/** The node in the search tree currently being processed */
+	DesqDfsTreeNode currentNode;
+
+	/** For each state/position pair, whether we have reached this state and position without further output
+	 * already. Index of a pair is <code>pos*fst.numStates() + toState.getId()</code>.
+	 */
+	BitSet currentSpReachedWithoutOutput = new BitSet();
+
+	// -- construction/clearing ---------------------------------------------------------------------------------------
 
 	public DesqDfs(DesqMinerContext ctx) {
 		super(ctx);
@@ -120,7 +135,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		// other auxiliary variables
 		root = new DesqDfsTreeNode(fst.numStates());
-		current.node = root;
+		currentNode = root;
 	}
 
 	public static DesqProperties createConf(String patternExpression, long sigma) {
@@ -142,7 +157,7 @@ public final class DesqDfs extends MemoryDesqMiner {
             dfaStateSequences.trimToSize();
 		}
 		root.clear();
-		current.node = root;
+		currentNode = root;
 	}
 
 	// -- processing input sequences ----------------------------------------------------------------------------------
@@ -156,14 +171,16 @@ public final class DesqDfs extends MemoryDesqMiner {
 			if (dfa.acceptsReverse(inputSequence, dfaStateSequence, dfaInitialPos)) {
 			    // we now know that the sequence is relevant; remember it
 				super.addInputSequence(inputSequence, inputSupport, allowBuffering);
+				while (itemStateIterators.size() < inputSequence.size())
+					itemStateIterators.add(new State.ItemStateIterator(ctx.dict.isForest()));
 				dfaStateSequences.add(dfaStateSequence.toArray(new DfaState[dfaStateSequence.size()]));
 
 				// run the first incStep; start at all positions from which a final FST state can be reached
-				assert current.node == root;
-				current.inputId = inputSequences.size()-1;
-				current.inputSequence = inputSequences.get(current.inputId);
-				current.dfaStateSequence = dfaStateSequences.get(current.inputId);
-				current.reachedWithoutOutput.clear();
+				assert currentNode == root;
+				currentInputId = inputSequences.size()-1;
+				currentInputSequence = inputSequences.get(currentInputId);
+				currentDfaStateSequence = dfaStateSequences.get(currentInputId);
+				currentSpReachedWithoutOutput.clear();
 				for (int i = 0; i< dfaInitialPos.size(); i++) {
 					// for those positions, start with the initial state
 					incStep(dfaInitialPos.getInt(i), fst.getInitialState(), 0);
@@ -181,12 +198,14 @@ public final class DesqDfs extends MemoryDesqMiner {
 			// if we reach this place, we either don't want to prune irrelevant inputs or the input is relevant
             // -> remember it
 		    super.addInputSequence(inputSequence, inputSupport, allowBuffering);
+			while (itemStateIterators.size() < inputSequence.size())
+				itemStateIterators.add(new State.ItemStateIterator(ctx.dict.isForest()));
 
 		    // and run the first inc step
-			assert current.node == root;
-			current.inputId = inputSequences.size()-1;
-			current.inputSequence = inputSequences.get(current.inputId);
-			current.reachedWithoutOutput.clear();
+			assert currentNode == root;
+			currentInputId = inputSequences.size()-1;
+			currentInputSequence = inputSequences.get(currentInputId);
+			currentSpReachedWithoutOutput.clear();
 			incStep(0, fst.getInitialState(), 0);
 		}
 	}
@@ -203,70 +222,76 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 	}
 
-    /** Updates the projected databases of the children of the current node (<code>current.node</code>) corresponding to each possible
-     * next output item for the current input sequence (also stored in <code>currect</code>).
+    /** Updates the projected databases of the children of the current node corresponding
+	 * to each possible next output item for the current input sequence.
      *
      * @param pos next item to read
      * @param state current FST state
      * @param level recursion level (used for reusing iterators without conflict)
      *
-     * @return true if the initial FST state can be reached without producing further output
+     * @return true if the FST can accept without further output
      */
-	private boolean incStep(final int pos, final State state, final int level) {
-		// check if we reached a final complete state or consumed entire input and reached a final state
-		if ( state.isFinalComplete() || pos == current.inputSequence.size() )
-		    return state.isFinal();
+	private boolean incStep(int pos, State state, final int level) {
+		boolean reachedFinalStateWithoutOutput = false;
 
-        // get iterator over next output item/state pairs; reuse existing ones if possible
-		// in two-pass, only iterates over states that we saw in the first pass (the other ones can safely be skipped)
-		final int itemFid = current.inputSequence.getInt(pos);
-		final BitSet validToStates = useTwoPass
-				? current.dfaStateSequence[ current.inputSequence.size()-(pos+1) ].getFstStates() // only states from first pass
-				: null; // all states
-		State.ItemStateIterator itemStateIt;
-		if (level>=itemStateIterators.size()) {
-			itemStateIt = state.consume(itemFid, null, validToStates);
-			itemStateIterators.add(itemStateIt);
-		} else {
-			itemStateIt = state.consume(itemFid, itemStateIterators.get(level), validToStates);
-		}
+pos: 	do { // loop over positions; used for tail recursion optimization
+			// check if we reached a final complete state or consumed entire input and reached a final state
+			if (state.isFinalComplete() | pos == currentInputSequence.size())
+				return state.isFinal();
 
-        // iterate over output item/state pairs and remember whether we hit the final or finalComplete state without producing output
-        // (i.e., no transitions or only transitions with epsilon output)
-        boolean reachedInitialStateWithoutOutput = false;
-		while (itemStateIt.hasNext()) {
-			final ItemState itemState = itemStateIt.next();
-			final int outputItemFid = itemState.itemFid;
-			final State toState = itemState.state;
+			// get iterator over next output item/state pairs; reuse existing ones if possible
+			// in two-pass, only iterates over states that we saw in the first pass (the other ones can safely be skipped)
+			final int itemFid = currentInputSequence.getInt(pos);
+			final BitSet validToStates = useTwoPass
+					? currentDfaStateSequence[currentInputSequence.size() - (pos + 1)].getFstStates() // only states from first pass
+					: null; // all states
+			final State.ItemStateIterator itemStateIt = state.consume(itemFid, itemStateIterators.get(level), validToStates);
 
-			if (outputItemFid == 0) { // EPS output
-				// we did not get an output
-				// in the two pass algorithm, we don't need to consider empty-output paths that reach the initial state
-				// because we'll start from those positions later on anyway. Those paths are only possible
-				// in DesqDfs when we expand the empty prefix (equiv. current node is root)
-				if (useTwoPass && current.node==root && toState == fst.getInitialState()) {
-					continue;
+			// iterate over output item/state pairs and remember whether we hit the final or finalComplete state without producing output
+			// (i.e., no transitions or only transitions with epsilon output)
+itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt; invariant that itemStateIt.hasNext()
+				final ItemState itemState = itemStateIt.next();
+				final int outputItemFid = itemState.itemFid;
+				final State toState = itemState.state;
+
+				if (outputItemFid == 0) { // EPS output
+					// we did not get an output
+					// in the two pass algorithm, we don't need to consider empty-output paths that reach the initial state
+					// because we'll start from those positions later on anyway. Those paths are only possible
+					// in DesqDfs when we expand the empty prefix (equiv. current node is root)
+					// NOT NEEDED ANYMORE (covered by indexing below)
+					// if (useTwoPass && current.node==root && toState == fst.getInitialState()) {
+					//	continue;
+					// }
+
+					// if we saw this state at this position without output (for this input sequence and for the currently
+					// expanded node) before, we do not need to process it again
+					int spIndex = pos * fst.numStates() + toState.getId();
+					if (!currentSpReachedWithoutOutput.get(spIndex)) {
+						// haven't seen it, so process
+						currentSpReachedWithoutOutput.set(spIndex);
+						if (itemStateIt.hasNext()) {
+							// recurse
+							reachedFinalStateWithoutOutput |= incStep(pos + 1, toState, level + 1);
+							continue itemState;
+						} else {
+							// tail recurse
+							state = toState;
+							pos++;
+							continue pos;
+						}
+					}
+				} else if (largestFrequentFid >= outputItemFid) {
+					// we have an output and its frequent, so update the corresponding projected database
+					currentNode.expandWithItem(outputItemFid, currentInputId, currentInputSequence.weight,
+							pos + 1, toState.getId());
+					continue itemState;
 				}
-
-				// if we saw this state at this position without output (for this input sequence and for the currently
-				// expanded node) before, we do not need to process it again
-				int spIndex = pos*fst.numStates() + toState.getId();
-				if (current.reachedWithoutOutput.get(spIndex)) {
-					continue;
-				}
-				current.reachedWithoutOutput.set(spIndex);
-
-				// otherwise continue running the FST
-				int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
-				reachedInitialStateWithoutOutput |= incStep(pos + 1, toState, newLevel);
-			} else if (largestFrequentFid >= outputItemFid) {
-                // we have an output and its frequent, so update the corresponding projected database
-				current.node.expandWithItem(outputItemFid, current.inputId, current.inputSequence.weight,
-						pos+1, toState.getId());
 			}
-		}
 
-		return reachedInitialStateWithoutOutput;
+			break; // skipped only bycall to "continue pos" above (tail recursion optimization)
+		} while (true);
+		return reachedFinalStateWithoutOutput;
 	}
 
     /** Expands all children of the given search tree node. The node itself must have been processed/output/expanded
@@ -292,8 +317,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 			assert childNode.prefixSupport >= sigma;
 			prefix.set(lastPrefixIndex, childNode.itemFid);
 			projectedDatabaseIt.reset(childNode.projectedDatabase);
-			current.inputId = -1;
-			current.node = childNode;
+			currentInputId = -1;
+			currentNode = childNode;
 
 			// print debug information
 			if (DEBUG) {
@@ -303,12 +328,12 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 			do {
 				// process next input sequence
-				current.inputId += projectedDatabaseIt.nextNonNegativeInt();
-				current.inputSequence = inputSequences.get(current.inputId);
+				currentInputId += projectedDatabaseIt.nextNonNegativeInt();
+				currentInputSequence = inputSequences.get(currentInputId);
 				if (useTwoPass) {
-					current.dfaStateSequence = dfaStateSequences.get(current.inputId);
+					currentDfaStateSequence = dfaStateSequences.get(currentInputId);
 				}
-				current.reachedWithoutOutput.clear();
+				currentSpReachedWithoutOutput.clear();
 
 				// iterate over state@pos snapshots for this input sequence
                 boolean reachedFinalStateWithoutOutput = false;
@@ -320,7 +345,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
                 // if we reached a final state without output, increment the support of this child node
 				if (reachedFinalStateWithoutOutput) {
-					support += current.inputSequence.weight;
+					support += currentInputSequence.weight;
 				}
 
 				// now go to next posting (next input sequence)
@@ -342,19 +367,5 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		// we are done processing the node, so remove its item from the prefix
 		prefix.removeInt(lastPrefixIndex);
-	}
-
-	/** Bundles arguments for {@link #incStep}. These arguments are not modified during the method's recursions, so
-	 * we keep them at a single place. */
-	private static class IncStepArgs {
-		int inputId;
-		WeightedSequence inputSequence;
-		DfaState[] dfaStateSequence;
-		DesqDfsTreeNode node;
-
-		/** For each state/position pair, whether we have reached this state and position without further output
-		 * already. Index of a pair is <code>pos*fst.numStates() + toState.getId()</code>.
-		 */
-		BitSet reachedWithoutOutput = new BitSet();
 	}
 }
