@@ -504,7 +504,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 					currentPathState.setFinal();
 
 					// we can have a pivot item multiple times here, but we don't take care of these for now
-					for (int i = 0; i < currentPivotItems.size(); i++) { // TODO: change to exposeInts.length
+					for (int i = 0; i < currentPivotItems.size(); i++) {
 						int pivotItem = currentPivotItems.exposeInts()[i]; // This isn't very nice, but it does not drop read elements from the heap. TODO: find a better way?
 
 							if (!finalStatesByPivotItems.containsKey(pivotItem)) {
@@ -1191,11 +1191,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		/** Get the stateId to which the nth PathState of this NFA is mapped to */
 		public int mapState(int num) {
-			// resolve mappings until we hit a state that was not merged into another one
-			// TODO: do this differently: update map entries when merging a merged state into another one
-			while(num != stateMapping[num]) {
-				num = stateMapping[num];
-			}
+			// assert that we have only one level of mapping
+			assert stateMapping[num] == stateMapping[stateMapping[num]];
+
 			return stateMapping[num];
 		}
 
@@ -1308,6 +1306,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 
                         // we write down that we merged this state into the target.
                         stateMapping[merge.id] = target.id;
+
+                        // also rewrite the original entry if the state we just merged was merged before
+                        if(merge.id != sId)
+                        	stateMapping[sId] = target.id;
 
                         // from here on, we practically forget about the merged state. so we can clear the data we have changed. (we reuse the states for the next pivot NFA)
 						merge.clearChildrenBitSet();
@@ -1485,14 +1487,14 @@ public final class DesqDfs extends MemoryDesqMiner {
 			while(aIt.hasNext() || bIt.hasNext()) {
 				while(aIt.hasNext()) {
 					a = aIt.next();
-					if(this.children.get(nfa.mapState(a.getValue().id))) { // TODO: shouldn't this work without mapping the state?
+					if(this.children.get(a.getValue().id)) {
 						// this is relevant, so we compare it
 						break;
 					}
 				}
 				while(bIt.hasNext()) {
 					b = bIt.next();
-					if(target.children.get(nfa.mapState(b.getValue().id))) {
+					if(target.children.get(b.getValue().id)) {
 						break;
 					}
 				}
