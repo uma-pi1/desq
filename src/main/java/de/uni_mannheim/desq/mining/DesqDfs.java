@@ -1478,9 +1478,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 			if(this.numSuccessors != target.numSuccessors)
 				return false;
 
-			if(!this.successors.equals(target.successors))
-				return false;
-
 			ObjectBidirectionalIterator<Map.Entry<Long,PathState>> aIt = this.outTransitions.entrySet().iterator();
 			ObjectBidirectionalIterator<Map.Entry<Long,PathState>> bIt = target.outTransitions.entrySet().iterator();
 			Map.Entry<Long,PathState> a=null, b=null;
