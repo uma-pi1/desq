@@ -598,7 +598,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 					// TODO: instead of using TR/INP, we should write transitions according to output item equivalency (which might differ sometimes
 					if (useTransitionRepresentation)
-						piStepCompressed(newCurrentPivotItems, pos + 1, toState, level + 1, currentPathState.followTransition(tr.getTransitionNumber(), addItem, nfa));
+						piStepCompressed(newCurrentPivotItems, pos + 1, toState, level + 1, currentPathState.followTransition(tr, addItem, nfa));
 					else
 						piStepCompressed(newCurrentPivotItems, pos + 1, toState, level + 1, currentPathState);
 
@@ -633,7 +633,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 						}
 					}
 					if (useTransitionRepresentation)
-						piStepCompressed(newCurrentPivotItems, pos + 1, toState, level + 1, currentPathState.followTransition(tr.getTransitionNumber(), addItem, nfa));
+						piStepCompressed(newCurrentPivotItems, pos + 1, toState, level + 1, currentPathState.followTransition(tr, addItem, nfa));
 					else
 						piStepCompressed(newCurrentPivotItems, pos + 1, toState, level + 1, currentPathState);
 				}
@@ -1346,11 +1346,20 @@ public final class DesqDfs extends MemoryDesqMiner {
 			fstVisualizer.beginGraph();
 			for(PathState s : pathStates) {
 				for(Map.Entry<Long, PathState> trEntry : s.outTransitions.entrySet()) {
-					int trId = PrimitiveUtils.getLeft(trEntry.getKey());
-					int inputId = PrimitiveUtils.getRight(trEntry.getKey());
+					int inputId = PrimitiveUtils.getLeft(trEntry.getKey());
+					int trId = PrimitiveUtils.getRight(trEntry.getKey());
 
-					String label = "i" + inputId + "@T" + trId+(fst.getBasicTransitionByNumber(trId).getOutputLabelType() == OutputLabelType.SELF_ASCENDANTS ? "^" : "");
-					if(drawOutputItems) label += " " + fst.getBasicTransitionByNumber(trId).getOutputElements(inputId);
+					String label;
+					if(inputId < 0) {
+						label = "i" + (-inputId);
+						if(drawOutputItems)
+							label += "[" + (-inputId) + "]";
+					}
+					else {
+						label = "i" + inputId + "@T" + trId + (fst.getBasicTransitionByNumber(trId).getOutputLabelType() == OutputLabelType.SELF_ASCENDANTS ? "^" : "");
+						if (drawOutputItems)
+							label += " " + fst.getBasicTransitionByNumber(trId).getOutputElements(inputId);
+					}
 					fstVisualizer.add(String.valueOf(s.id), label, String.valueOf(trEntry.getValue().id));
 				}
 				if(s.isFinal)
@@ -1399,17 +1408,23 @@ public final class DesqDfs extends MemoryDesqMiner {
 		 * Starting from this state, follow a given transition with given input item. Returns the state the transition
 		 * leads to.
 		 *
-		 * @param trId		the number of the input transition to follow
+		 * @param tr		the transaction to follow
 		 * @param inpItem	the input item for the transition to follow
 		 * @param nfa       the nfa the path is added to
 		 * @return
 		 */
-		protected PathState followTransition(int trId, int inpItem, OutputNFA nfa) {
-			long trInp = PrimitiveUtils.combine(trId,inpItem);
+		protected PathState followTransition(BasicTransition tr, int inpItem, OutputNFA nfa) {
+			OutputLabelType olt = tr.getOutputLabelType();
+			long outKey;
+			if(olt == OutputLabelType.CONSTANT || olt == OutputLabelType.SELF) {
+				outKey = PrimitiveUtils.combine(-inpItem, 0);
+			} else {
+				outKey = PrimitiveUtils.combine(inpItem, tr.getTransitionNumber());
+			}
 			// if we have a tree branch with this transition already, follow it and return the state it leads to
-			if(outTransitions.containsKey(trInp)) {
+			if(outTransitions.containsKey(outKey)) {
 				// return this state
-				PathState toState = outTransitions.get(trInp);
+				PathState toState = outTransitions.get(outKey);
 				return toState;
 			} else {
 				// if we don't have a path starting with that transition, we create a new one
@@ -1421,7 +1436,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				toState.level = this.level + 1;
 
 				// add the transition and the created state to the outgoing transitions of this state and return the state the transition moves to
-				outTransitions.put(trInp, toState);
+				outTransitions.put(outKey, toState);
 				return toState;
 			}
 		}
@@ -1516,13 +1531,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 			int inpItem;
 			int trId;
-			long trInp;
-			OutputLabelType olt;
+			long outKey;
 			PathState origToState, mergedToState;
 
-
 			writtenAtPos = send.size();
-
 
 			for(Map.Entry<Long,PathState> entry : outTransitions.entrySet()) {
 				origToState = entry.getValue();
@@ -1531,20 +1543,16 @@ public final class DesqDfs extends MemoryDesqMiner {
                     // get the state this transition goes to after merging (might be a merged state)
 					mergedToState = nfa.getPathStateByMappedNumber(origToState.id);
 
-					trInp = entry.getKey();
-					trId = PrimitiveUtils.getLeft(trInp);
-					inpItem = PrimitiveUtils.getRight(trInp);
-					olt = fst.getBasicTransitionByNumber(trId).getOutputLabelType();
+					outKey = entry.getKey();
+					inpItem = PrimitiveUtils.getLeft(outKey);
 
                     // we write the correct order: (input, [trId], toState)
-
-					if (olt == OutputLabelType.CONSTANT) {
-						send.add(-inpItem);
-					} else if (olt == OutputLabelType.SELF) {
-						send.add(-inpItem);
-					} else { // we only need the trId for SELF_ASCENDANT transitions
-						send.add(inpItem);
-						send.add(trId);
+                    if(inpItem < 0) {
+                    	send.add(inpItem);
+					} else {
+                    	send.add(inpItem);
+						trId = PrimitiveUtils.getRight(outKey);
+                    	send.add(trId);
 					}
 
 					// write toState id and note down that we have written a state id here (which we will convert later)
