@@ -1214,7 +1214,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		    // setup
 			int i=0;
 			for(PathState s : pathStates) {
-				s.numSuccessors = 0;
+				s.numRelevantSuccessors = 0;
 
 				// while we are in the loop, let's also reset the state mapping
 				stateMapping[i] = i;
@@ -1382,11 +1382,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 		/** Forward pointers */
 		protected Long2ObjectSortedMap<PathState> outTransitions;
 
-		/** The set of relevant successors for this state (relevant means 'relevant for the current pivot') */
-		IntSet successors = new IntAVLTreeSet();
+		/** The set of relevant relevantSuccessors for this state (relevant means 'relevant for the current pivot') */
+		IntSet relevantSuccessors = new IntAVLTreeSet();
 
 		/** Number of relevant children for this state (equivalent to children.cardinality() */
-		protected int numSuccessors;
+		protected int numRelevantSuccessors;
 
 		/** Backward pointer (in the tree, each state has only one incoming transition) */
 		protected PathState predecessor;
@@ -1443,8 +1443,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 			this.isFinal = true;
 		}
 
-		/** Clear the set of successors for this state */
-		public void clearSuccessors() { successors.clear(); }
+		/** Clear the set of relevantSuccessors for this state */
+		public void clearSuccessors() { relevantSuccessors.clear(); }
 
 
 		public void followTreeBackwards(BitSet finalStates){
@@ -1455,10 +1455,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 			if(this.predecessor != null) {
 				if (this.predecessor.isFinal)
 					finalStates.clear(this.predecessor.id);
-				this.predecessor.numSuccessors++;
-				this.predecessor.successors.add(this.id);
+				this.predecessor.numRelevantSuccessors++;
+				this.predecessor.relevantSuccessors.add(this.id);
 				// run only once on each state
-				if(this.predecessor.numSuccessors == 1) {
+				if(this.predecessor.numRelevantSuccessors == 1) {
 					this.predecessor.followTreeBackwards(finalStates);
 				}
 			}
@@ -1475,7 +1475,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			if(this.isFinal != target.isFinal)
 				return false;
 
-			if(this.numSuccessors != target.numSuccessors)
+			if(this.numRelevantSuccessors != target.numRelevantSuccessors)
 				return false;
 
 			ObjectBidirectionalIterator<Map.Entry<Long,PathState>> aIt = this.outTransitions.entrySet().iterator();
@@ -1486,14 +1486,14 @@ public final class DesqDfs extends MemoryDesqMiner {
 			while(aIt.hasNext() || bIt.hasNext()) {
 				while(aIt.hasNext()) {
 					a = aIt.next();
-					if(this.successors.contains(a.getValue().id)) {
+					if(this.relevantSuccessors.contains(a.getValue().id)) {
 						// this is relevant, so we compare it
 						break;
 					}
 				}
 				while(bIt.hasNext()) {
 					b = bIt.next();
-					if(this.successors.contains(b.getValue().id)) {
+					if(this.relevantSuccessors.contains(b.getValue().id)) {
 						break;
 					}
 				}
@@ -1508,9 +1508,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 				if(!a.getKey().equals(b.getKey())) {
 					return false;
 				}
+				if(nfa.mapState(a.getValue().id) != nfa.mapState(b.getValue().id)){
+					return false;
+				}
 			}
-
-
 			return true;
 		}
 
@@ -1528,7 +1529,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			for(Map.Entry<Long,PathState> entry : outTransitions.entrySet()) {
 				origToState = entry.getValue();
 
-                if(successors.contains(origToState.id)) {
+                if(relevantSuccessors.contains(origToState.id)) {
                     // get the state this transition goes to after merging (might be a merged state)
 					mergedToState = nfa.getPathStateByMappedNumber(origToState.id);
 
@@ -1556,7 +1557,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			else
 				send.add(Integer.MAX_VALUE); // = transitions for this state end here, state is not final
 
-			// reset successors
+			// reset relevantSuccessors
 			this.clearSuccessors();
 		}
 	}
