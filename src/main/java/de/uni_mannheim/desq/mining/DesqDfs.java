@@ -167,8 +167,15 @@ public final class DesqDfs extends MemoryDesqMiner {
 	public static Stopwatch swMerge = Stopwatch.createUnstarted();
 	public static Stopwatch swSerialize = Stopwatch.createUnstarted();
 	public static Stopwatch swReplace = Stopwatch.createUnstarted();
-	public static int maxNumStates = 0;
-	public static int maxRelevantSuccessors = 0;
+	public static long maxNumStates = 0;
+	public static long maxRelevantSuccessors = 0;
+	public static long counterTrimCalls = 0;
+	public static long counterFollowGroupCalls = 0;
+	public static long counterIsMergeableIntoCalls = 0;
+	public static long counterFollowTransitionCalls = 0;
+	public static long counterTransitionsCreated = 0;
+	public static long counterSerializedStates = 0;
+	public static long counterSerializedTransitions = 0;
 
 
 	// -- construction/clearing ---------------------------------------------------------------------------------------
@@ -1236,6 +1243,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		 */
 		public Sequence trimAndSerializeForPivot(int pivot, BitSet finalStates) {
 
+			counterTrimCalls++;
 		    // setup
             swSetup.start();
 			Arrays.fill(stateMapping, -1);
@@ -1291,6 +1299,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		 * @param stateIds
 		 */
 		private void followGroup(IntAVLTreeSet stateIds, boolean definitelyMergeable) {
+			counterFollowGroupCalls++;
 			IntBidirectionalIterator it = stateIds.iterator();
 			int currentTargetStateId;
 			int sId;
@@ -1442,6 +1451,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		 * @return
 		 */
 		protected PathState followTransition(BasicTransition tr, int inpItem, OutputNFA nfa) {
+			counterFollowTransitionCalls++;
 			OutputLabelType olt = tr.getOutputLabelType();
 			long outKey;
 			if(olt == OutputLabelType.CONSTANT || olt == OutputLabelType.SELF) {
@@ -1465,6 +1475,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 				// add the transition and the created state to the outgoing transitions of this state and return the state the transition moves to
 				outTransitions.put(outKey, toState);
+				counterTransitionsCreated++;
 				return toState;
 			}
 		}
@@ -1507,6 +1518,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		 * @return
 		 */
 		public boolean isMergeableInto(PathState target) {
+			counterIsMergeableIntoCalls++;
 
 			if(this.isFinal != target.isFinal)
 				return false;
@@ -1555,6 +1567,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		/** Serialize this state, appending to the given list */
 		protected void serializeForward(IntList send) {
 
+			counterSerializedStates++;
 			int inpItem;
 			int trId;
 			long outKey;
@@ -1566,6 +1579,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				origToState = entry.getValue();
 
                 if(relevantSuccessors.contains(origToState.id)) {
+                	counterSerializedTransitions++;
                     // get the state this transition goes to after merging (might be a merged state)
 					mergedToState = nfa.getPathStateByMappedNumber(origToState.id);
 

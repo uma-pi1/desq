@@ -261,8 +261,16 @@ public class DesqDfsRunDistributedMiningLocally {
 					DesqDfs.swSerialize.elapsed(TimeUnit.MILLISECONDS) + "\t" +
 					DesqDfs.swReplace.elapsed(TimeUnit.MILLISECONDS) + "\t" +
 					DesqDfs.maxNumStates + "\t" +
-					DesqDfs.maxRelevantSuccessors + "\t";
-			
+					DesqDfs.maxRelevantSuccessors + "\t" +
+					DesqDfs.counterTrimCalls + "\t" +
+					DesqDfs.counterFollowGroupCalls + "\t" +
+					DesqDfs.counterIsMergeableIntoCalls + "\t" +
+					DesqDfs.counterFollowTransitionCalls + "\t" +
+					DesqDfs.counterTransitionsCreated + "\t" +
+					DesqDfs.counterSerializedStates + "\t" +
+					DesqDfs.counterSerializedTransitions + "\t" +
+					"";
+
 
 			writer.println(timings);
 			writer.close();
