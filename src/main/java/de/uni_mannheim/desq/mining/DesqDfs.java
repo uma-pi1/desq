@@ -1273,8 +1273,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			BitSet alreadyMerged = new BitSet();
 
 			// as we go over the passed set of states, we collect predecessor groups, which we will process afterwards
-			IntAVLTreeSet predecessors;// = new IntAVLTreeSet();
-			ObjectList<IntAVLTreeSet> all_predecessors = new ObjectArrayList<>();
+			IntAVLTreeSet predecessors = new IntAVLTreeSet();
 
 			int i = 0, j;
 			while(it.hasNext()) {
@@ -1286,8 +1285,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 					continue;
 				target = getPathStateByMappedNumber(currentTargetStateId);
 
-				// begin a new set of predecessors // TODO: improve
-				predecessors = new IntAVLTreeSet();
+				// begin a new set of predecessors
+                predecessors.clear();
 				j = i;
 
 				// Now compare this state to all the following states. If we find merge-compatible states, we merge them into this one
@@ -1332,12 +1331,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 				// if we have multiple predecessors, process them as group (later on)
 				if(predecessors.size()>0) {
 					predecessors.add(target.predecessor.id);
-					//followGroup(predecessors, level+1);
-					all_predecessors.add(predecessors);
+					followGroup(predecessors, false);
 				}
-			}
-			for(IntAVLTreeSet p : all_predecessors) {
-				followGroup(p, false);
 			}
 		}
 
