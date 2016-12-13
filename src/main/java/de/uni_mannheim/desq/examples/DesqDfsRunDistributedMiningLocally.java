@@ -5,6 +5,7 @@ import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.io.*;
 import de.uni_mannheim.desq.mining.*;
 import de.uni_mannheim.desq.util.DesqProperties;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -25,7 +26,7 @@ public class DesqDfsRunDistributedMiningLocally {
 	static int expNo;
 	public static boolean verbose;
 	static String scenarioStr;
-	static String useCase;
+	public static String useCase;
 	static boolean useTransitionRepresentation;
 	static boolean useTreeRepresentation;
 	static boolean mergeSuffixes;
@@ -55,12 +56,12 @@ public class DesqDfsRunDistributedMiningLocally {
 			runDistributedMiningLocally(args);
 		} else {
 			localCorrectnessTest(); System.exit(0);
-			runDistributedMiningLocally("IA2", 2, 1);
+			runDistributedMiningLocally("A1", 2, 1);
 		}
 	}
 
 	public static void localCorrectnessTest() throws IOException {
-		String[] tests = {"I1@1", "I1@2", "I2", "IA2", "IA4", "IX1", "IX2", "IX3"};
+		String[] tests = {"I1@1", "I1@2", "I2", "IA2", "IA4", "IX1", "IX2", "IX3", "IX4"};
 //		String[] tests = {"N1", "N2", "N3", "N4", "N5", "A1", "A2", "A3", "A4"};
 		int[] scenarios = {0, 2};
 
@@ -164,6 +165,7 @@ public class DesqDfsRunDistributedMiningLocally {
 		System.out.println(pcTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
 		if(writeShuffleStats) closeStatsWriter();
 
+
 		// clear the memory
 		inputSequences.clear();
 		inputSequences.trim();
@@ -220,7 +222,7 @@ public class DesqDfsRunDistributedMiningLocally {
 			MemoryPatternWriter pw = (MemoryPatternWriter) result;
 			patCount = pw.getPatterns().size();
 			for(WeightedSequence ws : pw.getPatterns()) {
-				System.out.println(ws);
+//				System.out.println(ws);
 				patTotalFreq += ws.weight;
 			}
 		} else {
@@ -334,7 +336,7 @@ public class DesqDfsRunDistributedMiningLocally {
 			MemoryPatternWriter pw = (MemoryPatternWriter) result;
 			patCount = pw.getPatterns().size();
 			for(WeightedSequence ws : pw.getPatterns()) {
-				System.out.println(ws);
+//				System.out.println(ws);
 				patTotalFreq += ws.weight;
 			}
 		} else {
@@ -473,6 +475,12 @@ public class DesqDfsRunDistributedMiningLocally {
 				break;
 			case "IX3":
 				patternExp = "(a1* b12 e)";
+				sigma = 1;
+				verbose = true;
+				setICDMData();
+				break;
+			case "IX4":
+				patternExp = "([c|a1] .* [.* A]+ .* [d|e])";
 				sigma = 1;
 				verbose = true;
 				setICDMData();

@@ -55,4 +55,7 @@ public class FstVisualizer {
 		//System.out.println(dotString);
 		gv.addln(dotString);
 	}
+	public void addCaption(String caption) {
+		gv.addln("label=\""+caption+"\";");
+	}
 }
