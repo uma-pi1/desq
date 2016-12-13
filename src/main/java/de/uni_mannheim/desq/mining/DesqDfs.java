@@ -1215,8 +1215,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		/** Get the stateId to which the nth PathState of this NFA is mapped to */
 		public int mapState(int num) {
-			// assert that we have only one level of mapping
-			assert stateMapping[num] == stateMapping[stateMapping[num]];
+
+            if(stateMapping[num] == -1)
+            	return num;
 
 			return stateMapping[num];
 		}
@@ -1237,14 +1238,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		    // setup
             swSetup.start();
-			int i=0;
-			for(PathState s : pathStates) {
-				s.numRelevantSuccessors = 0;
-
-				// while we are in the loop, let's also reset the state mapping
-				stateMapping[i] = i;
-				i++;
-			}
+			Arrays.fill(stateMapping, -1);
 
 			IntAVLTreeSet startStates = new IntAVLTreeSet();
 
@@ -1271,7 +1265,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 			Sequence send = new Sequence();
 			positionsWithStateIds.clear();
 			for(int sId : relevantStates) {
-				if(sId == stateMapping[sId]) // we serialize only non-merged states
+//				if(sId == stateMapping[sId]) // we serialize only non-merged states
+                if(stateMapping[sId] == -1)
 					getPathStateByNumber(sId).serializeForward(send);
 			}
 			swSerialize.stop();
@@ -1484,6 +1479,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			if(relevantSuccessors.size() > maxRelevantSuccessors)
 					maxRelevantSuccessors = relevantSuccessors.size();
 			relevantSuccessors.clear();
+			numRelevantSuccessors = 0;
 		}
 
 
