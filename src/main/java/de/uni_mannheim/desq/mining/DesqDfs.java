@@ -1184,10 +1184,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 
 		/** A list of states we need to serialize for the current pivot */
-		IntAVLTreeSet statesToSerialize = new IntAVLTreeSet();
+		IntAVLTreeSet relevantStates = new IntAVLTreeSet();
 
 		/** A BitSet with a bit set for every position which holds a state id  */
-		BitSet positionsWithStateIds;
+		BitSet positionsWithStateIds = new BitSet();
 
 		/** Get the stateId to which the nth PathState of this NFA is mapped to */
 		public int mapState(int num) {
@@ -1219,9 +1219,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		    // setup
 			int i=0;
 			for(PathState s : pathStates) {
-				s.writtenAtPos = -1; // TODO: this is not necessary I think, as we never use this to check whether we have already written the state
 				s.numChildren = 0;
-				s.clearChildrenBitSet(); // just to make sure for now. TODO: remove
 
 				// while we are in the loop, let's also reset the state mapping
 				stateMapping[i] = i;
@@ -1231,26 +1229,23 @@ public final class DesqDfs extends MemoryDesqMiner {
 			IntAVLTreeSet startStates = new IntAVLTreeSet();
 
 			// get rid of final states which are not leafs for the current pivot
+			// if a final state is followed by another final state, we are guaranteed to see the later one first
+			// here. in the method call, we remove the bits for these final states
+			relevantStates.clear();
 			for(int sId = finalStates.length(); (sId = finalStates.previousSetBit(sId-1)) >= 0; ) {
-				getPathStateByNumber(sId).removeSuperfluousFinalStates(finalStates);
-			}
-
-			// mark states that are relevant for this pivot
-			for (int sId = finalStates.nextSetBit(0); sId >= 0; sId = finalStates.nextSetBit(sId+1)) {
+				getPathStateByNumber(sId).followTreeBackwards(finalStates);
 				startStates.add(sId);
-				getPathStateByNumber(sId).markPredecessorsRecursively();
 			}
 
 			// merge states with same suffixes, going backwards
-			followGroup(startStates);
+			followGroup(startStates, true);
 
 			// serialize the trimmed NFA
 			Sequence send = new Sequence();
-			statesToSerialize.clear();
-			root.forwardCollectRelevantStates(); // TODO: improve (e.g. mark states as relevant in first pass, then here, just serialize states that are not remapped and marked as relevant)
-			positionsWithStateIds = new BitSet(); //TODO: maybe reuse
-			for(int sId : statesToSerialize) {
-				getPathStateByNumber(sId).serializeForward(send);
+			positionsWithStateIds.clear();
+			for(int sId : relevantStates) {
+				if(sId == stateMapping[sId]) // we serialize only non-merged states
+					getPathStateByNumber(sId).serializeForward(send);
 			}
 
 			// replace all state ids with their positions
@@ -1269,13 +1264,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 		 * we process recursively.
 		 * @param stateIds
 		 */
-		private void followGroup(IntAVLTreeSet stateIds) {
+		private void followGroup(IntAVLTreeSet stateIds, boolean definitelyMergeable) {
 			IntBidirectionalIterator it = stateIds.iterator();
 			int currentTargetStateId;
 			int sId;
 			PathState target, merge;
-
-			// TODO: add a way to omit comparison for final states (when we know we can merge them)
 
 			// we use this bitset to mark states that we have already merged in this iteration.
 			// we use that to make sure we don't process them more than once
@@ -1311,7 +1304,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 					if(merge.id == target.id) { // if the two states we are looking at are the same ones, we don't need to make any changes.
 						alreadyMerged.set(j);
-					} else if(merge.isMergeableInto(target)) { // check whether the two states are mergeable
+					} else if(definitelyMergeable || merge.isMergeableInto(target)) { // check whether the two states are mergeable
 
                         // we write down that we merged this state into the target.
                         stateMapping[merge.id] = target.id;
@@ -1342,7 +1335,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				}
 			}
 			for(IntAVLTreeSet p : all_predecessors) {
-				followGroup(p);
+				followGroup(p, false);
 			}
 		}
 
@@ -1450,22 +1443,19 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 
 
-		// TODO merge removeSuperfluousFinalStates and markPredecessorsRecursively
-		public void removeSuperfluousFinalStates(BitSet finalStates) {
+		public void followTreeBackwards(BitSet finalStates){
+			// mark this state as relevant
+		    nfa.relevantStates.add(this.id);
+
+		    // process the predecessor if there is one
 			if(this.predecessor != null) {
 				if (this.predecessor.isFinal)
 					finalStates.clear(this.predecessor.id);
-				this.predecessor.removeSuperfluousFinalStates(finalStates);
-			}
-		}
-
-		public void markPredecessorsRecursively(){
-			if(this.predecessor != null) {
 				this.predecessor.numChildren++;
 				this.predecessor.children.set(this.id);
 				// run only once on each state
 				if(this.predecessor.numChildren == 1) {
-					this.predecessor.markPredecessorsRecursively();
+					this.predecessor.followTreeBackwards(finalStates);
 				}
 			}
 		}
@@ -1486,10 +1476,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 			if(!this.children.equals(target.children))
 				return false;
-
-			// temporary. TODO: improve
-			if(isFinal && this.outTransitions.size() == 0 && target.outTransitions.size() == 0)
-				return true; // final states
 
 			ObjectBidirectionalIterator<Map.Entry<Long,PathState>> aIt = this.outTransitions.entrySet().iterator();
 			ObjectBidirectionalIterator<Map.Entry<Long,PathState>> bIt = target.outTransitions.entrySet().iterator();
@@ -1525,18 +1511,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 
 			return true;
-		}
-
-
-		/** Mark all states we need to serialize */
-		// TODO: get rid of this step
-		public void forwardCollectRelevantStates() {
-
-			nfa.statesToSerialize.add(this.id);
-
-			for (int sId = children.nextSetBit(0); sId >= 0; sId = children.nextSetBit(sId+1)) {
-				nfa.getPathStateByMappedNumber(sId).forwardCollectRelevantStates();
-			}
 		}
 
 
