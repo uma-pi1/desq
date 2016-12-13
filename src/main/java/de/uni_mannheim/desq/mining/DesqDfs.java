@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.mining;
 
+import com.google.common.base.Stopwatch;
 import de.uni_mannheim.desq.examples.DesqDfsRunDistributedMiningLocally;
 import de.uni_mannheim.desq.fst.*;
 import de.uni_mannheim.desq.fst.BasicTransition.OutputLabelType;
@@ -157,6 +158,18 @@ public final class DesqDfs extends MemoryDesqMiner {
 	public long counterMaxPivotUsed = 0;
 	private boolean verbose;
 	private boolean drawGraphs = false;
+
+	public static Stopwatch swFirstPass = Stopwatch.createUnstarted();
+	public static Stopwatch swSecondPass = Stopwatch.createUnstarted();
+	public static Stopwatch swPrep = Stopwatch.createUnstarted();
+	public static Stopwatch swSetup = Stopwatch.createUnstarted();
+	public static Stopwatch swTrim = Stopwatch.createUnstarted();
+	public static Stopwatch swMerge = Stopwatch.createUnstarted();
+	public static Stopwatch swSerialize = Stopwatch.createUnstarted();
+	public static Stopwatch swReplace = Stopwatch.createUnstarted();
+	public static int maxNumStates = 0;
+	public static int maxRelevantSuccessors = 0;
+
 
 	// -- construction/clearing ---------------------------------------------------------------------------------------
 
@@ -436,15 +449,21 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		if(useTwoPass) {
 			dfaStateSequence.clear();
+			swFirstPass.start();
 			if (dfa.acceptsReverse(inputSequence, dfaStateSequence, dfaInitialPos)) {
 
+				swFirstPass.stop();
 				// run the first incStep; start at all positions from which a final FST state can be reached
+				swSecondPass.start();
 				for (int i = 0; i < dfaInitialPos.size(); i++) {
 					piStepCompressed(null, dfaInitialPos.getInt(i), fst.getInitialState(), 0, nfa.root);
 				}
+				swSecondPass.stop();
 
 				// clean up
 				dfaInitialPos.clear();
+			} else {
+				swFirstPass.stop();
 			}
 		} else {
 			piStepCompressed(null, 0, fst.getInitialState(), 0, nfa.root);
@@ -453,7 +472,12 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		if(drawGraphs && nfa.numPathStates > 1) nfa.exportGraphViz(DesqDfsRunDistributedMiningLocally.useCase + "-seq" + seqNo + "-NFA.pdf", true);
 
+		swPrep.start();
 		nfa.prepForSerialization();
+		swPrep.stop();
+
+		if(nfa.numPathStates > maxNumStates) maxNumStates = nfa.numPathStates;
+
 
 		// For each pivot item, trim the NFA and output it
 		for(Map.Entry<Integer, BitSet> pivotAndFinalStates : finalStatesByPivotItems.entrySet()) {
@@ -1212,6 +1236,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		public Sequence trimAndSerializeForPivot(int pivot, BitSet finalStates) {
 
 		    // setup
+            swSetup.start();
 			int i=0;
 			for(PathState s : pathStates) {
 				s.numRelevantSuccessors = 0;
@@ -1223,18 +1248,25 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 			IntAVLTreeSet startStates = new IntAVLTreeSet();
 
+			swSetup.stop();
+
 			// get rid of final states which are not leafs for the current pivot
 			// if a final state is followed by another final state, we are guaranteed to see the later one first
 			// here. in the method call, we remove the bits for these final states
+			swTrim.start();
 			relevantStates.clear();
 			for(int sId = finalStates.length(); (sId = finalStates.previousSetBit(sId-1)) >= 0; ) {
 				getPathStateByNumber(sId).followTreeBackwards(finalStates);
 				startStates.add(sId);
 			}
+			swTrim.stop();
 
 			// merge states with same suffixes, going backwards
+			swMerge.start();
 			followGroup(startStates, true);
+			swMerge.stop();
 
+			swSerialize.start();
 			// serialize the trimmed NFA
 			Sequence send = new Sequence();
 			positionsWithStateIds.clear();
@@ -1242,7 +1274,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 				if(sId == stateMapping[sId]) // we serialize only non-merged states
 					getPathStateByNumber(sId).serializeForward(send);
 			}
+			swSerialize.stop();
 
+
+			swReplace.start();
 			// replace all state ids with their positions
 			PathState state;
 			for (int pos = positionsWithStateIds.nextSetBit(0); pos >= 0; pos = positionsWithStateIds.nextSetBit(pos+1)) {
@@ -1250,6 +1285,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				send.set(pos,state.writtenAtPos);
 
 			}
+			swReplace.stop();
 			return send;
 		}
 
@@ -1444,7 +1480,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 
 		/** Clear the set of relevantSuccessors for this state */
-		public void clearSuccessors() { relevantSuccessors.clear(); }
+		public void clearSuccessors() {
+			if(relevantSuccessors.size() > maxRelevantSuccessors)
+					maxRelevantSuccessors = relevantSuccessors.size();
+			relevantSuccessors.clear();
+		}
 
 
 		public void followTreeBackwards(BitSet finalStates){
