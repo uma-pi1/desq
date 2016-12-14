@@ -157,7 +157,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	public long counterNonPivotTransitionsSkipped = 0;
 	public long counterMaxPivotUsed = 0;
 	private boolean verbose;
-	private boolean drawGraphs = false;
+	private boolean drawGraphs = DesqDfsRunDistributedMiningLocally.drawGraphs;
 	private int numSerializedStates = 0;
 
 	public static Stopwatch swFirstPass = Stopwatch.createUnstarted();

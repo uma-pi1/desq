@@ -37,6 +37,7 @@ public class DesqDfsRunDistributedMiningLocally {
 	public static int scenario;
 
 	public static boolean writeShuffleStats = false;
+	public static boolean drawGraphs = false;
 
 	/** main
 	 *
@@ -52,6 +53,7 @@ public class DesqDfsRunDistributedMiningLocally {
 			baseFolder = "/home/alex/";
 		}
 		if(args.length > 0) {
+		    drawGraphs = false;
 			runDistributedMiningLocally(args);
 		} else {
 			localCorrectnessTest(); System.exit(0);
