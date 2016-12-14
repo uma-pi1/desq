@@ -1456,9 +1456,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 		 */
 		protected PathState followTransition(BasicTransition tr, int inpItem, OutputNFA nfa) {
 			counterFollowTransitionCalls++;
-			OutputLabelType olt = tr.getOutputLabelType();
 			long outKey;
-			if(olt == OutputLabelType.CONSTANT || olt == OutputLabelType.SELF) {
+            if(tr.getTransitionNumber() == -2) {
 				outKey = PrimitiveUtils.combine(-inpItem, 0);
 			} else {
 				outKey = PrimitiveUtils.combine(inpItem, tr.getTransitionNumber());

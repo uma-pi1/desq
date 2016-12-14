@@ -4,6 +4,8 @@ package de.uni_mannheim.desq.fst;
 import com.google.common.base.Strings;
 import de.uni_mannheim.desq.fst.graphviz.FstVisualizer;
 import it.unimi.dsi.fastutil.ints.*;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectList;
 import org.apache.commons.io.FilenameUtils;
 
 import java.io.PrintStream;
@@ -420,23 +422,47 @@ public final class Fst {
 		}
 	}
 
-	/** Numbers the transitions of this FST */
+	/** Numbers distinct SELF_ASCENDANTS transitions of this FST
+	 * CONSTANT and SELF transitions are assigned number -2
+	 * EPSILON transitions stay with default number -1
+	 *
+	 * For all SELF_ASCENDANTS transitions, we give one number per distinct OutputLabel. So transitions producing
+	 * the same output will share a common number.
+	 *
+	 *
+	 * */
 	private Transition[] numberedTransitions = null;
 	public void numberTransitions() {
-		ArrayList<Transition> tempNumberedTransitions = new ArrayList<Transition>();
+	    // we store a list of seen output labels, with the respective transition number as value
+		Int2IntMap seenOutputLabels = new Int2IntOpenHashMap();
+		ObjectList<Transition> tempNumberedTransitions = new ObjectArrayList<>();
 		int trNo = 0;
 		for(State state : states) {
-            // we sort the transitions to get a consistent numbering
+            // sort the transitions to get a consistent numbering
 			for(BasicTransition tr : state.getSortedBasicTransitions()) {
-				tr.setTransitionNumber(trNo);
-				trNo++;
-				tempNumberedTransitions.add(tr);
+			    if(tr.outputLabelType == BasicTransition.OutputLabelType.SELF ||
+				   tr.outputLabelType == BasicTransition.OutputLabelType.CONSTANT) {
+			    	// CONSTANT and SELF transitions get number -2
+					tr.setTransitionNumber(-2);
+				} else if(tr.outputLabelType == BasicTransition.OutputLabelType.SELF_ASCENDANTS) {
+			    	// SELF_ASCENDANTS get a new number if we haven't seen the same outputLabel before
+					if(seenOutputLabels.containsKey(tr.outputLabel)) {
+						// we have seen this outputLabel before, so we assign the previously seen transition number
+						tr.setTransitionNumber(seenOutputLabels.get(tr.outputLabel));
+					} else {
+						// this output label is new, so we assign a new transition number and add it to the map
+						tr.setTransitionNumber(trNo);
+						tempNumberedTransitions.add(tr);
+						seenOutputLabels.put(tr.outputLabel, trNo);
+						trNo++;
+					}
+				}
+				// eps transitions don't get a new number
 			}
 		}
 		numberedTransitions = new Transition[tempNumberedTransitions.size()];
 		tempNumberedTransitions.toArray(numberedTransitions);
 	}
 
-	public Transition getTransitionByNumber( int trNo ) { return numberedTransitions[trNo]; }
 	public BasicTransition getBasicTransitionByNumber( int trNo ) { return (BasicTransition) numberedTransitions[trNo]; }
 }
