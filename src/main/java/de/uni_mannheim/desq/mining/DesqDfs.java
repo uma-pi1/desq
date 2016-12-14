@@ -1460,6 +1460,7 @@ public final class DesqDfs extends MemoryDesqMiner {
             if(tr.getTransitionNumber() == -2) {
 				outKey = PrimitiveUtils.combine(-inpItem, 0);
 			} else {
+                inpItem = tr.generalizeItemForPivot(inpItem, largestFrequentFid); // Generalize the item up to the first frequent item
 				outKey = PrimitiveUtils.combine(inpItem, tr.getTransitionNumber());
 			}
 			// if we have a tree branch with this transition already, follow it and return the state it leads to
