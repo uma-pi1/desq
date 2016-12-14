@@ -1535,14 +1535,19 @@ public final class DesqDfs extends MemoryDesqMiner {
 				while(aIt.hasNext()) {
 					a = aIt.next();
 					if(this.relevantSuccessors.contains(a.getValue().id)) {
-						// this is relevant, so we compare it
+						// this is relevant, so we compare it // TODO: improve this
 						break;
+					} else {
+						a = null; // reset so we don't keep this in the loop
 					}
+
 				}
 				while(bIt.hasNext()) {
 					b = bIt.next();
-					if(this.relevantSuccessors.contains(b.getValue().id)) {
+					if(target.relevantSuccessors.contains(b.getValue().id)) {
 						break;
+					} else {
+						b = null; // reset so we don't keep this in the loop
 					}
 				}
 
