@@ -158,6 +158,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	public long counterMaxPivotUsed = 0;
 	private boolean verbose;
 	private boolean drawGraphs = false;
+	private int numSerializedStates = 0;
 
 	public static Stopwatch swFirstPass = Stopwatch.createUnstarted();
 	public static Stopwatch swSecondPass = Stopwatch.createUnstarted();
@@ -496,7 +497,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 			if(drawGraphs) drawSerializedNFA(output, DesqDfsRunDistributedMiningLocally.useCase + "-seq"+seqNo+"-pivot"+pivotItem+"-NFA.pdf", true, finalStates.toString());
 
-			if(DesqDfsRunDistributedMiningLocally.writeShuffleStats) DesqDfsRunDistributedMiningLocally.writeShuffleStats(seqNo, pivotItem, output.size());
+			if(DesqDfsRunDistributedMiningLocally.writeShuffleStats) DesqDfsRunDistributedMiningLocally.writeShuffleStats(seqNo, pivotItem, numSerializedStates);
 
 			if(buildPartitions) {
 				// emit the list we constructed
@@ -1272,10 +1273,13 @@ public final class DesqDfs extends MemoryDesqMiner {
 			// serialize the trimmed NFA
 			Sequence send = new Sequence();
 			positionsWithStateIds.clear();
+			numSerializedStates = 0;
 			for(int sId : relevantStates) {
 //				if(sId == stateMapping[sId]) // we serialize only non-merged states
-                if(stateMapping[sId] == -1)
+                if(stateMapping[sId] == -1) {
 					getPathStateByNumber(sId).serializeForward(send);
+					numSerializedStates++;
+				}
 			}
 			swSerialize.stop();
 

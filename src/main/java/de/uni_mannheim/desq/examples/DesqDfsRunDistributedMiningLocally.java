@@ -583,7 +583,7 @@ public class DesqDfsRunDistributedMiningLocally {
 
 	public static void openStatsWriter() {
 		try{
-			statsWriter = new PrintWriter(new FileOutputStream(new File(baseFolder + "Dropbox/Master/Thesis/Experiments/F/shufflestats-"+runVersion+".txt"), true));
+			statsWriter = new PrintWriter(new FileOutputStream(new File(baseFolder + "Dropbox/Master/Thesis/Experiments/F/numSerializedStates-"+runVersion+".txt"), true));
 		} catch (Exception e) {
 			System.out.println("Can't open file to write shuffle stats!");
 			e.printStackTrace();
@@ -594,7 +594,7 @@ public class DesqDfsRunDistributedMiningLocally {
         statsWriter.close();
 	}
 
-	public static void writeShuffleStats(int seqNo, int pivotItem, int intNo) {
-		statsWriter.println(useCase + "\t" + scenario + "\t" + seqNo + "\t" + pivotItem + "\t" + intNo);
+	public static void writeShuffleStats(int seqNo, int pivotItem, int numStates) {
+		statsWriter.println(useCase + "\t" + scenario + "\t" + seqNo + "\t" + pivotItem + "\t" + numStates);
 	}
 }
