@@ -271,6 +271,7 @@ public class DesqDfsRunDistributedMiningLocally {
 					DesqDfs.counterTransitionsCreated + "\t" +
 					DesqDfs.counterSerializedStates + "\t" +
 					DesqDfs.counterSerializedTransitions + "\t" +
+					DesqDfs.counterPathsAdded + "\t" +
 					"";
 
 

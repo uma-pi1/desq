@@ -92,6 +92,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** Current prefix (used for finding the potential output items of one sequence) */
 	final Sequence prefix = new Sequence();
 
+	/** length of last processed prefix */
+	int processedPrefixSize = 0;
+
 	/** For each current recursion level, a set of to-states that already have been visited by a non-pivot transition */
 	final ArrayList<IntSet> nonPivotExpandedToStates = new ArrayList<>();
 
@@ -169,6 +172,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	public static long counterTransitionsCreated = 0;
 	public static long counterSerializedStates = 0;
 	public static long counterSerializedTransitions = 0;
+	public static long counterPathsAdded = 0;
 
 
 	// -- construction/clearing ---------------------------------------------------------------------------------------
@@ -497,7 +501,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 	}
 
 
-
 	/** Runs one step (along compressed transition) in the FST in order to produce the set of frequent output items
 	 *  and directly creates the partitions with the transition representation
 	 *
@@ -510,7 +513,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 		counterTotalRecursions++;
 
 		// if we reached a final state, we add the current set of pivot items at this state to the global set of pivot items for this sequences
-		if(state.isFinal() && currentPivotItems.size() != 0) {
+		if(state.isFinal() && prefix.size() > processedPrefixSize) {
+			processedPrefixSize = prefix.size();
 
 			if(useTransitionRepresentation) {
 
@@ -519,8 +523,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 				// we might arrive multiple times here (if we have eps-transitions) But we don't need to do all this work again.
                 // (if we arrive here multiple times, the path (and ergo, the pivot items) are the same every time.
-//			    if(!currentPathState.isFinal) {
-//					currentPathState.setFinal();
+                counterPathsAdded++;
 
                 // we can have a pivot item multiple times here, but we don't take care of these for now
                 for (int i = 0; i < currentPivotItems.size(); i++) {
@@ -630,6 +633,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 					if(useTransitionRepresentation) {
 						prefix.removeInt(prefix.size() -1);
+						processedPrefixSize = prefix.size();
 					}
 
 				}
@@ -672,6 +676,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 					if(useTransitionRepresentation) {
 						prefix.removeInt(prefix.size() - 1);
 						prefix.removeInt(prefix.size() - 1);
+						processedPrefixSize = prefix.size();
 					}
 				}
 			}
