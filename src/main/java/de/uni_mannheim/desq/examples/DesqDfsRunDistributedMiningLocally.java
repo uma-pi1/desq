@@ -542,7 +542,7 @@ public class DesqDfsRunDistributedMiningLocally {
 				useTwoPass = true;
 				break;
 			case 2:
-				scenarioStr = "Dfs, shuffle transition trees";
+				scenarioStr = "Dfs, DAGs. pNFAg";
                 useTransitionRepresentation = true;
 				useTreeRepresentation = true;
 				useTwoPass = true;
