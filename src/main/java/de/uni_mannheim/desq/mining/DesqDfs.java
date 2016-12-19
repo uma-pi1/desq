@@ -1367,9 +1367,6 @@ public final class DesqDfs extends MemoryDesqMiner {
                         if(merge.id != sId)
                             getPathStateByNumber(sId).mergedInto = target.id;
 
-                        // from here on, we practically forget about the merged state. so we can clear the data we have changed. (we reuse the states for the next pivot NFA)
-                        merge.clearSuccessors();
-
 						// mark this state as merged, so we don't process it multiple times
 						alreadyMerged.set(j);
 
@@ -1443,12 +1440,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 		/** Forward pointers */
 		protected Long2ObjectSortedMap<PathState> outTransitions;
 
-		/** The set of relevant relevantSuccessors for this state (relevant means 'relevant for the current pivot') */
-		IntSet relevantSuccessors = new IntAVLTreeSet();
-
-		/** Number of relevant children for this state (equivalent to children.cardinality() */
-		protected int numRelevantSuccessors;
-
 		/** Backward pointer (in the tree, each state has only one incoming transition) */
 		protected PathState predecessor;
 
@@ -1502,14 +1493,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 		/** Mark this state as final */
 		public void setFinal() {
 			this.isFinal = true;
-		}
-
-		/** Clear the set of relevantSuccessors for this state */
-		public void clearSuccessors() {
-			if(relevantSuccessors.size() > maxRelevantSuccessors)
-					maxRelevantSuccessors = relevantSuccessors.size();
-			relevantSuccessors.clear();
-			numRelevantSuccessors = 0;
 		}
 
 		/**
@@ -1587,9 +1570,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 				send.add(Integer.MIN_VALUE); // = transitions for this state end here and this is a final state (remeber, we serialize in reversed order)
 			else
 				send.add(Integer.MAX_VALUE); // = transitions for this state end here, state is not final
-
-			// reset relevantSuccessors
-			this.clearSuccessors();
 		}
 	}
 }
