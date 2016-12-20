@@ -124,7 +124,7 @@ public class DesqDfsRunPCLocally {
 		// combined print
 		System.out.println("exp. no, case, optimizations, run, create time, read time, process time, no. seq, no. piv, total Recursions, trs used, mxp used");
 		String out = expNo + "\t" + theCase + "\t" + scenarioStr + "\t" + run + "\t" + prepTime.elapsed(TimeUnit.MILLISECONDS) + "\t" + ioTime.elapsed(TimeUnit.MILLISECONDS) + "\t" + miningTime.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-				stats._1 + "\t" + stats._2 + "\t" + miner.counterTotalRecursions + "\t" + miner.counterNonPivotTransitionsSkipped + "\t" + miner.counterMaxPivotUsed;
+				stats._1 + "\t" + stats._2 + "\t" + miner.counterTotalRecursions;
 		System.out.println(out);
 
 		try{

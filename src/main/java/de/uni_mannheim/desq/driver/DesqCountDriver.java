@@ -2,9 +2,7 @@ package de.uni_mannheim.desq.driver;
 
 import com.google.common.base.Stopwatch;
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.dictionary.DictionaryIO;
 import de.uni_mannheim.desq.io.CountPatternWriter;
-import de.uni_mannheim.desq.io.DelPatternWriter;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.mining.DesqCount;
@@ -16,7 +14,6 @@ import org.apache.log4j.Logger;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 

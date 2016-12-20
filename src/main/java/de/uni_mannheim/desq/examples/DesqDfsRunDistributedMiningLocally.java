@@ -13,7 +13,6 @@ import it.unimi.dsi.fastutil.objects.ObjectList;
 import scala.Tuple2;
 
 import java.io.*;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class DesqDfsRunDistributedMiningLocally {
@@ -22,21 +21,22 @@ public class DesqDfsRunDistributedMiningLocally {
 	static String patternExp;
 	static File dataFile;
 	static Dictionary dict;
-	static String runVersion;
 	static int expNo;
-	public static boolean verbose;
-	static String scenarioStr;
-	public static String useCase;
-	static boolean useTransitionRepresentation;
-	static boolean useTreeRepresentation;
-	static boolean mergeSuffixes;
-	static boolean generalizeInputItemsBeforeSending;
-	static String baseFolder;
-	static boolean useDesqCount;
-	static PrintWriter statsWriter;
-	static boolean useTwoPass;
 	public static int scenario;
 
+	static boolean sendNFAs;
+	static boolean mergeSuffixes;
+	static boolean useDesqCount;
+	static boolean useTwoPass;
+
+	public static String useCase;
+	static String baseFolder;
+	static String scenarioStr;
+	static String runVersion;
+
+	static PrintWriter statsWriter;
+
+	public static boolean verbose;
 	public static boolean writeShuffleStats = false;
 	public static boolean drawGraphs = false;
 
@@ -114,16 +114,8 @@ public class DesqDfsRunDistributedMiningLocally {
 		SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), true);
 		dataReader.setDictionary(dict);
 
-		minerConf.setProperty("desq.mining.use.transition.representation", useTransitionRepresentation);
-		minerConf.setProperty("desq.mining.use.tree.representation", useTreeRepresentation);
+		minerConf.setProperty("desq.mining.send.nfas", sendNFAs);
         minerConf.setProperty("desq.mining.merge.suffixes", mergeSuffixes);
-		minerConf.setProperty("desq.mining.generalize.input.items.before.sending", generalizeInputItemsBeforeSending);
-
-		// default settings
-		minerConf.setProperty("desq.mining.skip.non.pivot.transitions", false);
-		minerConf.setProperty("desq.mining.use.minmax.pivot", false);
-		minerConf.setProperty("desq.mining.use.first.pc.version", false);
-		minerConf.setProperty("desq.mining.pc.use.compressed.transitions", true);
 		minerConf.setProperty("desq.mining.use.two.pass", useTwoPass);
 
 		// create context
@@ -198,7 +190,10 @@ public class DesqDfsRunDistributedMiningLocally {
 			miner.clear();
 			for(IntList sequence : sequences) {
 				if(verbose) System.out.println(sequence);
-				miner.addInputSequence(sequence, 1, true);
+				if(sendNFAs)
+					miner.addNFA(sequence, 1, true);
+				else
+					miner.addInputSequence(sequence, 1, true);
 			}
 			miner.minePivot(key);
 
@@ -239,8 +234,8 @@ public class DesqDfsRunDistributedMiningLocally {
 		System.out.println("exp. no\tcase\toptimizations\trun\tcreate time\tread time\tpc time\tmine time\tno. partitions\tno. shuffle lists\tno. shuffle ints\ttotal Recursions\ttrs used\tmxp used\tno. patterns\ttotal freq. patterns");
 		String out = expNo + "\t" + theCase + "\t" + scenarioStr + "\t" + run + "\t" + prepTime.elapsed(TimeUnit.MILLISECONDS) + "\t" +
 				ioTime.elapsed(TimeUnit.MILLISECONDS) + "\t" + pcTime.elapsed(TimeUnit.MILLISECONDS) + "\t" + mineTime.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-				numPartitions + "\t" + numShuffleSequences + "\t" + numShuffleInts + "\t" + miner.counterTotalRecursions + "\t" + miner.counterNonPivotTransitionsSkipped + "\t" +
-				miner.counterMaxPivotUsed + "\t" + patCount + "\t" + patTotalFreq;
+				numPartitions + "\t" + numShuffleSequences + "\t" + numShuffleInts + "\t" + miner.counterTotalRecursions + "\t" +
+				patCount + "\t" + patTotalFreq;
 		System.out.println(out);
 
 		try{
@@ -530,12 +525,10 @@ public class DesqDfsRunDistributedMiningLocally {
 	private static void setScenario(int setScenario) {
 		//set some defaults
 		scenario = setScenario;
-		useTransitionRepresentation = false;
-        useTreeRepresentation = false;
+        sendNFAs = false;
 		mergeSuffixes = false;
 		useDesqCount = false;
 		useTwoPass = false;
-		generalizeInputItemsBeforeSending = false;
 		switch(scenario) {
 			case 0:
 				scenarioStr = "Count, shuffle output sequences";
@@ -548,16 +541,7 @@ public class DesqDfsRunDistributedMiningLocally {
 				break;
 			case 2:
 				scenarioStr = "Dfs, DAGs. pNFAg";
-                useTransitionRepresentation = true;
-				useTreeRepresentation = true;
-				useTwoPass = true;
-				break;
-			case 3:
-				scenarioStr = "Dfs, shuffle transition DAGs, generalize inputs";
-				useTransitionRepresentation = true;
-				useTreeRepresentation = true;
-				mergeSuffixes = true;
-				generalizeInputItemsBeforeSending = true;
+                sendNFAs = true;
 				useTwoPass = true;
 				break;
 			default:

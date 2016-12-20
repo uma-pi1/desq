@@ -89,7 +89,7 @@ final class DesqDfsTreeNode {
 	 * @param position position in the input sequence
 	 * @param stateId state of the FST
 	 */
-	void expandWithItemTraditional(int itemFid, int inputId, long inputSupport, int position, int stateId) {
+	void expandWithItem(int itemFid, int inputId, long inputSupport, int position, int stateId) {
 		DesqDfsTreeNode child = childrenByFid.get(itemFid);
 		if (child == null) {
 			child = new DesqDfsTreeNode(currentSnapshots.length);
