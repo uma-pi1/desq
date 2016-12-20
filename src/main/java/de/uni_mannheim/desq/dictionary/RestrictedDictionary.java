@@ -1,15 +1,15 @@
 package de.uni_mannheim.desq.dictionary;
 
+import de.uni_mannheim.desq.util.IntListOptimizer;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntCollection;
-import it.unimi.dsi.fastutil.ints.IntIterator;
-import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.ints.IntList;
 import org.apache.commons.lang.NotImplementedException;
 
 import java.util.BitSet;
-import java.util.Set;
 
-/** A subset of a given dictionary that contains only the specified items (including the *direct* links between these items).
+/** A subset of a given dictionary that contains only the specified items (including the *direct* links between
+ * these items).
  *
  * TODO: also add indirect links? (takes some thought to figure out which links to acutally add and how to do this
  *       reasonably efficiently. One option: compute transitive closure, drop items to be removed, then compute
@@ -18,27 +18,27 @@ import java.util.Set;
  * Use with care. This is mainly thought for internal use. Some methods are not implemented or may have slightly
  * different semantics.
  */
-public class RestrictedDictionary extends Dictionary {
-    private BitSet availableFids = new BitSet();
+public class RestrictedDictionary extends BasicDictionary {
+    private BitSet availableFids;
 
-    public RestrictedDictionary(Dictionary dict, IntSet fidsToRetain) {
-        super(dict, true);
+    /** fidsToRetain is stored internally so don't modify */
+    public RestrictedDictionary(BasicDictionary dict, BitSet fidsToRetain) {
+        super(dict, false);
+        availableFids = fidsToRetain;
 
         // copy parents and children
-        IntIterator it = fidsToRetain.iterator();
-        while (it.hasNext()) {
-            int fid = it.nextInt();
-            availableFids.set(fid);
-
+        IntArrayList tempList = new IntArrayList();
+        IntListOptimizer optimizer = new IntListOptimizer(false);
+        for (int fid = fidsToRetain.nextSetBit(0); fid >= 0; fid = fidsToRetain.nextSetBit(fid+1)) {
             // copy parents
             while (parents.size() <= fid) parents.add(null);
-            IntArrayList parentFids = dict.parentsOf(fid);
-            parents.set(fid, restrict(parentFids, fidsToRetain));
+            IntList parentFids = dict.parentsOf(fid);
+            parents.set(fid, restrict(optimizer, parentFids, fidsToRetain, tempList));
 
             // copy children
             while (children.size() <= fid) children.add(null);
-            IntArrayList childrenFids = dict.childrenOf(fid);
-            children.set(fid, restrict(childrenFids, fidsToRetain));
+            IntList childrenFids = dict.childrenOf(fid);
+            children.set(fid, restrict(optimizer, childrenFids, fidsToRetain, tempList));
         }
 
         size = availableFids.cardinality();
@@ -47,81 +47,63 @@ public class RestrictedDictionary extends Dictionary {
         largestRootFid = null;
     }
 
-    private static IntArrayList restrict(IntArrayList fids, IntSet fidsToRetain) {
-        // count how many fids are contained in l
-        int count = 0;
-        IntIterator it = fids.iterator();
-        while (it.hasNext()) {
-            int fid = it.next();
-            if (fidsToRetain.contains(fid)) {
-                count++;
+    private static IntList restrict(IntListOptimizer optimizer, IntList fids, BitSet fidsToRetain, IntArrayList tempList) {
+        tempList.clear();
+        for (int i=0; i<fids.size(); i++) {
+            int fid = fids.getInt(i);
+            if (fidsToRetain.get(fid)) {
+                tempList.add(fid);
             }
         }
-
-        // if everything is retained, just return the list
-        if (count == fids.size())
-            return fids;
-
-        // else we need to copy
-        IntArrayList retainedFids = new IntArrayList(count);
-        it = fids.iterator();
-        while (it.hasNext()) {
-            int fid = it.next();
-            if (fidsToRetain.contains(fid)) {
-                retainedFids.add(fid);
-            }
-        }
-        return retainedFids;
+        return tempList.size() != fids.size() ? optimizer.optimize(tempList) : fids;
     }
 
-    /** Always true. */
-    public boolean isReadOnly() {
-        return true;
-    }
-
+    @Override
     public boolean containsFid(int fid) {
         return availableFids.get(fid);
     }
 
+    @Override
     public boolean containsGid(int gid) {
         int fid = super.fidOf(gid);
         return fid >= 0 ? containsFid(fid) : false;
     }
 
-    public boolean containsSid(String sid) {
-        int fid = super.fidOf(sid);
-        return fid >= 0 ? containsFid(fid) : false;
-    }
-
     /** Returns the smallest fid or -1 if the dictionary is empty. */
+    @Override
     public int firstFid() {
         return availableFids.nextSetBit(1);
     }
 
     /** Returns the next-largest fid to the provided one or -1 if no more fids exist. */
+    @Override
     public int nextFid(int fid) {
         return availableFids.nextSetBit(fid+1);
     }
 
     /** Returns the next-smallest fid to the provided one or -1 if no more fids exist. */
+    @Override
     public int prevFid(int fid) {
         return availableFids.previousSetBit(fid-1);
     }
 
     /** Returns the largest fid or -1 if the dictionary is empty. */
+    @Override
     public int lastFid() {
         return availableFids.length()-1;
     }
 
+    @Override
     public IntCollection fids() {
         throw new NotImplementedException();
     }
 
+    @Override
     public IntCollection gids() {
         throw new NotImplementedException();
     }
 
-    public Set<String> sids() {
+    public RestrictedDictionary deepCopy() {
         throw new NotImplementedException();
     }
 }

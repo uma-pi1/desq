@@ -6,10 +6,10 @@ import java.io.IOException;
 
 public class PrefixGrowthExample {
 	public static void nyt() throws IOException {
-		int sigma = 10000;
-		int gamma = 0;
+		int sigma = 10;
+		int gamma = 1;
 		int lambda = 3;
-		boolean generalize = true;
+		boolean generalize = false;
 
 		ExampleUtils.runNyt( PrefixGrowthMiner.createConf(sigma,gamma,lambda,generalize) );
 	}
@@ -24,7 +24,7 @@ public class PrefixGrowthExample {
 	}
 
 	public static void main(String[] args) throws IOException {
-		// nyt();
-		icdm16();
+		nyt();
+		//icdm16();
 	}
 }

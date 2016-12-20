@@ -2,8 +2,6 @@ package de.uni_mannheim.desq.patex;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.fst.*;
-import de.uni_mannheim.desq.fst.BasicTransition.InputLabelType;
-import de.uni_mannheim.desq.fst.BasicTransition.OutputLabelType;
 import de.uni_mannheim.desq.patex.PatExParser.*;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -16,7 +14,7 @@ import java.util.Map;
 public final class PatEx {
 	String expression;
 	Dictionary dict;
-	Map<String,BasicTransition> transitionCache = new HashMap<>(); // caches transition
+	Map<String,Transition> transitionCache = new HashMap<>(); // caches transition
 
 	public PatEx(String expression, Dictionary dict) {
 		this.expression = expression;
@@ -46,6 +44,7 @@ public final class PatEx {
 		Fst fst = visitor.visit(tree);
 
 		fst.updateStates();
+		fst.optimize();
 		return fst;
 	}
 
@@ -64,18 +63,15 @@ public final class PatEx {
 			if (ctx.start == null) {
 				State initialState = fst.getInitialState();
 				initialState.addTransition(
-						new BasicTransition(0, InputLabelType.SELF, -1, OutputLabelType.EPSILON, initialState, dict)
+						TransitionFactory.uncapturedDot(dict, initialState)
 				);
 			}
 
-			// remember whether we need to match to the end
-			// fst.setRequireFullMatch( ctx.end != null );
-
-			// if we can end anywhere
+			// add new self-loop final state if we can end anywhere
 			if (ctx.end == null) {
 				State newFinalState = new State(true);
 				newFinalState.addTransition(
-						new BasicTransition(0, InputLabelType.SELF, -1, OutputLabelType.EPSILON, newFinalState, dict)
+						TransitionFactory.uncapturedDot(dict, newFinalState)
 				);
 				for(State finalState : fst.getFinalStates()) {
 					finalState.simulateEpsilonTransitionTo(newFinalState);
@@ -191,17 +187,16 @@ public final class PatEx {
 				// operator generalize
 				generalize = true;
 			}
-			
+
 			Fst fst = new Fst();
 			Transition t;
-			if(capture){
-				if(generalize) {
-					t = new BasicTransition(0, InputLabelType.SELF, 0, OutputLabelType.SELF_ASCENDANTS, new State(true), dict);
-				} else {
-					t = new BasicTransition(0, InputLabelType.SELF, -1, OutputLabelType.SELF, new State(true), dict);
-				}
+			if(capture) {
+				if (generalize)
+					t = TransitionFactory.capturedGeneralizedDot(dict, new State(true));
+				else
+					t = TransitionFactory.capturedDot(dict, new State(true));
 			} else {
-				t = new BasicTransition(0, InputLabelType.SELF, -1, OutputLabelType.EPSILON, new State(true), dict);
+				t = TransitionFactory.uncapturedDot(dict, new State(true));
 			}
 			fst.getInitialState().addTransition(t);
 			fst.updateStates();
@@ -211,28 +206,26 @@ public final class PatEx {
 		
 		@Override
 		public Fst visitNonWildCard(NonWildCardContext ctx) {
-			boolean generalize = false;
-			boolean force = false;
-			String word = ctx.item().getText();
-			if (word.startsWith("'") && word.endsWith("'") || word.startsWith("\"") && word.endsWith("\"")) {
+			String label = ctx.item().getText();
+			if (label.startsWith("'") && label.endsWith("'") || label.startsWith("\"") && label.endsWith("\"")) {
 				// strip the quotes
-				word = word.substring(1, word.length()-1);
+				label = label.substring(1, label.length()-1);
 			}
-
-			int fid = dict.fidOf(word);
+			int fid = dict.fidOf(label);
 			if (fid < 0) {
-				throw new RuntimeException("unknown item " + word + " at " + ctx.item().getStart().getLine()
+				throw new RuntimeException("unknown item " + label + " at " + ctx.item().getStart().getLine()
 						+ ":" + ctx.item().getStart().getCharPositionInLine());
 			}
-			int inputLabel = fid;
+
+			boolean generalize = false;
+			boolean force = false;
 			int opCount = ctx.getChildCount();
 			if (opCount == 2) {
-				if (ctx.getChild(1).getText().equals("=")) {
-					force = true;
-				} else {
-					generalize = true;
-				}
+				// either A= or A^
+				force = ctx.getChild(1).getText().equals("=");
+				generalize = ctx.getChild(1).getText().equals("^");
 			} else if (opCount == 3) {
+				// A=^
 				force = true;
 				generalize = true;
 			}
@@ -242,50 +235,30 @@ public final class PatEx {
 
 			// see if we have a cached transition
 			String transitionKey = Integer.toString(fid) + force + generalize + capture;
-			BasicTransition t;
+			Transition t;
 			if (transitionCache.containsKey(transitionKey)) {
 				// if so, , use a shallow copy of this one (to share data structures)
-				BasicTransition cachedT = transitionCache.get(transitionKey);
+				Transition cachedT = transitionCache.get(transitionKey);
 				t = cachedT.shallowCopy();
 				t.setToState(new State(true));
 				//System.out.println(transitionKey);
 			} else {
 				// otherwise compute it
-				InputLabelType inputLabelType;
-				int outputLabel;
-				OutputLabelType outputLabelType;
-
 				if (capture) {
 					if (force && generalize) { // case: A=^
-						inputLabelType = InputLabelType.SELF_DESCENDANTS;
-						outputLabel = inputLabel;
-						outputLabelType = OutputLabelType.CONSTANT;
+						t = TransitionFactory.capturedConstant(dict, new State(true), fid, label);
 					} else if (force & !generalize) { // case A=
-						inputLabelType = InputLabelType.SELF;
-						outputLabel = inputLabel;
-						outputLabelType = OutputLabelType.CONSTANT;
+						t = TransitionFactory.capturedItem(dict, new State(true), fid, label, false);
 					} else if (!force && generalize) { // case A^
-						inputLabelType = InputLabelType.SELF_DESCENDANTS;
-						outputLabel = inputLabel;
-						outputLabelType = OutputLabelType.SELF_ASCENDANTS;
+						t = TransitionFactory.capturedGeneralizedItem(dict, new State(true), fid, label);
 					} else { // case A
-						inputLabelType = InputLabelType.SELF_DESCENDANTS;
-						outputLabel = -1;
-						outputLabelType = OutputLabelType.SELF;
+						t = TransitionFactory.capturedItem(dict, new State(true), fid, label, true);
 					}
 				} else {
 					assert !generalize;
-					outputLabel = -1;
-					outputLabelType = OutputLabelType.EPSILON;
-					if (force) {
-						inputLabelType = InputLabelType.SELF;
-					} else {
-						inputLabelType = InputLabelType.SELF_DESCENDANTS;
-					}
+					t = TransitionFactory.uncapturedItem(dict, new State(true), fid, label, !force);
 				}
 
-				t = new BasicTransition(inputLabel, inputLabelType, outputLabel, outputLabelType,
-						new State(true), dict);
 				transitionCache.put(transitionKey, t); // remember for reuse
 			}
 			fst.getInitialState().addTransition(t);

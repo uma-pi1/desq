@@ -1,74 +1,113 @@
 package de.uni_mannheim.desq.examples;
 
-import com.google.common.base.Stopwatch;
+import de.uni_mannheim.desq.dictionary.BasicDictionary;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.fst.Dfa;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.patex.PatEx;
-import org.apache.spark.util.SizeEstimator;
+import de.uni_mannheim.desq.util.Profiler;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author kbeedkar {kbeedkar@uni-mannheim.de}.
  */
 public class DfaExample {
+    Profiler profiler = new Profiler();
 
-    Stopwatch dfaTime = Stopwatch.createUnstarted();
+    void run(Dictionary dict, String patternExpression, long sigma) {
+        System.out.println("Pattern expression: " + patternExpression);
+        System.out.println("sigma             : " + sigma);
 
-    public void amzn() throws IOException {
-
-        Dictionary dict = Dictionary.loadFrom("data-local/amzn-dict.avro.gz");
-
-        long sigma = 0L;
-        String patternExpression = "";
-
-        // SLOW
-        //sigma = 100;
-        //patternExpression = "(Books) [.?{2} (Books)]{1,4}";
-
-        // SLOW
-        //sigma = 500;
-        //patternExpression = "(Electronics^) [.?{2} (Electronics^)]{1,4}";
-
-        // SLOW
-        //sigma = 100;
-        //patternExpression = "(Musical_Instruments^) [.?{2} (Musical_Instruments^)]{1,4}";
-
-        // VERY SLOW
-        sigma = 100;
-        patternExpression = "Digital_Cameras@Electronics [.?{3} (.^)]{1,4}";
-
-        //Dictionary dict = Dictionary.loadFrom("data-local/nyt-dict.avro.gz");
-        //sigma = 100;
-        //patternExpression = "(ENTITY^ VB+ NN+? IN? ENTITY^)";
-
+        System.out.print("Creating FST... ");
+        profiler.start();
         PatEx p = new PatEx(patternExpression, dict);
         Fst fst = p.translate();
         fst.minimize();
         fst.annotate();
-
+        profiler.stop();
+        System.out.println(profiler);
         fst.print();
 
-        System.out.println("Estimated in-memory FST size (including dictionary): " + SizeEstimator.estimate(fst));
-
-        dfaTime.reset();
-        dfaTime.start();
-        Dfa forwardDfa = Dfa.createDfa(fst, dict, dict.lastFidAbove(sigma), false);
-        dfaTime.stop();
-        System.out.println("Dfa for " + patternExpression + " took " + dfaTime.elapsed(TimeUnit.SECONDS) + "s");
+        System.out.print("Creating forward DFA... ");
+        profiler.start();
+        Dfa forwardDfa = Dfa.createDfa(fst, dict, dict.lastFidAbove(sigma), false, false);
+        profiler.stop();
+        System.out.println(profiler);
         System.out.println(forwardDfa.numStates() + " states");
 
-        dfaTime.reset();
-        dfaTime.start();
-        Dfa backwardDfa  = Dfa.createReverseDfa(fst, dict, dict.lastFidAbove(sigma), true);
-        dfaTime.stop();
-        System.out.println("Reverse Dfa for " + patternExpression + " took " + dfaTime.elapsed(TimeUnit.SECONDS) + "s");
+        System.out.print("Creating backward DFA... ");
+        profiler.start();
+        Dfa backwardDfa  = Dfa.createReverseDfa(fst, dict, dict.lastFidAbove(sigma), true, false);
+        profiler.stop();
+        System.out.println(profiler);
         System.out.println(backwardDfa.numStates() + " states");
+    }
+
+    public void amzn() throws IOException {
+        String dictFile = "data-local/amzn-dict.avro.gz";
+        System.out.print("Loading " + dictFile + " dictionary... ");
+        profiler.start();
+        Dictionary dict = Dictionary.loadFrom(dictFile);
+        profiler.stop();
+        System.out.println(profiler);
+
+        System.out.print("Compute basic dictionary copy... ");
+        profiler.start();
+        BasicDictionary basicDict = dict.deepCopyAsBasicDictionary();
+        profiler.stop();
+        System.out.println(profiler);
+
+        System.out.print("Freezing dictionary... ");
+        profiler.start();
+        dict.freeze();
+        profiler.stop();
+        System.out.println(profiler);
+
+        System.out.println("Dictionary properties: " +
+                dict.size() + " items, " +
+                (dict.isForest() ? "forest" : "dag")
+        );
+
+        // SLOW
+        //run(dict, "(Books) [.?{2} (Books)]{1,4}", 100);
+        //run(dict, "(Electronics^) [.?{2} (Electronics^)]{1,4}", 500);
+        //run(dict, "(Musical_Instruments^) [.?{2} (Musical_Instruments^)]{1,4}", 100);
+
+        // VERY SLOW
+        run(dict, "Digital_Cameras@Electronics [.?{3} (.^)]{1,4}", 100);
+    }
+
+    public void nyt() throws IOException {
+        String dictFile = "data-local/nyt-dict.avro.gz";
+        System.out.print("Loading " + dictFile + " dictionary... ");
+        profiler.start();
+        Dictionary dict = Dictionary.loadFrom(dictFile);
+        profiler.stop();
+        System.out.println(profiler);
+
+        System.out.print("Compute basic dictionary copy... ");
+        profiler.start();
+        BasicDictionary basicDict = dict.deepCopyAsBasicDictionary();
+        profiler.stop();
+        System.out.println(profiler);
+
+        System.out.print("Freezing dictionary... ");
+        profiler.start();
+        dict.freeze();
+        profiler.stop();
+        System.out.println(profiler);
+
+        System.out.println("Dictionary properties: " +
+                dict.size() + " items, " +
+                (dict.isForest() ? "forest" : "dag")
+        );
+
+        run(dict, "(ENTITY^ VB+ NN+? IN? ENTITY^)", 100);
     }
 
     public static void main(String[] args) throws IOException {
         new DfaExample().amzn();
+        //new DfaExample().nyt();
     }
 }

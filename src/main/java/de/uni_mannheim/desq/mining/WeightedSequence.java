@@ -91,10 +91,10 @@ public final class WeightedSequence extends Sequence implements Externalizable, 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (o == null || !(o instanceof WeightedSequence)) return false;
         WeightedSequence that = (WeightedSequence) o;
         if (weight != that.weight) return false;
-        return super.equals(o);
+        return super.equals(that);
     }
 
     @Override

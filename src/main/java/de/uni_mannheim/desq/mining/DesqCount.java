@@ -13,7 +13,6 @@ import org.apache.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Iterator;
 
 public final class DesqCount extends DesqMiner {
 	private static final Logger logger = Logger.getLogger(DesqCount.class);
@@ -61,7 +60,7 @@ public final class DesqCount extends DesqMiner {
 	final Object2LongOpenHashMap<Sequence> outputSequences = new Object2LongOpenHashMap<>();
 
 	/** Stores iterators over output item/next state pairs for reuse. Indexed by input position. */
-	final ArrayList<Iterator<ItemState>> itemStateIterators = new ArrayList<>();
+	final ArrayList<State.ItemStateIterator> itemStateIterators = new ArrayList<>();
 
 	/** Stores the part of the output sequence produced so far. */
 	final Sequence prefix;
@@ -86,6 +85,7 @@ public final class DesqCount extends DesqMiner {
 		this.useFlist = ctx.conf.getBoolean("desq.mining.use.flist");
 		this.pruneIrrelevantInputs = ctx.conf.getBoolean("desq.mining.prune.irrelevant.inputs");
 		this.useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
+		boolean useLazyDfa = ctx.conf.getBoolean("desq.mining.use.lazy.dfa");
 
 		// initalize helper variable for FST simulation
 		this.largestFrequentFid = ctx.dict.lastFidAbove(sigma);
@@ -119,15 +119,14 @@ public final class DesqCount extends DesqMiner {
 		if(useTwoPass) {
 			// construct the DFA for the FST (for the first pass)
 			// the DFA is constructed for the reverse FST
-			this.dfa = Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid, true);
+			this.dfa = Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid, true, useLazyDfa);
 		} else if (pruneIrrelevantInputs) {
 			// construct the DFA to prune irrelevant inputs
 			// the DFA is constructed for the forward FST
-			this.dfa = Dfa.createDfa(fst, ctx.dict, largestFrequentFid, false);
+			this.dfa = Dfa.createDfa(fst, ctx.dict, largestFrequentFid, false, useLazyDfa);
 		} else {
 			this.dfa = null;
 		}
-
 	}
 
 	public static DesqProperties createConf(String patternExpression, long sigma) {
@@ -136,8 +135,9 @@ public final class DesqCount extends DesqMiner {
 		conf.setProperty("desq.mining.min.support", sigma);
 		conf.setProperty("desq.mining.pattern.expression", patternExpression);
 		conf.setProperty("desq.mining.use.flist", true);
-		conf.setProperty("desq.mining.prune.irrelevant.inputs", false);
-		conf.setProperty("desq.mining.use.two.pass", false);
+		conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
+		conf.setProperty("desq.mining.use.lazy.dfa", false);
+		conf.setProperty("desq.mining.use.two.pass", true);
 		return conf;
 	}
 
@@ -227,9 +227,9 @@ public final class DesqCount extends DesqMiner {
 		final BitSet validToStates = useTwoPass
 				? dfaStateSequence.get( inputSequence.size()-(pos+1) ).getFstStates() // only states from first pass
 				: null; // all states
-		Iterator<ItemState> itemStateIt;
+		State.ItemStateIterator itemStateIt;
 		if (level>=itemStateIterators.size()) {
-			itemStateIt = state.consume(itemFid, null, validToStates);
+			itemStateIt = state.consume(itemFid, new State.ItemStateIterator(ctx.dict.isForest()), validToStates);
 			itemStateIterators.add(itemStateIt);
 		} else {
 			itemStateIt = state.consume(itemFid, itemStateIterators.get(level), validToStates);

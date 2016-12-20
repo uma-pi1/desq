@@ -131,6 +131,20 @@ public class ExampleUtils {
         return runVerbose(dataReader, minerConf);
     }
 
+
+    /** Runs a miner on Proteins data */
+    public static DesqMiner runProtein(DesqProperties minerConf) throws IOException {
+        Dictionary dict = Dictionary.loadFrom("data-local/sma-protein/protein-dict.avro.gz");
+        dict.recomputeFids();
+        dict.freeze();
+        File dataFile = new File("data-local/sma-protein/protein-data-gid.del");
+        SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), false);
+        dataReader.setDictionary(dict);
+        return runVerbose(dataReader, minerConf);
+    }
+
+
+
     /** Runs a miner on ICDM16 example data. */
     public static DesqMiner runIcdm16(DesqProperties minerConf) throws IOException {
         URL dictFile = ExampleUtils.class.getResource("/icdm16-example/dict.json");
