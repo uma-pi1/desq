@@ -525,7 +525,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 			if(useTransitionRepresentation) {
 
-				IntSet emittedPivots = new IntAVLTreeSet();
+				IntSet emittedPivots = new IntOpenHashSet();
 				Sequence path = prefix.clone();
 
 				// we might arrive multiple times here (if we have eps-transitions) But we don't need to do all this work again.
