@@ -173,6 +173,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 	public static long counterSerializedStates = 0;
 	public static long counterSerializedTransitions = 0;
 	public static long counterPathsAdded = 0;
+	public static long maxFollowGroupSetSize = 0;
+	public static long maxPivotsForOneSequence = 0;
+	public static long maxPivotsForOnePath = 0;
+	public static long maxNumOutTrs = 0;
+
 
 
 	// -- construction/clearing ---------------------------------------------------------------------------------------
@@ -475,6 +480,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 
 
+		if(nfas.size() > maxPivotsForOneSequence) maxPivotsForOneSequence = nfas.size();
+
 		// For each pivot item, trim the NFA and output it
         for(Map.Entry<Integer, OutputNFA> pivotAndNFA : nfas.entrySet()) {
 			int pivotItem =  pivotAndNFA.getKey();
@@ -543,6 +550,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 					}
 
                 }
+                if(emittedPivots.size() > maxPivotsForOnePath) maxPivotsForOnePath = emittedPivots.size();
 			} else {
 			    // if we don't build the transition representation, just keep track of the pivot items
 				for(int i=0; i<currentPivotItems.size(); i++) {
@@ -1324,6 +1332,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		 * @param stateIds
 		 */
 		private void followGroup(IntAVLTreeSet stateIds, boolean definitelyMergeable) {
+		    if(stateIds.size() > maxFollowGroupSetSize) maxFollowGroupSetSize = stateIds.size();
 			counterFollowGroupCalls++;
 			IntBidirectionalIterator it = stateIds.iterator();
 			int currentTargetStateId;
@@ -1546,6 +1555,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 			PathState toState;
 
 			writtenAtPos = send.size();
+
+			if(outTransitions.size() > maxNumOutTrs) maxNumOutTrs = outTransitions.size();
 
 			for(Map.Entry<Long,PathState> entry : outTransitions.entrySet()) {
 				toState = entry.getValue();

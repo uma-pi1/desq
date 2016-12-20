@@ -272,8 +272,11 @@ public class DesqDfsRunDistributedMiningLocally {
 					DesqDfs.counterSerializedStates + "\t" +
 					DesqDfs.counterSerializedTransitions + "\t" +
 					DesqDfs.counterPathsAdded + "\t" +
+					DesqDfs.maxFollowGroupSetSize + "\t" +
+					DesqDfs.maxPivotsForOneSequence + "\t" +
+					DesqDfs.maxPivotsForOnePath + "\t" +
+					DesqDfs.maxNumOutTrs + "\t" +
 					"";
-
 
 			writer.println(timings);
 			writer.close();
