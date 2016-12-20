@@ -5,6 +5,7 @@ import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.io.*;
 import de.uni_mannheim.desq.mining.*;
 import de.uni_mannheim.desq.util.DesqProperties;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -175,7 +176,7 @@ public class DesqDfsRunDistributedMiningLocally {
 		int numPartitions = partitions.size();
 		int numShuffleSequences = 0;
 		int numShuffleInts = 0;
-		for(Map.Entry<Integer, ObjectList<IntList>> partition : partitions.entrySet()) {
+		for(Int2ObjectMap.Entry<ObjectList<IntList>> partition : partitions.int2ObjectEntrySet()) {
 			for(IntList sequence :  partition.getValue()) {
 				numShuffleSequences++;
 				numShuffleInts += sequence.size();
@@ -188,8 +189,8 @@ public class DesqDfsRunDistributedMiningLocally {
 		Stopwatch mineTime = Stopwatch.createStarted();
 		int key;
 		ObjectList<IntList> sequences;
-		for(Map.Entry<Integer, ObjectList<IntList>> partition : partitions.entrySet()) {
-			key = partition.getKey();
+		for(Int2ObjectMap.Entry<ObjectList<IntList>> partition : partitions.int2ObjectEntrySet()) {
+			key = partition.getIntKey();
 			sequences = partition.getValue();
 			if(verbose) {
 				System.out.println("Partition " + key + ": " + sequences.size() + " sequences:");

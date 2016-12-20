@@ -11,6 +11,7 @@ import de.uni_mannheim.desq.util.DesqProperties;
 import de.uni_mannheim.desq.util.PrimitiveUtils;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.longs.Long2ObjectAVLTreeMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
 import it.unimi.dsi.fastutil.objects.*;
 import org.apache.commons.io.FilenameUtils;
@@ -483,8 +484,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 		if(nfas.size() > maxPivotsForOneSequence) maxPivotsForOneSequence = nfas.size();
 
 		// For each pivot item, trim the NFA and output it
-        for(Map.Entry<Integer, OutputNFA> pivotAndNFA : nfas.entrySet()) {
-			int pivotItem =  pivotAndNFA.getKey();
+        for(Int2ObjectMap.Entry<OutputNFA> pivotAndNFA : nfas.int2ObjectEntrySet()) {
+			int pivotItem =  pivotAndNFA.getIntKey();
 			OutputNFA nfa = pivotAndNFA.getValue();
 
 			// Trim the NFA for this pivot and directly serialize it
@@ -1413,9 +1414,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 			FstVisualizer fstVisualizer = new FstVisualizer(FilenameUtils.getExtension(file), FilenameUtils.getBaseName(file));
 			fstVisualizer.beginGraph();
 			for(PathState s : pathStates) {
-				for(Map.Entry<Long, PathState> trEntry : s.outTransitions.entrySet()) {
-					int inputId = PrimitiveUtils.getLeft(trEntry.getKey());
-					int trId = PrimitiveUtils.getRight(trEntry.getKey());
+				for(Long2ObjectMap.Entry<PathState> trEntry : s.outTransitions.long2ObjectEntrySet()) {
+					int inputId = PrimitiveUtils.getLeft(trEntry.getLongKey());
+					int trId = PrimitiveUtils.getRight(trEntry.getLongKey());
 
 					String label;
 					if(inputId < 0) {
@@ -1523,9 +1524,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 			if(this.outTransitions.size() != target.outTransitions.size())
 				return false;
 
-			ObjectBidirectionalIterator<Map.Entry<Long,PathState>> aIt = this.outTransitions.entrySet().iterator();
-			ObjectBidirectionalIterator<Map.Entry<Long,PathState>> bIt = target.outTransitions.entrySet().iterator();
-			Map.Entry<Long,PathState> a, b;
+			ObjectIterator<Long2ObjectMap.Entry<PathState>> aIt = this.outTransitions.long2ObjectEntrySet().iterator();
+			ObjectIterator<Long2ObjectMap.Entry<PathState>> bIt = target.outTransitions.long2ObjectEntrySet().iterator();
+			Long2ObjectMap.Entry<PathState> a, b;
 
 			// the two states have the same number of out transitions (checked above)
 			// now we only check whether those out transitions have the same outKey and point towards the same state
@@ -1534,7 +1535,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				a = aIt.next();
 				b = bIt.next();
 
-				if(!a.getKey().equals(b.getKey()))
+				if(a.getLongKey() != b.getLongKey())
 					return false;
 
 				if(a.getValue().mergedInto != b.getValue().mergedInto)
@@ -1558,7 +1559,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 			if(outTransitions.size() > maxNumOutTrs) maxNumOutTrs = outTransitions.size();
 
-			for(Map.Entry<Long,PathState> entry : outTransitions.entrySet()) {
+			for(Long2ObjectMap.Entry<PathState> entry : outTransitions.long2ObjectEntrySet()) {
 				toState = entry.getValue();
 
                 counterSerializedTransitions++;
