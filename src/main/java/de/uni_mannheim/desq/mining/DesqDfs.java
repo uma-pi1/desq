@@ -676,12 +676,12 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	/** Runs one step (along compressed transition) in the FST in order to produce the set of frequent output items
 	 *  and directly creates the partitions with the transition representation
 	 *
-	 * @param largestFidSeen largest seen fid so far. this will become the first pivot item later on
+	 * @param largestFidSeenIncoming largest seen fid so far. this will become the first pivot item later on
 	 * @param pos   current position
 	 * @param state current state
 	 * @param level current level
 	 */
-	private void piStep(int largestFidSeen, int pos, State state, int level) {
+	private void piStep(final int largestFidSeenIncoming, int pos, State state, int level) {
 		counterTotalRecursions++;
 
 		// if we reached a final state, we add the current set of pivot items at this state to the global set of pivot items for this sequences
@@ -699,7 +699,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 				// add this path to the different pivot NFAs
 				//    we start with the largest pivot, and drop elements from the output sets one by one
-				int pivotItem = largestFidSeen;
+				int pivotItem = largestFidSeenIncoming;
 				int numPivotsEmitted = 0;
 				while(pivotItem != -1) {
 					numPivotsEmitted++;
@@ -710,6 +710,9 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					} else {
 						nfa = nfas.get(pivotItem);
 					}
+
+					// if the path doesn't contain the pivot, something went wrong here.
+					assert pivot(pathCopy) < pivotItem;
 
 					// add the path to the pivot (incl. kicking out items>pivot) and retrieve next pivot item
 					pivotItem = nfa.addOutLabelPathAndReturnNextPivot(pathCopy);
@@ -756,11 +759,14 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 		OutputLabel ol;
 		int outputItem;
+		int largestFidSeen;
 
 		// follow each relevant transition
 		while(transitionIt.hasNext()) {
 			tr = transitionIt.next();
 			toState = tr.getToState();
+
+			largestFidSeen = largestFidSeenIncoming;
 
 			// We handle the different output label types differently
 			if(!tr.hasOutput()) { // this transition doesn't produce output
@@ -1028,6 +1034,14 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			pivotItem = Math.max(item, pivotItem);
 		}
 		return pivotItem;
+	}
+
+	private int pivot(OutputLabel[] path) {
+		int pivot = -1;
+		for(OutputLabel ol : path) {
+			pivot = Math.max(pivot, ol.outputItems.lastInt());
+		}
+		return pivot;
 	}
 
 	/**
