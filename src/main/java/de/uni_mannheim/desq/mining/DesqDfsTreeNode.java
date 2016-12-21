@@ -216,24 +216,32 @@ final class DesqDfsTreeNode {
 	 * @param position position in the input sequence
 	 */
 	void expandWithTransition(int itemFid, int inputId, long inputSupport, int position) {
+
+		// when we are working on NFAs, we store T[pos] instead of T[pos@q]
+
 		DesqDfsTreeNode child = childrenByFid.get(itemFid);
 		if (child == null) {
-			child = new DesqDfsTreeNode(currentSnapshots.length);
+			child = new DesqDfsTreeNode(this.numStates);
 			child.itemFid = itemFid;
 			childrenByFid.put(itemFid, child);
 		}
 
-		if (child.currentInputId != inputId) {
+        // the following code is copied from addToProjectedDatabase. we don't write the stateId for NFAs
+		//   this would be the call: addToProjectedDatabase(child, inputId, inputSupport, position, 0);
+		final int spIndex = position;
+		if (child.projectedDatabaseCurrentInputId != inputId) {
 			// start a new posting
 			child.projectedDatabase.newPosting();
-			child.clearSnapshots();
+			child.currentSnapshots.clear();
 			child.prefixSupport += inputSupport;
-            child.currentSnapshots[0].set(position);
-			child.projectedDatabase.addNonNegativeInt(inputId-child.currentInputId);
-			child.currentInputId = inputId;
+			child.currentSnapshots.set(spIndex);
+			child.projectedDatabase.addNonNegativeInt(inputId-child.projectedDatabaseCurrentInputId);
+			child.projectedDatabaseCurrentInputId = inputId;
+//			child.projectedDatabase.addNonNegativeInt(stateId);
 			child.projectedDatabase.addNonNegativeInt(position);
-		} else if(!child.currentSnapshots[0].get(position)){
-			child.currentSnapshots[0].set(position);
+		} else if (!child.currentSnapshots.get(spIndex)) {
+			child.currentSnapshots.set(spIndex);
+//			child.projectedDatabase.addNonNegativeInt(stateId);
 			child.projectedDatabase.addNonNegativeInt(position);
 		}
 	}

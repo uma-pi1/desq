@@ -3,7 +3,6 @@ package de.uni_mannheim.desq.mining;
 import com.google.common.base.Stopwatch;
 import de.uni_mannheim.desq.examples.DesqDfsRunDistributedMiningLocally;
 import de.uni_mannheim.desq.fst.*;
-import de.uni_mannheim.desq.fst.BasicTransition.OutputLabelType;
 import de.uni_mannheim.desq.fst.graphviz.FstVisualizer;
 import de.uni_mannheim.desq.patex.PatEx;
 import de.uni_mannheim.desq.util.CloneableIntHeapPriorityQueue;
@@ -11,11 +10,7 @@ import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import org.apache.log4j.Level;
-import de.uni_mannheim.desq.util.PrimitiveUtils;
 import it.unimi.dsi.fastutil.ints.*;
-import it.unimi.dsi.fastutil.longs.Long2ObjectAVLTreeMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
 import it.unimi.dsi.fastutil.objects.*;
 import org.apache.commons.io.FilenameUtils;
 import scala.Tuple2;
@@ -116,7 +111,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	final Sequence prefix = new Sequence();
 
 	/** length of last processed prefix */
-	int processedPrefixSize = 0;
+	int processedPathSize = 0;
 
 	/** If true, DesqDfs Distributed sends Output NFAs instead of input sequences */
 	final boolean sendNFAs;
@@ -127,17 +122,20 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** Stores one Transition iterator per recursion level for reuse */
 	final ArrayList<Iterator<Transition>> transitionIterators = new ArrayList<>();
 
-	/** Ascendants of current input item */
-	IntAVLTreeSet ascendants = new IntAVLTreeSet();
-
 	/** Current transition */
-	BasicTransition tr;
+	Transition tr;
 
 	/** Current to-state */
 	State toState;
 
-	/** Item added by current transition */
-	int addItem;
+	/** A set to collect the output items of the current transition */
+	IntAVLTreeSet outputItems = new IntAVLTreeSet();
+
+	/** One itCache per level, in order to reuse the Iterator objects */
+	private final ArrayList<Transition.ItemStateIteratorCache> itCaches = new ArrayList<>();
+
+	/** Stores the current path through the FST */
+	private ObjectList<OutputLabel> path = new ObjectArrayList<>();
 
 	/** For each pivot item (and input sequence), we serialize a NFA producing the output sequences for that pivot item from the current input sequence */
 	private Int2ObjectOpenHashMap<OutputNFA> nfas = new Int2ObjectOpenHashMap<>();
@@ -191,6 +189,9 @@ public final class DesqDfs extends MemoryDesqMiner {
         useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
 		boolean useLazyDfa = ctx.conf.getBoolean("desq.mining.use.lazy.dfa");
 
+		sendNFAs = ctx.conf.getBoolean("desq.mining.send.nfas", false);
+		mergeSuffixes = ctx.conf.getBoolean("desq.mining.merge.suffixes", false);
+
 		// create FST
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
 		PatEx p = new PatEx(patternExpression, ctx.dict);
@@ -228,11 +229,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 			this.dfa = Dfa.createDfa(fst, ctx.dict, largestFrequentFid, false, useLazyDfa);
 		} else {
 			this.dfa = null;
-			
+
 		}
 
-		fst.numberTransitions();
-		fst.exportGraphViz(DesqDfsRunDistributedMiningLocally.useCase + "-fst.pdf");
+		if(drawGraphs) fst.exportGraphViz(DesqDfsRunDistributedMiningLocally.useCase + "-fst.pdf");
 
 		// other auxiliary variables
 		root = new DesqDfsTreeNode(fst.numStates());
@@ -513,7 +513,6 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	public Tuple2<Integer,Integer> determinePivotItemsForSequences(ObjectArrayList<Sequence> inputSequences, boolean verbose) throws IOException {
 		int numSequences = 0;
 		int totalPivotElements = 0;
-		//Sequence inputSequence = new Sequence();
 		IntSet pivotElements;
 		for(Sequence inputSequence: inputSequences) {
 			pivotElements = getPivotItemsOfOneSequence(inputSequence);
@@ -592,7 +591,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				// run the first incStep; start at all positions from which a final FST state can be reached
 				for (int i = 0; i<dfaInitialPos.size(); i++) {
 					// for those positions, start with the initial state
-					piStep(null, dfaInitialPos.getInt(i), fst.getInitialState(), 0);
+					piStep(-1, dfaInitialPos.getInt(i), fst.getInitialState(), 0); // TODO: not working at the moment
 				}
 
 				// clean up
@@ -603,7 +602,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		} else { // one pass
 
 			if (!pruneIrrelevantInputs || dfa.accepts(inputSequence)) {
-				piStep(null, 0, fst.getInitialState(), 0);
+				piStep(-1, 0, fst.getInitialState(), 0); // TODO: not working at the moment
 			}
 		}
 		return pivotItems;
@@ -620,8 +619,9 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 		// get the pivot elements with the corresponding paths through the FST
 		this.inputSequence = inputSequence;
-		prefix.clear();
+		path.clear();
 		nfas.clear();
+		// TODO: experiment whether nfas.trim() helps here
 		pivotItems.clear();
 
 		if(!buildPartitions)
@@ -636,7 +636,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				// run the first incStep; start at all positions from which a final FST state can be reached
 				swSecondPass.start();
 				for (int i = 0; i < dfaInitialPos.size(); i++) {
-					piStep(null, dfaInitialPos.getInt(i), fst.getInitialState(), 0);
+					piStep(-1, dfaInitialPos.getInt(i), fst.getInitialState(), 0);
 				}
 				swSecondPass.stop();
 
@@ -646,7 +646,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				swFirstPass.stop();
 			}
 		} else {
-			piStep(null, 0, fst.getInitialState(), 0);
+			piStep(-1, 0, fst.getInitialState(), 0);
 		}
 
 
@@ -660,7 +660,8 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			// Trim the NFA for this pivot and directly serialize it
 			Sequence output = nfa.serialize();
 
-			if(drawGraphs) drawSerializedNFA(output, DesqDfsRunDistributedMiningLocally.useCase + "-seq"+seqNo+"-pivot"+pivotItem+"-NFA.pdf", true, "");
+//			if(drawGraphs) drawSerializedNFA(output, DesqDfsRunDistributedMiningLocally.useCase + "-seq"+seqNo+"-pivot"+pivotItem+"-NFA.pdf", true, "");
+			if(drawGraphs) nfa.exportGraphViz(DesqDfsRunDistributedMiningLocally.useCase + "-seq"+seqNo+"-pivot"+pivotItem+"-NFA.pdf");
 
 			if(DesqDfsRunDistributedMiningLocally.writeShuffleStats) DesqDfsRunDistributedMiningLocally.writeShuffleStats(seqNo, pivotItem, numSerializedStates);
 
@@ -681,51 +682,51 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	/** Runs one step (along compressed transition) in the FST in order to produce the set of frequent output items
 	 *  and directly creates the partitions with the transition representation
 	 *
-	 * @param currentPivotItems set of current potential pivot items
+	 * @param largestFidSeen largest seen fid so far. this will become the first pivot item later on
 	 * @param pos   current position
 	 * @param state current state
 	 * @param level current level
 	 */
-	private void piStep(CloneableIntHeapPriorityQueue currentPivotItems, int pos, State state, int level) {
+	private void piStep(int largestFidSeen, int pos, State state, int level) {
 		counterTotalRecursions++;
 
 		// if we reached a final state, we add the current set of pivot items at this state to the global set of pivot items for this sequences
-		if(state.isFinal() && prefix.size() > processedPrefixSize) {
-			processedPrefixSize = prefix.size();
+		if(state.isFinal() && path.size() > processedPathSize) {
+			processedPathSize = path.size();
 
 			if(sendNFAs) {
-
-				IntSet emittedPivots = new IntOpenHashSet();
-				Sequence path = prefix.clone();
-
-				// we might arrive multiple times here (if we have eps-transitions) But we don't need to do all this work again.
-				// (if we arrive here multiple times, the path (and ergo, the pivot items) are the same every time.
 				counterPathsAdded++;
 
-				// we can have a pivot item multiple times here, but we don't take care of these for now
-				for (int i = 0; i < currentPivotItems.size(); i++) {
-					int pivotItem = currentPivotItems.exposeInts()[i]; // This isn't very nice, but it does not drop read elements from the heap. TODO: find a better way?
+				// make a deep copy of the path, as we will kick items out of the sets
+				OutputLabel[] pathCopy = new OutputLabel[path.size()];
+				for(int i=0; i<pathCopy.length; i++) {
+					pathCopy[i] = path.get(i).clone();
+				}
 
-					if(!emittedPivots.contains(pivotItem)) {
-						emittedPivots.add(pivotItem);
-						OutputNFA nfa;
-						if(!nfas.containsKey(pivotItem)) {
-							nfa = new OutputNFA(pivotItem);
-							nfas.put(pivotItem, nfa);
-						} else {
-							nfa = nfas.get(pivotItem);
-						}
-
-						nfa.addPath(path);
+				// add this path to the different pivot NFAs
+				//    we start with the largest pivot, and drop elements from the output sets one by one
+				int pivotItem = largestFidSeen;
+				int numPivotsEmitted = 0;
+				while(pivotItem != -1) {
+					numPivotsEmitted++;
+					OutputNFA nfa;
+					if(!nfas.containsKey(pivotItem)) {
+						nfa = new OutputNFA(pivotItem);
+						nfas.put(pivotItem, nfa);
+					} else {
+						nfa = nfas.get(pivotItem);
 					}
 
+					// add the path to the pivot (incl. kicking out items>pivot) and retrieve next pivot item
+					pivotItem = nfa.addOutLabelPathAndReturnNextPivot(pathCopy);
 				}
-				if(emittedPivots.size() > maxPivotsForOnePath) maxPivotsForOnePath = emittedPivots.size();
+
+				if(numPivotsEmitted > maxPivotsForOnePath) maxPivotsForOnePath = numPivotsEmitted;
 			} else {
 				// if we don't build the transition representation, just keep track of the pivot items
-				for(int i=0; i<currentPivotItems.size(); i++) {
-					pivotItems.add(currentPivotItems.exposeInts()[i]); // This isn't very nice, but it does not drop read elements from the heap. TODO: find a better way?
-				}
+//				for(int i=0; i<currentPivotItems.size(); i++) {
+//					pivotItems.add(currentPivotItems.exposeInts()[i]); // This isn't very nice, but it does not drop read elements from the heap. TODO: find a better way?
+//				} // TODO: implement or get rid of this
 			}
 		}
 
@@ -751,113 +752,133 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			transitionIt = state.consumeCompressed(itemFid, transitionIterators.get(level), validToStates);
 		}
 
-		// get set for storing potential pivot elements
-		CloneableIntHeapPriorityQueue newCurrentPivotItems;
-		if(level >= pivotItemHeaps.size()) {
-			newCurrentPivotItems = new CloneableIntHeapPriorityQueue();
-			pivotItemHeaps.add(newCurrentPivotItems);
+		Transition.ItemStateIteratorCache itCache;
+		if(level >= itCaches.size()) {
+			itCache = new Transition.ItemStateIteratorCache(ctx.dict.isForest());
+			itCaches.add(itCache);
 		} else {
-			newCurrentPivotItems = pivotItemHeaps.get(level);
+		    itCache = itCaches.get(level);
 		}
 
-		addItem = -1;
+		OutputLabel ol;
+		int outputItem;
 
 		// follow each relevant transition
 		while(transitionIt.hasNext()) {
-			tr = (BasicTransition) transitionIt.next();
+			tr = transitionIt.next();
 			toState = tr.getToState();
-			OutputLabelType ol = tr.getOutputLabelType();
 
 			// We handle the different output label types differently
-			if (ol == OutputLabelType.EPSILON) { // EPS
+			if(!tr.hasOutput()) { // this transition doesn't produce output
 				// an eps transition does not introduce potential pivot elements, so we simply continue recursion
-				piStep(currentPivotItems, pos + 1, toState, level + 1);
+				piStep(largestFidSeen, pos + 1, toState, level + 1);
 
-			} else if (ol == OutputLabelType.CONSTANT || ol == OutputLabelType.SELF) { // CONSTANT and SELF
-				// SELF and CONSTANT transitions both yield exactly one new potential pivot item.
+			} else { // this transition produces output
+				// collect all output elements into the outputItems set
+				Iterator<ItemState> outIt = tr.consume(itemFid, itCache);
+				while(outIt.hasNext()) {
+					outputItem = outIt.next().itemFid;
 
-				// retrieve input item
-				if (ol == OutputLabelType.CONSTANT) { // CONSTANT
-					addItem = tr.getOutputLabel();
-				} else { // SELF
-					addItem = itemFid;
+					// we are only interested in frequent output items
+				    if(largestFrequentFid >= outputItem) {
+						outputItems.add(outputItem);
+
+						// we look out for the maximum item
+						if(outputItem > largestFidSeen) {
+							largestFidSeen = outputItem;
+						}
+					}
+					// TODO: don't sort when given output items are already sorted
 				}
-				// If the output item is frequent, we merge it into the set of current potential pivot items and recurse
-				if (largestFrequentFid >= addItem) {
-					//CloneableIntHeapPriorityQueue newCurrentPivotItems;
-					if (currentPivotItems == null) { // set of pivot elements is empty so far, so no update is necessary, we just create a new set
-						//newCurrentPivotItems = new CloneableIntHeapPriorityQueue();
-						newCurrentPivotItems.clear();
-						newCurrentPivotItems.enqueue(addItem);
-					} else { // update the set of current pivot elements
-						// get the first half: current[>=min(add)]
-						newCurrentPivotItems.startFromExisting(currentPivotItems);
-						while (newCurrentPivotItems.size() > 0 && newCurrentPivotItems.firstInt() < addItem) {
-							newCurrentPivotItems.dequeueInt();
-						}
-						// join in the second half: add[>=min(current)]		  (don't add the item a second time if it is already in the heap)
-						if (addItem >= currentPivotItems.firstInt() && (newCurrentPivotItems.size() == 0 || addItem != newCurrentPivotItems.firstInt())) {
-							newCurrentPivotItems.enqueue(addItem);
-						}
-					}
-					// we put the current transition together with the input item onto the prefix and take it off when we come back from recursion
 
-					// TODO: instead of using TR/INP, we should write transitions according to output item equivalency (which might differ sometimes
-					if (sendNFAs) {
-						prefix.add(-addItem);
-					}
+				// if we have frequent output items, build the output label for this transition and follow it
+                if(outputItems.size() > 0) {
+                    ol = new OutputLabel(tr, itemFid, outputItems);
 
-					piStep(newCurrentPivotItems, pos + 1, toState, level + 1); //, currentPathState.followTransition(tr, addItem, nfa));
+                    // now that we use the previous set in the output label, we start a new one for the next transition
+                    outputItems = new IntAVLTreeSet();
 
-					if(sendNFAs) {
-						prefix.removeInt(prefix.size() -1);
-						processedPrefixSize = prefix.size();
-					}
+					path.add(ol);
 
-				}
-			} else { // SELF_GENERALIZE
-				addItem = itemFid; // retrieve the input item
-				// retrieve ascendants of the input item
-				ascendants.clear();
-				ascendants.add(addItem);
-				tr.addAscendantFids(addItem, ascendants);
-				// we only consider this transition if the set of output elements contains at least one frequent item
-				if (largestFrequentFid >= ascendants.firstInt()) { // the first item of the ascendants is the most frequent one
+					piStep(largestFidSeen, pos + 1, toState, level + 1);
 
-					//CloneableIntHeapPriorityQueue newCurrentPivotItems;
-					if (currentPivotItems == null) { // if we are starting a new pivot set there is no need for a union
-						// we are reusing the heap object, so reset the heap size to 0
-						newCurrentPivotItems.clear();
-						// headSet(largestFrequentFid + 1) drops all infrequent items
-						for (int ascendant : ascendants.headSet(largestFrequentFid + 1)) {
-							newCurrentPivotItems.enqueue(ascendant);
-						}
-					} else {
-						// first half of the update union: current[>=min(add)].
-						newCurrentPivotItems.startFromExisting(currentPivotItems);
-						while (newCurrentPivotItems.size() > 0 && newCurrentPivotItems.firstInt() < ascendants.firstInt()) {
-							newCurrentPivotItems.dequeueInt();
-						}
-						// second half of the update union: add[>=min(curent)]
-						// we filter out infrequent items, so in fact we do:  add[<=largestFrequentFid][>=min(current)]
-						for (int add : ascendants.headSet(largestFrequentFid + 1).tailSet(currentPivotItems.firstInt())) {
-							newCurrentPivotItems.enqueue(add);
-						}
-					}
-					if (sendNFAs) {
-						prefix.add(addItem);
-						prefix.add(tr.getTransitionNumber());
-					}
+					path.remove(path.size() - 1);
+					processedPathSize = path.size();
 
-					piStep(newCurrentPivotItems, pos + 1, toState, level + 1);
-
-					if(sendNFAs) {
-						prefix.removeInt(prefix.size() - 1);
-						prefix.removeInt(prefix.size() - 1);
-						processedPrefixSize = prefix.size();
-					}
 				}
 			}
+		}
+	}
+
+
+	/**
+	 * Specifies the output of a specific input item / transition combination
+	 *
+	 */
+	private class OutputLabel implements Cloneable, Comparable<OutputLabel> {
+	    Transition tr;
+		int inputItem = -1;
+		IntAVLTreeSet outputItems;
+
+		OutputLabel(Transition tr, int inputItemFid, IntAVLTreeSet outputItems) {
+			this.outputItems = outputItems;
+			this.inputItem = inputItemFid;
+			this.tr = tr;
+		}
+
+		@Override
+		protected OutputLabel clone() {
+			return new OutputLabel(tr, inputItem, (IntAVLTreeSet) outputItems.clone());
+		}
+
+		@Override
+		public int hashCode() {
+			return outputItems.hashCode();
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+
+			OutputLabel other = (OutputLabel) obj;
+
+			return this.outputItems.equals(other.outputItems);
+		}
+
+		/*
+		 * @param other
+		 * @return
+		 */
+		public int compareTo(OutputLabel other) {
+			IntIterator a = this.outputItems.iterator();
+			IntIterator b = other.outputItems.iterator();
+			int aInt;
+			int bInt;
+			while(a.hasNext()) {
+				aInt = a.nextInt();
+				if(b.hasNext()) {
+					bInt = b.nextInt();
+				} else {
+					return 1;
+				}
+				if(aInt > bInt)
+					return 1;
+				if(aInt < bInt)
+					return -1;
+			}
+			if(b.hasNext()) {
+				return -1;
+			}
+			return 0;
+		}
+
+		public String toString() {
+			return "<" + tr.itemExpression() + ", " + inputItem + ", " + outputItems + ">";
 		}
 	}
 
@@ -906,7 +927,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	 */
 	private void expandOnNFA(IntList prefix, DesqDfsTreeNode node) {
 		// this bundles common arguments to incStepOnePass or incStepTwoPass
-		final IncStepArgs incStepArgs = new IncStepArgs();
+		final IncStepArgs incStepArgs = new IncStepArgs(); // TODO: get rid of incStepArgs, as in expand()
 		// add a placeholder to prefix for the output item of the child being expanded
 		final int lastPrefixIndex = prefix.size();
 		prefix.add(-1);
@@ -980,34 +1001,25 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	 */
 	private boolean incStepOnNFA(final IncStepArgs args, final int pos) {
 		// in transition representation, we store pairs of integers: (transition id, input element)
-		int trNo;
-		int inputItem;
-		int followPos;
-		IntList outputItems;
 		int readPos = pos;
 		int nextInt = args.inputSequence.getInt(readPos);
+		int currentToStatePos = -1;
+		int outputItem;
 		while(nextInt != Integer.MIN_VALUE && nextInt != Integer.MAX_VALUE) {
-
-			if(nextInt < 0) { // CONSTANT or SELF transition, nextInt is -inputItem
-				inputItem = -nextInt;
-				assert inputItem <= pivotItem; // otherwise, this path should not have been sent to the partition
-				followPos = args.inputSequence.getInt(readPos+1); // next int is the offset of the next state
-				args.node.expandWithTransition(inputItem, args.inputId, args.inputSequence.weight, followPos); // expandOnNFA with this output item
-				readPos = readPos+2; // we read 2 items from the list
-			} else { // SELF_ASCENDANTS transition, so we stored the inputItem (in nextInt) and the number of the transition
-				inputItem = nextInt;
-				trNo = args.inputSequence.getInt(readPos+1);
-				followPos = args.inputSequence.getInt(readPos+2);
-				outputItems = fst.getBasicTransitionByNumber(trNo).getOutputElements(inputItem);
-
-				for (int outputItem : outputItems) {
-					if (pivotItem >= outputItem) { // no check for largestFrequentFid necessary, as largestFrequentFid >= pivotItem
-						args.node.expandWithTransition(outputItem, args.inputId, args.inputSequence.weight, followPos);
-					}
+			assert nextInt != 0 : "There shouldn't 0 fids or toStates";
+			if(nextInt > 0) {
+				// ints larger 0 are toStates
+				currentToStatePos = nextInt;
+			} else {
+				// we have an output item for the current toState
+				outputItem = -nextInt;
+				if(pivotItem >= outputItem) {
+					assert currentToStatePos != -1 : "There has been no to-state before the output item " + outputItem + " in NFA " + args.inputSequence;
+					args.node.expandWithTransition(outputItem, args.inputId, args.inputSequence.weight, currentToStatePos);
 				}
-				readPos = readPos + 3; // we read 3 elements
 			}
 
+			readPos++;
 			nextInt = args.inputSequence.getInt(readPos);
 		}
 
@@ -1036,52 +1048,6 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		DfaState[] dfaStateSequence;
 		DesqDfsTreeNode node;
 	}
-
-	public void drawSerializedNFA(IntList seq, String file, boolean drawOutputItems, String caption) {
-		FstVisualizer fstVisualizer = new FstVisualizer(FilenameUtils.getExtension(file), FilenameUtils.getBaseName(file));
-		fstVisualizer.beginGraph();
-
-		boolean nextPosIsStateBeginning = true;
-		int currentStatePos = -1;
-		int first, inp, trId, to;
-		String label;
-		for(int pos=0; pos<seq.size();) {
-			if(nextPosIsStateBeginning) {
-				currentStatePos = pos;
-				nextPosIsStateBeginning = false;
-			}
-			first = seq.getInt(pos);
-			if(first == Integer.MAX_VALUE) {
-				nextPosIsStateBeginning = true;
-				pos++;
-			} else if(first == Integer.MIN_VALUE) {
-				nextPosIsStateBeginning = true;
-				pos++;
-				fstVisualizer.addFinalState(String.valueOf(currentStatePos));
-			} else {
-				// transition
-
-				if(first < 0) { // SELF or CONSTANT
-					inp = -first;
-					label = "i"+inp;
-					to = seq.getInt(pos+1);
-					pos = pos+2;
-				} else {
-					inp = first;
-					trId = seq.getInt(pos+1);
-					to = seq.getInt(pos+2);
-					label = "i"+inp+"@T"+trId+"^";
-					if(drawOutputItems) label += " " + fst.getBasicTransitionByNumber(trId).getOutputElements(inp);
-					pos = pos+3;
-				}
-				fstVisualizer.add(String.valueOf(currentStatePos),label,String.valueOf(to));
-
-			}
-		}
-		fstVisualizer.addCaption(caption);
-		fstVisualizer.endGraph();
-	}
-
 
 	/**
 	 * A NFA that produces the output sequences of one input sequence.
@@ -1125,56 +1091,62 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		BitSet positionsWithStateIds = new BitSet();
 
 		/**
-		 * Add a path to this NFA
+		 * Add a path to this NFA.
+		 * Trims the outputItems sets of the OutputLabls in the path for the pivot of this NFA.
+		 * Returns the largest fid smaller than the pivot
 		 *
 		 * @param path
 		 */
-		protected void addPath(IntList path) {
+		protected int addOutLabelPathAndReturnNextPivot(OutputLabel[] path) {
 			numPaths++;
-			int trId;
-			int inpItem;
-			long outKey;
 			PathState currentState;
-			BasicTransition tr;
-			// Run through the transitions of this path and add them to this NFA
-			currentState = root;
-			for(int i=0; i<path.size(); ) {
-				inpItem = path.getInt(i);
+			int nextLargest = -1, nextLargestInThisSet;
+			boolean seenPivotAsSingle = false;
+			OutputLabel ol;
 
-				if(inpItem < 0) {
-					// SELF or CONSTANT
-                    outKey = PrimitiveUtils.combine(inpItem, 0);
-					i = i+1;
-				} else {
-					// SELF_ASCENDING
-					trId = path.getInt(i+1);
-					// generalize the input item for this pivot
-                    tr = fst.getBasicTransitionByNumber(trId);
-					inpItem = tr.generalizeItemForPivot(inpItem, this.pivot);
-					outKey = PrimitiveUtils.combine(inpItem, trId);
-					i = i+2;
+			// Run through the transitions of this path and add them to this NFA
+			currentState = this.root;
+			for(int i=0; i<path.length; i++) {
+				ol = path[i];
+
+				// drop all output items larger than the pivot
+				while(ol.outputItems.lastInt() > pivot) {
+					ol.outputItems.remove(ol.outputItems.lastInt()); // TODO: is there a way to do this more efficiently? e.g., just drop the last item?
 				}
 
-				currentState = currentState.followTransition(outKey, this);
+				// find next largest item
+				if(!seenPivotAsSingle) { // as soon as we know there won't be another round we don't need to do this anymore
+					nextLargestInThisSet = ol.outputItems.lastInt();
+					// if the largest item is the pivot, we get the next-largest (if there is one)
+					if (nextLargestInThisSet == pivot) {
+						if (ol.outputItems.size() > 1) {
+							nextLargestInThisSet = ol.outputItems.headSet(pivot).lastInt();
+						} else {
+							// if this set has only the pivot item, it will be empty next run. so we note
+							//    that we need to stop after this run
+							seenPivotAsSingle = true;
+						}
+					}
+					nextLargest = Math.max(nextLargest, nextLargestInThisSet);
+				}
 
+				currentState = currentState.followTransition(ol, this);
 			}
+
 			// we ran through the path, so the current state is a final state.
 			currentState.setFinal();
+
+			if(seenPivotAsSingle)
+				return -1; // meaning, we have an empty set for any pivot smaller the current pivot, so we stop
+			else
+				return nextLargest;
 		}
 
 		public Sequence serialize() {
 			counterTrimCalls++;
 
-//			swSetup.start();
-//			stateMapping = new int[numPathStates];
-//			Arrays.fill(stateMapping,-1);
-//			swSetup.stop();
-
-
 			swMerge.start();
-
 			followGroup(leafs, true);
-
 			swMerge.stop();
 
 			swSerialize.start();
@@ -1183,8 +1155,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			positionsWithStateIds.clear();
 			numSerializedStates = 0;
 			for(PathState state : pathStates) {
-//				if(stateMapping[state.id] == -1) { // we serialize only non-merged states
-                if(state.mergedInto == state.id) {
+                if(state.mergedInto == state.id) { // only serialize the state if it wasn't merged
 					state.serializeForward(send);
 					numSerializedStates++;
 				}
@@ -1285,31 +1256,21 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		/**
 		 * Export the PathStates of this NFA with their transitions to PDF
 		 * @param file
-		 * @param drawOutputItems
 		 */
-		public void exportGraphViz(String file, boolean drawOutputItems) {
+		public void exportGraphViz(String file) {
 			FstVisualizer fstVisualizer = new FstVisualizer(FilenameUtils.getExtension(file), FilenameUtils.getBaseName(file));
 			fstVisualizer.beginGraph();
 			for(PathState s : pathStates) {
-				for(Long2ObjectMap.Entry<PathState> trEntry : s.outTransitions.long2ObjectEntrySet()) {
-					int inputId = PrimitiveUtils.getLeft(trEntry.getLongKey());
-					int trId = PrimitiveUtils.getRight(trEntry.getLongKey());
-
-					String label;
-					if(inputId < 0) {
-						label = "i" + (-inputId);
-						if(drawOutputItems)
-							label += "[" + (-inputId) + "]";
+				if (s.mergedInto == s.id) {
+					for (Object2ObjectMap.Entry<OutputLabel, PathState> trEntry : s.outTransitions.object2ObjectEntrySet()) {
+						OutputLabel ol = trEntry.getKey();
+						String label;
+						label = ol.outputItems.toString();
+						fstVisualizer.add(String.valueOf(s.id), label, String.valueOf(trEntry.getValue().mergedInto));
 					}
-					else {
-						label = "i" + inputId + "@T" + trId + (fst.getBasicTransitionByNumber(trId).getOutputLabelType() == OutputLabelType.SELF_ASCENDANTS ? "^" : "");
-						if (drawOutputItems)
-							label += " " + fst.getBasicTransitionByNumber(trId).getOutputElements(inputId);
-					}
-					fstVisualizer.add(String.valueOf(s.id), label, String.valueOf(trEntry.getValue().id));
+					if (s.isFinal)
+						fstVisualizer.addFinalState(String.valueOf(s.id));
 				}
-				if(s.isFinal)
-					fstVisualizer.addFinalState(String.valueOf(s.id));
 			}
 			fstVisualizer.endGraph();
 		}
@@ -1330,7 +1291,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 
 		/** Forward pointers */
-		protected Long2ObjectSortedMap<PathState> outTransitions;
+		protected Object2ObjectSortedMap<OutputLabel,PathState> outTransitions;
 
 		/** Backward pointer (in the tree, each state has only one incoming transition) */
 		protected PathState predecessor;
@@ -1340,7 +1301,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			id = nfa.numPathStates++;
 			mergedInto = id;
 			nfa.pathStates.add(this);
-			outTransitions = new Long2ObjectAVLTreeMap<>();
+			outTransitions = new Object2ObjectAVLTreeMap<>();
 
 			predecessor = from;
 			this.level = level;
@@ -1352,17 +1313,17 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		 * Starting from this state, follow a given transition with given input item. Returns the state the transition
 		 * leads to.
 		 *
-		 * @param outKey	the outKey to follow
+		 * @param ol		the OutputLabel for this transition
 		 * @param nfa       the nfa the path is added to
 		 * @return
 		 */
-		protected PathState followTransition(long outKey, OutputNFA nfa) {
+		protected PathState followTransition(OutputLabel ol, OutputNFA nfa) {
 			counterFollowTransitionCalls++;
 
 			// if we have a tree branch with this transition already, follow it and return the state it leads to
-			if(outTransitions.containsKey(outKey)) {
+			if(outTransitions.containsKey(ol)) {
 				// return this state
-				PathState toState = outTransitions.get(outKey);
+				PathState toState = outTransitions.get(ol);
 				return toState;
 			} else {
 				// if we don't have a path starting with that transition, we create a new one
@@ -1372,7 +1333,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				toState = new PathState(nfa, this, this.level+1);
 
 				// add the transition and the created state to the outgoing transitions of this state and return the state the transition moves to
-				outTransitions.put(outKey, toState);
+				outTransitions.put(ol.clone(), toState);
 
 				if(outTransitions.size() == 1)
 					nfa.leafs.remove(this.id);
@@ -1401,9 +1362,9 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			if(this.outTransitions.size() != target.outTransitions.size())
 				return false;
 
-			ObjectIterator<Long2ObjectMap.Entry<PathState>> aIt = this.outTransitions.long2ObjectEntrySet().iterator();
-			ObjectIterator<Long2ObjectMap.Entry<PathState>> bIt = target.outTransitions.long2ObjectEntrySet().iterator();
-			Long2ObjectMap.Entry<PathState> a, b;
+			ObjectIterator<Object2ObjectMap.Entry<OutputLabel,PathState>> aIt = this.outTransitions.object2ObjectEntrySet().iterator();
+			ObjectIterator<Object2ObjectMap.Entry<OutputLabel,PathState>> bIt = target.outTransitions.object2ObjectEntrySet().iterator();
+			Object2ObjectMap.Entry<OutputLabel,PathState> a, b;
 
 			// the two states have the same number of out transitions (checked above)
 			// now we only check whether those out transitions have the same outKey and point towards the same state
@@ -1412,7 +1373,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				a = aIt.next();
 				b = bIt.next();
 
-				if(a.getLongKey() != b.getLongKey())
+				if(!a.getKey().equals(b.getKey()))
 					return false;
 
 				if(a.getValue().mergedInto != b.getValue().mergedInto)
@@ -1427,36 +1388,27 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		protected void serializeForward(IntList send) {
 
 			counterSerializedStates++;
-			int inpItem;
-			int trId;
-			long outKey;
+			OutputLabel ol;
 			PathState toState;
 
 			writtenAtPos = send.size();
 
 			if(outTransitions.size() > maxNumOutTrs) maxNumOutTrs = outTransitions.size();
 
-			for(Long2ObjectMap.Entry<PathState> entry : outTransitions.long2ObjectEntrySet()) {
+			for(Object2ObjectMap.Entry<OutputLabel,PathState> entry : outTransitions.object2ObjectEntrySet()) {
+                counterSerializedTransitions++;
+
+				ol = entry.getKey();
 				toState = entry.getValue();
 
-                counterSerializedTransitions++;
-                // get the state this transition goes to after merging (might be a merged state)
+				// write toState id and note down that we have written a state id here (which we will convert later)
+				nfa.positionsWithStateIds.set(send.size());
+				send.add(toState.mergedInto);
 
-                outKey = entry.getLongKey();
-                inpItem = PrimitiveUtils.getLeft(outKey);
-
-                // we write the correct order: (input, [trId], toState)
-                if(inpItem < 0) {
-                    send.add(inpItem);
-                } else {
-                    send.add(inpItem);
-                    trId = PrimitiveUtils.getRight(outKey);
-                    send.add(trId);
+                // per transition, we will write all output items as negative integers followed by the to state as positive integer
+                for(int outputItem : ol.outputItems) {
+                    send.add(-outputItem);
                 }
-
-                // write toState id and note down that we have written a state id here (which we will convert later)
-                nfa.positionsWithStateIds.set(send.size());
-                send.add(toState.mergedInto);
 			}
 
 			// write state end symbol
