@@ -377,7 +377,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 					// if we saw this state at this position without output (for this input sequence and for the currently
 					// expanded node) before, we do not need to process it again
-					int spIndex = pos * fst.numStates() + toState.getId();
+					int spIndex = pos * fst.numStates() + toState.getId(); // TODO: understand this part and add it to piStep, if useful
 					if (!currentSpReachedWithoutOutput.get(spIndex)) {
 						// haven't seen it, so process
 						currentSpReachedWithoutOutput.set(spIndex);
@@ -472,17 +472,11 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			if (support >= sigma) {
 				// if we are mining a specific pivot partition (meaning, pivotItem>0), then we output only sequences with that pivot
 				if (ctx.patternWriter != null && (pivotItem==0 || pivot(prefix) == pivotItem)) {
-					if (!useTwoPass) { // one-pass
-						ctx.patternWriter.write(prefix, support);
-					} else { // two-pass
-						// for the two-pass algorithm, we need to reverse the output because the search tree is built
-						// in reverse order
-						ctx.patternWriter.write(prefix, support);
-					}
+					ctx.patternWriter.write(prefix, support);
 				}
 			}
 
-			// expandOnNFA the child node
+			// expand the child node
 			childNode.pruneInfrequentChildren(sigma);
 			childNode.projectedDatabase = null; // not needed anymore
 			expand(prefix, childNode);
@@ -892,7 +886,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		this.pivotItem = pivotItem;
 
 
-		// run the normal mine method. Filtering is done in expandOnNFA() when the patterns are output
+		// run the normal mine method. Filtering is done in expand() when the patterns are output
 		if(sendNFAs)
 			mineOnNFA();
 		else
@@ -905,13 +899,12 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	public void mineOnNFA() {
 		if (sumInputSupports >= sigma) {
 			DesqDfsTreeNode root = new DesqDfsTreeNode(sendNFAs ? 1 : fst.numStates()); // if we use NFAs, we need only one BitSet per node
-			final IncStepArgs incStepArgs = new IncStepArgs();
-			incStepArgs.node = root;
+			currentNode = root;
 			// and process all input sequences to compute the roots children
 			for (int inputId = 0; inputId < inputSequences.size(); inputId++) {
-				incStepArgs.inputId = inputId;
-				incStepArgs.inputSequence = inputSequences.get(inputId);
-				incStepOnNFA(incStepArgs, 0);
+				currentInputId = inputId;
+				currentInputSequence = inputSequences.get(inputId);
+				incStepOnNFA(0, true);
 			}
 			// the root has already been processed; now recursively grow the patterns
 			root.pruneInfrequentChildren(sigma);
@@ -926,8 +919,6 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	 * @param node the node whose children to expandOnNFA
 	 */
 	private void expandOnNFA(IntList prefix, DesqDfsTreeNode node) {
-		// this bundles common arguments to incStepOnePass or incStepTwoPass
-		final IncStepArgs incStepArgs = new IncStepArgs(); // TODO: get rid of incStepArgs, as in expand()
 		// add a placeholder to prefix for the output item of the child being expanded
 		final int lastPrefixIndex = prefix.size();
 		prefix.add(-1);
@@ -936,42 +927,43 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		for (final DesqDfsTreeNode childNode : node.childrenByFid.values() )  {
 			// while we expandOnNFA the child node, we also compute its actual support to determine whether or not
 			// to output it (and then output it if the support is large enough)
-			long support = 0;
+			long support = childNode.partialSupport;
 			// check whether pivot expansion worked
 			// the idea is that we never expandOnNFA a child>pivotItem at this point
 			if(pivotItem != 0) {
 				assert childNode.itemFid <= pivotItem;
 			}
-			// set up the expansion
-			assert childNode.prefixSupport >= sigma;
+
+			// set the current (partial) output sequence
 			prefix.set(lastPrefixIndex, childNode.itemFid);
-			projectedDatabaseIt.reset(childNode.projectedDatabase);
-			incStepArgs.inputId = -1;
-			incStepArgs.node = childNode;
 
-			do {
-				// process next input sequence
-				incStepArgs.inputId += projectedDatabaseIt.nextNonNegativeInt();
-				incStepArgs.inputSequence = inputSequences.get(incStepArgs.inputId);
+			if(childNode.prefixSupport > 0) {
+				// set up the expansion
+				boolean expand = childNode.prefixSupport >= sigma;
+				projectedDatabaseIt.reset(childNode.projectedDatabase);
+				currentInputId = -1;
+				currentNode = childNode;
 
-//				if (useTwoPass) {
-//					current.dfaStateSequence = dfaStateSequences.get(current.inputId);
-//				}
-
-				// iterate over state@pos snapshots for this input sequence
-				boolean reachedFinalStateWithoutOutput = false;
 				do {
-					final int pos = projectedDatabaseIt.nextNonNegativeInt(); // position of next input item
-					reachedFinalStateWithoutOutput |= incStepOnNFA(incStepArgs, pos);
-				} while (projectedDatabaseIt.hasNext());
+					// process next input sequence
+					currentInputId += projectedDatabaseIt.nextNonNegativeInt();
+					currentInputSequence = inputSequences.get(currentInputId);
 
-				// if we reached a final state without output, increment the support of this child node
-				if (reachedFinalStateWithoutOutput) {
-					support += incStepArgs.inputSequence.weight;
-				}
+					// iterate over state@pos snapshots for this input sequence
+					boolean reachedFinalStateWithoutOutput = false;
+					do {
+						final int pos = projectedDatabaseIt.nextNonNegativeInt(); // position of next input item
+						reachedFinalStateWithoutOutput |= incStepOnNFA(pos, expand);
+					} while (projectedDatabaseIt.hasNext());
 
-				// now go to next posting (next input sequence)
-			} while (projectedDatabaseIt.nextPosting());
+					// if we reached a final state without output, increment the support of this child node
+					if (reachedFinalStateWithoutOutput) {
+						support += currentInputSequence.weight;
+					}
+
+					// now go to next posting (next input sequence)
+				} while (projectedDatabaseIt.nextPosting());
+			}
 
 			// output the patterns for the current child node if it turns out to be frequent
 			if (support >= sigma) {
@@ -994,15 +986,14 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	/** Updates the projected databases of the children of the current node (args.node) corresponding to each possible
 	 * next output item for the current input sequence (also stored in args). Used only in the one-pass algorithm.
 	 *
-	 * @param args information about the input sequence and the current search tree node
 	 * @param pos next item to read
+	 * @param expand if an item is produced, whether to add it to the corresponding child node
 	 *
 	 * @return true if a final FST state can be reached without producing further output
 	 */
-	private boolean incStepOnNFA(final IncStepArgs args, final int pos) {
+	private boolean incStepOnNFA(int pos, final boolean expand) {
 		// in transition representation, we store pairs of integers: (transition id, input element)
-		int readPos = pos;
-		int nextInt = args.inputSequence.getInt(readPos);
+		int nextInt = currentInputSequence.getInt(pos);
 		int currentToStatePos = -1;
 		int outputItem;
 		while(nextInt != Integer.MIN_VALUE && nextInt != Integer.MAX_VALUE) {
@@ -1013,14 +1004,14 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			} else {
 				// we have an output item for the current toState
 				outputItem = -nextInt;
-				if(pivotItem >= outputItem) {
-					assert currentToStatePos != -1 : "There has been no to-state before the output item " + outputItem + " in NFA " + args.inputSequence;
-					args.node.expandWithTransition(outputItem, args.inputId, args.inputSequence.weight, currentToStatePos);
+				if(expand & pivotItem >= outputItem) {
+					assert currentToStatePos != -1 : "There has been no to-state before the output item " + outputItem + " in NFA " + currentInputSequence;
+					currentNode.expandWithTransition(outputItem, currentInputId, currentInputSequence.weight, currentToStatePos);
 				}
 			}
 
-			readPos++;
-			nextInt = args.inputSequence.getInt(readPos);
+			pos++;
+			nextInt = currentInputSequence.getInt(pos);
 		}
 
 		return nextInt == Integer.MIN_VALUE; // is true if this state is final
@@ -1037,16 +1028,6 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			pivotItem = Math.max(item, pivotItem);
 		}
 		return pivotItem;
-	}
-
-
-	/** Bundles arguments for {@link #incStep}. These arguments are not modified during the method's recursions, so
-	 * we keep them at a single place. */
-	private static class IncStepArgs {
-		int inputId;
-		WeightedSequence inputSequence;
-		DfaState[] dfaStateSequence;
-		DesqDfsTreeNode node;
 	}
 
 	/**
