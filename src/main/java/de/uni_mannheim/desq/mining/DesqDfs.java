@@ -176,6 +176,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	public static long maxPivotsForOneSequence = 0;
 	public static long maxPivotsForOnePath = 0;
 	public static long maxNumOutTrs = 0;
+	public static long counterPrunedOutputs = 0;
 
 
 
@@ -807,7 +808,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 					// if we need to sort, we sort. Otherwise we just reverse the elements to have them in increasing order
 					if(needToSort)
-						IntArrays.quickSort(outputItems.elements(), 0, outputItems.size()); // TODO: make a more sensible choice here
+						IntArrays.quickSort(outputItems.elements(), 0, outputItems.size());
 					else
 						IntArrays.reverse(outputItems.elements(), 0, outputItems.size());
 
@@ -816,13 +817,12 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
                     // now that we use the previous set in the output label, we start a new one for the next transition
                     outputItems = new IntArrayList();
 
+                    // add this output label to the path and follow the path further. afterwards, remove the
+					//   output label from the path and continue with the next transition
 					path.add(ol);
-
 					piStep(largestFidSeen, pos + 1, toState, level + 1);
-
 					path.remove(path.size() - 1);
 					processedPathSize = path.size();
-
 				}
 			}
 		}
@@ -975,6 +975,8 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				// if we are mining a specific pivot partition (meaning, pivotItem>0), then we output only sequences with that pivot
 				if (ctx.patternWriter != null && (pivotItem==0 || pivot(prefix) == pivotItem)) { // TODO: investigate what is pruned here (whether we can improve)
 					ctx.patternWriter.write(prefix, support);
+				} else {
+					counterPrunedOutputs++;
 				}
 			}
 			// expandOnNFA the child node
