@@ -616,7 +616,6 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		path.clear();
 		nfas.clear();
 		// TODO: experiment whether nfas.trim() helps here
-		pivotItems.clear();
 
 		if(!buildPartitions)
 			serializedNFAs.clear();
@@ -1062,7 +1061,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		private ObjectList<PathState> pathStates = new ObjectArrayList<>();
 
 		/** List of leaf states in this NFA */
-		private IntAVLTreeSet leafs = new IntAVLTreeSet();
+		private IntLinkedOpenHashSet leafs = new IntLinkedOpenHashSet();
 
 		public OutputNFA(int pivot) {
 			root = new PathState(this, null, 0);
@@ -1175,7 +1174,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		 * we process recursively.
 		 * @param stateIds
 		 */
-		private void followGroup(IntAVLTreeSet stateIds, boolean definitelyMergeable) {
+		private void followGroup(IntLinkedOpenHashSet stateIds, boolean definitelyMergeable) {
 		    if(stateIds.size() > maxFollowGroupSetSize) maxFollowGroupSetSize = stateIds.size();
 			counterFollowGroupCalls++;
 			IntBidirectionalIterator it = stateIds.iterator();
@@ -1188,7 +1187,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			BitSet alreadyMerged = new BitSet();
 
 			// as we go over the passed set of states, we collect predecessor groups, which we will process afterwards
-			IntAVLTreeSet predecessors = new IntAVLTreeSet();
+			IntLinkedOpenHashSet predecessors = new IntLinkedOpenHashSet();
 
 			int i = 0, j;
 			while(it.hasNext()) {
