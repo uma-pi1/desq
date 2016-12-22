@@ -32,10 +32,8 @@ object DesqRunner {
   var dataDir: String = _
 
   // Switches
-  var useTransitionRepresentation: Boolean = _
-  var useTreeRepresentation: Boolean = _
+  var sendNFAs: Boolean = _
   var mergeSuffixes: Boolean = _
-  var generalizeInputItemsBeforeSending: Boolean = _
   var useDesqCount: Boolean = _
   var useTwoPass: Boolean = _
 
@@ -55,14 +53,15 @@ object DesqRunner {
     } else {
       setDataLoc("")
 //      prepDataset(); System.exit(0)
-//      runGrid(); System.exit(0)
-      runDesq("A4", 6, 1);
+      runGrid(); System.exit(0)
+      runDesq("I2", 2, 1);
     }
   }
 
   def runGrid() {
-    val tests = Array("I1@1", "I1@2", "I2", "IA2", "IA4", "IX1", "IX2");
-    val scenarios = Array(0, 1, 2, 3, 4, 5, 6)
+    val tests = Array("I1@1", "I1@2", "I2", "IA2", "IA4", "IX1", "IX2", "IX3", "IX4");
+//    val scenarios = Array(0, 1, 2, 3, 4, 5, 6)
+    val scenarios = Array(0, 2)
 
     var output = "";
     for (testCase <- tests) {
@@ -123,11 +122,8 @@ object DesqRunner {
     }
     minerConf.setProperty("desq.mining.prune.irrelevant.inputs", "false")
     minerConf.setProperty("desq.mining.use.two.pass", useTwoPass)
-    minerConf.setProperty("desq.mining.use.flist", "true")
-    minerConf.setProperty("desq.mining.use.transition.representation", useTransitionRepresentation)
-    minerConf.setProperty("desq.mining.use.tree.representation", useTreeRepresentation)
+    minerConf.setProperty("desq.mining.send.nfas", sendNFAs)
     minerConf.setProperty("desq.mining.merge.suffixes", mergeSuffixes)
-    minerConf.setProperty("desq.mining.generalizeInputItemsBeforeSending", generalizeInputItemsBeforeSending)
 
 
     // Build miner
@@ -254,6 +250,18 @@ object DesqRunner {
         verbose = true;
         setICDMData();
       }
+      case "IX3" => {
+        patternExp = "(a1* b12 e)"
+        sigma = 1
+        verbose = true
+        setICDMData()
+      }
+      case "IX4" => {
+        patternExp = "([c|a1] .* [.* A]+ .* [d|e])"
+        sigma = 1
+        verbose = true
+        setICDMData()
+      }
       case _ => {
         System.out.println("Do not know the use case " + useCase);
         System.exit(1);
@@ -264,42 +272,22 @@ object DesqRunner {
   def setScenario(setScenario: Int) {
     //set some defaults
     scenario = setScenario;
-    useTransitionRepresentation = false;
-    useTreeRepresentation = false;
+    sendNFAs = false;
     mergeSuffixes = false;
     useDesqCount = false;
     useTwoPass = false;
-    generalizeInputItemsBeforeSending = false;
     scenario match {
       case 0 =>
         scenarioStr = "Count, shuffle output sequences";
         useDesqCount = true;
+        useTwoPass = true;
       case 1 =>
         scenarioStr = "Dfs, shuffle input sequences";
+        useTwoPass = true;
       case 2 =>
-        scenarioStr = "Dfs, shuffle concatenated transitions";
-        useTransitionRepresentation = true;
-      case 3 =>
-        scenarioStr = "Dfs, shuffle transition trees";
-        useTransitionRepresentation = true;
-        useTreeRepresentation = true;
-      case 4 =>
-        scenarioStr = "Dfs, shuffle transition DAGs";
-        useTransitionRepresentation = true;
-        useTreeRepresentation = true;
-        mergeSuffixes = true;
-      case 5 =>
-        scenarioStr = "Dfs, shuffle transition DAGs, generalize inputs";
-        useTransitionRepresentation = true;
-        useTreeRepresentation = true;
-        mergeSuffixes = true;
-        generalizeInputItemsBeforeSending = true;
-      case 6 =>
         scenarioStr = "Dfs, shuffle transition DAGs, two-pass, generalize inputs";
-        useTransitionRepresentation = true;
-        useTreeRepresentation = true;
+        sendNFAs = true;
         mergeSuffixes = true;
-        generalizeInputItemsBeforeSending = true;
         useTwoPass = true;
       case _ =>
         System.out.println("Unknown variant");

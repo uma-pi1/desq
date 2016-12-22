@@ -21,8 +21,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     assert(usesFids)  // assume we are using fids (for now)
 
     val minSupport = conf.getLong("desq.mining.min.support")
-    val useTransitionRepresentation = conf.getBoolean("desq.mining.use.transition.representation")
-    val useTreeRepresentation = conf.getBoolean("desq.mining.use.tree.representation")
+    val sendNFAs = conf.getBoolean("desq.mining.send.nfas")
     //val numPartitions = conf.getInt("desq.mining.num.mine.partitions")
 
 
@@ -72,7 +71,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
             currentSequence = rows.next()
             currentSupport = currentSequence.weight
 
-            if(useTransitionRepresentation) {
+            if(sendNFAs) {
               serializedNFAs = baseMiner.createNFAPartitions(currentSequence, false, 0)
 
               outputIterator = serializedNFAs.keySet().iterator()
@@ -92,7 +91,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         // we simply output (output item, input sequence)
         override def next(): (Int, Sequence) = {
           val partitionItem : Int = outputIterator.next()
-          if(useTransitionRepresentation) {
+          if(sendNFAs) {
             val partitionNFA = serializedNFAs.get(partitionItem)
             (partitionItem, partitionNFA.clone())
           } else {
@@ -139,7 +138,10 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
             result.clear()
 
             for (s <- sequencesIt) {
-              baseMiner.addInputSequence(s, 1, true)
+              if(sendNFAs)
+                baseMiner.addNFA(s, 1, true)
+              else
+                baseMiner.addInputSequence(s, 1, true)
             }
 
             // Mine this partition, only output patterns where the output item is the maximum item
