@@ -93,7 +93,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
           val partitionItem : Int = outputIterator.next()
           if(sendNFAs) {
             val partitionNFA = serializedNFAs.get(partitionItem)
-            (partitionItem, partitionNFA.clone())
+            (partitionItem, partitionNFA)
           } else {
             (partitionItem, currentSequence.clone())
           }
