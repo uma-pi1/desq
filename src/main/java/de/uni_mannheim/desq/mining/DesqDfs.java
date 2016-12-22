@@ -129,7 +129,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	State toState;
 
 	/** A set to collect the output items of the current transition */
-	IntAVLTreeSet outputItems = new IntAVLTreeSet();
+	IntArrayList outputItems = new IntArrayList();
 
 	/** One itCache per level, in order to reuse the Iterator objects */
 	private final ArrayList<Transition.ItemStateIteratorCache> itCaches = new ArrayList<>();
@@ -760,6 +760,8 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		OutputLabel ol;
 		int outputItem;
 		int largestFidSeen;
+		boolean needToSort;
+		int lastOutputItem;
 
 		// follow each relevant transition
 		while(transitionIt.hasNext()) {
@@ -776,8 +778,19 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			} else { // this transition produces output
 				// collect all output elements into the outputItems set
 				Iterator<ItemState> outIt = tr.consume(itemFid, itCache);
+
+				// we assume that we get the items sorted, in decreasing order
+				// if that is not the case, we need to sort
+				needToSort = false;
+				lastOutputItem = Integer.MAX_VALUE;
+
 				while(outIt.hasNext()) {
 					outputItem = outIt.next().itemFid;
+
+					assert outputItem != lastOutputItem; // We assume we get each item only once
+					if(outputItem > lastOutputItem)
+						needToSort = true;
+					lastOutputItem = outputItem;
 
 					// we are only interested in frequent output items
 				    if(largestFrequentFid >= outputItem) {
@@ -788,15 +801,21 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 							largestFidSeen = outputItem;
 						}
 					}
-					// TODO: don't sort when given output items are already sorted
 				}
 
 				// if we have frequent output items, build the output label for this transition and follow it
                 if(outputItems.size() > 0) {
+
+					// if we need to sort, we sort. Otherwise we just reverse the elements to have them in increasing order
+					if(needToSort)
+						IntArrays.quickSort(outputItems.elements(), 0, outputItems.size()); // TODO: make a more sensible choice here
+					else
+						IntArrays.reverse(outputItems.elements(), 0, outputItems.size());
+
                     ol = new OutputLabel(tr, itemFid, outputItems);
 
                     // now that we use the previous set in the output label, we start a new one for the next transition
-                    outputItems = new IntAVLTreeSet();
+                    outputItems = new IntArrayList();
 
 					path.add(ol);
 
@@ -818,9 +837,9 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	private class OutputLabel implements Cloneable, Comparable<OutputLabel> {
 	    Transition tr;
 		int inputItem = -1;
-		IntAVLTreeSet outputItems;
+		IntArrayList outputItems;
 
-		OutputLabel(Transition tr, int inputItemFid, IntAVLTreeSet outputItems) {
+		OutputLabel(Transition tr, int inputItemFid, IntArrayList outputItems) {
 			this.outputItems = outputItems;
 			this.inputItem = inputItemFid;
 			this.tr = tr;
@@ -828,7 +847,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 		@Override
 		protected OutputLabel clone() {
-			return new OutputLabel(tr, inputItem, (IntAVLTreeSet) outputItems.clone());
+			return new OutputLabel(tr, inputItem, outputItems.clone());
 		}
 
 		@Override
@@ -855,26 +874,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		 * @return
 		 */
 		public int compareTo(OutputLabel other) {
-			IntIterator a = this.outputItems.iterator();
-			IntIterator b = other.outputItems.iterator();
-			int aInt;
-			int bInt;
-			while(a.hasNext()) {
-				aInt = a.nextInt();
-				if(b.hasNext()) {
-					bInt = b.nextInt();
-				} else {
-					return 1;
-				}
-				if(aInt > bInt)
-					return 1;
-				if(aInt < bInt)
-					return -1;
-			}
-			if(b.hasNext()) {
-				return -1;
-			}
-			return 0;
+		    return this.outputItems.compareTo(other.outputItems);
 		}
 
 		public String toString() {
@@ -1039,7 +1039,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	private int pivot(OutputLabel[] path) {
 		int pivot = -1;
 		for(OutputLabel ol : path) {
-			pivot = Math.max(pivot, ol.outputItems.lastInt());
+			pivot = Math.max(pivot, ol.outputItems.getInt(ol.outputItems.size()-1));
 		}
 		return pivot;
 	}
@@ -1105,17 +1105,17 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				ol = path[i];
 
 				// drop all output items larger than the pivot
-				while(ol.outputItems.lastInt() > pivot) {
-					ol.outputItems.remove(ol.outputItems.lastInt()); // TODO: is there a way to do this more efficiently? e.g., just drop the last item?
+				while(ol.outputItems.getInt(ol.outputItems.size()-1) > pivot) {
+					ol.outputItems.removeInt(ol.outputItems.size()-1);
 				}
 
 				// find next largest item
 				if(!seenPivotAsSingle) { // as soon as we know there won't be another round we don't need to do this anymore
-					nextLargestInThisSet = ol.outputItems.lastInt();
+					nextLargestInThisSet = ol.outputItems.getInt(ol.outputItems.size()-1);
 					// if the largest item is the pivot, we get the next-largest (if there is one)
 					if (nextLargestInThisSet == pivot) {
 						if (ol.outputItems.size() > 1) {
-							nextLargestInThisSet = ol.outputItems.headSet(pivot).lastInt();
+							nextLargestInThisSet = ol.outputItems.getInt(ol.outputItems.size()-2);
 						} else {
 							// if this set has only the pivot item, it will be empty next run. so we note
 							//    that we need to stop after this run
