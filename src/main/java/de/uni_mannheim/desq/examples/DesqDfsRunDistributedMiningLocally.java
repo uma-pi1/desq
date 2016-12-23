@@ -300,7 +300,7 @@ public class DesqDfsRunDistributedMiningLocally {
 		SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), true);
 		dataReader.setDictionary(dict);
 
-		minerConf.setProperty("desq.mining.use.two.pass", false);
+		minerConf.setProperty("desq.mining.use.two.pass", useTwoPass);
 
 		// create context
 		DesqMinerContext ctx = new DesqMinerContext();
