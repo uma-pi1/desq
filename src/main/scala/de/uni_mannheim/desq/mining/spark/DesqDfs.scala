@@ -35,7 +35,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 
       // for each row, determine the possible output elements from that input sequence and create 
       //   a (output item, input sequence) pair for all of the possible output items
-      new Iterator[(Int, Sequence)] {
+      new Iterator[((Int, Sequence), Int)] {
         val logger = LogManager.getLogger("DesqDfs")
         var t1 = System.nanoTime
         // initialize the sequential desq miner
@@ -89,17 +89,18 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         }
 
         // we simply output (output item, input sequence)
-        override def next(): (Int, Sequence) = {
+        override def next(): ((Int, Sequence), Int) = {
           val partitionItem : Int = outputIterator.next()
           if(sendNFAs) {
             val partitionNFA = serializedNFAs.get(partitionItem)
-            (partitionItem, partitionNFA)
+            ((partitionItem, partitionNFA), 1)
           } else {
-            (partitionItem, currentSequence.clone())
+            ((partitionItem, currentSequence.clone()), 1)
           }
         }
       }
-    }).groupByKey()
+    }).reduceByKey(_+_).map{case ((p, nfa), freq) => (p, (nfa, freq))}.groupByKey()
+
 
     // Third, we flatMap over the (output item, Iterable[input sequences]) RDD to mine each partition,
     //   with respect to the pivot item (=output item) of each partition. 
@@ -122,10 +123,10 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         val baseMiner = new de.uni_mannheim.desq.mining.DesqDfs(baseContext)
 
         var outputIterator: Iterator[WeightedSequence] = _
-        var currentPartition: (Int, Iterable[Sequence]) = _
+        var currentPartition: (Int, Iterable[(Sequence, Int)]) = _
 
         var partitionItem: Int = _
-        var sequencesIt: Iterator[Sequence] = null
+        var sequencesIt: Iterator[(Sequence, Int)] = null
 
 
         override def hasNext: Boolean = {
@@ -137,11 +138,11 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
             baseMiner.clear(false)
             result.clear()
 
-            for (s <- sequencesIt) {
+            for (ws <- sequencesIt) {
               if(sendNFAs)
-                baseMiner.addNFA(s, 1, true)
+                baseMiner.addNFA(ws._1, ws._2, true) // ws._1 is the NFA, ws._2 is the frequency of this NFA
               else
-                baseMiner.addInputSequence(s, 1, true)
+                baseMiner.addInputSequence(ws._1, ws._2, true)
             }
 
             // Mine this partition, only output patterns where the output item is the maximum item
