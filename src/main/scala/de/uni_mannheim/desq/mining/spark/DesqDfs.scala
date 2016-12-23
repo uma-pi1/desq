@@ -120,7 +120,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         baseContext.patternWriter = result
 
         // Set up the miner
-        val baseMiner = new de.uni_mannheim.desq.mining.DesqDfs(baseContext)
+        val baseMiner = new de.uni_mannheim.desq.mining.DesqDfs(baseContext, true) // here in the second stage, we don't use the dfa, so we don't need to build it
 
         var outputIterator: Iterator[WeightedSequence] = _
         var currentPartition: (Int, Iterable[(Sequence, Int)]) = _

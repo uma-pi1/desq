@@ -183,6 +183,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 	// -- construction/clearing ---------------------------------------------------------------------------------------
 
 	public DesqDfs(DesqMinerContext ctx) {
+		this(ctx, false);
+	}
+
+	public DesqDfs(DesqMinerContext ctx, boolean skipDfaBuild) {
 		super(ctx);
 		sigma = ctx.conf.getLong("desq.mining.min.support");
 		largestFrequentFid = ctx.dict.lastFidAbove(sigma);
@@ -201,7 +205,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		fst.annotate();
 
 		// create two pass auxiliary variables (if needed)
-		if (useTwoPass) { // two-pass
+		if (useTwoPass && !skipDfaBuild) { // two-pass
 			// two-pass will always prune irrelevant input sequences, so notify the user when the corresponding
 			// property is not set
 			if (!pruneIrrelevantInputs) {
@@ -220,17 +224,16 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 
 		// create DFA or reverse DFA (if needed)
-		if(useTwoPass) {
+		if(useTwoPass && !skipDfaBuild) {
 			// construct the DFA for the FST (for the first pass)
 			// the DFA is constructed for the reverse FST
 			this.dfa = Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid, true, useLazyDfa);
-		} else if (pruneIrrelevantInputs) {
+		} else if (pruneIrrelevantInputs && !skipDfaBuild) {
 			// construct the DFA to prune irrelevant inputs
 			// the DFA is constructed for the forward FST
 			this.dfa = Dfa.createDfa(fst, ctx.dict, largestFrequentFid, false, useLazyDfa);
 		} else {
 			this.dfa = null;
-
 		}
 
 		if(drawGraphs) fst.exportGraphViz(DesqDfsRunDistributedMiningLocally.useCase + "-fst.pdf");
@@ -259,7 +262,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	public void clear(boolean trimInputSequences) {
 		inputSequences.clear();
 		if(trimInputSequences) inputSequences.trimToSize();
-		if (useTwoPass) {
+		if (useTwoPass && dfaStateSequences != null) {
 			dfaStateSequences.clear();
             dfaStateSequences.trimToSize();
 		}
