@@ -273,6 +273,7 @@ public class DesqDfsRunDistributedMiningLocally {
 					DesqDfs.maxPivotsForOnePath + "\t" +
 					DesqDfs.maxNumOutTrs + "\t" +
 					DesqDfs.counterPrunedOutputs + "\t" +
+					DesqDfs.maxNumOutputItems + "\t" +
 					"";
 
 			writer.println(timings);

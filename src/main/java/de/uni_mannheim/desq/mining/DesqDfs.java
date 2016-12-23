@@ -177,6 +177,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 	public static long maxPivotsForOnePath = 0;
 	public static long maxNumOutTrs = 0;
 	public static long counterPrunedOutputs = 0;
+	public static long maxNumOutputItems = 0;
+
 
 
 
@@ -1404,6 +1406,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				nfa.positionsWithStateIds.set(send.size());
 				send.add(toState.mergedInto);
 
+				maxNumOutputItems = Math.max(maxNumOutputItems, ol.outputItems.size());
                 // per transition, we will write all output items as negative integers followed by the to state as positive integer
                 for(int outputItem : ol.outputItems) {
                     send.add(-outputItem);
