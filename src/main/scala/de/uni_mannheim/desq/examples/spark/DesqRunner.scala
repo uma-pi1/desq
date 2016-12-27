@@ -38,19 +38,40 @@ object DesqRunner {
   var useTwoPass: Boolean = _
   var maxNumberShuffleOutputItems: Integer = _
 
+  val runConf = scala.collection.mutable.Map[String,String]()
+
 
   def main(args: Array[String]) {
 
+    // defaults
+    if(args.length == 0) {
+      runConf.put("master", "local[1]")
+    }
+
+    if(args.length > 0) {
+      // parse args
+      for(arg <- args) {
+        val splits = arg.split("=")
+        runConf.put(splits(0),{if(splits.length > 1) splits(1) else ""})
+      }
+    }
+
+    println(runConf)
+
     // Init Desq, build SparkContext
-    sparkConf = new SparkConf().setAppName(getClass.getName).setMaster("local[1]")
+    if(!runConf.contains("master")) {
+      sparkConf = new SparkConf().setAppName(getClass.getName)
+    }
+    else {
+      sparkConf = new SparkConf().setAppName(getClass.getName).setMaster(runConf.get("master").get)
+    }
+
     Desq.initDesq(sparkConf)
     sc = new SparkContext(sparkConf)
 
-    println(args)
-
     if(args.length > 0) {
-      setDataLoc(args(3))
-      runDesq(args(0), args(1).toInt, args(2).toInt)
+      setDataLoc(runConf.get("loc").get)
+      runDesq()
     } else {
       setDataLoc("")
 //      prepDataset(); System.exit(0)
@@ -101,14 +122,22 @@ object DesqRunner {
   }
 
   def runDesq(theCase: String, scenario: Int, run: Int) : (Long, Long) = {
+    runConf.put("case", theCase)
+    runConf.put("scenario", scenario.toString)
+    runConf.put("run", run.toString)
 
-    setCase(theCase)
-    setScenario(scenario)
+    runDesq()
+  }
+
+  def runDesq() : (Long, Long) = {
+
+    setCase(runConf.get("case").get)
+    setScenario(runConf.get("scenario").get.toInt)
 
     val logger = LogManager.getLogger("DesqRunner")
 
     System.out.println("------------------------------------------------------------------")
-    System.out.println("Distributed Mining " + theCase + " @ " + scenarioStr + "  #" + run)
+    System.out.println("Distributed Mining " + runConf.get("case").get + " @ " + scenarioStr + "  #" + runConf.get("run").get)
     System.out.println("------------------------------------------------------------------")
 
     println(sparkConf.toDebugString)
@@ -299,7 +328,7 @@ object DesqRunner {
   }
 
   def setDataLoc(loc: String) {
-    if(loc.eq("hdfs")) {
+    if(loc.startsWith("hdfs")) {
       baseFolder = "hdfs:///user/alex/"
     } else {
       if(System.getProperty("os.name").startsWith("Mac")) {
