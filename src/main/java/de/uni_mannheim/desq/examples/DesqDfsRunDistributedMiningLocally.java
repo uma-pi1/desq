@@ -252,14 +252,14 @@ public class DesqDfsRunDistributedMiningLocally {
 		try{
 			PrintWriter writer = new PrintWriter(new FileOutputStream(new File(baseFolder + "Dropbox/Master/Thesis/Experiments/H/timings-"+runVersion+".txt"), true));
 			String timings = expNo + "\t" + theCase + "\t" + scenarioStr + "\t" + run + "\t" +
-					DesqDfs.swFirstPass.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					DesqDfs.swSecondPass.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					DesqDfs.swPrep.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					DesqDfs.swSetup.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					DesqDfs.swTrim.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					DesqDfs.swMerge.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					DesqDfs.swSerialize.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					DesqDfs.swReplace.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+//					DesqDfs.swFirstPass.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+//					DesqDfs.swSecondPass.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+//					DesqDfs.swPrep.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+//					DesqDfs.swSetup.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+//					DesqDfs.swTrim.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+//					DesqDfs.swMerge.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+//					DesqDfs.swSerialize.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+//					DesqDfs.swReplace.elapsed(TimeUnit.MILLISECONDS) + "\t" +
 					DesqDfs.maxNumStates + "\t" +
 					DesqDfs.maxRelevantSuccessors + "\t" +
 					DesqDfs.counterTrimCalls + "\t" +
