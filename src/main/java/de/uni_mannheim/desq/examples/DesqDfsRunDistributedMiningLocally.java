@@ -28,6 +28,7 @@ public class DesqDfsRunDistributedMiningLocally {
 	static boolean mergeSuffixes;
 	static boolean useDesqCount;
 	static boolean useTwoPass;
+	static int 	   maxNumOutputItems;
 
 	public static String useCase;
 	static String baseFolder;
@@ -117,6 +118,7 @@ public class DesqDfsRunDistributedMiningLocally {
 		minerConf.setProperty("desq.mining.send.nfas", sendNFAs);
         minerConf.setProperty("desq.mining.merge.suffixes", mergeSuffixes);
 		minerConf.setProperty("desq.mining.use.two.pass", useTwoPass);
+		minerConf.setProperty("desq.mining.shuffle.max.num.output.items", maxNumOutputItems);
 
 		// create context
 		DesqMinerContext ctx = new DesqMinerContext();
@@ -531,6 +533,7 @@ public class DesqDfsRunDistributedMiningLocally {
 		mergeSuffixes = false;
 		useDesqCount = false;
 		useTwoPass = false;
+		maxNumOutputItems = 2;
 		switch(scenario) {
 			case 0:
 				scenarioStr = "Count, shuffle output sequences";

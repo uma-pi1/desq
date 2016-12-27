@@ -296,4 +296,8 @@ public final class State {
 	public void removeAllTransitions() {
 		transitionList.clear();
 	}
+
+	public void sortTransitions() {
+		transitionList.sort(Comparator.comparing((Transition t)->t.itemExpression()));
+	}
 }

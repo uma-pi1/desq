@@ -119,6 +119,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** If true, DesqDfs Distributed merges shared suffixes in the tree representation */
 	final boolean mergeSuffixes;
 
+	/** Maximum number of output items to shuffle. More output items are encoded using transition numbers */
+	final int maxNumShuffleOutputItems;
+
 	/** Stores one Transition iterator per recursion level for reuse */
 	final ArrayList<Iterator<Transition>> transitionIterators = new ArrayList<>();
 
@@ -198,6 +201,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		sendNFAs = ctx.conf.getBoolean("desq.mining.send.nfas", false);
 		mergeSuffixes = ctx.conf.getBoolean("desq.mining.merge.suffixes", false);
+		maxNumShuffleOutputItems = ctx.conf.getInt("desq.mining.shuffle.max.num.output.items");
+
 
 		// create FST
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
@@ -244,6 +249,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 		root = new DesqDfsTreeNode(fst.numStates());
 		currentNode = root;
 		verbose = DesqDfsRunDistributedMiningLocally.verbose;
+
+		fst.numberTransitions();
 	}
 
 	public static DesqProperties createConf(String patternExpression, long sigma) {
@@ -1004,15 +1011,42 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	 * @return true if a final FST state can be reached without producing further output
 	 */
 	private boolean incStepOnNFA(int pos, final boolean expand) {
-		// in transition representation, we store pairs of integers: (transition id, input element)
+	    // "pos" points to a state in the shuffled OutputNFA. This state has 0-n outgoing transitions.
+		// Each transition carries a toState and either all its output items (encoded as negative integeres) or the number
+		// for a transition prototype and and input item:
+		// option a) [toState] [-outputItem]+
+		// option b) [toState] [transaction number] [input item fid]
+		// The end of the state's outgoing transitions is marked by either Integer.MAX_VALUE or Integer.MIN_VALUE.
+		// (MIN_VALUE indicates that this state is final)
+		// in both cases, we update all frequent output items
 		int nextInt = currentInputSequence.getInt(pos);
 		int currentToStatePos = -1;
-		int outputItem;
+		int outputItem, inputItem;
+		boolean justStartedTr = false;
+
 		while(nextInt != Integer.MIN_VALUE && nextInt != Integer.MAX_VALUE) {
-			assert nextInt != 0 : "There shouldn't 0 fids or toStates";
-			if(nextInt > 0) {
-				// ints larger 0 are toStates
-				currentToStatePos = nextInt;
+			if(nextInt >= 0) {
+				if(!justStartedTr) {
+					// ints larger 0 are toStates
+					currentToStatePos = nextInt;
+					justStartedTr = true;
+				} else {
+					// if we just started a transition, then the positive integer is the transition number
+
+					// collect all output elements into the outputItems set
+					inputItem = currentInputSequence.getInt(pos+1);
+					Iterator<ItemState> outIt = fst.getPrototypeTransitionByNumber(nextInt).consume(inputItem,
+							itCaches.get(0));
+
+					while(outIt.hasNext()) {
+						outputItem = outIt.next().itemFid;
+						if(expand & pivotItem >= outputItem) {
+							currentNode.expandWithTransition(outputItem, currentInputId, currentInputSequence.weight, currentToStatePos);
+						}
+					}
+					pos++; // we consumed an additional input item, so we move the pointer forward
+					justStartedTr = false;
+				}
 			} else {
 				// we have an output item for the current toState
 				outputItem = -nextInt;
@@ -1020,6 +1054,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					assert currentToStatePos != -1 : "There has been no to-state before the output item " + outputItem + " in NFA " + currentInputSequence;
 					currentNode.expandWithTransition(outputItem, currentInputId, currentInputSequence.weight, currentToStatePos);
 				}
+				justStartedTr = false;
 			}
 
 			pos++;
@@ -1407,10 +1442,18 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				send.add(toState.mergedInto);
 
 				maxNumOutputItems = Math.max(maxNumOutputItems, ol.outputItems.size());
-                // per transition, we will write all output items as negative integers followed by the to state as positive integer
-                for(int outputItem : ol.outputItems) {
-                    send.add(-outputItem);
-                }
+
+				// if there is more than N output items, we output (+trNo, +inpItem)
+				// otherwise, we output all output items as negative integers
+				if(ol.outputItems.size() > maxNumShuffleOutputItems) {
+				    send.add(fst.getTransitionNumber(ol.tr));
+				    send.add(ol.inputItem); // TODO: we can generalize this for the pivot
+				} else {
+					// per transition, we will write all output items as negative integers followed by the to state as positive integer
+					for (int outputItem : ol.outputItems) {
+						send.add(-outputItem);
+					}
+				}
 			}
 
 			// write state end symbol
