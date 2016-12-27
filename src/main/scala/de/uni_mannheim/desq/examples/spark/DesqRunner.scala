@@ -9,8 +9,8 @@ import java.io.File
 import java.text.SimpleDateFormat
 
 import org.apache.log4j.{LogManager, Logger}
+import java.util.Date
 
-import java.util.{Calendar, Date}
 
 /**
   * Other way to run DesqDfs
@@ -50,53 +50,53 @@ object DesqRunner {
 
     if(args.length > 0) {
       setDataLoc(args(3))
-      runDesq(args(0), args(1).toInt, args(2).toInt);
+      runDesq(args(0), args(1).toInt, args(2).toInt)
     } else {
       setDataLoc("")
 //      prepDataset(); System.exit(0)
       runGrid(); System.exit(0)
-      runDesq("I2", 2, 1);
+      runDesq("I2", 2, 1)
     }
   }
 
   def runGrid() {
-    val tests = Array("I1@1", "I1@2", "I2", "IA2", "IA4", "IX1", "IX2", "IX3", "IX4");
+    val tests = Array("I1@1", "I1@2", "I2", "IA2", "IA4", "IX1", "IX2", "IX3", "IX4")
 //    val scenarios = Array(0, 1, 2, 3, 4, 5, 6)
     val scenarios = Array(0, 2)
 
-    var output = "";
+    var output = ""
     for (testCase <- tests) {
       for (scenario <- scenarios) {
-        val res = runDesq(testCase, scenario, 1);
-        output += testCase + " // " + scenario + " // \t" + res._1 + "\t" + res._2 + "\n";
+        val res = runDesq(testCase, scenario, 1)
+        output += testCase + " // " + scenario + " // \t" + res._1 + "\t" + res._2 + "\n"
       }
-      output += "\n";
+      output += "\n"
     }
 
-    System.out.println("###############################################################");
-    System.out.println("###############################################################");
-    System.out.println(output);
+    System.out.println("###############################################################")
+    System.out.println("###############################################################")
+    System.out.println(output)
   }
 
   def prepDataset(): Unit = {
 
-    var dict = Dictionary.loadFrom(baseFolder.substring(7) + "Data/icdm16fids/dict.json");
-    var data = DesqDataset.loadFromDelFile(baseFolder.substring(7) + "Data/icdm16fids/data.del", dict, true);
+    var dict = Dictionary.loadFrom(baseFolder.substring(7) + "Data/icdm16fids/dict.json")
+    var data = DesqDataset.loadFromDelFile(baseFolder.substring(7) + "Data/icdm16fids/data.del", dict, true)
     data.save(baseFolder + "/Data/prep/icdm16fids")
 
     var ds = "nyt-1991"
-    dict = Dictionary.loadFrom(baseFolder.substring(7) + "Data/" + ds + "/" + ds + "-dict.json");
-    data = DesqDataset.loadFromDelFile(baseFolder.substring(7) + "Data/" + ds + "/" + ds + "-data.del", dict, true);
+    dict = Dictionary.loadFrom(baseFolder.substring(7) + "Data/" + ds + "/" + ds + "-dict.json")
+    data = DesqDataset.loadFromDelFile(baseFolder.substring(7) + "Data/" + ds + "/" + ds + "-data.del", dict, true)
     data.save(baseFolder + "/Data/prep/" + ds)
 
     ds = "nyt"
-    dict = Dictionary.loadFrom(baseFolder.substring(7) + "Data/" + ds + "/" + ds + "-dict.json");
-    data = DesqDataset.loadFromDelFile(baseFolder.substring(7) + "Data/" + ds + "/" + ds + "-data.del", dict, true);
+    dict = Dictionary.loadFrom(baseFolder.substring(7) + "Data/" + ds + "/" + ds + "-dict.json")
+    data = DesqDataset.loadFromDelFile(baseFolder.substring(7) + "Data/" + ds + "/" + ds + "-data.del", dict, true)
     data.save(baseFolder + "/Data/prep/" + ds)
 
     ds = "amzn"
-    dict = Dictionary.loadFrom(baseFolder.substring(7) + "Data/" + ds + "/" + ds + "-dict.json");
-    data = DesqDataset.loadFromDelFile(baseFolder.substring(7) + "Data/" + ds + "/" + ds + "-data.del", dict, true);
+    dict = Dictionary.loadFrom(baseFolder.substring(7) + "Data/" + ds + "/" + ds + "-dict.json")
+    data = DesqDataset.loadFromDelFile(baseFolder.substring(7) + "Data/" + ds + "/" + ds + "-data.del", dict, true)
     data.save(baseFolder + "/Data/prep/" + ds)
   }
 
@@ -107,9 +107,9 @@ object DesqRunner {
 
     val logger = LogManager.getLogger("DesqRunner")
 
-    System.out.println("------------------------------------------------------------------");
-    System.out.println("Distributed Mining " + theCase + " @ " + scenarioStr + "  #" + run);
-    System.out.println("------------------------------------------------------------------");
+    System.out.println("------------------------------------------------------------------")
+    System.out.println("Distributed Mining " + theCase + " @ " + scenarioStr + "  #" + run)
+    System.out.println("------------------------------------------------------------------")
 
     println(sparkConf.toDebugString)
 
@@ -138,10 +138,10 @@ object DesqRunner {
     var t1 = System.nanoTime // we are not using the Guava stopwatch here due to the packaging conflicts inside Spark (Guava 14)
     print("Mining (RDD construction)... ")
     val result = miner.mine(data)
-    val date = new Date();
+    val date = new Date()
     val sdf = new SimpleDateFormat("HHmmss")
     // for now, let's simply count (below)
-    //result.sequences.cache().saveAsTextFile(baseFolder + "Output/" + useCase + "-" + scenario + "-" + run + "-" + sdf.format(date));
+    //result.sequences.cache().saveAsTextFile(baseFolder + "Output/" + useCase + "-" + scenario + "-" + run + "-" + sdf.format(date))
     var freq = 0L
     val count = result.sequences.cache().count()
     println("Pattern count: " + count)
@@ -157,100 +157,100 @@ object DesqRunner {
 
 
   def setCase(thisUseCase: String) {
-    verbose = false;
-    useCase = thisUseCase;
+    verbose = false
+    useCase = thisUseCase
     useCase match {
       case "N1-1991" | "N1" => {
-        patternExp = "ENTITY@ (VB@+ NN@+? IN@?) ENTITY@";
-        sigma = 10;
-        if (useCase.contains("1991")) sigma = sigma / 10;
-        setNytData();
+        patternExp = "ENTITY@ (VB@+ NN@+? IN@?) ENTITY@"
+        sigma = 10
+        if (useCase.contains("1991")) sigma = sigma / 10
+        setNytData()
       }
       case "N2-1991" | "N2" => {
-        patternExp = "(ENTITY@^ VB@+ NN@+? IN@? ENTITY@^)";
-        sigma = 100;
-        if (useCase.contains("1991")) sigma = sigma / 10;
-        setNytData();
+        patternExp = "(ENTITY@^ VB@+ NN@+? IN@? ENTITY@^)"
+        sigma = 100
+        if (useCase.contains("1991")) sigma = sigma / 10
+        setNytData()
       }
       case "N3-1991" | "N3" => {
-        patternExp = "(ENTITY@^ be@VB@=^) DT@? (RB@? JJ@? NN@)";
-        sigma = 10;
-        if (useCase.contains("1991")) sigma = sigma / 10;
-        setNytData();
+        patternExp = "(ENTITY@^ be@VB@=^) DT@? (RB@? JJ@? NN@)"
+        sigma = 10
+        if (useCase.contains("1991")) sigma = sigma / 10
+        setNytData()
       }
       case "N4-1991" | "N4" => {
-        patternExp = "(.^){3} NN@";
-        sigma = 1000;
-        if (useCase.contains("1991")) sigma = sigma / 10;
-        setNytData();
+        patternExp = "(.^){3} NN@"
+        sigma = 1000
+        if (useCase.contains("1991")) sigma = sigma / 10
+        setNytData()
       }
       case "N5-1991" | "N5" => {
-        patternExp = "([.^ . .]|[. .^ .]|[. . .^])";
-        sigma = 1000;
-        if (useCase.contains("1991")) sigma = sigma / 10;
-        setNytData();
+        patternExp = "([.^ . .]|[. .^ .]|[. . .^])"
+        sigma = 1000
+        if (useCase.contains("1991")) sigma = sigma / 10
+        setNytData()
       }
       case "A1" => {
-        patternExp = "(Electronics^)[.{0,2}(Electronics^)]{1,4}";
-        sigma = 500;
-        setAmznData();
+        patternExp = "(Electronics^)[.{0,2}(Electronics^)]{1,4}"
+        sigma = 500
+        setAmznData()
       }
       case "A2" => {
-        patternExp = "(Books)[.{0,2}(Books)]{1,4}";
-        sigma = 100;
-        setAmznData();
+        patternExp = "(Books)[.{0,2}(Books)]{1,4}"
+        sigma = 100
+        setAmznData()
       }
       case "A3" => {
-        patternExp = "Digital_Cameras@Electronics[.{0,3}(.^)]{1,4}";
-        sigma = 100;
-        setAmznData();
+        patternExp = "Digital_Cameras@Electronics[.{0,3}(.^)]{1,4}"
+        sigma = 100
+        setAmznData()
       }
       case "A4" => {
-        patternExp = "(Musical_Instruments^)[.{0,2}(Musical_Instruments^)]{1,4}";
-        sigma = 100;
-        setAmznData();
+        patternExp = "(Musical_Instruments^)[.{0,2}(Musical_Instruments^)]{1,4}"
+        sigma = 100
+        setAmznData()
       }
       case "I1@1" => {
-        patternExp = "[c|d]([A^|B=^]+)e";
-        sigma = 1;
-        verbose = true;
-        setICDMData();
+        patternExp = "[c|d]([A^|B=^]+)e"
+        sigma = 1
+        verbose = true
+        setICDMData()
       }
       case "I1@2" => {
-        patternExp = "[c|d]([A^|B=^]+)e";
-        sigma = 2;
-        verbose = true;
-        setICDMData();
+        patternExp = "[c|d]([A^|B=^]+)e"
+        sigma = 2
+        verbose = true
+        setICDMData()
       }
       case "I2" => {
-        patternExp = "([.^ . .])";
-        sigma = 1;
-        verbose = true;
-        setICDMData();
+        patternExp = "([.^ . .])"
+        sigma = 1
+        verbose = true
+        setICDMData()
       }
       case "IA2" => {
-        patternExp = "(A)[.{0,2}(A)]{1,4}";
-        sigma = 1;
-        verbose = true;
-        setICDMData();
+        patternExp = "(A)[.{0,2}(A)]{1,4}"
+        sigma = 1
+        verbose = true
+        setICDMData()
       }
       case "IA4" => {
-        patternExp = "(A^)[.{0,2}(A^)]{1,4}";
-        sigma = 1;
-        verbose = true;
-        setICDMData();
+        patternExp = "(A^)[.{0,2}(A^)]{1,4}"
+        sigma = 1
+        verbose = true
+        setICDMData()
       }
       case "IX1" => {
-        patternExp = "[c|d](a2).*([A^|B=^]).*(e)";
-        sigma = 1;
-        verbose = true;
-        setICDMData();
+        patternExp = "[c|d](a2).*([A^|B=^]).*(e)"
+        sigma = 1
+        verbose = true
+        setICDMData()
       }
       case "IX2" => {
-        patternExp = "[c|d](a2).*([A^|B=^]).*(B^e)";
-        sigma = 1;
-        verbose = true;
-        setICDMData();
+        patternExp = "[c|d](a2).*([A^|B=^]).*(B^e)"
+        sigma = 1
+        verbose = true
+        setICDMData()
       }
       case "IX3" => {
         patternExp = "(a1* b12 e)"
@@ -265,34 +265,35 @@ object DesqRunner {
         setICDMData()
       }
       case _ => {
-        System.out.println("Do not know the use case " + useCase);
-        System.exit(1);
+        System.out.println("Do not know the use case " + useCase)
+        System.exit(1)
       }
     }
   }
 
   def setScenario(setScenario: Int) {
     //set some defaults
-    scenario = setScenario;
-    sendNFAs = false;
-    mergeSuffixes = false;
-    useDesqCount = false;
-    useTwoPass = false;
+    scenario = setScenario
+    sendNFAs = false
+    mergeSuffixes = false
+    useDesqCount = false
+    useTwoPass = false
+    maxNumberShuffleOutputItems = 2
     scenario match {
       case 0 =>
-        scenarioStr = "Count, shuffle output sequences";
-        useDesqCount = true;
-        useTwoPass = true;
+        scenarioStr = "Count, shuffle output sequences"
+        useDesqCount = true
+        useTwoPass = true
       case 1 =>
-        scenarioStr = "Dfs, shuffle input sequences";
-        useTwoPass = true;
+        scenarioStr = "Dfs, shuffle input sequences"
+        useTwoPass = true
       case 2 =>
-        scenarioStr = "Dfs, shuffle transition DAGs, two-pass, generalize inputs";
-        sendNFAs = true;
-        mergeSuffixes = true;
-        useTwoPass = true;
+        scenarioStr = "Dfs, shuffle transition DAGs, two-pass, generalize inputs"
+        sendNFAs = true
+        mergeSuffixes = true
+        useTwoPass = true
       case _ =>
-        System.out.println("Unknown variant");
+        System.out.println("Unknown variant")
         System.exit(0)
     }
   }
@@ -302,26 +303,26 @@ object DesqRunner {
       baseFolder = "hdfs:///user/alex/"
     } else {
       if(System.getProperty("os.name").startsWith("Mac")) {
-        baseFolder = "file:///Users/alex/";
+        baseFolder = "file:///Users/alex/"
       } else {
-        baseFolder = "file:///home/alex/";
+        baseFolder = "file:///home/alex/"
       }
     }
   }
 
   def setAmznData() {
-    dataDir = baseFolder + "Data/prep/amzn/";
+    dataDir = baseFolder + "Data/prep/amzn/"
   }
 
   def setICDMData() {
-    dataDir = baseFolder + "Data/prep/icdm16fids/";
+    dataDir = baseFolder + "Data/prep/icdm16fids/"
   }
 
   def setNytData() {
-    var dataset = "nyt";
+    var dataset = "nyt"
     if(useCase.contains("1991")) {
-      dataset = "nyt-1991";
+      dataset = "nyt-1991"
     }
-    dataDir = baseFolder + "Data/prep/" + dataset + "/";
+    dataDir = baseFolder + "Data/prep/" + dataset + "/"
   }
 }
