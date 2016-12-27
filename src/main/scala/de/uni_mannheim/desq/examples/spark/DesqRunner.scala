@@ -36,6 +36,7 @@ object DesqRunner {
   var mergeSuffixes: Boolean = _
   var useDesqCount: Boolean = _
   var useTwoPass: Boolean = _
+  var maxNumberShuffleOutputItems: Integer = _
 
 
   def main(args: Array[String]) {
@@ -124,6 +125,7 @@ object DesqRunner {
     minerConf.setProperty("desq.mining.use.two.pass", useTwoPass)
     minerConf.setProperty("desq.mining.send.nfas", sendNFAs)
     minerConf.setProperty("desq.mining.merge.suffixes", mergeSuffixes)
+    minerConf.setProperty("desq.mining.shuffle.max.num.output.items", maxNumberShuffleOutputItems)
 
 
     // Build miner

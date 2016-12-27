@@ -902,6 +902,12 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	public void minePivot(int pivotItem) {
 		this.pivotItem = pivotItem;
 
+		// we need one itCache in incStepOnNFA
+		if(itCaches.isEmpty()) {
+			Transition.ItemStateIteratorCache itCache = new Transition.ItemStateIteratorCache(ctx.dict.isForest());
+			itCaches.add(itCache);
+		}
+
 
 		// run the normal mine method. Filtering is done in expand() when the patterns are output
 		if(sendNFAs)
