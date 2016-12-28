@@ -31,20 +31,20 @@ public class ExampleUtils {
         System.out.println(ctx.conf.toProperties());
 
         System.out.print("Creating miner... ");
-        Stopwatch prepTime = Stopwatch.createStarted();
+        Stopwatch prepTime = new Stopwatch().start();
         DesqMiner miner = DesqMiner.create(ctx);
         prepTime.stop();
         System.out.println(prepTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
 
         System.out.print("Reading input sequences... ");
-        Stopwatch ioTime = Stopwatch.createStarted();
+        Stopwatch ioTime = new Stopwatch().start();
         miner.addInputSequences(dataReader);
         ioTime.stop();
         System.out.println(ioTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
 
 
         System.out.print("Mining... ");
-        Stopwatch miningTime = Stopwatch.createStarted();
+        Stopwatch miningTime = new Stopwatch().start();
         miner.mine();
         miningTime.stop();
         System.out.println(miningTime.elapsed(TimeUnit.MILLISECONDS) + "ms");

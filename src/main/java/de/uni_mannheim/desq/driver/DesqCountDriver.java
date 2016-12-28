@@ -59,15 +59,15 @@ public class DesqCountDriver extends Driver {
         ctx.conf.setProperty("desq.mining.prune.irrelevant.inputs", pruneIrrelevantInputs);
         ctx.conf.setProperty("desq.mining.use.two.pass", useTwoPass);
 
-        Stopwatch constructionTime = Stopwatch.createStarted();
+        Stopwatch constructionTime = new Stopwatch().start();
         DesqMiner miner = DesqMiner.create(ctx);
         constructionTime.stop();
 
-        Stopwatch readInputTime = Stopwatch.createStarted();
+        Stopwatch readInputTime = new Stopwatch().start();
         miner.addInputSequences(dataReader);
         readInputTime.stop();
 
-        Stopwatch miningTime = Stopwatch.createStarted();
+        Stopwatch miningTime = new Stopwatch().start();
         miner.mine();
         miningTime.stop();
 

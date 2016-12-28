@@ -50,15 +50,15 @@ public class TraditionalMining {
         ctx.patternWriter = result;
         ctx.conf = PrefixGrowthMiner.createConf(sigma,gamma,lambda,generalize);
 
-        Stopwatch constructionTime = Stopwatch.createStarted();
+        Stopwatch constructionTime = new Stopwatch().start();
         DesqMiner miner = DesqMiner.create(ctx);
         constructionTime.stop();
 
-        Stopwatch readInputTime = Stopwatch.createStarted();
+        Stopwatch readInputTime = new Stopwatch().start();
         miner.addInputSequences(dataReader);
         readInputTime.stop();
 
-        Stopwatch miningTime = Stopwatch.createStarted();
+        Stopwatch miningTime = new Stopwatch().start();
         miner.mine();
         miningTime.stop();
 

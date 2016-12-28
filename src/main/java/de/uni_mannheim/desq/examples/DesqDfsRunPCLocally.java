@@ -88,13 +88,13 @@ public class DesqDfsRunPCLocally {
 
 		// perform the mining
 		System.out.print("Creating miner... ");
-		Stopwatch prepTime = Stopwatch.createStarted();
+		Stopwatch prepTime = new Stopwatch().start();
 		DesqDfs miner = (DesqDfs) DesqDfs.create(ctx);
 		prepTime.stop();
 		System.out.println(prepTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
 
 		System.out.print("Reading input sequences into memory... ");
-		Stopwatch ioTime = Stopwatch.createStarted();
+		Stopwatch ioTime = new Stopwatch().start();
 		ObjectArrayList<Sequence> inputSequences = new ObjectArrayList<Sequence>();
 		Sequence inputSequence = new Sequence();
 		while (dataReader.readAsFids(inputSequence)) {
@@ -106,7 +106,7 @@ public class DesqDfsRunPCLocally {
 
 
 		System.out.print("Determining pivot items... ");
-		Stopwatch miningTime = Stopwatch.createStarted();
+		Stopwatch miningTime = new Stopwatch().start();
 		Tuple2<Integer, Integer> stats = miner.determinePivotItemsForSequences(inputSequences, verbose);
 		miningTime.stop();
 		System.out.println(miningTime.elapsed(TimeUnit.MILLISECONDS) + "ms");

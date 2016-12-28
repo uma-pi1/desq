@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit;
  * Created by rgemulla on 7.12.2016.
  */
 public class Profiler {
-    public Stopwatch stopwatch = Stopwatch.createUnstarted();
+    public Stopwatch stopwatch = new Stopwatch();
     public long usedMemory = 0;
 
     public static long getUsedMemory() {

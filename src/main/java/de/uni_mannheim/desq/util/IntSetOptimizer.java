@@ -130,7 +130,7 @@ public class IntSetOptimizer {
         }
 
         // run the experiments
-        Stopwatch stopwatch = Stopwatch.createUnstarted();
+        Stopwatch stopwatch = new Stopwatch();
         boolean count = false;
 
         stopwatch.reset();

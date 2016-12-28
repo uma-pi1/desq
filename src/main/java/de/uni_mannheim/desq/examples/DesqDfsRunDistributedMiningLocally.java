@@ -135,14 +135,14 @@ public class DesqDfsRunDistributedMiningLocally {
 
 		// create miner
 		System.out.print("Creating miner... ");
-		Stopwatch prepTime = Stopwatch.createStarted();
+		Stopwatch prepTime = new Stopwatch().start();
 		DesqDfs miner = (DesqDfs) DesqDfs.create(ctx);
 		prepTime.stop();
 		System.out.println(prepTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
 
 		// Read input sequences into memory
 		System.out.print("Reading input sequences into memory... ");
-		Stopwatch ioTime = Stopwatch.createStarted();
+		Stopwatch ioTime = new Stopwatch().start();
 		ObjectArrayList<Sequence> inputSequences = new ObjectArrayList<Sequence>();
 		Sequence inputSequence = new Sequence();
 		while (dataReader.readAsFids(inputSequence)) {
@@ -155,7 +155,7 @@ public class DesqDfsRunDistributedMiningLocally {
 		// run partition construction
 		if(writeShuffleStats) openStatsWriter();
 		System.out.print("Determining pivot items... ");
-		Stopwatch pcTime = Stopwatch.createStarted();
+		Stopwatch pcTime = new Stopwatch().start();
 		Int2ObjectOpenHashMap<ObjectList<IntList>> partitions = miner.createPartitions(inputSequences, verbose);
 		pcTime.stop();
 		System.out.println(pcTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
@@ -180,7 +180,7 @@ public class DesqDfsRunDistributedMiningLocally {
 
 		// mine the partitions
 		System.out.print("Mining... ");
-		Stopwatch mineTime = Stopwatch.createStarted();
+		Stopwatch mineTime = new Stopwatch().start();
 		int key;
 		ObjectList<IntList> sequences;
 		for(Int2ObjectMap.Entry<ObjectList<IntList>> partition : partitions.int2ObjectEntrySet()) {
@@ -252,14 +252,14 @@ public class DesqDfsRunDistributedMiningLocally {
 		try{
 			PrintWriter writer = new PrintWriter(new FileOutputStream(new File(baseFolder + "Dropbox/Master/Thesis/Experiments/H/timings-"+runVersion+".txt"), true));
 			String timings = expNo + "\t" + theCase + "\t" + scenarioStr + "\t" + run + "\t" +
-//					DesqDfs.swFirstPass.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-//					DesqDfs.swSecondPass.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-//					DesqDfs.swPrep.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-//					DesqDfs.swSetup.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-//					DesqDfs.swTrim.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-//					DesqDfs.swMerge.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-//					DesqDfs.swSerialize.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-//					DesqDfs.swReplace.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+					DesqDfs.swFirstPass.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+					DesqDfs.swSecondPass.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+					DesqDfs.swPrep.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+					DesqDfs.swSetup.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+					DesqDfs.swTrim.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+					DesqDfs.swMerge.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+					DesqDfs.swSerialize.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+					DesqDfs.swReplace.elapsed(TimeUnit.MILLISECONDS) + "\t" +
 					DesqDfs.maxNumStates + "\t" +
 					DesqDfs.maxRelevantSuccessors + "\t" +
 					DesqDfs.counterTrimCalls + "\t" +
@@ -319,14 +319,14 @@ public class DesqDfsRunDistributedMiningLocally {
 
 		// create miner
 		System.out.print("Creating miner... ");
-		Stopwatch prepTime = Stopwatch.createStarted();
+		Stopwatch prepTime = new Stopwatch().start();
 		DesqCount miner = (DesqCount) DesqDfs.create(ctx);
 		prepTime.stop();
 		System.out.println(prepTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
 
 		// Read input sequences into memory
 		System.out.print("Reading input sequences into memory... ");
-		Stopwatch ioTime = Stopwatch.createStarted();
+		Stopwatch ioTime = new Stopwatch().start();
 		ObjectArrayList<Sequence> inputSequences = new ObjectArrayList<Sequence>();
 		Sequence inputSequence = new Sequence();
 		while (dataReader.readAsFids(inputSequence)) {
@@ -339,7 +339,7 @@ public class DesqDfsRunDistributedMiningLocally {
 		// run partition construction
 		if(writeShuffleStats) openStatsWriter();
 		System.out.print("Adding input sequences to miner ...");
-		Stopwatch pcTime = Stopwatch.createStarted();
+		Stopwatch pcTime = new Stopwatch().start();
 		for(IntList sequence : inputSequences) {
 			miner.addInputSequence(sequence, 1, true);
 		}
@@ -353,7 +353,7 @@ public class DesqDfsRunDistributedMiningLocally {
 
 		// mine the partitions
 		System.out.print("Mining... ");
-		Stopwatch mineTime = Stopwatch.createStarted();
+		Stopwatch mineTime = new Stopwatch().start();
 		miner.mine();
 		mineTime.stop();
 		System.out.println(mineTime.elapsed(TimeUnit.MILLISECONDS) + "ms");

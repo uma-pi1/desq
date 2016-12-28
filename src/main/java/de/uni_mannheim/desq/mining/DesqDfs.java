@@ -157,14 +157,14 @@ public final class DesqDfs extends MemoryDesqMiner {
 	private int numSerializedStates = 0;
 
 	/** Stop watches and counters */
-//	public static Stopwatch swFirstPass = Stopwatch.createUnstarted();
-//	public static Stopwatch swSecondPass = Stopwatch.createUnstarted();
-//	public static Stopwatch swPrep = Stopwatch.createUnstarted();
-//	public static Stopwatch swSetup = Stopwatch.createUnstarted();
-//	public static Stopwatch swTrim = Stopwatch.createUnstarted();
-//	public static Stopwatch swMerge = Stopwatch.createUnstarted();
-//	public static Stopwatch swSerialize = Stopwatch.createUnstarted();
-//	public static Stopwatch swReplace = Stopwatch.createUnstarted();
+	public static Stopwatch swFirstPass = new Stopwatch();
+	public static Stopwatch swSecondPass = new Stopwatch();
+	public static Stopwatch swPrep = new Stopwatch();
+	public static Stopwatch swSetup = new Stopwatch();
+	public static Stopwatch swTrim = new Stopwatch();
+	public static Stopwatch swMerge = new Stopwatch();
+	public static Stopwatch swSerialize = new Stopwatch();
+	public static Stopwatch swReplace = new Stopwatch();
 	public static long maxNumStates = 0;
 	public static long maxRelevantSuccessors = 0;
 	public static long counterTrimCalls = 0;
@@ -635,21 +635,21 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 		if(useTwoPass) {
 			dfaStateSequence.clear();
-//			swFirstPass.start();
+			swFirstPass.start();
 			if (dfa.acceptsReverse(inputSequence, dfaStateSequence, dfaInitialPos)) {
 
-//				swFirstPass.stop();
+				swFirstPass.stop();
 				// run the first incStep; start at all positions from which a final FST state can be reached
-//				swSecondPass.start();
+				swSecondPass.start();
 				for (int i = 0; i < dfaInitialPos.size(); i++) {
 					piStep(-1, dfaInitialPos.getInt(i), fst.getInitialState(), 0);
 				}
-//				swSecondPass.stop();
+				swSecondPass.stop();
 
 				// clean up
 				dfaInitialPos.clear();
 			} else {
-//				swFirstPass.stop();
+				swFirstPass.stop();
 			}
 		} else {
 			piStep(-1, 0, fst.getInitialState(), 0);
@@ -1187,11 +1187,11 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		public Sequence serialize() {
 			counterTrimCalls++;
 
-//			swMerge.start();
+			swMerge.start();
 			followGroup(leafs, true);
-//			swMerge.stop();
+			swMerge.stop();
 
-//			swSerialize.start();
+			swSerialize.start();
 			// serialize the trimmed NFA
 			Sequence send = new Sequence();
 			positionsWithStateIds.clear();
@@ -1202,10 +1202,10 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					numSerializedStates++;
 				}
 			}
-//			swSerialize.stop();
+			swSerialize.stop();
 
 
-//			swReplace.start();
+			swReplace.start();
 			// replace all state ids with their positions
 			PathState state;
 			for (int pos = positionsWithStateIds.nextSetBit(0); pos >= 0; pos = positionsWithStateIds.nextSetBit(pos+1)) {
@@ -1213,7 +1213,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				send.set(pos,state.writtenAtPos);
 
 			}
-//			swReplace.stop();
+			swReplace.stop();
 			return send;
 		}
 
