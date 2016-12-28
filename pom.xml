@@ -199,10 +199,23 @@
 						<configuration>
 							<artifactSet>
                                 <includes>
-									<include>it.unimi.dsi:*</include>
-									<include>org.apache.avro:*</include>
+									<include>it.unimi.dsi:fastutil</include>
+									<include>org.apache.avro:avro</include>
 								</includes>
 							</artifactSet>
+							<!--<minimizeJar>true</minimizeJar>--> <!-- for some reason, this misses some classes we are using. otherwise, this would be a good option -->
+							<filters>
+								<filter>
+									<artifact>it.unimi.dsi:fastutil</artifact>
+									<includes>
+										<include>it/unimi/dsi/fastutil/bytes/**</include>
+										<include>it/unimi/dsi/fastutil/ints/**</include>
+										<include>it/unimi/dsi/fastutil/longs/**</include>
+										<include>it/unimi/dsi/fastutil/objects/**</include>
+										<include>it/unimi/dsi/fastutil/*</include>
+									</includes>
+								</filter>
+							</filters>
 						</configuration>
 					</execution>
 				</executions>
