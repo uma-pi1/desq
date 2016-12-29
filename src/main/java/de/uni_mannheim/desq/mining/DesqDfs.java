@@ -157,30 +157,30 @@ public final class DesqDfs extends MemoryDesqMiner {
 	private int numSerializedStates = 0;
 
 	/** Stop watches and counters */
-	public static Stopwatch swFirstPass = new Stopwatch();
-	public static Stopwatch swSecondPass = new Stopwatch();
-	public static Stopwatch swPrep = new Stopwatch();
-	public static Stopwatch swSetup = new Stopwatch();
-	public static Stopwatch swTrim = new Stopwatch();
-	public static Stopwatch swMerge = new Stopwatch();
-	public static Stopwatch swSerialize = new Stopwatch();
-	public static Stopwatch swReplace = new Stopwatch();
-	public static long maxNumStates = 0;
-	public static long maxRelevantSuccessors = 0;
-	public static long counterTrimCalls = 0;
-	public static long counterFollowGroupCalls = 0;
-	public static long counterIsMergeableIntoCalls = 0;
-	public static long counterFollowTransitionCalls = 0;
-	public static long counterTransitionsCreated = 0;
-	public static long counterSerializedStates = 0;
-	public static long counterSerializedTransitions = 0;
-	public static long counterPathsAdded = 0;
-	public static long maxFollowGroupSetSize = 0;
-	public static long maxPivotsForOneSequence = 0;
-	public static long maxPivotsForOnePath = 0;
-	public static long maxNumOutTrs = 0;
-	public static long counterPrunedOutputs = 0;
-	public static long maxNumOutputItems = 0;
+	public Stopwatch swFirstPass = new Stopwatch();
+	public Stopwatch swSecondPass = new Stopwatch();
+	public Stopwatch swPrep = new Stopwatch();
+	public Stopwatch swSetup = new Stopwatch();
+	public Stopwatch swTrim = new Stopwatch();
+	public Stopwatch swMerge = new Stopwatch();
+	public Stopwatch swSerialize = new Stopwatch();
+	public Stopwatch swReplace = new Stopwatch();
+	public long maxNumStates = 0;
+	public long maxRelevantSuccessors = 0;
+	public long counterTrimCalls = 0;
+	public long counterFollowGroupCalls = 0;
+	public long counterIsMergeableIntoCalls = 0;
+	public long counterFollowTransitionCalls = 0;
+	public long counterTransitionsCreated = 0;
+	public long counterSerializedStates = 0;
+	public long counterSerializedTransitions = 0;
+	public long counterPathsAdded = 0;
+	public long maxFollowGroupSetSize = 0;
+	public long maxPivotsForOneSequence = 0;
+	public long maxPivotsForOnePath = 0;
+	public long maxNumOutTrs = 0;
+	public long counterPrunedOutputs = 0;
+	public long maxNumOutputItems = 0;
 
 
 

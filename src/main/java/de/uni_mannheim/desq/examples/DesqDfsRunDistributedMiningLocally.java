@@ -252,30 +252,30 @@ public class DesqDfsRunDistributedMiningLocally {
 		try{
 			PrintWriter writer = new PrintWriter(new FileOutputStream(new File(baseFolder + "Dropbox/Master/Thesis/Experiments/H/timings-"+runVersion+".txt"), true));
 			String timings = expNo + "\t" + theCase + "\t" + scenarioStr + "\t" + run + "\t" +
-					DesqDfs.swFirstPass.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					DesqDfs.swSecondPass.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					DesqDfs.swPrep.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					DesqDfs.swSetup.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					DesqDfs.swTrim.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					DesqDfs.swMerge.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					DesqDfs.swSerialize.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					DesqDfs.swReplace.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					DesqDfs.maxNumStates + "\t" +
-					DesqDfs.maxRelevantSuccessors + "\t" +
-					DesqDfs.counterTrimCalls + "\t" +
-					DesqDfs.counterFollowGroupCalls + "\t" +
-					DesqDfs.counterIsMergeableIntoCalls + "\t" +
-					DesqDfs.counterFollowTransitionCalls + "\t" +
-					DesqDfs.counterTransitionsCreated + "\t" +
-					DesqDfs.counterSerializedStates + "\t" +
-					DesqDfs.counterSerializedTransitions + "\t" +
-					DesqDfs.counterPathsAdded + "\t" +
-					DesqDfs.maxFollowGroupSetSize + "\t" +
-					DesqDfs.maxPivotsForOneSequence + "\t" +
-					DesqDfs.maxPivotsForOnePath + "\t" +
-					DesqDfs.maxNumOutTrs + "\t" +
-					DesqDfs.counterPrunedOutputs + "\t" +
-					DesqDfs.maxNumOutputItems + "\t" +
+					miner.swFirstPass.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+					miner.swSecondPass.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+					miner.swPrep.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+					miner.swSetup.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+					miner.swTrim.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+					miner.swMerge.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+					miner.swSerialize.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+					miner.swReplace.elapsed(TimeUnit.MILLISECONDS) + "\t" +
+					miner.maxNumStates + "\t" +
+					miner.maxRelevantSuccessors + "\t" +
+					miner.counterTrimCalls + "\t" +
+					miner.counterFollowGroupCalls + "\t" +
+					miner.counterIsMergeableIntoCalls + "\t" +
+					miner.counterFollowTransitionCalls + "\t" +
+					miner.counterTransitionsCreated + "\t" +
+					miner.counterSerializedStates + "\t" +
+					miner.counterSerializedTransitions + "\t" +
+					miner.counterPathsAdded + "\t" +
+					miner.maxFollowGroupSetSize + "\t" +
+					miner.maxPivotsForOneSequence + "\t" +
+					miner.maxPivotsForOnePath + "\t" +
+					miner.maxNumOutTrs + "\t" +
+					miner.counterPrunedOutputs + "\t" +
+					miner.maxNumOutputItems + "\t" +
 					"";
 
 			writer.println(timings);
