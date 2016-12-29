@@ -99,7 +99,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
           }
         }
       }
-    }).reduceByKey(_+_).map{case ((p, nfa), freq) => (p, (nfa, freq))}.groupByKey()
+    })./*reduceByKey(_+_).*/map{case ((p, nfa), freq) => (p, (nfa, freq))}.groupByKey()
 
 
     // Third, we flatMap over the (output item, Iterable[input sequences]) RDD to mine each partition,
