@@ -60,7 +60,9 @@ object DesqRunner {
 
     println(runConf)
 
-    val appName = runConf.get("case").get + " s" + runConf.get("scenario").get + " r" + runConf.get("run").get
+    var appName = getClass.getName
+    if(runConf.contains("case"))
+      appName = runConf.get("case").get + " s" + runConf.get("scenario").get + " r" + runConf.get("run").get
     // Init Desq, build SparkContext
     if(!runConf.contains("master")) {
       sparkConf = new SparkConf().setAppName(appName)
