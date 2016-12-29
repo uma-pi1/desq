@@ -23,6 +23,12 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     val minSupport = conf.getLong("desq.mining.min.support")
     val sendNFAs = conf.getBoolean("desq.mining.send.nfas")
     //val numPartitions = conf.getInt("desq.mining.num.mine.partitions")
+    val mapRepartition = conf.getInt("desq.mining.map.repartition")
+
+    var mappedSequences = data.sequences
+    if(mapRepartition > 0) {
+      mappedSequences = data.sequences.repartition(mapRepartition)
+    }
 
 
     // In a first step, we map over each input sequence and output (output item, input sequence) pairs
@@ -31,7 +37,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     //   (output item, Iterable[input sequences])
     // Third step: see below
 
-    val outputItemPartitions = data.sequences.mapPartitions(rows => {
+    val outputItemPartitions = mappedSequences.mapPartitions(rows => {
 
       // for each row, determine the possible output elements from that input sequence and create 
       //   a (output item, input sequence) pair for all of the possible output items

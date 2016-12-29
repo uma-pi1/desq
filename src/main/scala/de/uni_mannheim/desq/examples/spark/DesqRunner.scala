@@ -48,6 +48,8 @@ object DesqRunner {
       runConf.put("master", "local[1]")
     }
 
+    runConf.put("map.repartition", "0")
+
     if(args.length > 0) {
       // parse args
       for(arg <- args) {
@@ -58,12 +60,13 @@ object DesqRunner {
 
     println(runConf)
 
+    val appName = runConf.get("case").get + " s" + runConf.get("scenario").get + " r" + runConf.get("run").get
     // Init Desq, build SparkContext
     if(!runConf.contains("master")) {
-      sparkConf = new SparkConf().setAppName(getClass.getName)
+      sparkConf = new SparkConf().setAppName(appName)
     }
     else {
-      sparkConf = new SparkConf().setAppName(getClass.getName).setMaster(runConf.get("master").get)
+      sparkConf = new SparkConf().setAppName(appName).setMaster(runConf.get("master").get)
     }
 
     Desq.initDesq(sparkConf)
@@ -156,6 +159,7 @@ object DesqRunner {
     minerConf.setProperty("desq.mining.merge.suffixes", mergeSuffixes)
     minerConf.setProperty("desq.mining.shuffle.max.num.output.items", maxNumberShuffleOutputItems)
 
+    minerConf.setProperty("desq.mining.map.repartition", runConf.get("map.repartition").get)
 
     // Build miner
     val ctx = new DesqMinerContext(minerConf)
@@ -175,11 +179,13 @@ object DesqRunner {
     val count = result.sequences.cache().count()
     println("Pattern count: " + count)
     if (count > 0) {
-      freq = result.sequences.map(_.weight).reduce(_ + _)
+      freq = result.sequences.map(_.weight).sum().toLong
       println("Pattern freq:  " + freq)
     }
     val mineAndOutputTime = (System.nanoTime - t1) / 1e9d
     logger.fatal("mineAndOutputTime: " + mineAndOutputTime + "s")
+
+    println("count;freq;"+count+";"+freq)
 
     (count, freq)
   }
