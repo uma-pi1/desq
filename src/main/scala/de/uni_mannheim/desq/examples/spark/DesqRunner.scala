@@ -163,6 +163,9 @@ object DesqRunner {
 
     minerConf.setProperty("desq.mining.map.repartition", runConf.get("map.repartition").get)
 
+    if(runConf.contains("dict.from.hdfs"))
+      minerConf.setProperty("desq.mining.spark.dict.hdfs", dataDir)
+
     // Build miner
     val ctx = new DesqMinerContext(minerConf)
     println("Miner properties: ")
