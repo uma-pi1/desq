@@ -163,6 +163,9 @@ object DesqRunner {
 
     minerConf.setProperty("desq.mining.map.repartition", runConf.get("map.repartition").get)
 
+    if(runConf.contains("reduce.shuffle"))
+      minerConf.setProperty("desq.mining.reduce.shuffle.sequences", true)
+
     if(runConf.contains("dict.from.hdfs"))
       minerConf.setProperty("desq.mining.spark.dict.hdfs", dataDir)
 

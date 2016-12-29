@@ -31,6 +31,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     //val numPartitions = conf.getInt("desq.mining.num.mine.partitions")
     val mapRepartition = conf.getInt("desq.mining.map.repartition")
     val dictHdfs = conf.getString("desq.mining.spark.dict.hdfs", "")
+    val reduceShuffleSequences = conf.getBoolean("desq.mining.reduce.shuffle.sequences", false)
 
     var mappedSequences = data.sequences
     if(mapRepartition > 0) {
@@ -44,7 +45,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     //   (output item, Iterable[input sequences])
     // Third step: see below
 
-    val outputItemPartitions = mappedSequences.mapPartitions(rows => {
+    val shuffleSequences = mappedSequences.mapPartitions(rows => {
 
       // for each row, determine the possible output elements from that input sequence and create 
       //   a (output item, input sequence) pair for all of the possible output items
@@ -126,13 +127,20 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
           }
         }
       }
-    })./*reduceByKey(_+_).*/map{case ((p, nfa), freq) => (p, (nfa, freq))}.groupByKey()
+    })
+
+    var processedShuffleSequences = shuffleSequences
+    if(reduceShuffleSequences) {
+      processedShuffleSequences = shuffleSequences.reduceByKey(_ + _)
+    }
+
+    val shuffleSequencesByPivot = processedShuffleSequences.map{case ((p, nfa), freq) => (p, (nfa, freq))}.groupByKey()
 
 
     // Third, we flatMap over the (output item, Iterable[input sequences]) RDD to mine each partition,
     //   with respect to the pivot item (=output item) of each partition. 
     //   At each partition, we only output sequences where the respective output item is the maximum item
-    val patterns = outputItemPartitions.mapPartitions(rows => {
+    val patterns = shuffleSequencesByPivot.mapPartitions(rows => {
       //val patterns = outputItemPartitions.flatMap { (row) =>
 
       new Iterator[WeightedSequence] {
