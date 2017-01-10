@@ -193,7 +193,11 @@ object DesqRunner {
     val mineAndOutputTime = (System.nanoTime - t1) / 1e9d
     logger.fatal("mineAndOutputTime: " + mineAndOutputTime + "s")
 
-    println("count;freq;"+count+";"+freq)
+
+    // Debug output
+    val cfFolder = "countfreq/" + sc.getConf.get("spark.app.id") + "_" + useCase + "_" + scenario + "_" + runConf.get("run").get
+    println("Writing (count,freq) (" + count + "," + freq + ") to " + cfFolder)
+    sc.parallelize(Array(count, freq), 1).saveAsTextFile(baseFolder + cfFolder)
 
     (count, freq)
   }
