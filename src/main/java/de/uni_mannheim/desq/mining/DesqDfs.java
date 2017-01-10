@@ -1,7 +1,7 @@
 package de.uni_mannheim.desq.mining;
 
 import de.uni_mannheim.desq.fst.*;
-import de.uni_mannheim.desq.patex.PatEx;
+import de.uni_mannheim.desq.patex.PatExToFst;
 import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
@@ -96,7 +96,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		// create FST
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
-		PatEx p = new PatEx(patternExpression, ctx.dict);
+		PatExToFst p = new PatExToFst(patternExpression, ctx.dict);
 		this.fst = p.translate();
 		fst.minimize(); //TODO: move to translate
 		fst.annotate();

@@ -43,26 +43,39 @@ itemexp
 
 item
 :
-    INT
-    | ID
-    | QID
+    INT // treated as string
+    | FID
+    | GID
+    | SID
+    | QSID
 ;
 
 // an integer
 INT : [0-9]+ ;
 
-// an item identifier (excluding integers)
-ID :
-	CHAR+
+// an gid item identifier
+GID :
+	'#' INT+
 ;
 
-// a quoted item identifier
-QID :
-    SQUOTE ID (WS* ID)*? SQUOTE
-    | DQUOTE ID (WS* ID)*? DQUOTE
+// an fid item identifier
+FID :
+	'#''#' INT+
+;
+
+// an string item identifier
+SID :
+	CHARNOHASH CHAR*
+;
+
+// a quoted string item identifier
+QSID :
+    SQUOTE ~('\'')* SQUOTE
+    | DQUOTE ~('\"')* DQUOTE
 ;
 
 fragment SQUOTE : '\'';
 fragment DQUOTE : '\"';
-fragment CHAR : ~('\'' | '\"' | '|' | '?' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
+fragment CHARNOHASH : ~('#' | '\'' | '\"' | '|' | '?' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
+fragment CHAR: ~('\'' | '\"' | '|' | '?' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
 WS  : [ \t\r\n]+ -> skip; // skip spaces, tabs, newlines

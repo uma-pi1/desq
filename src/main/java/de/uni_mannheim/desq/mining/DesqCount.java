@@ -1,7 +1,7 @@
 package de.uni_mannheim.desq.mining;
 
 import de.uni_mannheim.desq.fst.*;
-import de.uni_mannheim.desq.patex.PatEx;
+import de.uni_mannheim.desq.patex.PatExToFst;
 import de.uni_mannheim.desq.util.DesqProperties;
 import de.uni_mannheim.desq.util.PrimitiveUtils;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -95,7 +95,7 @@ public final class DesqCount extends DesqMiner {
 
 		// create FST
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
-		PatEx p = new PatEx(patternExpression, ctx.dict);
+		PatExToFst p = new PatExToFst(patternExpression, ctx.dict);
 		this.fst = p.translate();
 		fst.minimize(); //TODO: move to translate
 		fst.annotate();

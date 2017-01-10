@@ -4,7 +4,7 @@ import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.SequenceReader;
-import de.uni_mannheim.desq.patex.PatEx;
+import de.uni_mannheim.desq.patex.PatExToFst;
 
 import java.io.IOException;
 import java.net.URL;
@@ -47,8 +47,8 @@ public class FstAnnotationExample {
         System.out.println(patternExpression);
 
         // create fst
-        PatEx patEx = new PatEx(patternExpression, dict);
-        Fst fst = patEx.translate();
+        PatExToFst patExToFst = new PatExToFst(patternExpression, dict);
+        Fst fst = patExToFst.translate();
         fst.minimize();
         fst.annotate();
 
