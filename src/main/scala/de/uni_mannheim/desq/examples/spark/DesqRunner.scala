@@ -80,8 +80,8 @@ object DesqRunner {
     } else {
       setDataLoc("")
 //      prepDataset(); System.exit(0)
-      runGrid(); System.exit(0)
-      runDesq("I2", 2, 1)
+//      runGrid(); System.exit(0)
+      runDesq("T2-A-200-3-1", 2, 1)
     }
   }
 
@@ -257,6 +257,21 @@ object DesqRunner {
         sigma = 100
         setAmznData()
       }
+      case r"T1-(N|A)$d-(\d+)$o-(\d+)$l" => { // T1-[dataset]-[omega]-[lambda]
+        patternExp = "(.){1,"+l.toInt+"}"
+        sigma = o.toInt
+        handleDataset(d)
+      }
+      case r"T2-(N|A)$d-(\d+)$o-(\d+)$l-(\d+)$g" => { // T1-[dataset]-[omega]-[lambda]-[gamma]
+        patternExp = "(.)[.{0,"+g.toInt+"}(.)]{1,"+(l.toInt-1)+"}"
+        sigma = o.toInt
+        handleDataset(d)
+      }
+      case r"T3-(N|A)$d-(\d+)$o-(\d+)$l" => { // T1-[dataset]-[omega]-[lambda]
+        patternExp = "(.^){1,"+l.toInt+"}"
+        sigma = o.toInt
+        handleDataset(d)
+      }
       case "I1@1" => {
         patternExp = "[c|d]([A^|B=^]+)e"
         sigma = 1
@@ -357,6 +372,17 @@ object DesqRunner {
     }
   }
 
+  def handleDataset(d: String): Unit = {
+    if(d.equals("N"))
+      setNytData()
+    else if(d.equals("A"))
+      setAmznData()
+    else {
+      println("Unkown dataset " + d + ". Exiting.")
+      System.exit(1)
+    }
+  }
+
   def setAmznData() {
     dataDir = baseFolder + "Data/prep/amzn/"
   }
@@ -371,5 +397,9 @@ object DesqRunner {
       dataset = "nyt-1991"
     }
     dataDir = baseFolder + "Data/prep/" + dataset + "/"
+  }
+
+  implicit class Regex(sc: StringContext) {
+    def r = new util.matching.Regex(sc.parts.mkString, sc.parts.tail.map(_ => "x"): _*)
   }
 }
