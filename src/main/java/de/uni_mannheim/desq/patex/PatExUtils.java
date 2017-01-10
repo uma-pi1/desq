@@ -2,12 +2,36 @@ package de.uni_mannheim.desq.patex;
 
 import de.uni_mannheim.desq.dictionary.BasicDictionary;
 import de.uni_mannheim.desq.dictionary.Dictionary;
+import de.uni_mannheim.desq.fst.Fst;
 
 /**
  * Created by rgemulla on 10.01.2017.
  */
 public class PatExUtils {
-    public static int asFid(BasicDictionary dict, PatExParser.ItemContext ctx) {
+    public static Fst toFst(BasicDictionary dict, String patternExpression) {
+        PatExToFst p = new PatExToFst(patternExpression, dict);
+        Fst fst = p.translate();
+        fst.minimize(); //TODO: move to translate
+        fst.annotate();
+        return fst;
+    }
+
+    public static String toFidPatEx(BasicDictionary dict, String patternExpression) {
+        PatExToPatEx p = new PatExToPatEx(dict, patternExpression, PatExToPatEx.Type.FID);
+        return p.translate();
+    }
+
+    public static String toGidPatEx(BasicDictionary dict, String patternExpression) {
+        PatExToPatEx p = new PatExToPatEx(dict, patternExpression, PatExToPatEx.Type.GID);
+        return p.translate();
+    }
+
+    public static String toSidPatEx(BasicDictionary dict, String patternExpression) {
+        PatExToPatEx p = new PatExToPatEx(dict, patternExpression, PatExToPatEx.Type.SID);
+        return p.translate();
+    }
+
+    static int asFid(BasicDictionary dict, PatExParser.ItemContext ctx) {
         // parse item
         String label = ctx.getText();
         String sid = null;
@@ -50,7 +74,7 @@ public class PatExUtils {
         return fid;
     }
 
-    public static int asGid(BasicDictionary dict, PatExParser.ItemContext ctx) {
+    static int asGid(BasicDictionary dict, PatExParser.ItemContext ctx) {
         // parse item
         String label = ctx.getText();
         String sid = null;
@@ -93,7 +117,7 @@ public class PatExUtils {
         return gid;
     }
 
-    public static String asSid(BasicDictionary dict, PatExParser.ItemContext ctx) {
+    static String asSid(BasicDictionary dict, PatExParser.ItemContext ctx) {
         String label = ctx.getText();
         if (!(dict instanceof Dictionary)) {
             throw new RuntimeException("cannot determine identifier for item " + label

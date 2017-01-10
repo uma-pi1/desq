@@ -3,7 +3,7 @@ package de.uni_mannheim.desq.examples;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.SequenceReader;
-import de.uni_mannheim.desq.patex.PatExToPatEx;
+import de.uni_mannheim.desq.patex.PatExUtils;
 
 import java.io.IOException;
 import java.net.URL;
@@ -31,35 +31,24 @@ public class ConvertPatternExpression {
         String patternExpression = "[c|d d] ([A^ | B=^]+) e";
         System.out.println(patternExpression);
 
-        PatExToPatEx p = new PatExToPatEx(dict, patternExpression, PatExToPatEx.Type.SID);
-        String patternExpressionSid = p.translate();
-        p = new PatExToPatEx(dict, patternExpression, PatExToPatEx.Type.GID);
-        String patternExpressionGid = p.translate();
-        p = new PatExToPatEx(dict, patternExpression, PatExToPatEx.Type.FID);
-        String patternExpressionFid = p.translate();
+        String patternExpressionSid = PatExUtils.toSidPatEx(dict, patternExpression);
+        String patternExpressionGid = PatExUtils.toGidPatEx(dict, patternExpression);
+        String patternExpressionFid = PatExUtils.toFidPatEx(dict, patternExpression);
 
         System.out.println(patternExpressionGid);
-        p = new PatExToPatEx(dict, patternExpressionSid, PatExToPatEx.Type.GID);
-        System.out.println(p.translate());
-        p = new PatExToPatEx(dict, patternExpressionGid, PatExToPatEx.Type.GID);
-        System.out.println(p.translate());
-        p = new PatExToPatEx(dict, patternExpressionFid, PatExToPatEx.Type.GID);
-        System.out.println(p.translate());
+        System.out.println(PatExUtils.toGidPatEx(dict, patternExpressionSid));
+        System.out.println(PatExUtils.toGidPatEx(dict, patternExpressionGid));
+        System.out.println(PatExUtils.toGidPatEx(dict, patternExpressionFid));
 
         System.out.println(patternExpressionFid);
-        p = new PatExToPatEx(dict, patternExpressionSid, PatExToPatEx.Type.FID);
-        System.out.println(p.translate());
-        p = new PatExToPatEx(dict, patternExpressionGid, PatExToPatEx.Type.FID);
-        System.out.println(p.translate());
-        p = new PatExToPatEx(dict, patternExpressionFid, PatExToPatEx.Type.FID);
-        System.out.println(p.translate());
+        System.out.println(PatExUtils.toFidPatEx(dict, patternExpressionSid));
+        System.out.println(PatExUtils.toFidPatEx(dict, patternExpressionGid));
+        System.out.println(PatExUtils.toFidPatEx(dict, patternExpressionFid));
 
         System.out.println(patternExpressionSid);
-        p = new PatExToPatEx(dict, patternExpressionSid, PatExToPatEx.Type.SID);
-        System.out.println(p.translate());
-        p = new PatExToPatEx(dict, patternExpressionGid, PatExToPatEx.Type.SID);
-        System.out.println(p.translate());
-        p = new PatExToPatEx(dict, patternExpressionFid, PatExToPatEx.Type.SID);
-        System.out.println(p.translate());
+        System.out.println(PatExUtils.toSidPatEx(dict, patternExpressionSid));
+        System.out.println(PatExUtils.toSidPatEx(dict, patternExpressionGid));
+        System.out.println(PatExUtils.toSidPatEx(dict, patternExpressionFid));
+
     }
 }
