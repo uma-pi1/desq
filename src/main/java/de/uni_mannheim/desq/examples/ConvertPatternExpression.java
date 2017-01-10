@@ -28,7 +28,7 @@ public class ConvertPatternExpression {
         dict.writeJson(System.out);
         System.out.println();
 
-        String patternExpression = "[c|d d] ([A^ | B=^]+) e";
+        String patternExpression = "[c|d a1] ([A^ | B=^]+) e";
         System.out.println(patternExpression);
 
         String patternExpressionSid = PatExUtils.toSidPatEx(dict, patternExpression);

@@ -55,17 +55,17 @@ INT : [0-9]+ ;
 
 // an gid item identifier
 GID :
-	'#' INT+
+	HASH INT+
 ;
 
 // an fid item identifier
 FID :
-	'#''#' INT+
+	HASH HASH INT+
 ;
 
 // an string item identifier
 SID :
-	CHARNOHASH CHAR*
+	CHAR (CHAR|HASH)*
 ;
 
 // a quoted string item identifier
@@ -76,6 +76,6 @@ QSID :
 
 fragment SQUOTE : '\'';
 fragment DQUOTE : '\"';
-fragment CHARNOHASH : ~('#' | '\'' | '\"' | '|' | '?' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
-fragment CHAR: ~('\'' | '\"' | '|' | '?' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
+fragment HASH : '#';
+fragment CHAR: ~('#' | '\'' | '\"' | '|' | '?' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
 WS  : [ \t\r\n]+ -> skip; // skip spaces, tabs, newlines
