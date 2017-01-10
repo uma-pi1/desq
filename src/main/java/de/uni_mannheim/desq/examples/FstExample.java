@@ -5,7 +5,7 @@ import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.SequenceReader;
-import de.uni_mannheim.desq.patex.PatEx;
+import de.uni_mannheim.desq.patex.PatExToFst;
 
 import java.io.IOException;
 import java.net.URL;
@@ -32,8 +32,8 @@ public class FstExample {
 		System.out.println(patternExpression);
 
 		// create fst
-		PatEx patEx = new PatEx(patternExpression, dict);
-		Fst fst = patEx.translate();
+		PatExToFst patExToFst = new PatExToFst(patternExpression, dict);
+		Fst fst = patExToFst.translate();
 		System.out.println("FST");
 		fst.print();
 		fst.exportGraphViz("fst-example.gv");
@@ -49,7 +49,7 @@ public class FstExample {
 
 		// now use the synthesized pattern experssion and minimize it
 		System.out.println("Minimized FST for synthesized pattern expression");
-		fst = new PatEx(synPatternExpression, dict).translate();
+		fst = new PatExToFst(synPatternExpression, dict).translate();
 		fst.minimize();
 		fst.print();
 	}

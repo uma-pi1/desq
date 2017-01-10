@@ -3,9 +3,9 @@ package de.uni_mannheim.desq.mining;
 import com.google.common.base.Stopwatch;
 import de.uni_mannheim.desq.examples.DesqDfsRunDistributedMiningLocally;
 import de.uni_mannheim.desq.fst.*;
-import de.uni_mannheim.desq.fst.graphviz.FstVisualizer;
-import de.uni_mannheim.desq.patex.PatEx;
 import de.uni_mannheim.desq.util.CloneableIntHeapPriorityQueue;
+import de.uni_mannheim.desq.fst.graphviz.FstVisualizer;
+import de.uni_mannheim.desq.patex.PatExUtils;
 import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
@@ -206,10 +206,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		// create FST
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
-		PatEx p = new PatEx(patternExpression, ctx.dict);
-		this.fst = p.translate();
-		fst.minimize(); //TODO: move to translate
-		fst.annotate();
+		this.fst = PatExUtils.toFst(ctx.dict, patternExpression);
 
 		// create two pass auxiliary variables (if needed)
 		if (useTwoPass && !skipDfaBuild) { // two-pass

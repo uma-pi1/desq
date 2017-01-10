@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.patex;
 
+import de.uni_mannheim.desq.dictionary.BasicDictionary;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.fst.*;
 import de.uni_mannheim.desq.patex.PatExParser.*;
@@ -11,12 +12,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 
-public final class PatEx {
+public final class PatExToFst {
 	String expression;
-	Dictionary dict;
+	BasicDictionary dict;
 	Map<String,Transition> transitionCache = new HashMap<>(); // caches transition
 
-	public PatEx(String expression, Dictionary dict) {
+	/** If the pattern expression contains string item identifiers, the dict needs to be of type {@link Dictionary}. */
+	public PatExToFst(String expression, BasicDictionary dict) {
 		this.expression = expression;
 		this.dict = dict;
 	}
@@ -207,16 +209,7 @@ public final class PatEx {
 		@Override
 		public Fst visitNonWildCard(NonWildCardContext ctx) {
 			String label = ctx.item().getText();
-			if (label.startsWith("'") && label.endsWith("'") || label.startsWith("\"") && label.endsWith("\"")) {
-				// strip the quotes
-				label = label.substring(1, label.length()-1);
-			}
-			int fid = dict.fidOf(label);
-			if (fid < 0) {
-				throw new RuntimeException("unknown item " + label + " at " + ctx.item().getStart().getLine()
-						+ ":" + ctx.item().getStart().getCharPositionInLine());
-			}
-
+			int fid = PatExUtils.asFid(dict, ctx.item());
 			boolean generalize = false;
 			boolean force = false;
 			int opCount = ctx.getChildCount();
