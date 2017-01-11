@@ -5,15 +5,10 @@ import de.uni_mannheim.desq.mining.WeightedSequence
 import de.uni_mannheim.desq.util.DesqProperties
 import it.unimi.dsi.fastutil.ints._
 import de.uni_mannheim.desq.io.MemoryPatternWriter
-import org.apache.hadoop.fs.{FileSystem, Path}
-import de.uni_mannheim.desq.dictionary.Dictionary
+import de.uni_mannheim.desq.dictionary.BasicDictionary
 
 import scala.collection.JavaConverters._
 import org.apache.log4j.{LogManager, Logger}
-import java.net.URI
-import java.util.zip.GZIPInputStream
-
-import org.apache.hadoop.conf.Configuration
 
 /**
   * Created by alexrenz on 05.10.2016.
@@ -21,7 +16,7 @@ import org.apache.hadoop.conf.Configuration
 class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
   override def mine(data: DesqDataset): DesqDataset = {
     // localize the variables we need in the RDD
-    val dictBroadcast = data.broadcastDictionary()
+    val dictBroadcast = data.broadcastBasicDictionary()
     val conf = ctx.conf
     val usesFids = data.usesFids
     assert(usesFids)  // assume we are using fids (for now)
@@ -54,21 +49,8 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         var t1 = System.nanoTime
         // initialize the sequential desq miner
 
-        var dict:Dictionary = _
-        if(dictHdfs.equals("")) {
-          dict = dictBroadcast.value
-        } else {
+        val dict:BasicDictionary = dictBroadcast.value
 
-          val hadoopConf = new Configuration()
-          hadoopConf.set("fs.defaultFS", "hdfs://engine01.informatik.uni-mannheim.de:9000")
-          val fileSystem = FileSystem.get(new URI(dictHdfs), hadoopConf)
-          val dictIn = fileSystem.open(new Path(s"$dictHdfs/dict.avro.gz"))
-          dict = new Dictionary()
-          dict.readAvro(new GZIPInputStream(dictIn))
-          dictIn.close()
-        }
-
-        //val item1 = dict.getItemByFid(1)
         val t1_1 = System.nanoTime()
         logger.fatal("map-buildDict: " + (t1_1-t1) / 1e9d + "s")
 
@@ -146,19 +128,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
       new Iterator[WeightedSequence] {
         // grab the necessary variables
 
-        var dict:Dictionary = _
-        if(dictHdfs.equals("")) {
-          dict = dictBroadcast.value
-        } else {
-
-          val hadoopConf = new Configuration()
-          hadoopConf.set("fs.defaultFS", "hdfs://engine01.informatik.uni-mannheim.de:9000")
-          val fileSystem = FileSystem.get(new URI(dictHdfs), hadoopConf)
-          val dictIn = fileSystem.open(new Path(s"$dictHdfs/dict.avro.gz"))
-          dict = new Dictionary()
-          dict.readAvro(new GZIPInputStream(dictIn))
-          dictIn.close()
-        }
+        val dict:BasicDictionary = dictBroadcast.value
 
         val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext()
         baseContext.dict = dict

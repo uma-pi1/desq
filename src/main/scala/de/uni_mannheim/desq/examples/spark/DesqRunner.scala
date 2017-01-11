@@ -11,6 +11,8 @@ import java.text.SimpleDateFormat
 import org.apache.log4j.{LogManager, Logger}
 import java.util.Date
 
+import de.uni_mannheim.desq.patex.PatExUtils
+
 
 /**
   * Other way to run DesqDfs
@@ -149,8 +151,9 @@ object DesqRunner {
 
     println("Load dataset from " + dataDir)
     val data = DesqDataset.load(dataDir)
-    
+
     // Build miner conf
+    patternExp = PatExUtils.toFidPatEx(data.dict, patternExp) // translate pattern expression to fids
     var minerConf = DesqDfs.createConf(patternExp, sigma)
     if(useDesqCount) {
       minerConf = DesqCount.createConf(patternExp, sigma)

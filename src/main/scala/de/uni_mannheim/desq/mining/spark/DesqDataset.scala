@@ -5,7 +5,7 @@ import java.util.Calendar
 import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
 import de.uni_mannheim.desq.avro.AvroDesqDatasetDescriptor
-import de.uni_mannheim.desq.dictionary.{DefaultDictionaryBuilder, DefaultSequenceBuilder, Dictionary, DictionaryBuilder}
+import de.uni_mannheim.desq.dictionary._
 import de.uni_mannheim.desq.io.DelSequenceReader
 import de.uni_mannheim.desq.mining.WeightedSequence
 import de.uni_mannheim.desq.util.DesqProperties
@@ -23,13 +23,15 @@ import org.apache.spark.rdd.RDD
   * Created by rgemulla on 12.09.2016.
   */
 class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, val usesFids: Boolean = false) {
-  private var dictBroadcast: Broadcast[Dictionary] = _
+  private var basicDictBroadcast: Broadcast[BasicDictionary] = _
+  private var fullDictBroadcast: Broadcast[BasicDictionary] = _
+  private var basicDict: BasicDictionary = null
 
   // -- building ------------------------------------------------------------------------------------------------------
 
   def this(sequences: RDD[WeightedSequence], source: DesqDataset, usesFids: Boolean) {
     this(sequences, source.dict, usesFids)
-    dictBroadcast = source.dictBroadcast
+    basicDictBroadcast = source.basicDictBroadcast
   }
 
   /** Creates a copy of this DesqDataset with a deep copy of its dictionary. Useful when changes should be
@@ -43,7 +45,7 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
   def copyWithRecomputedCountsAndFids(): DesqDataset = {
     // compute counts
     val usesFids = this.usesFids
-    val dictBroadcast = broadcastDictionary()
+    val dictBroadcast = broadcastBasicDictionary()
     val totalItemFreqs = sequences.mapPartitions(rows => {
       new Iterator[(Int, (Long,Long))] {
         val dict = dictBroadcast.value
@@ -84,7 +86,7 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
     }
 
     // otherwise we need to relabel the fids
-    val newDictBroadcast = sequences.context.broadcast(newDict)
+    val newDictBroadcast = sequences.context.broadcast(newDict.shallowCopyAsBasicDictionary())
     val newSequences = sequences.mapPartitions(rows => {
       new Iterator[WeightedSequence] {
         val dict = dictBroadcast.value
@@ -102,7 +104,7 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
       }
     })
     val newData = new DesqDataset(newSequences, newDict, true)
-    newData.dictBroadcast = newDictBroadcast
+    newData.basicDictBroadcast = newDictBroadcast
     newData
   }
 
@@ -114,7 +116,7 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
   //noinspection AccessorLikeMethodIsEmptyParen
   def toFids(): DesqDataset = {
     val usesFids = this.usesFids
-    val dictBroadcast = broadcastDictionary()
+    val dictBroadcast = broadcastBasicDictionary()
 
     if (usesFids) {
       this
@@ -144,7 +146,7 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
   //noinspection AccessorLikeMethodIsEmptyParen
   def toGids(): DesqDataset = {
     val usesFids = this.usesFids
-    val dictBroadcast = broadcastDictionary()
+    val dictBroadcast = broadcastBasicDictionary()
 
     if (!usesFids) {
       this
@@ -171,12 +173,12 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
   /** Returns an RDD that contains for each sequence an array of its string identifiers and its weight. */
   //noinspection AccessorLikeMethodIsEmptyParen
   def toSidsWeightPairs(): RDD[(Array[String],Long)] = {
-    val dictBroadcast = broadcastDictionary()
+    val fullDictBroadcast = broadcastFullDictionary()
     val usesFids = this.usesFids // to localize
 
     sequences.mapPartitions(rows => {
       new Iterator[(Array[String],Long)] {
-        val dict = dictBroadcast.value
+        val dict = fullDictBroadcast.value
 
         override def hasNext: Boolean = rows.hasNext
 
@@ -253,12 +255,26 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
     * variable stores the dictionary in serialized form for memory efficiency. Use
     * <code>Dictionary.fromBytes(result.value)</code> to get the dictionary at workers.
     */
-  def broadcastDictionary(): Broadcast[Dictionary] = {
-    if (dictBroadcast == null) {
+  def broadcastFullDictionary(): Broadcast[Dictionary] = {
+    if (fullDictBroadcast == null) {
       val dict = this.dict
-      dictBroadcast = sequences.context.broadcast(dict)
+      fullDictBroadcast = sequences.context.broadcast(dict)
     }
-    dictBroadcast
+    fullDictBroadcast
+  }
+
+  /** Same as {@link broadcastFullDictionary}, but broadcasts only an {@link BasicDictionary}.
+    * This brings down communication cost, as a {@link BasicDictionary} does not contain sids and item properties.
+     * @return
+    */
+  def broadcastBasicDictionary(): Broadcast[BasicDictionary] = {
+    if (basicDictBroadcast == null) {
+      val dict = this.dict
+      if(basicDict == null)
+        basicDict = dict.shallowCopyAsBasicDictionary()
+      basicDictBroadcast = sequences.context.broadcast(basicDict)
+    }
+    basicDictBroadcast
   }
 
 
@@ -360,7 +376,7 @@ object DesqDataset {
     dict.recomputeFids()
 
     // now convert the sequences (lazily)
-    val dictBroadcast = rawData.context.broadcast(dict)
+    val dictBroadcast = rawData.context.broadcast(dict.shallowCopyAsBasicDictionary())
     val sequences = rawData.mapPartitions(rows => new Iterator[WeightedSequence] {
       val dict = dictBroadcast.value
       val seqBuilder = new DefaultSequenceBuilder(dict)
@@ -377,7 +393,7 @@ object DesqDataset {
 
     // return the dataset
     val result = new DesqDataset(sequences, dict, true)
-    result.dictBroadcast = dictBroadcast
+    result.basicDictBroadcast = dictBroadcast
     result
   }
 }

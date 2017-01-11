@@ -9,9 +9,9 @@ public class DefaultSequenceBuilder implements SequenceBuilder {
     private long currentWeight = 0;
     private IntList currentGids = new IntArrayList();
     private MutablePair<Integer,Boolean> pair = new MutablePair<>(null, false);
-    private Dictionary dict;
+    private BasicDictionary dict;
 
-    public DefaultSequenceBuilder(Dictionary dict) {
+    public DefaultSequenceBuilder(BasicDictionary dict) {
         this.dict = dict;
     }
 

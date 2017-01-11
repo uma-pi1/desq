@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.fst;
 
+import de.uni_mannheim.desq.dictionary.BasicDictionary;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import it.unimi.dsi.fastutil.ints.IntList;
 
@@ -13,7 +14,7 @@ import java.util.Map;
 public final class Dfa {
 	/** The FST used when creating this DFA. */
 	Fst fst = null;
-	Dictionary dict;
+	BasicDictionary dict;
 	int largestFrequentItemFid;
 	boolean processFinalCompleteStates;
 
@@ -28,7 +29,7 @@ public final class Dfa {
 	/** Maps a set of FST states (as given in the bitset) to a DfaState of this DFA, if present. */
 	Map<BitSet, DfaState> states = new HashMap<BitSet, DfaState>();
 
-	Dfa(Dictionary dict, int largestFrequentItemFid, boolean processFinalCompleteStates) {
+	Dfa(BasicDictionary dict, int largestFrequentItemFid, boolean processFinalCompleteStates) {
 		this.dict = dict;
 		this.largestFrequentItemFid = largestFrequentItemFid;
 		this.processFinalCompleteStates = processFinalCompleteStates;
@@ -36,7 +37,7 @@ public final class Dfa {
 
 	/** Creates a DFA for the given FST. The DFA accepts each input for which the FST has an accepting run
 	 * with all output items <= largestFrequentItemFid. */
-	public static Dfa createDfa(Fst fst, Dictionary dict, int largestFrequentItemFid,
+	public static Dfa createDfa(Fst fst, BasicDictionary dict, int largestFrequentItemFid,
 								boolean processFinalCompleteStates, boolean useLazyDfa) {
 		Dfa dfa = new Dfa(dict, largestFrequentItemFid, processFinalCompleteStates);
 		dfa.create(fst, false, useLazyDfa);
@@ -47,7 +48,7 @@ public final class Dfa {
 	 * algorithms. The DFA accepts each reversed input for which the (unmodified) FST has an accepting
 	 * run with all output items <= largestFrequentItemFid. Note that the modified FST should not be used
 	 * directly anymore, but only in conjunction with {@link #acceptsReverse(IntList, List, IntList)}. */
-	public static Dfa createReverseDfa(Fst fst, Dictionary dict, int largestFrequentItemFid,
+	public static Dfa createReverseDfa(Fst fst, BasicDictionary dict, int largestFrequentItemFid,
 									   boolean processFinalCompleteStates, boolean useLazyDfa) {
 		Dfa dfa = new Dfa(dict, largestFrequentItemFid, processFinalCompleteStates);
 		dfa.create(fst, true, useLazyDfa);
@@ -110,7 +111,7 @@ public final class Dfa {
 	 * @param stateSeq sequence of DFA states being traversed on the reversed sequence, i.e.,
 	 *                    <code>stateSeq[inputSequence.size() - (pos+1)] = state before consuming inputSequence[pos]</code>
 	 * @param initialPos positions from which the FST (as modified by
-	 * 					{@link #createReverseDfa(Fst, Dictionary, int, boolean, boolean)}) needs
+	 * 					{@link #createReverseDfa(Fst, BasicDictionary, int, boolean, boolean)}) needs
 	 *                   to be started to find all accepting runs. Empty if the FST does not accept. Should be empty
 	 *                   initially.
 	 */

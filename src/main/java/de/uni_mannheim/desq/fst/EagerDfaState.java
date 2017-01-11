@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.fst;
 
+import de.uni_mannheim.desq.dictionary.BasicDictionary;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.util.CollectionUtils;
 import it.unimi.dsi.fastutil.ints.IntList;
@@ -29,7 +30,7 @@ public final class EagerDfaState extends DfaState {
         dfa.states.clear();
         dfa.stateByTransitions.clear();
         Fst fst = dfa.fst;
-        Dictionary dict = dfa.dict;
+        BasicDictionary dict = dfa.dict;
         boolean processFinalCompleteStates = dfa.processFinalCompleteStates;
 
         // GLOBAL DATA STRUCTURES
