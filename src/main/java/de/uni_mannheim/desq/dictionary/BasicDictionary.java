@@ -7,6 +7,13 @@ import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongList;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import de.uni_mannheim.desq.util.Writable2Serializer;
+import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.WritableUtils;
+
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Collections;
 
@@ -15,7 +22,7 @@ import java.util.Collections;
  * Mainly used internally during mining. To obtain a basic dictionary, use
  * {@link Dictionary#shallowCopyAsBasicDictionary()} or {@link Dictionary#deepCopyAsBasicDictionary()}.
  */
-public class BasicDictionary {
+public class BasicDictionary implements Externalizable, Writable {
     // -- information about items -------------------------------------------------------------------------------------
 
     /** The number of items in this dictionary. */
@@ -107,6 +114,7 @@ public class BasicDictionary {
      * @param withLinks if set, parents and childrens are retained
      */
     protected BasicDictionary(BasicDictionary other, boolean withLinks) {
+        size = other.size;
         gids = other.gids;
         dfreqs = other.dfreqs;
         cfreqs = other.cfreqs;
@@ -274,6 +282,12 @@ public class BasicDictionary {
 
     /** Returns the gid for the specified fid or -1 if not present */
     public int gidOf(int fid) {
+        return fid<gids.size() ? gids.getInt(fid) : -1;
+    }
+
+    /** Returns the gid for an fid encoded as String **/
+    public int gidOf(String fidString) {
+        int fid = Integer.parseInt(fidString);
         return fid<gids.size() ? gids.getInt(fid) : -1;
     }
 
@@ -664,4 +678,143 @@ public class BasicDictionary {
         expandedFids.add(fid);
     }
 
+
+    // -- serialization -----------------------------------------------------------------------------------------------
+
+    @Override
+    public void writeExternal(ObjectOutput out) throws IOException {
+        write(out);
+    }
+
+    @Override
+    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+        readFields(in);
+    }
+
+    @Override
+    public void write(DataOutput out) throws IOException {
+        // general info
+        WritableUtils.writeVInt(out, size());
+        out.writeBoolean(isForest());
+        out.writeBoolean(hasConsistentFids());
+        WritableUtils.writeVInt(out, largestRootFid());
+
+        // each item
+        IntList fids = topologicalSort();
+        for (int i=0; i<fids.size(); i++) {
+            int fid = fids.getInt(i);
+            WritableUtils.writeVInt(out, fid);
+            WritableUtils.writeVInt(out, gids.getInt(fid));
+            WritableUtils.writeVLong(out, dfreqs.getLong(fid));
+            WritableUtils.writeVLong(out, cfreqs.getLong(fid));
+
+            IntList parents = this.parents.get(fid);
+            WritableUtils.writeVInt(out, parents.size());
+            IntList children = this.children.get(fid);
+            WritableUtils.writeVInt(out, children.size());
+
+            for (int j=0; j<parents.size(); j++) {
+                WritableUtils.writeVInt(out, parents.getInt(j));
+            }
+        }
+    }
+
+
+    @Override
+    public void readFields(DataInput in) throws IOException {
+        clear();
+
+        // general info
+        int size = WritableUtils.readVInt(in);
+        ensureCapacity(size);
+        boolean isForest = in.readBoolean();
+        boolean hasConsistentFids = in.readBoolean();
+        largestRootFid = WritableUtils.readVInt(in);
+
+        // each item
+        for (int i=0; i<size; i++) {
+            int fid = WritableUtils.readVInt(in);
+            int gid = WritableUtils.readVInt(in);
+            long dfreq = WritableUtils.readVLong(in);
+            long cfreq = WritableUtils.readVLong(in);
+
+            int noParents = WritableUtils.readVInt(in);
+            IntArrayList parents = new IntArrayList(noParents);
+            int noChildren = WritableUtils.readVInt(in);
+            IntArrayList children = new IntArrayList(noChildren);
+
+            addItem(fid, gid, dfreq, cfreq, parents, children);
+
+            for (int j=0; j<noParents; j++) {
+                addParent(fid, WritableUtils.readVInt(in));
+            }
+        }
+
+        assert this.size == size;
+        this.isForest = isForest;
+        this.hasConsistentFids = hasConsistentFids;
+    }
+
+    public void clear() {
+        size = 0;
+        gids.clear();
+        dfreqs.clear();
+        cfreqs.clear();
+        parents.clear();
+        children.clear();
+        gidIndex.clear();
+        isForest = null;
+        hasConsistentFids = null;
+        largestRootFid = null;
+    }
+
+    /** Adds a new item to this dictionary. */
+    public void addItem(int fid, int gid, long dfreq, long cfreq,
+                        IntArrayList parents, IntArrayList children) {
+        if (fid <= 0)
+            throw new IllegalArgumentException("fid '" + fid + "' is not positive");
+        if (containsFid(fid))
+            throw new IllegalArgumentException("Item fid '" + fid + "' exists already");
+        if (gid < 0)
+            throw new IllegalArgumentException("gid '" + gid + "' is negative");
+        if (containsGid(gid))
+            throw new IllegalArgumentException("Item gid '" + gid + "' exists already");
+
+        // create enough space by inserting dummy values
+        while (gids.size() <= fid) {
+            gids.add(-1);
+            dfreqs.add(-1);
+            cfreqs.add(-1);
+            this.parents.add(null);
+            this.children.add(null);
+        }
+
+        // now put the item
+        gids.set(fid, gid);
+        dfreqs.set(fid, dfreq);
+        cfreqs.set(fid, cfreq);
+        this.parents.set(fid, parents);
+        this.children.set(fid, children);
+        gidIndex.put(gid, fid);
+
+        // update cached information
+        size += 1;
+        isForest = null;
+        hasConsistentFids = null;
+        largestRootFid = null;
+    }
+
+    public void addParent(int childFid, int parentFid) {
+        if (!containsFid(childFid) || !containsFid(parentFid))
+            throw new IllegalArgumentException();
+        parentsOf(childFid).add(parentFid);
+        childrenOf(parentFid).add(childFid);
+    }
+
+    public static final class KryoSerializer extends Writable2Serializer<BasicDictionary> {
+        @Override
+        public BasicDictionary newInstance(Kryo kryo, Input input, Class<BasicDictionary> type) {
+            return new BasicDictionary();
+        }
+    }
 }
