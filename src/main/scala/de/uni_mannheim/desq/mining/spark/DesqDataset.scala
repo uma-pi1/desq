@@ -24,7 +24,7 @@ import org.apache.spark.rdd.RDD
   */
 class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, val usesFids: Boolean = false) {
   private var basicDictBroadcast: Broadcast[BasicDictionary] = _
-  private var fullDictBroadcast: Broadcast[BasicDictionary] = _
+  private var fullDictBroadcast: Broadcast[Dictionary] = _
   private var basicDict: BasicDictionary = null
 
   // -- building ------------------------------------------------------------------------------------------------------
