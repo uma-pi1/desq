@@ -18,7 +18,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     // localize the variables we need in the RDD
     val conf = ctx.conf
     val minSupport = conf.getLong("desq.mining.min.support")
-    val dictBroadcast = data.broadcastMiningDictionary(minSupport)
+    val dictBroadcast = data.broadcastBasicDictionary()
     val usesFids = data.usesFids
     assert(usesFids)  // assume we are using fids (for now)
 

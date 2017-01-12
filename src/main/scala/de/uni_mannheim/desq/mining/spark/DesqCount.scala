@@ -14,7 +14,7 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     val conf = ctx.conf
     val usesFids = data.usesFids
     val minSupport = conf.getLong("desq.mining.min.support")
-    val dictBroadcast = data.broadcastMiningDictionary(minSupport)
+    val dictBroadcast = data.broadcastBasicDictionary()
 
     // build RDD to perform the minig
     val patterns = data.sequences.mapPartitions(rows => {
