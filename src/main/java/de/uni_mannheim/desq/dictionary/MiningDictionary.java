@@ -35,7 +35,7 @@ public class MiningDictionary extends BasicDictionary {
     /** Ensures sufficent storage storage for items */
     @Override
     protected void ensureCapacity(int capacity) {
-//        gids.ensureCapacity(capacity+1);
+        gids.ensureCapacity(capacity+1);
 //        CollectionUtils.ensureCapacity(dfreqs, capacity+1);
 //        CollectionUtils.ensureCapacity(cfreqs, capacity+1);
         parents.ensureCapacity(capacity+1);
@@ -49,22 +49,6 @@ public class MiningDictionary extends BasicDictionary {
         return lastFrequentFid;
     }
 
-    @Override
-    public boolean containsFid(int fid) {
-        // as we don't store gids after deserializing, we need to do this with parents
-        return fid < parents.size(); //gids.size() && gids.getInt(fid) >= 0;
-    }
-
-    /** Returns the largest fid or -1 if the dictionary is empty. */
-    public int lastFid() {
-        int fid = parents.size()-1;
-        return fid;
-//        while (fid>=0) {
-//            if (gids.getInt(fid) >= 0) return fid;
-//            fid--;
-//        }
-//        return -1;
-    }
 
     // -- serialization -----------------------------------------------------------------------------------------------
 
@@ -92,7 +76,7 @@ public class MiningDictionary extends BasicDictionary {
         for (int i=0; i<fids.size(); i++) {
             int fid = fids.getInt(i);
             WritableUtils.writeVInt(out, fid);
-//            WritableUtils.writeVInt(out, gids.getInt(fid));
+            WritableUtils.writeVInt(out, gids.getInt(fid));
 //            WritableUtils.writeVLong(out, dfreqs.getLong(fid));
 //            WritableUtils.writeVLong(out, cfreqs.getLong(fid));
 
@@ -123,7 +107,7 @@ public class MiningDictionary extends BasicDictionary {
         // each item
         for (int i=0; i<size; i++) {
             int fid = WritableUtils.readVInt(in);
-//            int gid = WritableUtils.readVInt(in);
+            int gid = WritableUtils.readVInt(in);
 //            long dfreq = WritableUtils.readVLong(in);
 //            long cfreq = WritableUtils.readVLong(in);
 
@@ -132,8 +116,7 @@ public class MiningDictionary extends BasicDictionary {
             int noChildren = WritableUtils.readVInt(in);
             IntArrayList children = new IntArrayList(noChildren);
 
-//            addItem(fid, gid, dfreq, cfreq, parents, children);
-            addItem(fid, parents, children);
+            addItem(fid, gid, parents, children);
 
             for (int j=0; j<noParents; j++) {
                 addParent(fid, WritableUtils.readVInt(in));
@@ -146,19 +129,19 @@ public class MiningDictionary extends BasicDictionary {
     }
 
     /** Adds a new item to this dictionary. */
-    public void addItem(int fid, IntArrayList parents, IntArrayList children) {
+    public void addItem(int fid, int gid, IntArrayList parents, IntArrayList children) {
         if (fid <= 0)
             throw new IllegalArgumentException("fid '" + fid + "' is not positive");
-//        if (containsFid(fid))
-//            throw new IllegalArgumentException("Item fid '" + fid + "' exists already");
-//        if (gid < 0)
-//            throw new IllegalArgumentException("gid '" + gid + "' is negative");
-//        if (containsGid(gid))
-//            throw new IllegalArgumentException("Item gid '" + gid + "' exists already");
+        if (containsFid(fid))
+            throw new IllegalArgumentException("Item fid '" + fid + "' exists already");
+        if (gid < 0)
+            throw new IllegalArgumentException("gid '" + gid + "' is negative");
+        if (containsGid(gid))
+            throw new IllegalArgumentException("Item gid '" + gid + "' exists already");
 
         // create enough space by inserting dummy values
         while (this.parents.size() <= fid) {
-//            gids.add(-1);
+            gids.add(-1);
 //            dfreqs.add(-1);
 //            cfreqs.add(-1);
             this.parents.add(null);
@@ -166,13 +149,12 @@ public class MiningDictionary extends BasicDictionary {
         }
 
         // now put the item
-//        gids.set(fid, gid);
+        gids.set(fid, gid);
 //        dfreqs.set(fid, dfreq);
 //        cfreqs.set(fid, cfreq);
         this.parents.set(fid, parents);
         this.children.set(fid, children);
-//        this.children.set(fid, new IntArrayList());
-//        gidIndex.put(gid, fid);
+        gidIndex.put(gid, fid);
 
         // update cached information
         size += 1;
@@ -182,20 +164,20 @@ public class MiningDictionary extends BasicDictionary {
     }
 
     public void addParent(int childFid, int parentFid) {
-//        if (!containsFid(childFid) || !containsFid(parentFid))
-//            throw new IllegalArgumentException();
+        if (!containsFid(childFid) || !containsFid(parentFid))
+            throw new IllegalArgumentException();
         parentsOf(childFid).add(parentFid);
         childrenOf(parentFid).add(childFid);
     }
 
     public void clear() {
         size = 0;
-//        gids.clear();
+        gids.clear();
 //        dfreqs.clear();
 //        cfreqs.clear();
         parents.clear();
         children.clear();
-//        gidIndex.clear();
+        gidIndex.clear();
         isForest = null;
         hasConsistentFids = null;
         largestRootFid = null;
