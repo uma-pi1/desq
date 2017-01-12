@@ -378,7 +378,17 @@ public class Dictionary extends BasicDictionary implements Externalizable, Writa
 	/** Returns a {@link BasicDictionary} backed by this dictionary. The returned copy does not hold any references
 	 * to the sids and properties of this dictionary. */
 	public BasicDictionary shallowCopyAsBasicDictionary() {
-		return new BasicDictionary(this, true);
+		return shallowCopyAsBasicDictionary(false, -1);
+	}
+
+	/** Returns either a {@link BasicDictionary} or a {@link MiningDictionary}, depending on the forMining flag.
+	 * If a MiningDictionary is desired, the support value needs to be passed.
+	 */
+	public BasicDictionary shallowCopyAsBasicDictionary(boolean forMining, long support) {
+		if(forMining)
+			return new MiningDictionary(this, true, support);
+		else
+			return new BasicDictionary(this, true);
 	}
 
 	/** Returns a memory-optimized {@link BasicDictionary} copy of this dictionary. When the dictionary is frozen,

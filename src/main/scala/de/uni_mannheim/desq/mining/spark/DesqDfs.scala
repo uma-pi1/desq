@@ -16,12 +16,12 @@ import org.apache.log4j.{LogManager, Logger}
 class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
   override def mine(data: DesqDataset): DesqDataset = {
     // localize the variables we need in the RDD
-    val dictBroadcast = data.broadcastBasicDictionary()
     val conf = ctx.conf
+    val minSupport = conf.getLong("desq.mining.min.support")
+    val dictBroadcast = data.broadcastMiningDictionary(minSupport)
     val usesFids = data.usesFids
     assert(usesFids)  // assume we are using fids (for now)
 
-    val minSupport = conf.getLong("desq.mining.min.support")
     val sendNFAs = conf.getBoolean("desq.mining.send.nfas")
     //val numPartitions = conf.getInt("desq.mining.num.mine.partitions")
     val mapRepartition = conf.getInt("desq.mining.map.repartition")

@@ -23,9 +23,11 @@ import org.apache.spark.rdd.RDD
   * Created by rgemulla on 12.09.2016.
   */
 class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, val usesFids: Boolean = false) {
-  private var basicDictBroadcast: Broadcast[BasicDictionary] = _
   private var fullDictBroadcast: Broadcast[Dictionary] = _
+  private var basicDictBroadcast: Broadcast[BasicDictionary] = _
+  private var miningDictBroadcast: Broadcast[MiningDictionary] = _
   private var basicDict: BasicDictionary = null
+  private var miningDict: MiningDictionary = null
 
   // -- building ------------------------------------------------------------------------------------------------------
 
@@ -270,11 +272,27 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
   def broadcastBasicDictionary(): Broadcast[BasicDictionary] = {
     if (basicDictBroadcast == null) {
       val dict = this.dict
-      if(basicDict == null)
-        basicDict = dict.shallowCopyAsBasicDictionary()
+      if(basicDict == null) {
+        basicDict = dict.shallowCopyAsBasicDictionary(false, -1)
+      }
       basicDictBroadcast = sequences.context.broadcast(basicDict)
     }
     basicDictBroadcast
+  }
+
+  /** Same as {@link broadcastFullDictionary}, but broadcasts only an {@link MiningDictionary}.
+    * This brings down communication cost even further, as only information relevant for the mining process are sent.
+    * @return
+    */
+  def broadcastMiningDictionary(support: Long): Broadcast[MiningDictionary] = {
+    if (miningDictBroadcast == null) {
+      val dict = this.dict
+      if(miningDict == null) {
+        miningDict = dict.shallowCopyAsBasicDictionary(true, support).asInstanceOf[MiningDictionary]
+      }
+      miningDictBroadcast = sequences.context.broadcast(miningDict)
+    }
+    miningDictBroadcast
   }
 
 

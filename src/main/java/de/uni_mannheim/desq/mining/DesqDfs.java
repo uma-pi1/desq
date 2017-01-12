@@ -1,6 +1,7 @@
 package de.uni_mannheim.desq.mining;
 
 import com.google.common.base.Stopwatch;
+import de.uni_mannheim.desq.dictionary.MiningDictionary;
 import de.uni_mannheim.desq.examples.DesqDfsRunDistributedMiningLocally;
 import de.uni_mannheim.desq.fst.*;
 import de.uni_mannheim.desq.util.CloneableIntHeapPriorityQueue;
@@ -194,7 +195,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 	public DesqDfs(DesqMinerContext ctx, boolean skipDfaBuild) {
 		super(ctx);
 		sigma = ctx.conf.getLong("desq.mining.min.support");
-		largestFrequentFid = ctx.dict.lastFidAbove(sigma);
+		if(ctx.dict instanceof MiningDictionary)
+			largestFrequentFid = ((MiningDictionary)ctx.dict).lastFrequentFid();
+		else
+			largestFrequentFid = ctx.dict.lastFidAbove(sigma);
+
 		pruneIrrelevantInputs = ctx.conf.getBoolean("desq.mining.prune.irrelevant.inputs");
         useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
 		boolean useLazyDfa = ctx.conf.getBoolean("desq.mining.use.lazy.dfa");
