@@ -177,22 +177,19 @@ object DesqRunner {
     println("Miner properties: ")
     ctx.conf.prettyPrint()
     val miner = DesqMiner.create(ctx)
-    
+
+    val date = new Date()
+    val sdf = new SimpleDateFormat("HHmmss")
+
     // Mine
     var t1 = System.nanoTime // we are not using the Guava stopwatch here due to the packaging conflicts inside Spark (Guava 14)
     print("Mining (RDD construction)... ")
     val result = miner.mine(data)
-    val date = new Date()
-    val sdf = new SimpleDateFormat("HHmmss")
-    // for now, let's simply count (below)
-    //result.sequences.cache().saveAsTextFile(baseFolder + "Output/" + useCase + "-" + scenario + "-" + run + "-" + sdf.format(date))
-    var freq = 0L
-    val count = result.sequences.cache().count()
+
+    // Calculate count and frequency
+    val (count, freq) = result.sequences.map(ws => (1,ws.weight)).reduce((a,b) => (a._1+b._1, a._2+b._2))
     println("Pattern count: " + count)
-    if (count > 0) {
-      freq = result.sequences.map(_.weight).sum().toLong
-      println("Pattern freq:  " + freq)
-    }
+    println("Pattern freq:  " + freq)
     val mineAndOutputTime = (System.nanoTime - t1) / 1e9d
     logger.fatal("mineAndOutputTime: " + mineAndOutputTime + "s")
 
