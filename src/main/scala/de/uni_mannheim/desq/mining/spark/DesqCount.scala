@@ -15,6 +15,12 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     val conf = ctx.conf
     val usesFids = data.usesFids
     val minSupport = conf.getLong("desq.mining.min.support")
+    val mapRepartition = conf.getInt("desq.mining.map.repartition")
+
+    var mappedSequences = data.sequences
+    if(mapRepartition > 0) {
+      mappedSequences = data.sequences.repartition(mapRepartition)
+    }
 
     // build RDD to perform the minig
     val patterns = data.sequences.mapPartitions(rows => {
