@@ -1,7 +1,7 @@
 package de.uni_mannheim.desq.io.spark
 
 import com.esotericsoftware.kryo.Kryo
-import de.uni_mannheim.desq.dictionary.{BasicDictionary, Dictionary}
+import de.uni_mannheim.desq.dictionary.{BasicDictionary, Dictionary, MiningDictionary}
 import de.uni_mannheim.desq.mining.{Sequence, WeightedSequence}
 import org.apache.spark.serializer.KryoRegistrator
 
@@ -14,5 +14,6 @@ class DesqKryoRegistrator extends KryoRegistrator {
     kryo.register(classOf[WeightedSequence], new WeightedSequence.KryoSerializer())
     kryo.register(classOf[Dictionary], new Dictionary.KryoSerializer())
     kryo.register(classOf[BasicDictionary], new BasicDictionary.KryoSerializer())
+    kryo.register(classOf[MiningDictionary], new MiningDictionary.KryoSerializer())
   }
 }

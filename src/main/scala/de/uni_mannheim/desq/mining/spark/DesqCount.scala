@@ -11,11 +11,11 @@ import it.unimi.dsi.fastutil.objects.{ObjectIterator, ObjectLists}
 class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
   override def mine(data: DesqDataset): DesqDataset = {
     // localize the variables we need in the RDD
-    val dictBroadcast = data.broadcastBasicDictionary()
     val conf = ctx.conf
     val usesFids = data.usesFids
     val minSupport = conf.getLong("desq.mining.min.support")
     val mapRepartition = conf.getInt("desq.mining.map.repartition")
+    val dictBroadcast = data.broadcastBasicDictionary()
 
     var mappedSequences = data.sequences
     if(mapRepartition > 0) {

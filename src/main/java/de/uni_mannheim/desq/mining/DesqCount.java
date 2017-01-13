@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.mining;
 
+import de.uni_mannheim.desq.dictionary.MiningDictionary;
 import de.uni_mannheim.desq.fst.*;
 import de.uni_mannheim.desq.patex.PatExUtils;
 import de.uni_mannheim.desq.util.DesqProperties;
@@ -87,8 +88,12 @@ public final class DesqCount extends DesqMiner {
 		this.useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
 		boolean useLazyDfa = ctx.conf.getBoolean("desq.mining.use.lazy.dfa");
 
+        if(ctx.dict instanceof MiningDictionary)
+        	this.largestFrequentFid = ((MiningDictionary) ctx.dict).lastFrequentFid();
+		else
+			this.largestFrequentFid = ctx.dict.lastFidAbove(sigma);
+
 		// initalize helper variable for FST simulation
-		this.largestFrequentFid = ctx.dict.lastFidAbove(sigma);
 		this.inputId = 0;
 		prefix = new Sequence();
 		outputSequences.defaultReturnValue(-1L);
