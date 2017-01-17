@@ -40,6 +40,11 @@ final class TransitionCapturedGeneralizedDot extends Transition {
     }
 
     @Override
+    public boolean canProduce(int outputFid) {
+        return true;
+    }
+
+    @Override
     public AscendantsItemStateIterator consume(final int fid, final ItemStateIteratorCache itCache) {
         AscendantsItemStateIterator it = itCache.ascendants;
         it.reset(dict, fid, toState);

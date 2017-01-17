@@ -81,6 +81,11 @@ class TransitionUncapturedItem extends Transition {
         return matchedFidIterator();
     }
 
+    @Override
+    public boolean canProduce(int outputFid) {
+        return false;
+    }
+
 
     @Override
     public SingleItemStateIterator consume(final int fid, final ItemStateIteratorCache itCache) {

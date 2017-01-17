@@ -70,6 +70,11 @@ final class TransitionCapturedConstant extends Transition {
     }
 
     @Override
+    public boolean canProduce(int outputFid) {
+        return itemFid == outputFid;
+    }
+
+    @Override
     public SingleItemStateIterator consume(final int fid, final ItemStateIteratorCache itCache) {
         final SingleItemStateIterator it = itCache.single;
         it.hasNext = matchedFids.contains(fid);

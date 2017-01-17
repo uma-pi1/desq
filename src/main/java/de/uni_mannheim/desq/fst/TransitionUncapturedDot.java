@@ -45,6 +45,11 @@ final class TransitionUncapturedDot extends Transition {
     }
 
     @Override
+    public boolean canProduce(int outputFid) {
+        return false;
+    }
+
+    @Override
     public SingleItemStateIterator consume(final int fid, final ItemStateIteratorCache itCache) {
         final SingleItemStateIterator it = itCache.single;
         it.itemState.itemFid = 0;

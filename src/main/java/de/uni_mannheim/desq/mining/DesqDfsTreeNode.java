@@ -2,6 +2,7 @@ package de.uni_mannheim.desq.mining;
 
 //import java.util.Collections;
 
+import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.State;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
@@ -17,8 +18,11 @@ final class DesqDfsTreeNode {
 
 	// -- member variables --------------------------------------------------------------------------------------------
 
-	// number of states in FST
-	final int numStates;
+	/** the FST */
+	final Fst fst;
+
+	/** possible FST states for this node */
+	BitSet possibleStates;
 
 	/** The output item associated with this node */
 	int itemFid;
@@ -65,9 +69,10 @@ final class DesqDfsTreeNode {
 
 	// -- construction and clearing -----------------------------------------------------------------------------------
 
-	DesqDfsTreeNode(int numStates) {
-		this.numStates = numStates;
-		currentSnapshots = new BitSet(numStates*16);
+	DesqDfsTreeNode(Fst fst, BitSet possibleStates) {
+		this.fst = fst;
+		this.possibleStates = possibleStates;
+		currentSnapshots = new BitSet(fst.numStates()*16);
 		clear();
 	}
 
@@ -113,7 +118,8 @@ final class DesqDfsTreeNode {
 						final int position, final State state) {
 		DesqDfsTreeNode child = childrenByFid.get(itemFid);
 		if (child == null) {
-			child = new DesqDfsTreeNode(numStates);
+			BitSet childPossibleStates = fst.reachableStates(possibleStates, itemFid);
+			child = new DesqDfsTreeNode(fst, childPossibleStates);
 			child.itemFid = itemFid;
 			childrenByFid.put(itemFid, child);
 		}
@@ -172,8 +178,9 @@ final class DesqDfsTreeNode {
 	/** Add a snapshot to the projected database of the given child. Ignores duplicate snapshots. */
 	private void addToProjectedDatabase(final DesqDfsTreeNode child, final int inputId,
 											  final long inputSupport, final int position, final int stateId) {
-		assert stateId < numStates;
-		final int spIndex = position*numStates + stateId;
+		assert stateId < fst.numStates();
+		assert child.possibleStates.get(stateId);
+		final int spIndex = position*fst.numStates() + stateId;
 		if (child.projectedDatabaseCurrentInputId != inputId) {
 			// start a new posting
 			child.projectedDatabase.newPosting();

@@ -93,6 +93,11 @@ final class TransitionCapturedItem extends Transition {
         };
     }
 
+    @Override
+    public boolean canProduce(int outputFid) {
+        return matchedFids.contains(outputFid);
+    }
+
 
     @Override
     public SingleItemStateIterator consume(final int fid, final ItemStateIteratorCache itCache) {

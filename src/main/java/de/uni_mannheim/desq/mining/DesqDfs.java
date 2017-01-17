@@ -131,7 +131,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 
 		// other auxiliary variables
-		root = new DesqDfsTreeNode(fst.numStates());
+		BitSet initialState = new BitSet(fst.numStates());
+		initialState.set(fst.getInitialState().getId());
+		root = new DesqDfsTreeNode(fst, initialState);
 		currentNode = root;
 	}
 
@@ -319,7 +321,8 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			// print debug information
 			if (DEBUG) {
 				logger.trace("Expanding " + prefix + ", partial support=" + support + ", prefix support="
-						+ childNode.prefixSupport + ", #bytes=" + childNode.projectedDatabase.noBytes());
+						+ childNode.prefixSupport + ", #bytes=" + childNode.projectedDatabase.noBytes()
+						+ ", possible states=" + childNode.possibleStates);
 			}
 
 			if (childNode.prefixSupport > 0) { // otherwise projected DB is empty and support = partial support

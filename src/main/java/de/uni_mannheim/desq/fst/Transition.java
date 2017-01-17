@@ -18,27 +18,40 @@ public abstract class Transition {
 		this.toState = toState;
 	}
 
-	/** Whether or not this transition produces output item when it fires. */
+	// -- steps -------------------------------------------------------------------------------------------------------
+
+	/** Returns an iterator over the (output item, state)-pairs produced by this transition when consuming
+	 * the given input item. The iterator instance is taken from <code>itCache</code>, which must not be null. */
+	public abstract Iterator<ItemState> consume(int inputFid, ItemStateIteratorCache itCache);
+
+
+	// -- information about the transition ----------------------------------------------------------------------------
+
+	/** Whether or not this transition produces an output item when it fires. */
 	public abstract boolean hasOutput();
 
-	/** Whether {@link #consume(int, ItemStateIteratorCache)} has a non-empty result for the given item. */
-	public abstract boolean matches(int fid);
+	/** Returns true if this transition matches every input and never produces output (equivalent to
+	 * <code>matchesAll() && !hasOutput()</code>).*/
+	public abstract boolean isUncapturedDot();
 
-	/** Whether {@link #consume(int, ItemStateIteratorCache)} has a non-empty result for every item. */
+	/** Whether {@link #consume(int, ItemStateIteratorCache)} has a non-empty result for the given input item. */
+	public abstract boolean matches(int inputFid);
+
+	/** Whether {@link #consume(int, ItemStateIteratorCache)} has a non-empty result for every input item. */
 	public abstract boolean matchesAll();
 
-	/** Whether {@link #consume(int, ItemStateIteratorCache)} has at least one result for the given item, which
+	/** Whether {@link #consume(int, ItemStateIteratorCache)} has at least one result for the given input item, which
 	 * either contains no output item (epsilon output) or a frequent output item (fid larger
 	 * than <code>frequentItemFid</code>). */
 	public abstract boolean fires(int inputFid, int largestFrequentItemFid);
 
-	/** Whether {@link #consume(int, ItemStateIteratorCache)} has at least one result for every item, which
+	/** Whether {@link #consume(int, ItemStateIteratorCache)} has at least one result for every input item, which
 	 * either contains no output item (epsilon output) or a frequent output item (fid larger
 	 * than <code>frequentItemFid</code>). */
 	public abstract boolean firesAll(int largestFrequentItemFid);
 
-	/** Returns an iterator over all fids matched by this transition, i.e., for which {@link #matches(int)} returns
-	 * <code>true</code>. */
+	/** Returns an iterator over all fids matched by this transition, i.e., for which {@link #matches(int)}
+	 * returns <code>true</code>. */
 	public abstract IntIterator matchedFidIterator();
 
 	/** Returns an iterator over all fids for which this transition fires, i.e., for which {@link #fires(int,int)}
@@ -72,9 +85,14 @@ public abstract class Transition {
 		};
 	}
 
-	/** Returns an iterator over the (output item, state)-pairs produced by this transition when consuming
-	 * the given item. The iterator instance is taken from <code>itCache</code>, which must not be null. */
-	public abstract Iterator<ItemState> consume(int item, ItemStateIteratorCache itCache);
+	/** Returns true if when this transition can produce the given fid as an output item. In other words, returns
+	 * whether there exists an input item for which {@link #consume(int, ItemStateIteratorCache)} produces the
+	 * given output item.
+	 */
+	public abstract boolean canProduce(int outputFid);
+
+
+	// -- utility methods ---------------------------------------------------------------------------------------------
 
 	/** Returns a shallow copy of this transition, which may share all data but {@link #toState}. */
 	public abstract Transition shallowCopy();
@@ -91,10 +109,6 @@ public abstract class Transition {
 
 	/** Returns an item expression for this transition. */
 	public abstract String itemExpression();
-
-	/** Returns true if this transition matches every input and never produces output (equivalent to
-	 * <code>matchesAll() && !hasOutput()</code>).*/
-	public abstract boolean isUncapturedDot();
 
 	@Override
 	public String toString() {
@@ -114,6 +128,8 @@ public abstract class Transition {
 		}
 		return itemExpression().equals(((Transition) o).itemExpression());
 	}
+
+	// -- iterator classes --------------------------------------------------------------------------------------------
 
 	/** An iterator over a single item */
 	final static class SingleItemStateIterator implements Iterator<ItemState> {

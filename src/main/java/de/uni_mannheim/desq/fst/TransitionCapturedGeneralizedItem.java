@@ -64,6 +64,11 @@ final class TransitionCapturedGeneralizedItem extends Transition {
     }
 
     @Override
+    public boolean canProduce(int outputFid) {
+        return matchedDict.containsFid(outputFid);
+    }
+
+    @Override
     public AscendantsItemStateIterator consume(final int fid, final ItemStateIteratorCache itCache) {
         AscendantsItemStateIterator it = itCache.ascendants;
         if (matchedDict.containsFid(fid)) {

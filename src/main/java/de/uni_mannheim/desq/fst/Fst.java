@@ -3,6 +3,7 @@ package de.uni_mannheim.desq.fst;
 
 import com.google.common.base.Strings;
 import de.uni_mannheim.desq.fst.graphviz.FstVisualizer;
+import de.uni_mannheim.desq.util.CollectionUtils;
 import it.unimi.dsi.fastutil.ints.*;
 import org.apache.commons.io.FilenameUtils;
 
@@ -402,6 +403,46 @@ public final class Fst {
             }
 		}
 
+	}
+
+	/** Returns the set of states that the FST can reach starting in any one of <code>currentStates</code>, taking
+	 * any number of epsilon-output transitions, and then taking a transition that can produce <code>outputFid</code>
+ 	 */
+	public BitSet reachableStates(BitSet currentStates, int outputFid) {
+		BitSet reachableStates = new BitSet(states.size());
+		BitSet seenStates = CollectionUtils.copyOf(currentStates);
+		IntStack unprocessedStates = new IntArrayList();
+		for (int i=currentStates.nextSetBit(0);
+			 i>=0;
+			 i=currentStates.nextSetBit(i+1)) {
+			unprocessedStates.push(i);
+		}
+
+		while (!unprocessedStates.isEmpty()) { // iterate over states
+			int stateId = unprocessedStates.popInt();
+			State state = states.get(stateId);
+			for (Transition t : state.transitionList) { // and its transitions
+				if (t.hasOutput()) {
+					if (t.canProduce(outputFid)) {
+						// we found one reachable state
+						int toStateId = t.getToState().getId();
+						reachableStates.set(toStateId);
+						// we do not process this state further (unless it is
+						// also found via epsilon transitions) -> we don't put it
+						// in seenStates or unprocessedStates
+					}
+				} else {
+					// always take epsilon-output transitions
+					int toStateId = t.getToState().getId();
+					if (!seenStates.get(toStateId)) {
+						unprocessedStates.push(toStateId);
+						seenStates.set(toStateId);
+					}
+				}
+			}
+		}
+
+		return reachableStates;
 	}
 
 	/** Helper class for DFA states for annotating final fst states in {@link #annotate()}*/
