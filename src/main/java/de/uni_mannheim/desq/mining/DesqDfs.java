@@ -1501,7 +1501,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					}
 
 					// look-ahead for a explicit toState
-					if(pos >= serializedNFA.size() || serializedNFA.getInt(sPos) > 0 || serializedNFA.getInt(sPos) < maxItemExValue) {
+					if(sPos >= serializedNFA.size() || serializedNFA.getInt(sPos) > 0 || serializedNFA.getInt(sPos) < maxItemExValue) {
 						// there is no explicit toState. so we generate an implicit one
 						numReadStates++;
 						toState = numReadStates;
@@ -1572,7 +1572,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			}
 
 			// replace state numbers by their index in the array
-			for(int pos = 0; pos<byState.length; pos++) {
+			for(int pos = 0; pos<serializedNFA.size(); pos++) {
 				if(byState[pos] < 0 && byState[pos] != OutputNFA.END_FINAL) {
 					byState[pos] =  -writtenAtPos.get(-byState[pos]);
 				}
