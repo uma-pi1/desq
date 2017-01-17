@@ -107,6 +107,7 @@ public class BasicDictionary {
      * @param withLinks if set, parents and childrens are retained
      */
     protected BasicDictionary(BasicDictionary other, boolean withLinks) {
+        size = other.size;
         gids = other.gids;
         dfreqs = other.dfreqs;
         cfreqs = other.cfreqs;
