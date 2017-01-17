@@ -477,6 +477,6 @@ public final class Fst {
 		prototypeTransitions = tempPrototypeTransitions.toArray(prototypeTransitions);
 	}
 
-	public Transition getPrototypeTransitionByNumber( int trNo ) { return prototypeTransitions[trNo]; }
-	public int getTransitionNumber( Transition tr ) { return trNumbersByItemExpression.get(tr.itemExpression()); }
+	public Transition getPrototypeTransitionByItemExId( int trNo ) { return prototypeTransitions[trNo-1]; }
+	public int getItemExId(Transition tr ) { return trNumbersByItemExpression.get(tr.itemExpression())+1; }
 }

@@ -1440,7 +1440,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				// serialize the output label
 				if(ol.outputItems.size() > 1 && ol.outputItems.getInt(1) <= nfa.pivot) { // multiple output items, so we encode them using the trasition
 					// TODO: the current serialization format doesn't allow us to send two output items directly. We need to think about this.
-					send.add(Integer.MIN_VALUE + 1 + fst.getTransitionNumber(ol.tr));
+					send.add(Integer.MIN_VALUE + 1 + fst.getItemExId(ol.tr));
 					send.add(ol.inputItem); // TODO: we can generalize this for the pivot
 				} else { // there is only one (relevant) output item, and we know it's the first in the list
 					send.add(ol.outputItems.getInt(0));
@@ -1524,7 +1524,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 						// there are multiple output items. we produce all output items and add ones relevant for this partition
 						inputItem = serializedNFA.getInt(pos+1);
 						itExId = item - Integer.MIN_VALUE - 1;
-						Iterator<ItemState> outIt = fst.getPrototypeTransitionByNumber(itExId)
+						Iterator<ItemState> outIt = fst.getPrototypeTransitionByItemExId(itExId)
 								                       .consume(inputItem, itCaches.get(0));
 						while(outIt.hasNext()) {
 							outputItem = outIt.next().itemFid;
