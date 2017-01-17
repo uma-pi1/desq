@@ -23,6 +23,7 @@ import java.util.BitSet;
 import java.util.Iterator;
 import java.io.IOException;
 
+
 public final class DesqDfs extends MemoryDesqMiner {
 	private static final Logger logger = Logger.getLogger(DesqDfs.class);
 	private static final boolean DEBUG = false;
@@ -141,12 +142,15 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** Stores the current path through the FST */
 	private ObjectList<OutputLabel> path = new ObjectArrayList<>();
 
-	/** For each pivot item (and input sequence), we serialize a NFA producing the output sequences for that pivot item from the current input sequence */
+	/** For each pivot item (and input sequence), we mergeAndSerialize a NFA producing the output sequences for that pivot item from the current input sequence */
 	private Int2ObjectOpenHashMap<OutputNFA> nfas = new Int2ObjectOpenHashMap<>();
 	private Int2ObjectOpenHashMap<Sequence> serializedNFAs = new Int2ObjectOpenHashMap<>();
 
 	/** The output partitions */
-	Int2ObjectOpenHashMap<ObjectList<IntList>> partitions;
+	Int2ObjectOpenHashMap<ObjectList<Sequence>> partitions;
+
+	/** An nfaDecoder to decode nfas from a representation by path to one by state. Reuses internal data structures for all input nfas */
+	private NFADecoder nfaDecoder = null;
 
 	/** Stores one pivot element heap per level for reuse */
 	final ArrayList<CloneableIntHeapPriorityQueue> pivotItemHeaps = new ArrayList<>();
@@ -253,6 +257,13 @@ public final class DesqDfs extends MemoryDesqMiner {
 		verbose = DesqDfsRunDistributedMiningLocally.verbose;
 
 		fst.numberTransitions();
+
+
+        // we need an itCache in deserialization of the NFAs, to produce the output items of transitions
+        if(itCaches.isEmpty()) {
+            Transition.ItemStateIteratorCache itCache = new Transition.ItemStateIteratorCache(ctx.dict.isForest());
+            itCaches.add(itCache);
+        }
 	}
 
 	public static DesqProperties createConf(String patternExpression, long sigma) {
@@ -508,8 +519,14 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	// ---------------- DesqDfs Distributed ---------------------------------------------------------
 
 
-	public void addNFA(IntList inputSequence, long inputSupport, boolean allowBuffering) {
-		super.addInputSequence(inputSequence, inputSupport, allowBuffering);
+	public void addNFA(Sequence serializedNfa, long inputSupport, boolean allowBuffering, int partitionPivot) {
+		// if we don't have a decoder object yet, create one
+		if(nfaDecoder == null)
+			nfaDecoder = new NFADecoder();
+
+		// transform the incoming NFA to a representation by state, which is more suitable for efficient mining
+		serializedNfa = nfaDecoder.convertPathToStateSerialization(serializedNfa, partitionPivot);
+		super.addInputSequence(serializedNfa, inputSupport, allowBuffering);
 	}
 
 	/**
@@ -542,12 +559,12 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	 * @param inputSequences the input sequences
 	 * @return partitions Map
 	 */
-	public Int2ObjectOpenHashMap<ObjectList<IntList>> createPartitions(ObjectArrayList<Sequence> inputSequences, boolean verbose) throws IOException {
+	public Int2ObjectOpenHashMap<ObjectList<Sequence>> createPartitions(ObjectArrayList<Sequence> inputSequences, boolean verbose) throws IOException {
 
 		partitions = new Int2ObjectOpenHashMap<>();
 		IntSet pivotElements;
 		Sequence inputSequence;
-		ObjectList<IntList> newPartitionSeqList;
+		ObjectList<Sequence> newPartitionSeqList;
 
 		// for each input sequence, emit (pivot_item, transition_id)
 		for(int seqNo=0; seqNo<inputSequences.size(); seqNo++) {
@@ -566,7 +583,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					if (partitions.containsKey(pivot)) {
 						partitions.get(pivot).add(inputSequence);
 					} else {
-						newPartitionSeqList = new ObjectArrayList<IntList>();
+						newPartitionSeqList = new ObjectArrayList<Sequence>();
 						newPartitionSeqList.add(inputSequence);
 						partitions.put(pivot, newPartitionSeqList);
 					}
@@ -665,8 +682,8 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			int pivotItem =  pivotAndNFA.getIntKey();
 			OutputNFA nfa = pivotAndNFA.getValue();
 
-			// Trim the NFA for this pivot and directly serialize it
-			Sequence output = nfa.serialize();
+			// Trim the NFA for this pivot and directly mergeAndSerialize it
+            Sequence output = nfa.mergeAndSerialize();
 
 //			if(drawGraphs) drawSerializedNFA(output, DesqDfsRunDistributedMiningLocally.useCase + "-seq"+seqNo+"-pivot"+pivotItem+"-NFA.pdf", true, "");
 			if(drawGraphs) nfa.exportGraphViz(DesqDfsRunDistributedMiningLocally.useCase + "-seq"+seqNo+"-pivot"+pivotItem+"-NFA.pdf");
@@ -904,11 +921,9 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	public void minePivot(int pivotItem) {
 		this.pivotItem = pivotItem;
 
-		// we need one itCache in incStepOnNFA
-		if(itCaches.isEmpty()) {
-			Transition.ItemStateIteratorCache itCache = new Transition.ItemStateIteratorCache(ctx.dict.isForest());
-			itCaches.add(itCache);
-		}
+		// clean up the NFA decoder
+		if(nfaDecoder != null)
+			nfaDecoder = null;
 
 
 		// run the normal mine method. Filtering is done in expand() when the patterns are output
@@ -1020,51 +1035,20 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	 */
 	private boolean incStepOnNFA(int pos, final boolean expand) {
 	    // "pos" points to a state in the shuffled OutputNFA. This state has 0-n outgoing transitions.
-		// Each transition carries a toState and either all its output items (encoded as negative integeres) or the number
-		// for a transition prototype and and input item:
-		// option a) [toState] [-outputItem]+
-		// option b) [toState] [transaction number] [input item fid]
-		// The end of the state's outgoing transitions is marked by either Integer.MAX_VALUE or Integer.MIN_VALUE.
-		// (MIN_VALUE indicates that this state is final)
-		// in both cases, we update all frequent output items
+		// Each transition carries a toState and a list of output items
 		int nextInt = currentInputSequence.getInt(pos);
 		int currentToStatePos = -1;
-		int outputItem, inputItem;
-		boolean justStartedTr = false;
+		while(nextInt != OutputNFA.END_FINAL && nextInt != OutputNFA.END) {
 
-		while(nextInt != Integer.MIN_VALUE && nextInt != Integer.MAX_VALUE) {
-			if(nextInt >= 0) {
-				if(!justStartedTr) {
-					// ints larger 0 are toStates
-					currentToStatePos = nextInt;
-					justStartedTr = true;
-				} else {
-					// if we just started a transition, then the positive integer is the transition number
-
-					// collect all output elements into the outputItems set
-					inputItem = currentInputSequence.getInt(pos+1);
-					Iterator<ItemState> outIt = fst.getPrototypeTransitionByNumber(nextInt).consume(inputItem,
-							itCaches.get(0));
-
-					while(outIt.hasNext()) {
-						outputItem = outIt.next().itemFid;
-						if(expand & pivotItem >= outputItem) {
-							currentNode.expandWithTransition(outputItem, currentInputId, currentInputSequence.weight, currentToStatePos);
-						}
-					}
-					pos++; // we consumed an additional input item, so we move the pointer forward
-					justStartedTr = false;
+			if(nextInt < 0) { // this is a (new) toState
+				currentToStatePos = -nextInt;
+			} else { // otherwise, it's output items
+				// we checked that these output items are relevant for the partition when we converted the NFA to a by-state representation
+				if(expand) {
+					assert currentToStatePos != -1;
+					currentNode.expandWithTransition(nextInt, currentInputId, currentInputSequence.weight, currentToStatePos);
 				}
-			} else {
-				// we have an output item for the current toState
-				outputItem = -nextInt;
-				if(expand & pivotItem >= outputItem) {
-					assert currentToStatePos != -1 : "There has been no to-state before the output item " + outputItem + " in NFA " + currentInputSequence;
-					currentNode.expandWithTransition(outputItem, currentInputId, currentInputSequence.weight, currentToStatePos);
-				}
-				justStartedTr = false;
 			}
-
 			pos++;
 			nextInt = currentInputSequence.getInt(pos);
 		}
@@ -1104,8 +1088,14 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		PathState root;
 		int numPathStates = 0;
 		int numPaths = 0;
+		int numSerializedStates = 0;
 
 		int pivot;
+
+		// special integers for serialization
+		final static public int FINAL = Integer.MIN_VALUE;
+		final static public int END_FINAL = Integer.MIN_VALUE;
+		final static public int END = Integer.MAX_VALUE;
 
 		/** List of states in this NFA */
 		private ObjectList<PathState> pathStates = new ObjectArrayList<>();
@@ -1186,36 +1176,20 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				return nextLargest;
 		}
 
-		public Sequence serialize() {
-			counterTrimCalls++;
-
+		public Sequence mergeAndSerialize() {
+			// merge
 			swMerge.start();
+			counterTrimCalls++;
 			followGroup(leafs, true);
 			swMerge.stop();
 
+			// serialize
 			swSerialize.start();
-			// serialize the trimmed NFA
 			Sequence send = new Sequence();
-			positionsWithStateIds.clear();
-			numSerializedStates = 0;
-			for(PathState state : pathStates) {
-                if(state.mergedInto == state.id) { // only serialize the state if it wasn't merged
-					state.serializeForward(send);
-					numSerializedStates++;
-				}
-			}
+			DesqDfs.this.numSerializedStates = 0;
+			root.serializeDfs(send);
 			swSerialize.stop();
 
-
-			swReplace.start();
-			// replace all state ids with their positions
-			PathState state;
-			for (int pos = positionsWithStateIds.nextSetBit(0); pos >= 0; pos = positionsWithStateIds.nextSetBit(pos+1)) {
-				state = getPathStateByNumber(send.getInt(pos));
-				send.set(pos,state.writtenAtPos);
-
-			}
-			swReplace.stop();
 			return send;
 		}
 
@@ -1332,6 +1306,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		protected int writtenAtPos = -1;
 		protected int level;
 		protected OutputNFA nfa;
+		protected int writtenNum = -1;
 
 
 		/** Forward pointers */
@@ -1428,47 +1403,228 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		}
 
 
-		/** Serialize this state, appending to the given list */
-		protected void serializeForward(IntList send) {
-
+		/**
+		 * Serializes this state using by-path representation to the given IntList.
+		 * Processes un-processed children states recursively in DFS manner.
+		 *
+		 * @param send
+		 */
+		protected void serializeDfs(IntList send) {
 			counterSerializedStates++;
 			OutputLabel ol;
 			PathState toState;
 
-			writtenAtPos = send.size();
+			// keep track of the number of serialized states
+            writtenNum = nfa.numSerializedStates;
+			nfa.numSerializedStates++;
 
-			if(outTransitions.size() > maxNumOutTrs) maxNumOutTrs = outTransitions.size();
+			if(isFinal) {
+				send.add(OutputNFA.FINAL);
+				// TODO: we can improve here. if there is only one final state for an NFA and it's the last one, we can leave this out
+			}
 
+			boolean firstTransition = true;
 			for(Object2ObjectMap.Entry<OutputLabel,PathState> entry : outTransitions.object2ObjectEntrySet()) {
-                counterSerializedTransitions++;
-
+				counterSerializedTransitions++;
 				ol = entry.getKey();
 				toState = entry.getValue();
 
-				// write toState id and note down that we have written a state id here (which we will convert later)
-				nfa.positionsWithStateIds.set(send.size());
-				send.add(toState.mergedInto);
-
-				maxNumOutputItems = Math.max(maxNumOutputItems, ol.outputItems.size());
-
-				// if there is more than N output items, we output (+trNo, +inpItem)
-				// otherwise, we output all output items as negative integers
-				if(ol.outputItems.size() > maxNumShuffleOutputItems) {
-				    send.add(fst.getTransitionNumber(ol.tr));
-				    send.add(ol.inputItem); // TODO: we can generalize this for the pivot
+				// if this is the first transition we process at this state, we don't need to write and structural information.
+				// we just follow the first path
+				if(firstTransition) {
+					firstTransition = false;
 				} else {
-					// per transition, we will write all output items as negative integers followed by the to state as positive integer
-					for (int outputItem : ol.outputItems) {
-						send.add(-outputItem);
+					send.add(-this.writtenNum);
+				}
+
+				// serialize the output label
+				if(ol.outputItems.size() > 1 && ol.outputItems.getInt(1) <= nfa.pivot) { // multiple output items, so we encode them using the trasition
+					// TODO: the current serialization format doesn't allow us to send two output items directly. We need to think about this.
+					send.add(Integer.MIN_VALUE + 1 + fst.getTransitionNumber(ol.tr));
+					send.add(ol.inputItem); // TODO: we can generalize this for the pivot
+				} else { // there is only one (relevant) output item, and we know it's the first in the list
+					send.add(ol.outputItems.getInt(0));
+				}
+
+				// serialize the to-state, either by processing it or by noting down it's number
+                toState = nfa.getMergeTarget(toState.id);
+                if(toState.writtenNum == -1) {
+                    toState.serializeDfs(send);
+                } else {
+                    send.add(-toState.writtenNum);
+                }
+			}
+		}
+	}
+
+	/**
+	 * A class to decode serialized NFAs from by-path to by-state representation.
+	 * Reuses internal data structures between multiple calls to {@link #convertPathToStateSerialization(Sequence, int)}
+	 */
+	private class NFADecoder {
+		ObjectList<IntArrayList> outgoing = new ObjectArrayList<>();
+		int numReadStates, item, inputItem, outputItem, currentState = 0, toState, itExId, sPos, outgoingIntegers, len;
+		BitSet finalStates = new BitSet();
+		IntList currentOutgoing;
+		IntList writtenAtPos = new IntArrayList();
+		int maxItemExValue = Integer.MIN_VALUE/2;
+
+		/** Converts the NFA serialized in serializedNFA to a state-based representation **/
+		public Sequence convertPathToStateSerialization(Sequence serializedNFA, int partitionPivot) {
+			numReadStates = 0;
+			finalStates.clear();
+			outgoingIntegers = 0;
+			currentState = 0;
+			// prep outgoing array for root state
+			prepOutgoing(0);
+
+			for(int pos = 0; pos<serializedNFA.size(); pos++) {
+				item = serializedNFA.getInt(pos);
+				if(item == OutputNFA.FINAL) {
+				    // mark current state as final
+					finalStates.set(currentState);
+				} else {
+					// this is a transition
+
+					// we might have an explicit toState
+					if(item <= 0 && item > maxItemExValue) {
+						currentState = -item;
+						pos++;
+						item = serializedNFA.getInt(pos);
 					}
+
+					// from here on, it's the outgoing transition. with either one positive output item, or a negative item ex id + input item
+					if(item > 0) {
+						sPos = pos+1;
+					} else {
+						sPos = pos+2;
+					}
+
+					// look-ahead for a explicit toState
+					if(pos >= serializedNFA.size() || serializedNFA.getInt(sPos) > 0 || serializedNFA.getInt(sPos) < maxItemExValue) {
+						// there is no explicit toState. so we generate an implicit one
+						numReadStates++;
+						toState = numReadStates;
+						prepOutgoing(toState);
+					} else {
+						// there is an explicit toState
+						toState = -serializedNFA.getInt(sPos);
+						sPos++;
+					}
+
+					// store the toState and the output items
+					currentOutgoing = outgoing.get(currentState);
+					currentOutgoing.add(-toState);
+					outgoingIntegers++;
+					if(item > 0) {
+						// there is only one output item, we add it and are done
+						currentOutgoing.add(item);
+						outgoingIntegers++;
+					} else {
+						// there are multiple output items. we produce all output items and add ones relevant for this partition
+						inputItem = serializedNFA.getInt(pos+1);
+						itExId = item - Integer.MIN_VALUE - 1;
+						Iterator<ItemState> outIt = fst.getPrototypeTransitionByNumber(itExId)
+								                       .consume(inputItem, itCaches.get(0));
+						while(outIt.hasNext()) {
+							outputItem = outIt.next().itemFid;
+							if(partitionPivot >= outputItem) {
+                                currentOutgoing.add(outputItem);
+								outgoingIntegers++;
+							}
+						}
+					}
+
+					// advance to the new state and set the new reading position correctly
+					currentState = toState;
+					pos = sPos-1;
 				}
 			}
 
-			// write state end symbol
-			if(isFinal)
-				send.add(Integer.MIN_VALUE); // = transitions for this state end here and this is a final state (remeber, we serialize in reversed order)
-			else
-				send.add(Integer.MAX_VALUE); // = transitions for this state end here, state is not final
+			// Create the new serialization. For that, we reuse the array backing the input NFA.
+			// We keep track of where we serialized which state. In a second run over the serialization, we replace
+			// the state numbers by their index in the array.
+			serializedNFA.size(outgoingIntegers+numReadStates+1);
+			int[] byState = serializedNFA.elements();
+			writtenAtPos.size(numReadStates+1);
+
+			for(int stateNo=0, pos=0; stateNo<=numReadStates; stateNo++) {
+			    // we write state stateNo at position pos
+				writtenAtPos.set(stateNo,pos);
+
+				// write outgoing data
+				if(stateNo < outgoing.size()) { // if this state has outgoing transitions
+                    assert !outgoing.get(stateNo).contains(-stateNo);
+					len = outgoing.get(stateNo).size();
+					System.arraycopy(outgoing.get(stateNo).elements(), 0, byState, pos, len);
+				} else {
+					len = 0;
+				}
+				pos += len; // accounting for the outgoing data
+
+				// write the end marker (final or non-final)
+				if(finalStates.get(stateNo))
+					byState[pos] = OutputNFA.END_FINAL;
+				else
+					byState[pos] = OutputNFA.END;
+
+				pos++; // accounting for the state end marker
+			}
+
+			// replace state numbers by their index in the array
+			for(int pos = 0; pos<byState.length; pos++) {
+				if(byState[pos] < 0 && byState[pos] != OutputNFA.END_FINAL) {
+					byState[pos] =  -writtenAtPos.get(-byState[pos]);
+				}
+			}
+
+			return serializedNFA;
+		}
+
+		/** Prepare the outgoing IntList for the state with number stateNo: make sure outgoing array is large enough
+		 * and item array exists. If it already exists, clear the previously used array. */
+		private void prepOutgoing(int stateNo) {
+			if(stateNo >= outgoing.size()) {
+				outgoing.add(new IntArrayList());
+			} else {
+				outgoing.get(stateNo).clear();
+			}
+		}
+
+
+		/** Exports the fst using graphviz (type based on extension, e.g., "gv" (source file), "pdf", ...) */
+		public void exportGraphViz(String file) {
+			FstVisualizer fstVisualizer = new FstVisualizer(FilenameUtils.getExtension(file), FilenameUtils.getBaseName(file));
+			fstVisualizer.beginGraph();
+			IntList outItems = new IntArrayList();
+			int toState = -1;
+            for(int i=0; i<numReadStates+1; i++) {
+				if(i < outgoing.size()) {
+					for(int j=0; j<outgoing.get(i).size(); j++) {
+						int item = outgoing.get(i).getInt(j);
+						if(item < 0) {
+							// a new to state, so write the previous edge (if there was a previous one) and change to new toState
+							if(!outItems.isEmpty()) {
+								fstVisualizer.add(String.valueOf(i), outItems.toString(), String.valueOf(toState));
+							}
+							toState = -item;
+							outItems.clear();
+						} else {
+						    // note output item
+							outItems.add(item);
+						}
+					}
+					// write last edge of the last state
+					if(!outItems.isEmpty()) {
+						fstVisualizer.add(String.valueOf(i), outItems.toString(), String.valueOf(toState));
+						outItems.clear();
+					}
+				}
+				// mark final
+				if(finalStates.get(i))
+					fstVisualizer.addFinalState(String.valueOf(i));
+			}
+			fstVisualizer.endGraph();
 		}
 	}
 }

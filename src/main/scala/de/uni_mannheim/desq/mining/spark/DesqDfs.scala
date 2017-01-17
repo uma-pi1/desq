@@ -159,7 +159,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 
             for (ws <- sequencesIt) {
               if(sendNFAs)
-                baseMiner.addNFA(ws._1, ws._2, true) // ws._1 is the NFA, ws._2 is the frequency of this NFA
+                baseMiner.addNFA(ws._1, ws._2, true, partitionItem) // ws._1 is the NFA, ws._2 is the frequency of this NFA
               else
                 baseMiner.addInputSequence(ws._1, ws._2, true)
             }

@@ -156,7 +156,7 @@ public class DesqDfsRunDistributedMiningLocally {
 		if(writeShuffleStats) openStatsWriter();
 		System.out.print("Determining pivot items... ");
 		Stopwatch pcTime = new Stopwatch().start();
-		Int2ObjectOpenHashMap<ObjectList<IntList>> partitions = miner.createPartitions(inputSequences, verbose);
+		Int2ObjectOpenHashMap<ObjectList<Sequence>> partitions = miner.createPartitions(inputSequences, verbose);
 		pcTime.stop();
 		System.out.println(pcTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
 		if(writeShuffleStats) closeStatsWriter();
@@ -170,7 +170,7 @@ public class DesqDfsRunDistributedMiningLocally {
 		int numPartitions = partitions.size();
 		int numShuffleSequences = 0;
 		int numShuffleInts = 0;
-		for(Int2ObjectMap.Entry<ObjectList<IntList>> partition : partitions.int2ObjectEntrySet()) {
+		for(Int2ObjectMap.Entry<ObjectList<Sequence>> partition : partitions.int2ObjectEntrySet()) {
 			for(IntList sequence :  partition.getValue()) {
 				numShuffleSequences++;
 				numShuffleInts += sequence.size();
@@ -182,18 +182,18 @@ public class DesqDfsRunDistributedMiningLocally {
 		System.out.print("Mining... ");
 		Stopwatch mineTime = new Stopwatch().start();
 		int key;
-		ObjectList<IntList> sequences;
-		for(Int2ObjectMap.Entry<ObjectList<IntList>> partition : partitions.int2ObjectEntrySet()) {
+		ObjectList<Sequence> sequences;
+		for(Int2ObjectMap.Entry<ObjectList<Sequence>> partition : partitions.int2ObjectEntrySet()) {
 			key = partition.getIntKey();
 			sequences = partition.getValue();
 			if(verbose) {
 				System.out.println("Partition " + key + ": " + sequences.size() + " sequences:");
 			}
 			miner.clear();
-			for(IntList sequence : sequences) {
+			for(Sequence sequence : sequences) {
 				if(verbose) System.out.println(sequence);
 				if(sendNFAs)
-					miner.addNFA(sequence, 1, true);
+					miner.addNFA(sequence, 1, true, key);
 				else
 					miner.addInputSequence(sequence, 1, true);
 			}
