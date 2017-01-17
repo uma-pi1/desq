@@ -1089,6 +1089,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		int numPathStates = 0;
 		int numPaths = 0;
 		int numSerializedStates = 0;
+		protected int numSerializedFinalStates = 0;
 
 		int pivot;
 
@@ -1188,6 +1189,11 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			Sequence send = new Sequence();
 			DesqDfs.this.numSerializedStates = 0;
 			root.serializeDfs(send);
+
+			// if we have only one final state and it's the last one, we don't need to send the marker
+			if(numSerializedFinalStates == 1 && send.getInt(send.size()-1) == OutputNFA.FINAL) {
+				send.size(send.size()-1);
+			}
 			swSerialize.stop();
 
 			return send;
@@ -1420,6 +1426,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 			if(isFinal) {
 				send.add(OutputNFA.FINAL);
+				nfa.numSerializedFinalStates++;
 				// TODO: we can improve here. if there is only one final state for an NFA and it's the last one, we can leave this out
 			}
 
@@ -1540,6 +1547,10 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					pos = sPos-1;
 				}
 			}
+
+			// if there is no final marker in the sequence, we assume the last state of the sequence is final
+			if(finalStates.cardinality() == 0)
+				finalStates.set(currentState);
 
 			// Create the new serialization. For that, we reuse the array backing the input NFA.
 			// We keep track of where we serialized which state. In a second run over the serialization, we replace
