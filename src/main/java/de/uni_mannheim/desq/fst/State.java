@@ -7,6 +7,7 @@ import java.util.List;
 
 
 public final class State {
+
 	int id;
 	// List of transitions
 	ArrayList<Transition> transitionList;

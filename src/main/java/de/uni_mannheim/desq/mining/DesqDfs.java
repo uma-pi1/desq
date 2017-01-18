@@ -344,7 +344,9 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					// iterate over state@pos snapshots for this input sequence
 					boolean reachedFinalStateWithoutOutput = false;
 					do {
-						final int stateId = projectedDatabaseIt.nextNonNegativeInt();
+						int stateId = childNode.possibleState;
+						if (stateId < 0) // if >= 0, then there is only one possible FST state and it's not recorded in the posting list
+							stateId = projectedDatabaseIt.nextNonNegativeInt();
 						final int pos = projectedDatabaseIt.nextNonNegativeInt(); // position of next input item
 						reachedFinalStateWithoutOutput |= incStep(pos, fst.getState(stateId), 0, expand);
 					} while (projectedDatabaseIt.hasNext());

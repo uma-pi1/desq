@@ -22,7 +22,10 @@ final class DesqDfsTreeNode {
 	final Fst fst;
 
 	/** possible FST states for this node */
-	BitSet possibleStates;
+	final BitSet possibleStates;
+
+	/** If {@link #possibleStates} contains only one state, then the state, else -1 */
+	final int possibleState;
 
 	/** The output item associated with this node */
 	int itemFid;
@@ -72,6 +75,11 @@ final class DesqDfsTreeNode {
 	DesqDfsTreeNode(Fst fst, BitSet possibleStates) {
 		this.fst = fst;
 		this.possibleStates = possibleStates;
+		if (possibleStates.cardinality() == 1) {
+			possibleState = possibleStates.nextSetBit(0);
+		} else {
+			possibleState = -1;
+		}
 		currentSnapshots = new BitSet(fst.numStates()*16);
 		clear();
 	}
@@ -108,20 +116,20 @@ final class DesqDfsTreeNode {
 
 	/** Expands this node with an item.
 	 *
-	 * @param itemFid the item fid of the child
+	 * @param outputFid the item fid of the child
 	 * @param inputId input sequence id
 	 * @param inputSupport support of the input sequence
 	 * @param position position in the input sequence
 	 * @param state state of the FST
 	 */
-	void expandWithItem(final int itemFid, final int inputId, final long inputSupport,
+	void expandWithItem(final int outputFid, final int inputId, final long inputSupport,
 						final int position, final State state) {
-		DesqDfsTreeNode child = childrenByFid.get(itemFid);
+		DesqDfsTreeNode child = childrenByFid.get(outputFid);
 		if (child == null) {
-			BitSet childPossibleStates = fst.reachableStates(possibleStates, itemFid);
+			BitSet childPossibleStates = fst.reachableStates(possibleStates, outputFid);
 			child = new DesqDfsTreeNode(fst, childPossibleStates);
-			child.itemFid = itemFid;
-			childrenByFid.put(itemFid, child);
+			child.itemFid = outputFid;
+			childrenByFid.put(outputFid, child);
 		}
 
 		final int stateId = state.getId();
@@ -189,11 +197,13 @@ final class DesqDfsTreeNode {
 			child.currentSnapshots.set(spIndex);
 			child.projectedDatabase.addNonNegativeInt(inputId-child.projectedDatabaseCurrentInputId);
 			child.projectedDatabaseCurrentInputId = inputId;
-			child.projectedDatabase.addNonNegativeInt(stateId);
+			if (possibleState < 0)
+				child.projectedDatabase.addNonNegativeInt(stateId);
 			child.projectedDatabase.addNonNegativeInt(position);
 		} else if (!child.currentSnapshots.get(spIndex)) {
 			child.currentSnapshots.set(spIndex);
-			child.projectedDatabase.addNonNegativeInt(stateId);
+			if (possibleState < 0)
+				child.projectedDatabase.addNonNegativeInt(stateId);
 			child.projectedDatabase.addNonNegativeInt(position);
 		}
 	}
