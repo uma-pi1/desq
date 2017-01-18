@@ -1068,9 +1068,6 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				return state;
 		}
 
-		/** A BitSet with a bit set for every position which holds a state id  */
-		BitSet positionsWithStateIds = new BitSet();
-
 		/**
 		 * Add a path to this NFA.
 		 * Trims the outputItems sets of the OutputLabls in the path for the pivot of this NFA.
@@ -1141,6 +1138,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				send.size(send.size()-1);
 			}
 			swSerialize.stop();
+			maxNumStates = Math.max(numSerializedStates, maxNumStates);
 
 			return send;
 		}
@@ -1439,7 +1437,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					// this is a transition
 
 					// we might have an explicit toState
-					if(item < 0 && item < minItemExValue) {
+					if(item < minItemExValue) {
 						currentState = -(item+1+fst.numberDistinctItemEx());
 						pos++;
 						item = serializedNFA.getInt(pos);
