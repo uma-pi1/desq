@@ -743,7 +743,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					}
 
 					// if the path doesn't contain the pivot, something went wrong here.
-					assert pivot(pathCopy) < pivotItem;
+					assert pivot(pathCopy) >= pivotItem: "Pivot in path is " + pivot(pathCopy) + ", but pivot item is " + pivotItem;
 
 					// add the path to the pivot (incl. kicking out items>pivot) and retrieve next pivot item
 					pivotItem = nfa.addOutLabelPathAndReturnNextPivot(pathCopy);
