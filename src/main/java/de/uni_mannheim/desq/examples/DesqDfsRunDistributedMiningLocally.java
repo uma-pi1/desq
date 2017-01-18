@@ -8,8 +8,9 @@ import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import it.unimi.dsi.fastutil.objects.ObjectList;
 import scala.Tuple2;
 
 import java.io.*;
@@ -156,7 +157,11 @@ public class DesqDfsRunDistributedMiningLocally {
 		if(writeShuffleStats) openStatsWriter();
 		System.out.print("Determining pivot items... ");
 		Stopwatch pcTime = new Stopwatch().start();
-		Int2ObjectOpenHashMap<ObjectList<Sequence>> partitions = miner.createPartitions(inputSequences, verbose);
+		Int2ObjectOpenHashMap<Object2IntOpenHashMap<Sequence>> partitions = new Int2ObjectOpenHashMap<>();
+		int seqNo = 0;
+		for(Sequence inputSeq : inputSequences) {
+			miner.generateOutputNFAs(inputSeq, partitions, seqNo++);
+		}
 		pcTime.stop();
 		System.out.println(pcTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
 		if(writeShuffleStats) closeStatsWriter();
@@ -170,10 +175,10 @@ public class DesqDfsRunDistributedMiningLocally {
 		int numPartitions = partitions.size();
 		int numShuffleSequences = 0;
 		int numShuffleInts = 0;
-		for(Int2ObjectMap.Entry<ObjectList<Sequence>> partition : partitions.int2ObjectEntrySet()) {
-			for(IntList sequence :  partition.getValue()) {
+		for(Int2ObjectMap.Entry<Object2IntOpenHashMap<Sequence>> partition : partitions.int2ObjectEntrySet()) {
+			for(Object2IntMap.Entry<Sequence> weightedNFA:  partition.getValue().object2IntEntrySet()) {
 				numShuffleSequences++;
-				numShuffleInts += sequence.size();
+				numShuffleInts += weightedNFA.getKey().size();
 			}
 		}
 
@@ -182,20 +187,20 @@ public class DesqDfsRunDistributedMiningLocally {
 		System.out.print("Mining... ");
 		Stopwatch mineTime = new Stopwatch().start();
 		int key;
-		ObjectList<Sequence> sequences;
-		for(Int2ObjectMap.Entry<ObjectList<Sequence>> partition : partitions.int2ObjectEntrySet()) {
+		Object2IntOpenHashMap<Sequence> nfas;
+		for(Int2ObjectMap.Entry<Object2IntOpenHashMap<Sequence>> partition : partitions.int2ObjectEntrySet()) {
 			key = partition.getIntKey();
-			sequences = partition.getValue();
+            nfas = partition.getValue();
 			if(verbose) {
-				System.out.println("Partition " + key + ": " + sequences.size() + " sequences:");
+				System.out.println("Partition " + key + ": " + nfas.size() + " sequences:");
 			}
 			miner.clear();
-			for(Sequence sequence : sequences) {
-				if(verbose) System.out.println(sequence);
+			for(Object2IntMap.Entry<Sequence> weightedNFA:  partition.getValue().object2IntEntrySet()) {
+				if(verbose) System.out.println(weightedNFA.getKey());
 				if(sendNFAs)
-					miner.addNFA(sequence, 1, true, key);
+					miner.addNFA(weightedNFA.getKey(), weightedNFA.getIntValue(), true, key);
 				else
-					miner.addInputSequence(sequence, 1, true);
+					miner.addInputSequence(weightedNFA.getKey(), weightedNFA.getIntValue(), true);
 			}
 			miner.minePivot(key);
 

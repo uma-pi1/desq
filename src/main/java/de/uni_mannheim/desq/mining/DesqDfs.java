@@ -144,10 +144,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 	/** For each pivot item (and input sequence), we mergeAndSerialize a NFA producing the output sequences for that pivot item from the current input sequence */
 	private Int2ObjectOpenHashMap<OutputNFA> nfas = new Int2ObjectOpenHashMap<>();
-	private Int2ObjectOpenHashMap<Sequence> serializedNFAs = new Int2ObjectOpenHashMap<>();
-
-	/** The output partitions */
-	Int2ObjectOpenHashMap<ObjectList<Sequence>> partitions;
 
 	/** An nfaDecoder to decode nfas from a representation by path to one by state. Reuses internal data structures for all input nfas */
 	private NFADecoder nfaDecoder = null;
@@ -552,50 +548,6 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	}
 
 	/**
-	 * Produces partitions for a given set of input sequences, producing one of two shuffle options:
-	 * 1) input sequences
-	 * 2) output sequences as nfas, with suffixes optionally merged
-	 *
-	 * @param inputSequences the input sequences
-	 * @return partitions Map
-	 */
-	public Int2ObjectOpenHashMap<ObjectList<Sequence>> createPartitions(ObjectArrayList<Sequence> inputSequences, boolean verbose) throws IOException {
-
-		partitions = new Int2ObjectOpenHashMap<>();
-		IntSet pivotElements;
-		Sequence inputSequence;
-		ObjectList<Sequence> newPartitionSeqList;
-
-		// for each input sequence, emit (pivot_item, transition_id)
-		for(int seqNo=0; seqNo<inputSequences.size(); seqNo++) {
-			inputSequence = inputSequences.get(seqNo);
-			if (sendNFAs) {
-				// NFAs
-				createNFAPartitions(inputSequence, true, seqNo);
-			} else {
-				// input sequences
-				pivotElements = getPivotItemsOfOneSequence(inputSequence);
-
-				if(verbose) {
-					System.out.println(inputSequence.toString() + " pivots:" + pivotElements.toString());
-				}
-				for (int pivot : pivotElements) {
-					if (partitions.containsKey(pivot)) {
-						partitions.get(pivot).add(inputSequence);
-					} else {
-						newPartitionSeqList = new ObjectArrayList<Sequence>();
-						newPartitionSeqList.add(inputSequence);
-						partitions.put(pivot, newPartitionSeqList);
-					}
-					if(DesqDfsRunDistributedMiningLocally.writeShuffleStats) DesqDfsRunDistributedMiningLocally.writeShuffleStats(seqNo, pivot, inputSequence.size());
-				}
-			}
-		}
-		return partitions;
-	}
-
-
-	/**
 	 * Produces set of frequent output elements created by one input sequence by running the FST
 	 * and storing all frequent output items
 	 *
@@ -635,22 +587,19 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	}
 
 
-	/** Produces the set of pivot items for a given input sequence and constructs a tree representation of the transitions
-	 * generating all output sequences of this input sequence
+	/** Produces all Output NFAs of the given input sequence and adds them to the given Map,
+	 * according to their potential pivot items.
 	 *
 	 * @param inputSequence
 	 * @return pivotItems set of frequent output items of input sequence inputSequence
 	 */
-	public Int2ObjectOpenHashMap<Sequence> createNFAPartitions(IntList inputSequence, boolean buildPartitions, int seqNo) {
+	public void generateOutputNFAs(IntList inputSequence, Int2ObjectOpenHashMap<Object2IntOpenHashMap<Sequence>> outputNfas, int seqNo) {
 
 		// get the pivot elements with the corresponding paths through the FST
 		this.inputSequence = inputSequence;
 		path.clear();
 		nfas.clear();
 		// TODO: experiment whether nfas.trim() helps here
-
-		if(!buildPartitions)
-			serializedNFAs.clear();
 
 		if(useTwoPass) {
 			dfaStateSequence.clear();
@@ -683,24 +632,21 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			OutputNFA nfa = pivotAndNFA.getValue();
 
 			// Trim the NFA for this pivot and directly mergeAndSerialize it
-            Sequence output = nfa.mergeAndSerialize();
+            WeightedSequence output = nfa.mergeAndSerialize();
 
 //			if(drawGraphs) drawSerializedNFA(output, DesqDfsRunDistributedMiningLocally.useCase + "-seq"+seqNo+"-pivot"+pivotItem+"-NFA.pdf", true, "");
 			if(drawGraphs) nfa.exportGraphViz(DesqDfsRunDistributedMiningLocally.useCase + "-seq"+seqNo+"-pivot"+pivotItem+"-NFA.pdf");
 
 			if(DesqDfsRunDistributedMiningLocally.writeShuffleStats) DesqDfsRunDistributedMiningLocally.writeShuffleStats(seqNo, pivotItem, numSerializedStates);
 
-			if(buildPartitions) {
-				// emit the list we constructed
-				if (!partitions.containsKey(pivotItem)) {
-					partitions.put(pivotItem, new ObjectArrayList<>());
+				Object2IntOpenHashMap<Sequence> pivotNFAs = outputNfas.getOrDefault(pivotItem, null);
+				if(pivotNFAs == null) {
+					pivotNFAs = new Object2IntOpenHashMap<>();
+					pivotNFAs.defaultReturnValue(0);
+					outputNfas.put(pivotItem, pivotNFAs);
 				}
-				partitions.get(pivotItem).add(output);
-			} else {
-				serializedNFAs.put(pivotItem, output);
-			}
+				pivotNFAs.addTo(output, 1);
 		}
-		return serializedNFAs;
 	}
 
 
@@ -1177,7 +1123,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				return nextLargest;
 		}
 
-		public Sequence mergeAndSerialize() {
+		public WeightedSequence mergeAndSerialize() {
 			// merge
 			swMerge.start();
 			counterTrimCalls++;
@@ -1186,7 +1132,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 			// serialize
 			swSerialize.start();
-			Sequence send = new Sequence();
+			WeightedSequence send = new WeightedSequence(0);
 			DesqDfs.this.numSerializedStates = 0;
 			root.serializeDfs(send);
 

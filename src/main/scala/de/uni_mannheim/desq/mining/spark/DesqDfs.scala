@@ -6,6 +6,7 @@ import de.uni_mannheim.desq.util.DesqProperties
 import it.unimi.dsi.fastutil.ints._
 import de.uni_mannheim.desq.io.MemoryPatternWriter
 import de.uni_mannheim.desq.dictionary.BasicDictionary
+import it.unimi.dsi.fastutil.objects.{Object2IntMap, Object2IntOpenHashMap, ObjectIterator}
 
 import scala.collection.JavaConverters._
 import org.apache.log4j.{LogManager, Logger}
@@ -44,85 +45,54 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 
       // for each row, determine the possible output elements from that input sequence and create 
       //   a (output item, input sequence) pair for all of the possible output items
-      new Iterator[((Int, Sequence), Int)] {
+      new Iterator[(Int, WeightedSequence)] {
         val logger = LogManager.getLogger("DesqDfs")
-        var t1 = System.nanoTime
-        // initialize the sequential desq miner
 
+        // retrieve dictionary and setup miner
         val dict:BasicDictionary = dictBroadcast.value
-
-        val t1_1 = System.nanoTime()
-        logger.fatal("map-buildDict: " + (t1_1-t1) / 1e9d + "s")
-
         val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext()
         baseContext.dict = dict
         baseContext.conf = conf
         val baseMiner = new de.uni_mannheim.desq.mining.DesqDfs(baseContext)
 
-        val t1_2 = System.nanoTime()
-        logger.fatal("map-constructMiner: " + (t1_2-t1_1) / 1e9d + "s")
-        
-        var outputIterator: IntIterator = new IntArraySet(0).iterator
-        var currentSupport = 0L
-        var itemFids = new IntArrayList
-        var currentSequence : WeightedSequence = _
-
-        val t2 = System.nanoTime()
-        val mapSetupTime = (t2 - t1) / 1e9d
-        logger.fatal("map-setup: " + mapSetupTime + "s")
-        var serializedNFAs = new Int2ObjectOpenHashMap[Sequence]()
-
-        // We want to output all (output item, input sequence) pairs for the current
-        //   sequence. Once we are done, we move on to the next input sequence in this partition.
-        override def hasNext: Boolean = {
-          // do we still have pairs to output for this sequence?
-          while (!outputIterator.hasNext && rows.hasNext) {
-            // if not, go to the next input sequence
-            currentSequence = rows.next()
-            currentSupport = currentSequence.weight
-
-            if(sendNFAs) {
-              serializedNFAs = baseMiner.createNFAPartitions(currentSequence, false, 0)
-
-              outputIterator = serializedNFAs.keySet().iterator()
-            } else {
-              outputIterator = baseMiner.getPivotItemsOfOneSequence(currentSequence).iterator()
-            }
-          }
-
-          if(!outputIterator.hasNext) {
-            val t3 = System.nanoTime()
-            val mapTime = (t3 - t2) / 1e9d
-            logger.fatal("map-processing: " + mapTime + "s")
-          }
-          outputIterator.hasNext
+        // determine Output NFAs for given input sequences
+        val outputNFAs = new Int2ObjectOpenHashMap[Object2IntOpenHashMap[Sequence]]()
+        for(row <- rows) {
+          baseMiner.generateOutputNFAs(row, outputNFAs, 0)
         }
 
-        // we simply output (output item, input sequence)
-        override def next(): ((Int, Sequence), Int) = {
-          val partitionItem : Int = outputIterator.next()
-          if(sendNFAs) {
-            val partitionNFA = serializedNFAs.get(partitionItem)
-            ((partitionItem, partitionNFA), 1)
+        // output (pivot, nfa) pairs
+        val partitionIterator = outputNFAs.int2ObjectEntrySet().iterator()
+        var nextPartition:Int2ObjectMap.Entry[Object2IntOpenHashMap[Sequence]] = null
+        var nfaIterator:ObjectIterator[Object2IntMap.Entry[Sequence]] =  null
+        var currentPivot = -1
+
+        override def hasNext: Boolean = {
+          if(nfaIterator == null || !nfaIterator.hasNext) {
+            if(partitionIterator.hasNext()) {
+              nextPartition = partitionIterator.next
+              currentPivot = nextPartition.getIntKey()
+              nfaIterator = nextPartition.getValue().object2IntEntrySet().fastIterator()
+              true
+            } else {
+              false
+            }
           } else {
-            ((partitionItem, currentSequence.clone()), 1)
+            true
           }
+        }
+
+        override def next(): (Int, WeightedSequence) = {
+          val next = nfaIterator.next()
+          (currentPivot, next.getKey().withSupport(next.getIntValue))
         }
       }
     })
 
-    var processedShuffleSequences = shuffleSequences
-    if(reduceShuffleSequences) {
-      processedShuffleSequences = shuffleSequences.reduceByKey(_ + _)
-    }
-
-    val shuffleSequencesByPivot = processedShuffleSequences.map{case ((p, nfa), freq) => (p, (nfa, freq))}.groupByKey()
-
-
     // Third, we flatMap over the (output item, Iterable[input sequences]) RDD to mine each partition,
     //   with respect to the pivot item (=output item) of each partition. 
     //   At each partition, we only output sequences where the respective output item is the maximum item
-    val patterns = shuffleSequencesByPivot.mapPartitions(rows => {
+    val patterns = shuffleSequences.groupByKey().mapPartitions(rows => {
       //val patterns = outputItemPartitions.flatMap { (row) =>
 
       new Iterator[WeightedSequence] {
@@ -142,10 +112,10 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         val baseMiner = new de.uni_mannheim.desq.mining.DesqDfs(baseContext, true) // here in the second stage, we don't use the dfa, so we don't need to build it
 
         var outputIterator: Iterator[WeightedSequence] = _
-        var currentPartition: (Int, Iterable[(Sequence, Int)]) = _
+        var currentPartition: (Int, Iterable[WeightedSequence]) = _
 
         var partitionItem: Int = _
-        var sequencesIt: Iterator[(Sequence, Int)] = null
+        var sequencesIt: Iterator[WeightedSequence] = null
 
 
         override def hasNext: Boolean = {
@@ -159,9 +129,9 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 
             for (ws <- sequencesIt) {
               if(sendNFAs)
-                baseMiner.addNFA(ws._1, ws._2, true, partitionItem) // ws._1 is the NFA, ws._2 is the frequency of this NFA
+                baseMiner.addNFA(ws, ws.weight, true, partitionItem) // ws._1 is the NFA, ws._2 is the frequency of this NFA
               else
-                baseMiner.addInputSequence(ws._1, ws._2, true)
+                baseMiner.addInputSequence(ws, ws.weight, true)
             }
 
             // Mine this partition, only output patterns where the output item is the maximum item
