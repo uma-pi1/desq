@@ -75,29 +75,14 @@ public final class State {
 		}
 
 		void moveToNextTransition() {
-			if (validToStates == null) {
-				do {
-					if (nextTransitionIndex >= transitions.size()) {
-						currentItHasNext = false;
-						return;
-					}
-					Transition nextTransition = transitions.get(nextTransitionIndex++);
+			assert !currentItHasNext;
+			while (!currentItHasNext & nextTransitionIndex < transitions.size()) {
+				Transition nextTransition = transitions.get(nextTransitionIndex++);
+				if (validToStates == null || validToStates.get(nextTransition.toState.getId())) {
 					currentIt = nextTransition.consume(fid, itCache);
 					currentItHasNext = currentIt.hasNext();
-				} while (!currentItHasNext);
-			} else { // validToStates != null
-				currentItHasNext = false;
-				do {
-					if (nextTransitionIndex >= transitions.size()) {
-						return;
-					}
-					Transition nextTransition = transitions.get( nextTransitionIndex++ );
-					if (validToStates.get(nextTransition.toState.getId())) {
-						currentIt = nextTransition.consume(fid, itCache);
-						currentItHasNext = currentIt.hasNext();
-					}
-				} while (!currentItHasNext);
-			}
+				}
+			};
 		}
 	}
 	
@@ -125,7 +110,7 @@ public final class State {
 		it.nextTransitionIndex = 0;
 		it.validToStates = validToStates;
 		it.fid = fid;
-		it.moveToNextTransition();
+		it.currentItHasNext = false;
 		return it;
 	}
 
