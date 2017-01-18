@@ -1421,8 +1421,8 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			PathState toState;
 
 			// keep track of the number of serialized states
+			nfa.numSerializedStates++; // we start state numbering at 1 for the serialization
             writtenNum = nfa.numSerializedStates;
-			nfa.numSerializedStates++;
 
 			if(isFinal) {
 				send.add(OutputNFA.FINAL);
@@ -1495,7 +1495,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 					// we might have an explicit toState
 					if(item <= 0 && item > maxItemExValue) {
-						currentState = -item;
+						currentState = -(item+1);
 						pos++;
 						item = serializedNFA.getInt(pos);
 					}
@@ -1515,7 +1515,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 						prepOutgoing(toState);
 					} else {
 						// there is an explicit toState
-						toState = -serializedNFA.getInt(sPos);
+						toState = -(serializedNFA.getInt(sPos)+1);
 						sPos++;
 					}
 
