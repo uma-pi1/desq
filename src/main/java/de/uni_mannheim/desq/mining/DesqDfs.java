@@ -1440,13 +1440,13 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				if(firstTransition) {
 					firstTransition = false;
 				} else {
-					send.add(-this.writtenNum);
+					send.add(-(this.writtenNum+fst.numberDistinctItemEx()));
 				}
 
 				// serialize the output label
 				if(ol.outputItems.size() > 1 && ol.outputItems.getInt(1) <= nfa.pivot) { // multiple output items, so we encode them using the trasition
 					// TODO: the current serialization format doesn't allow us to send two output items directly. We need to think about this.
-					send.add(Integer.MIN_VALUE + 1 + fst.getItemExId(ol.tr));
+					send.add(-fst.getItemExId(ol.tr));
 					send.add(ol.inputItem); // TODO: we can generalize this for the pivot
 				} else { // there is only one (relevant) output item, and we know it's the first in the list
 					send.add(ol.outputItems.getInt(0));
@@ -1457,7 +1457,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
                 if(toState.writtenNum == -1) {
                     toState.serializeDfs(send);
                 } else {
-                    send.add(-toState.writtenNum);
+                    send.add(-(toState.writtenNum+fst.numberDistinctItemEx()));
                 }
 			}
 		}
@@ -1473,7 +1473,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		BitSet finalStates = new BitSet();
 		IntList currentOutgoing;
 		IntList writtenAtPos = new IntArrayList();
-		int maxItemExValue = Integer.MIN_VALUE/2;
+		int minItemExValue = -fst.numberDistinctItemEx();
 
 		/** Converts the NFA serialized in serializedNFA to a state-based representation **/
 		public Sequence convertPathToStateSerialization(Sequence serializedNFA, int partitionPivot) {
@@ -1493,8 +1493,8 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					// this is a transition
 
 					// we might have an explicit toState
-					if(item < 0 && item > maxItemExValue) {
-						currentState = -(item+1);
+					if(item < 0 && item < minItemExValue) {
+						currentState = -(item+1+fst.numberDistinctItemEx());
 						pos++;
 						item = serializedNFA.getInt(pos);
 					}
@@ -1507,9 +1507,9 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					}
 
 					// look-ahead for a explicit toState
-                    if(sPos < serializedNFA.size() && serializedNFA.getInt(sPos) < 0 && serializedNFA.getInt(sPos) > maxItemExValue) {
+                    if(sPos < serializedNFA.size() && serializedNFA.getInt(sPos) < minItemExValue) {
 						// there is an explicit toState
-						toState = -(serializedNFA.getInt(sPos)+1);
+						toState = -(serializedNFA.getInt(sPos)+1+fst.numberDistinctItemEx());
 						sPos++;
 					} else {
 						// there is no explicit toState. so we generate an implicit one
@@ -1529,7 +1529,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					} else {
 						// there are multiple output items. we produce all output items and add ones relevant for this partition
 						inputItem = serializedNFA.getInt(pos+1);
-						itExId = item - Integer.MIN_VALUE - 1;
+						itExId = -item;
 						Iterator<ItemState> outIt = fst.getPrototypeTransitionByItemExId(itExId)
 								                       .consume(inputItem, itCaches.get(0));
 						while(outIt.hasNext()) {
