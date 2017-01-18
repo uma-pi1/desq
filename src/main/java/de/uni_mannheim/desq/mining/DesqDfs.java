@@ -1094,7 +1094,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		int pivot;
 
 		// special integers for serialization
-		final static public int FINAL = Integer.MIN_VALUE;
+		final static public int FINAL = 0;
 		final static public int END_FINAL = Integer.MIN_VALUE;
 		final static public int END = Integer.MAX_VALUE;
 
@@ -1427,7 +1427,6 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			if(isFinal) {
 				send.add(OutputNFA.FINAL);
 				nfa.numSerializedFinalStates++;
-				// TODO: we can improve here. if there is only one final state for an NFA and it's the last one, we can leave this out
 			}
 
 			boolean firstTransition = true;
@@ -1494,7 +1493,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					// this is a transition
 
 					// we might have an explicit toState
-					if(item <= 0 && item > maxItemExValue) {
+					if(item < 0 && item > maxItemExValue) {
 						currentState = -(item+1);
 						pos++;
 						item = serializedNFA.getInt(pos);
@@ -1508,15 +1507,15 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					}
 
 					// look-ahead for a explicit toState
-					if(sPos >= serializedNFA.size() || serializedNFA.getInt(sPos) > 0 || serializedNFA.getInt(sPos) < maxItemExValue) {
+                    if(sPos < serializedNFA.size() && serializedNFA.getInt(sPos) < 0 && serializedNFA.getInt(sPos) > maxItemExValue) {
+						// there is an explicit toState
+						toState = -(serializedNFA.getInt(sPos)+1);
+						sPos++;
+					} else {
 						// there is no explicit toState. so we generate an implicit one
 						numReadStates++;
 						toState = numReadStates;
 						prepOutgoing(toState);
-					} else {
-						// there is an explicit toState
-						toState = -(serializedNFA.getInt(sPos)+1);
-						sPos++;
 					}
 
 					// store the toState and the output items
