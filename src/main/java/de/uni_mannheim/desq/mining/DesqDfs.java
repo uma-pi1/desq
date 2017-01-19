@@ -151,6 +151,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** Stores one pivot element heap per level for reuse */
 	final ArrayList<CloneableIntHeapPriorityQueue> pivotItemHeaps = new ArrayList<>();
 
+	/** Used to aggregate incoming NFAs */
+	private Object2LongLinkedOpenHashMap<WeightedSequence> inputNFAs = new Object2LongLinkedOpenHashMap<>();
+
 	/** Stats about pivot element search */
 	public long counterTotalRecursions = 0;
 	private boolean verbose;
@@ -279,7 +282,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 	public void clear(boolean trimInputSequences) {
 		inputSequences.clear();
-		if(trimInputSequences) inputSequences.trimToSize();
+		inputNFAs.clear();
+		if(trimInputSequences) {
+			inputSequences.trimToSize();
+		}
 		if (useTwoPass && dfaStateSequences != null) {
 			dfaStateSequences.clear();
             dfaStateSequences.trimToSize();
@@ -515,14 +521,11 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	// ---------------- DesqDfs Distributed ---------------------------------------------------------
 
 
-	public void addNFA(Sequence serializedNfa, long inputSupport, boolean allowBuffering, int partitionPivot) {
-		// if we don't have a decoder object yet, create one
-		if(nfaDecoder == null)
-			nfaDecoder = new NFADecoder();
-
-		// transform the incoming NFA to a representation by state, which is more suitable for efficient mining
-		serializedNfa = nfaDecoder.convertPathToStateSerialization(serializedNfa, partitionPivot);
-		super.addInputSequence(serializedNfa, inputSupport, allowBuffering);
+	public void addNFA(WeightedSequence serializedNfa) {
+		long support = serializedNfa.weight;
+		serializedNfa.weight = 0; // set to 0 so weighted sequences are compared as sequences. we set the weights accordingly later, in minePivot()
+		inputNFAs.addTo(serializedNfa, support);
+		sumInputSupports += support;
 	}
 
 	/**
@@ -867,10 +870,17 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	public void minePivot(int pivotItem) {
 		this.pivotItem = pivotItem;
 
-		// clean up the NFA decoder
-		if(nfaDecoder != null)
-			nfaDecoder = null;
+		// if we don't have an nfaDecoder from a previous partition, create one
+		if(nfaDecoder == null)
+			nfaDecoder = new NFADecoder();
 
+		// transform aggregated nfas to a by-state representation
+		for(Object2LongMap.Entry<WeightedSequence> nfaWithWeight : inputNFAs.object2LongEntrySet()) {
+		    WeightedSequence nfa = nfaWithWeight.getKey();
+			nfa = nfaDecoder.convertPathToStateSerialization(nfa, pivotItem);
+			nfa.weight = nfaWithWeight.getLongValue();
+			inputSequences.add(nfa);
+		}
 
 		// run the normal mine method. Filtering is done in expand() when the patterns are output
 		if(sendNFAs)
@@ -880,6 +890,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 		// reset the pivot item, just to be sure. pivotItem=0 means no filter
 		this.pivotItem = 0;
+		this.clear(false);
 	}
 
 	public void mineOnNFA() {
@@ -1416,7 +1427,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 	/**
 	 * A class to decode serialized NFAs from by-path to by-state representation.
-	 * Reuses internal data structures between multiple calls to {@link #convertPathToStateSerialization(Sequence, int)}
+	 * Reuses internal data structures between multiple calls to {@link #convertPathToStateSerialization(WeightedSequence, int)}
 	 */
 	private class NFADecoder {
 		ObjectList<IntArrayList> outgoing = new ObjectArrayList<>();
@@ -1427,7 +1438,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		int minItemExValue = -(fst.numberDistinctItemEx()+1);
 
 		/** Converts the NFA serialized in serializedNFA to a state-based representation **/
-		public Sequence convertPathToStateSerialization(Sequence serializedNFA, int partitionPivot) {
+		public WeightedSequence convertPathToStateSerialization(WeightedSequence serializedNFA, int partitionPivot) {
 			numReadStates = 0;
 			finalStates.clear();
 			outgoingIntegers = 0;

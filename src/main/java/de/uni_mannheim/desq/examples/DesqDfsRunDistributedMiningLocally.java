@@ -194,11 +194,11 @@ public class DesqDfsRunDistributedMiningLocally {
 			if(verbose) {
 				System.out.println("Partition " + key + ": " + nfas.size() + " sequences:");
 			}
-			miner.clear();
 			for(Object2IntMap.Entry<Sequence> weightedNFA:  partition.getValue().object2IntEntrySet()) {
 				if(verbose) System.out.println(weightedNFA.getKey());
-				if(sendNFAs)
-					miner.addNFA(weightedNFA.getKey(), weightedNFA.getIntValue(), true, key);
+				if(sendNFAs) {
+					miner.addNFA(weightedNFA.getKey().withSupport(weightedNFA.getIntValue()));
+				}
 				else
 					miner.addInputSequence(weightedNFA.getKey(), weightedNFA.getIntValue(), true);
 			}
