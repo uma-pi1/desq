@@ -139,6 +139,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
             // TODO: find a better way to get a Java List accepted as a Scala TraversableOnce
             outputIterator = result.getPatterns().asScala.iterator
           }
+          if(outputIterator == null) return false
           outputIterator.hasNext
         }
 
