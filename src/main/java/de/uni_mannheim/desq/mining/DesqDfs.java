@@ -1384,14 +1384,21 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				if(firstTransition) {
 					firstTransition = false;
 				} else {
-					send.add(-(this.writtenNum+fst.numberDistinctItemEx()));
+					send.add(-(this.writtenNum+fst.numberDistinctItemEx()+1));
 				}
 
 				// serialize the output label
-				if(ol.outputItems.size() > 1 && ol.outputItems.getInt(1) <= nfa.pivot) { // multiple output items, so we encode them using the trasition
+				if(ol.outputItems.size() > 1 && ol.outputItems.getInt(1) <= nfa.pivot) { // multiple output items, so we encode them using the transition
 					// TODO: the current serialization format doesn't allow us to send two output items directly. We need to think about this.
-					send.add(-fst.getItemExId(ol.tr));
-					send.add(ol.inputItem); // TODO: we can generalize this for the pivot
+                    if(ol.outputItems.size() == 2 || ol.outputItems.getInt(2) > nfa.pivot) {
+                    	// we have only two output items, so we encode them directly
+                    	send.add(-1); // we use this as marker for two following output items
+						send.add(ol.outputItems.getInt(0));
+						send.add(ol.outputItems.getInt(1));
+					} else {
+						send.add(-(fst.getItemExId(ol.tr)+1));
+						send.add(ol.inputItem); // TODO: we can generalize this for the pivot
+					}
 				} else { // there is only one (relevant) output item, and we know it's the first in the list
 					send.add(ol.outputItems.getInt(0));
 				}
@@ -1401,7 +1408,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
                 if(toState.writtenNum == -1) {
                     toState.serializeDfs(send);
                 } else {
-                    send.add(-(toState.writtenNum+fst.numberDistinctItemEx()));
+                    send.add(-(toState.writtenNum+fst.numberDistinctItemEx()+1));
                 }
 			}
 		}
@@ -1417,7 +1424,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		BitSet finalStates = new BitSet();
 		IntList currentOutgoing;
 		IntList writtenAtPos = new IntArrayList();
-		int minItemExValue = -fst.numberDistinctItemEx();
+		int minItemExValue = -(fst.numberDistinctItemEx()+1);
 
 		/** Converts the NFA serialized in serializedNFA to a state-based representation **/
 		public Sequence convertPathToStateSerialization(Sequence serializedNFA, int partitionPivot) {
@@ -1438,22 +1445,24 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 					// we might have an explicit toState
 					if(item < minItemExValue) {
-						currentState = -(item+1+fst.numberDistinctItemEx());
+						currentState = -(item+1+fst.numberDistinctItemEx()+1);
 						pos++;
 						item = serializedNFA.getInt(pos);
 					}
 
 					// from here on, it's the outgoing transition. with either one positive output item, or a negative item ex id + input item
-					if(item > 0) {
+					if(item > 0) { // it's one single output item
 						sPos = pos+1;
-					} else {
+					} else if(item == -1) { // it's two output items
+						sPos = pos+3;
+					} else { // it's a transition id with input item
 						sPos = pos+2;
 					}
 
 					// look-ahead for a explicit toState
                     if(sPos < serializedNFA.size() && serializedNFA.getInt(sPos) < minItemExValue) {
 						// there is an explicit toState
-						toState = -(serializedNFA.getInt(sPos)+1+fst.numberDistinctItemEx());
+						toState = -(serializedNFA.getInt(sPos)+1+fst.numberDistinctItemEx()+1);
 						sPos++;
 					} else {
 						// there is no explicit toState. so we generate an implicit one
@@ -1470,10 +1479,14 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 						// there is only one output item, we add it and are done
 						currentOutgoing.add(item);
 						outgoingIntegers++;
+					} else if(item == -1) {
+						currentOutgoing.add(serializedNFA.getInt(pos+1));
+						currentOutgoing.add(serializedNFA.getInt(pos+2));
+						outgoingIntegers += 2;
 					} else {
 						// there are multiple output items. we produce all output items and add ones relevant for this partition
 						inputItem = serializedNFA.getInt(pos+1);
-						itExId = -item;
+						itExId = -(item+1);
 						Iterator<ItemState> outIt = fst.getPrototypeTransitionByItemExId(itExId)
 								                       .consume(inputItem, itCaches.get(0));
 						while(outIt.hasNext()) {
