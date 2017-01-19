@@ -23,7 +23,7 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     }
 
     // build RDD to perform the minig
-    val patterns = data.sequences.mapPartitions(rows => {
+    val patterns = mappedSequences.mapPartitions(rows => {
       // for each row, get output of FST and produce (output sequence, 1) pair
       new Iterator[(Sequence,Long)] {
         // initialize the sequential desq miner
