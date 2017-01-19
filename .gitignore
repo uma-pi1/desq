@@ -20,6 +20,6 @@ fst-example-minimized.pdf
 board.scala
 *.iml
 OutputNFAs/
-
 *.pdf
 .DS_Store
+dependency-reduced-pom.xml
