@@ -19,9 +19,7 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 /**
  * Convert NYT dataset to Desq format. We treat each sentence as an input sequence, and
@@ -33,6 +31,14 @@ public class ConvertNyt {
 
     private static final Logger logger = Logger.getLogger(ConvertNyt.class.getSimpleName());
     private static final String ENTITY = "ENTITY";
+
+    private static final String[] POS_VALUES = new String[] {
+            "CC","CD","DT","EX","FW","IN","JJ","JJR","JJS","LS","MD",
+            "NN","NNS","NNP","NNPS","PDT","POS","PRP","PRP$",
+            "RB","RBR","RBS","RP","SYM","TO","UH",
+            "VB","VBD","VBG","VBN","VBP","VBZ","WDT","WP","WP$","WRB"
+    };
+    private static final Set<String> POS_SET = new HashSet<String>(Arrays.asList(POS_VALUES));
 
     // IO paths
     String pathToAvroFiles = "";
@@ -92,8 +98,9 @@ public class ConvertNyt {
                             String lemma = token.getLemma();
                             String pos = token.getPos();
 
-                            // If the word is named entity
-                            if(!ner.equals("O")) {
+                            // If the word is named entity (person or location, or organization
+                            //if(!ner.equals("O")) {
+                            if(ner.equals("PERSON") || ner.equals("LOCATION") || ner.equals("ORGANIZATION")) {
                                 String nerPlus = ner;
                                 String wordPlus = word;
                                 int j = i + 1;
@@ -115,7 +122,7 @@ public class ConvertNyt {
                                 wordPlus = wordPlus + "@" + nerPlus + "@" + ENTITY;
                                 apiResult = dictionaryBuilder.appendItem(wordPlus);
                                 itemFid = apiResult.getLeft();
-                                itemFids.add(itemFid); //TODO Dictionary Builder should support this
+                                itemFids.add(itemFid);
                                 newItem = apiResult.getRight();
 
 
@@ -134,27 +141,29 @@ public class ConvertNyt {
                                 continue;
                             }
 
-                            // If the word is not a named entity
-                            pos = shortenPos(pos);
+                            // If the word is not a named entity (additionally ignore punctuation)
+                            if(POS_SET.contains(pos)) {
+                                pos = shortenPos(pos);
 
-                            // add word -> lemma -> pos to hierarchy
+                                // add word -> lemma -> pos to hierarchy
 
-                            // 1) Add item to sequence
-                            word = word + "@" + lemma + "@" + pos;
-                            apiResult = dictionaryBuilder.appendItem(word);
-                            itemFid = apiResult.getLeft();
-                            itemFids.add(itemFid); //TODO Dictionary Builder should support this
-                            newItem = apiResult.getRight();
-
-                            // 2) If its a new item, add parents
-                            if (newItem) {
-                                lemma = lemma + "@" + pos;
-                                apiResult = dictionaryBuilder.addParent(itemFid, lemma);
+                                // 1) Add item to sequence
+                                word = word + "@" + lemma + "@" + pos;
+                                apiResult = dictionaryBuilder.appendItem(word);
                                 itemFid = apiResult.getLeft();
+                                itemFids.add(itemFid);
                                 newItem = apiResult.getRight();
 
+                                // 2) If its a new item, add parents
                                 if (newItem) {
-                                    dictionaryBuilder.addParent(itemFid, pos);
+                                    lemma = lemma + "@" + pos;
+                                    apiResult = dictionaryBuilder.addParent(itemFid, lemma);
+                                    itemFid = apiResult.getLeft();
+                                    newItem = apiResult.getRight();
+
+                                    if (newItem) {
+                                        dictionaryBuilder.addParent(itemFid, pos);
+                                    }
                                 }
                             }
 
