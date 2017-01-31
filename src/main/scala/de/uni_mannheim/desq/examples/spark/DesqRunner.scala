@@ -257,18 +257,29 @@ object DesqRunner {
         sigma = 100
         setAmznData()
       }
-      case r"T1-(N|A)$d-(\d+)$o-(\d+)$l" => { // T1-[dataset]-[omega]-[lambda]
+      case r"T1-(N|A|N1991)$d-(\d+)$o-(\d+)$l" => { // T1-[dataset]-[omega]-[lambda]
         patternExp = "(.){1,"+l.toInt+"}"
         sigma = o.toInt
         handleDataset(d)
       }
-      case r"T2-(N|A)$d-(\d+)$o-(\d+)$l-(\d+)$g" => { // T1-[dataset]-[omega]-[lambda]-[gamma]
+      case r"T2-(N|A|N1991)$d-(\d+)$o-(\d+)$l-(\d+)$g" => { // T1-[dataset]-[omega]-[lambda]-[gamma]
         patternExp = "(.)[.{0,"+g.toInt+"}(.)]{1,"+(l.toInt-1)+"}"
         sigma = o.toInt
         handleDataset(d)
       }
-      case r"T3-(N|A)$d-(\d+)$o-(\d+)$l" => { // T1-[dataset]-[omega]-[lambda]
+      case r"G1-(N|A|N1991)$d-(\d+)$o-(\d+)$l" => { // T1-[dataset]-[omega]-[lambda]
         patternExp = "(.^){1,"+l.toInt+"}"
+        sigma = o.toInt
+        handleDataset(d)
+      }
+      case r"G2-(N|A|N1991|I)$d-(\d+)$o-(\d+)$l-(\d+)$g" => { // T1-[dataset]-[omega]-[lambda]-[gamma]
+        patternExp = "(.^)[.{0,"+g.toInt+"}(.^)]{1,"+(l.toInt-1)+"}"
+        sigma = o.toInt
+        handleDataset(d)
+      }
+        // subsequence mining with only max-length constraint (PrefixSpan)
+      case r"S-(N|A|N1991)$d-(\d+)$o-(\d+)$m" => { // S-[dataset]-[omega]-[maxLength]
+        patternExp = "(.)[.*(.)]{,"+m.toInt+"}"
         sigma = o.toInt
         handleDataset(d)
       }
@@ -373,10 +384,12 @@ object DesqRunner {
   }
 
   def handleDataset(d: String): Unit = {
-    if(d.equals("N"))
+    if(d.charAt(0).equals('N'))
       setNytData()
     else if(d.equals("A"))
       setAmznData()
+    else if(d.equals("I"))
+      setICDMData()
     else {
       println("Unkown dataset " + d + ". Exiting.")
       System.exit(1)
