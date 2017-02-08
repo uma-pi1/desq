@@ -101,7 +101,9 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     }
 
     val mergeMaps = (map1: Object2LongOpenHashMap[Sequence], map2: Object2LongOpenHashMap[Sequence]) => {
-      map1.putAll(map2)
+      for(entry: Object2LongMap.Entry[Sequence] <- map2.object2LongEntrySet()) {
+        map1.addTo(entry.getKey, entry.getLongValue)
+      }
       map1
     }
 
