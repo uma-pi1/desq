@@ -409,6 +409,9 @@ object DesqRunner {
     if(useCase.contains("1991")) {
       dataset = "nyt-1991"
     }
+    if(runConf.contains("read.partitioned.dataset")) {
+      dataset += "-" + runConf.get("read.partitioned.dataset").get
+    }
     dataDir = baseFolder + "Data/prep/" + dataset + "/"
   }
 
