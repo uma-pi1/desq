@@ -160,7 +160,7 @@ public class DesqDfsRunDistributedMiningLocally {
 		Int2ObjectOpenHashMap<Object2IntOpenHashMap<Sequence>> partitions = new Int2ObjectOpenHashMap<>();
 		int seqNo = 0;
 		for(Sequence inputSeq : inputSequences) {
-//			miner.generateOutputNFAs(inputSeq, partitions, seqNo++);
+//			miner.generateOutputNFAs(inputSeq, partitions, seqNo++);  // TODO: fix this so it works again
 		}
 		pcTime.stop();
 		System.out.println(pcTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
@@ -197,12 +197,12 @@ public class DesqDfsRunDistributedMiningLocally {
 			for(Object2IntMap.Entry<Sequence> weightedNFA:  partition.getValue().object2IntEntrySet()) {
 				if(verbose) System.out.println(weightedNFA.getKey());
 				if(sendNFAs) {
-					miner.addNFA(weightedNFA.getKey().withSupport(weightedNFA.getIntValue()));
+//					miner.addNFA(weightedNFA.getKey().withSupport(weightedNFA.getIntValue())); // TODO: fix this so it works again
 				}
 				else
 					miner.addInputSequence(weightedNFA.getKey(), weightedNFA.getIntValue(), true);
 			}
-			miner.minePivot(key);
+//			miner.minePivot(key); // TODO: fix this so it works again
 
 		}
 

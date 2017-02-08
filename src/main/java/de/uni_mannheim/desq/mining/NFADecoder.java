@@ -15,7 +15,7 @@ import java.util.Iterator;
 
 /**
  * A class to decode serialized NFAs from by-path to by-state representation.
- * Reuses internal data structures between multiple calls to {@link #convertPathToStateSerialization(WeightedSequence, int)}
+ * Reuses internal data structures between multiple calls to {@link #convertPathToStateSerialization(Sequence, int)}
  */
 class NFADecoder {
     ObjectList<IntArrayList> outgoing = new ObjectArrayList<>();
@@ -35,7 +35,7 @@ class NFADecoder {
     }
 
     /** Converts the NFA serialized in serializedNFA to a state-based representation **/
-    public WeightedSequence convertPathToStateSerialization(WeightedSequence serializedNFA, int partitionPivot) {
+    public Sequence convertPathToStateSerialization(Sequence serializedNFA, int partitionPivot) {
         numReadStates = 0;
         finalStates.clear();
         outgoingIntegers = 0;

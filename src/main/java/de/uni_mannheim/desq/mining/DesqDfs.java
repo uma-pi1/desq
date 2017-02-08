@@ -149,9 +149,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** Stores one pivot element heap per level for reuse */
 	final ArrayList<CloneableIntHeapPriorityQueue> pivotItemHeaps = new ArrayList<>();
 
-	/** Used to aggregate incoming NFAs */
-	private Object2LongLinkedOpenHashMap<WeightedSequence> inputNFAs = new Object2LongLinkedOpenHashMap<>();
-
 	/** Stats about pivot element search */
 	public long counterTotalRecursions = 0;
 	private boolean verbose;
@@ -280,7 +277,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 	public void clear(boolean trimInputSequences) {
 		inputSequences.clear();
-		inputNFAs.clear();
 		if(trimInputSequences) {
 			inputSequences.trimToSize();
 		}
@@ -517,14 +513,6 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 
 	// ---------------- DesqDfs Distributed ---------------------------------------------------------
-
-
-	public void addNFA(WeightedSequence serializedNfa) {
-		long support = serializedNfa.weight;
-		serializedNfa.weight = 0; // set to 0 so weighted sequences are compared as sequences. we set the weights accordingly later, in minePivot()
-		inputNFAs.addTo(serializedNfa, support);
-		sumInputSupports += support;
-	}
 
 	/**
 	 * Determine pivot items for one sequence, without storing them
@@ -794,19 +782,19 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	 *   (e.g. filter out all sequences where pivotItem is not the max item)
 	 * @param pivotItem
 	 */
-	public void minePivot(int pivotItem) {
+	public void minePivot(int pivotItem, Object2LongOpenHashMap<Sequence> inputNFAs) {
 		this.pivotItem = pivotItem;
 
 		// if we don't have an nfaDecoder from a previous partition, create one
 		if(nfaDecoder == null)
 			nfaDecoder = new NFADecoder(fst, itCaches.get(0));
 
+		sumInputSupports = 0;
 		// transform aggregated nfas to a by-state representation
-		for(Object2LongMap.Entry<WeightedSequence> nfaWithWeight : inputNFAs.object2LongEntrySet()) {
-		    WeightedSequence nfa = nfaWithWeight.getKey();
-			nfa = nfaDecoder.convertPathToStateSerialization(nfa, pivotItem);
-			nfa.weight = nfaWithWeight.getLongValue();
-			inputSequences.add(nfa);
+		for(Object2LongMap.Entry<Sequence> nfaWithWeight : inputNFAs.object2LongEntrySet()) {
+		    Sequence nfa = nfaWithWeight.getKey();
+			inputSequences.add(nfaDecoder.convertPathToStateSerialization(nfa, pivotItem).withSupport(nfaWithWeight.getLongValue()));
+			sumInputSupports += nfaWithWeight.getLongValue();
 		}
 
 		// run the normal mine method. Filtering is done in expand() when the patterns are output

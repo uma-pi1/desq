@@ -5,11 +5,12 @@ import de.uni_mannheim.desq.util.DesqProperties
 import it.unimi.dsi.fastutil.ints._
 import de.uni_mannheim.desq.io.MemoryPatternWriter
 import de.uni_mannheim.desq.dictionary.BasicDictionary
-import it.unimi.dsi.fastutil.objects.{Object2IntMap, Object2IntOpenHashMap, ObjectIterator}
+import it.unimi.dsi.fastutil.objects._
 
 import scala.collection.JavaConverters._
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.Partitioner
+
 import collection.JavaConversions._
 
 /**
@@ -89,17 +90,17 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 
     // Combine into HashMaps
     val createMap = (nfa:Sequence) => {
-      val map = new Object2IntOpenHashMap[Sequence]()
+      val map = new Object2LongOpenHashMap[Sequence]()
       map.put(nfa, 1)
       map
     }
 
-    val addToMap = (map: Object2IntOpenHashMap[Sequence], nfa:Sequence) => {
+    val addToMap = (map: Object2LongOpenHashMap[Sequence], nfa:Sequence) => {
       map.addTo(nfa, 1)
       map
     }
 
-    val mergeMaps = (map1: Object2IntOpenHashMap[Sequence], map2: Object2IntOpenHashMap[Sequence]) => {
+    val mergeMaps = (map1: Object2LongOpenHashMap[Sequence], map2: Object2LongOpenHashMap[Sequence]) => {
       map1.putAll(map2)
       map1
     }
@@ -129,7 +130,7 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         val baseMiner = new de.uni_mannheim.desq.mining.DesqDfs(baseContext, true) // here in the second stage, we don't use the dfa, so we don't need to build it
 
         var outputIterator: Iterator[WeightedSequence] = _
-        var currentPartition: (Int, Object2IntOpenHashMap[Sequence]) = _
+        var currentPartition: (Int, Object2LongOpenHashMap[Sequence]) = _
         var partitionItem: Int = _
 
 
@@ -137,19 +138,18 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
           while ((outputIterator == null || !outputIterator.hasNext) && rows.hasNext) {
             currentPartition = rows.next()
             partitionItem = currentPartition._1
-            val sequencesIt = currentPartition._2.object2IntEntrySet()
 
             result.clear()
 
-            for(row : Object2IntMap.Entry[Sequence] <- sequencesIt) {
-              if(sendNFAs)
-                baseMiner.addNFA(row.getKey.withSupport(row.getIntValue))
-              else
-                baseMiner.addInputSequence(row.getKey, row.getIntValue, true)
+            if(!sendNFAs) {
+                val sequencesIt = currentPartition._2.object2LongEntrySet()
+                for(row : Object2LongMap.Entry[Sequence] <- sequencesIt) {
+                    baseMiner.addInputSequence(row.getKey, row.getLongValue, true)
+                }
             }
 
             // Mine this partition, only output patterns where the output item is the maximum item
-            baseMiner.minePivot(partitionItem)
+            baseMiner.minePivot(partitionItem, currentPartition._2)
 
             // TODO: find a better way to get a Java List accepted as a Scala TraversableOnce
             outputIterator = result.getPatterns().asScala.iterator
