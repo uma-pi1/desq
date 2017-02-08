@@ -18,7 +18,7 @@ import java.util.BitSet;
  * output sequence at that partition. Before sending the NFA, we trim it so we don't send paths that are
  * not relevant for that partition. We do the trimming while serializing.
  */
-class OutputNFA {
+public class OutputNFA {
     PathState root;
     int numPathStates = 0;
     int numPaths = 0;

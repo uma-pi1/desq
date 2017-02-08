@@ -588,13 +588,13 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	}
 
 
-	/** Produces all Output NFAs of the given input sequence and adds them to the given Map,
-	 * according to their potential pivot items.
+
+	/** Generates all Output NFAs of the given input sequence and returns them in a Map: pivItem -> NFA
 	 *
 	 * @param inputSequence
 	 * @return pivotItems set of frequent output items of input sequence inputSequence
 	 */
-	public void generateOutputNFAs(IntList inputSequence, Int2ObjectOpenHashMap<Object2IntOpenHashMap<Sequence>> outputNfas, int seqNo) {
+	public Int2ObjectOpenHashMap<OutputNFA> generateOutputNFAs(IntList inputSequence) {
 
 		// get the pivot elements with the corresponding paths through the FST
 		this.inputSequence = inputSequence;
@@ -627,27 +627,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 		if(nfas.size() > maxPivotsForOneSequence) maxPivotsForOneSequence = nfas.size();
 
-		// For each pivot item, trim the NFA and output it
-		for(Int2ObjectMap.Entry<OutputNFA> pivotAndNFA : nfas.int2ObjectEntrySet()) {
-			int pivotItem =  pivotAndNFA.getIntKey();
-			OutputNFA nfa = pivotAndNFA.getValue();
-
-			// Trim the NFA for this pivot and directly mergeAndSerialize it
-            WeightedSequence output = nfa.mergeAndSerialize();
-
-//			if(drawGraphs) drawSerializedNFA(output, DesqDfsRunDistributedMiningLocally.useCase + "-seq"+seqNo+"-pivot"+pivotItem+"-NFA.pdf", true, "");
-			if(drawGraphs) nfa.exportGraphViz(DesqDfsRunDistributedMiningLocally.useCase + "-seq"+seqNo+"-pivot"+pivotItem+"-NFA.pdf");
-
-			if(DesqDfsRunDistributedMiningLocally.writeShuffleStats) DesqDfsRunDistributedMiningLocally.writeShuffleStats(seqNo, pivotItem, numSerializedStates);
-
-				Object2IntOpenHashMap<Sequence> pivotNFAs = outputNfas.getOrDefault(pivotItem, null);
-				if(pivotNFAs == null) {
-					pivotNFAs = new Object2IntOpenHashMap<>();
-					pivotNFAs.defaultReturnValue(0);
-					outputNfas.put(pivotItem, pivotNFAs);
-				}
-				pivotNFAs.addTo(output, 1);
-		}
+		return nfas;
 	}
 
 

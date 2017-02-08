@@ -160,7 +160,7 @@ public class DesqDfsRunDistributedMiningLocally {
 		Int2ObjectOpenHashMap<Object2IntOpenHashMap<Sequence>> partitions = new Int2ObjectOpenHashMap<>();
 		int seqNo = 0;
 		for(Sequence inputSeq : inputSequences) {
-			miner.generateOutputNFAs(inputSeq, partitions, seqNo++);
+//			miner.generateOutputNFAs(inputSeq, partitions, seqNo++);
 		}
 		pcTime.stop();
 		System.out.println(pcTime.elapsed(TimeUnit.MILLISECONDS) + "ms");

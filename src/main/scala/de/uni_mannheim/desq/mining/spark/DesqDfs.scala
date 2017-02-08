@@ -1,7 +1,6 @@
 package de.uni_mannheim.desq.mining.spark
 
-import de.uni_mannheim.desq.mining.Sequence
-import de.uni_mannheim.desq.mining.WeightedSequence
+import de.uni_mannheim.desq.mining.{OutputNFA, Sequence, WeightedSequence}
 import de.uni_mannheim.desq.util.DesqProperties
 import it.unimi.dsi.fastutil.ints._
 import de.uni_mannheim.desq.io.MemoryPatternWriter
@@ -10,6 +9,8 @@ import it.unimi.dsi.fastutil.objects.{Object2IntMap, Object2IntOpenHashMap, Obje
 
 import scala.collection.JavaConverters._
 import org.apache.log4j.{LogManager, Logger}
+import org.apache.spark.Partitioner
+import collection.JavaConversions._
 
 /**
   * Created by alexrenz on 05.10.2016.
@@ -41,11 +42,11 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     //   (output item, Iterable[input sequences])
     // Third step: see below
 
-    val shuffleSequences = mappedSequences.mapPartitions(rows => {
+    val shuffleSequences = mappedSequences.mapPartitions(inputSequences => {
 
       // for each row, determine the possible output elements from that input sequence and create 
       //   a (output item, input sequence) pair for all of the possible output items
-      new Iterator[(Int, WeightedSequence)] {
+      new Iterator[(Int, Sequence)] {
         val logger = LogManager.getLogger("DesqDfs")
 
         // retrieve dictionary and setup miner
@@ -55,44 +56,60 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         baseContext.conf = conf
         val baseMiner = new de.uni_mannheim.desq.mining.DesqDfs(baseContext)
 
-        // determine Output NFAs for given input sequences
-        val outputNFAs = new Int2ObjectOpenHashMap[Object2IntOpenHashMap[Sequence]]()
-        for(row <- rows) {
-          baseMiner.generateOutputNFAs(row, outputNFAs, 0)
-        }
-
         // output (pivot, nfa) pairs
-        val partitionIterator = outputNFAs.int2ObjectEntrySet().iterator()
-        var nextPartition:Int2ObjectMap.Entry[Object2IntOpenHashMap[Sequence]] = null
-        var nfaIterator:ObjectIterator[Object2IntMap.Entry[Sequence]] =  null
-        var currentPivot = -1
+        var nfaIterator:ObjectIterator[Int2ObjectMap.Entry[OutputNFA]] = null
 
         override def hasNext: Boolean = {
-          if(nfaIterator == null || !nfaIterator.hasNext) {
-            if(partitionIterator.hasNext()) {
-              nextPartition = partitionIterator.next
-              currentPivot = nextPartition.getIntKey()
-              nfaIterator = nextPartition.getValue().object2IntEntrySet().fastIterator()
-              true
-            } else {
-              false
-            }
-          } else {
-            true
+
+          while((nfaIterator == null || !nfaIterator.hasNext) && inputSequences.hasNext) {
+            nfaIterator = baseMiner.generateOutputNFAs(inputSequences.next).int2ObjectEntrySet().fastIterator()
           }
+          nfaIterator.hasNext
         }
 
-        override def next(): (Int, WeightedSequence) = {
-          val next = nfaIterator.next()
-          (currentPivot, next.getKey().withSupport(next.getIntValue))
+        override def next(): (Int, Sequence) = {
+          val pivotNFA = nfaIterator.next()
+          (pivotNFA.getIntKey, pivotNFA.getValue.mergeAndSerialize)
         }
       }
     })
 
+//    Code for using a partitioner with reduce and then groupByKey():
+//    val partitioner = new PivotHashPartitioner(shuffleSequences.getNumPartitions)
+
+//    var processedShuffleSequences = shuffleSequences
+//    if(reduceShuffleSequences) {
+//      processedShuffleSequences = shuffleSequences.reduceByKey(partitioner, _ + _)
+//    }
+
+//    processedShuffleSequences.mapPartitionsWithIndex{(partitionIndex ,dataIterator) =>
+//      dataIterator.map(dataInfo => (dataInfo +" is at partition " + partitionIndex))
+//    }.foreach(println)
+
+
+    // Combine into HashMaps
+    val createMap = (nfa:Sequence) => {
+      val map = new Object2IntOpenHashMap[Sequence]()
+      map.put(nfa, 1)
+      map
+    }
+
+    val addToMap = (map: Object2IntOpenHashMap[Sequence], nfa:Sequence) => {
+      map.addTo(nfa, 1)
+      map
+    }
+
+    val mergeMaps = (map1: Object2IntOpenHashMap[Sequence], map2: Object2IntOpenHashMap[Sequence]) => {
+      map1.putAll(map2)
+      map1
+    }
+
+    val combinedSeqs = shuffleSequences.combineByKey(createMap, addToMap, mergeMaps)
+
     // Third, we flatMap over the (output item, Iterable[input sequences]) RDD to mine each partition,
     //   with respect to the pivot item (=output item) of each partition. 
     //   At each partition, we only output sequences where the respective output item is the maximum item
-    val patterns = shuffleSequences.groupByKey().mapPartitions(rows => {
+    val patterns = combinedSeqs.mapPartitions(rows => {
       //val patterns = outputItemPartitions.flatMap { (row) =>
 
       new Iterator[WeightedSequence] {
@@ -112,25 +129,23 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         val baseMiner = new de.uni_mannheim.desq.mining.DesqDfs(baseContext, true) // here in the second stage, we don't use the dfa, so we don't need to build it
 
         var outputIterator: Iterator[WeightedSequence] = _
-        var currentPartition: (Int, Iterable[WeightedSequence]) = _
-
+        var currentPartition: (Int, Object2IntOpenHashMap[Sequence]) = _
         var partitionItem: Int = _
-        var sequencesIt: Iterator[WeightedSequence] = null
 
 
         override def hasNext: Boolean = {
           while ((outputIterator == null || !outputIterator.hasNext) && rows.hasNext) {
             currentPartition = rows.next()
             partitionItem = currentPartition._1
-            sequencesIt = currentPartition._2.iterator
+            val sequencesIt = currentPartition._2.object2IntEntrySet()
 
             result.clear()
 
-            for (ws <- sequencesIt) {
+            for(row : Object2IntMap.Entry[Sequence] <- sequencesIt) {
               if(sendNFAs)
-                baseMiner.addNFA(ws)
+                baseMiner.addNFA(row.getKey.withSupport(row.getIntValue))
               else
-                baseMiner.addInputSequence(ws, ws.weight, true)
+                baseMiner.addInputSequence(row.getKey, row.getIntValue, true)
             }
 
             // Mine this partition, only output patterns where the output item is the maximum item
@@ -160,5 +175,37 @@ object DesqDfs {
     val conf = de.uni_mannheim.desq.mining.DesqDfs.createConf(patternExpression, sigma)
     conf.setProperty("desq.mining.miner.class", classOf[DesqDfs].getCanonicalName)
     conf
+  }
+}
+
+
+/**
+  Custom partitioner for tuples of (pivot item, nfa), partitioning only by the pivot item
+ */
+class PivotHashPartitioner(partitions: Int) extends Partitioner {
+  def numPartitions: Int = partitions
+
+  def getPartition(key: Any): Int = key match {
+    case null => 0
+    case pivNFA: (Int, Sequence) => PivotHashPartitioner.nonNegativeMod(pivNFA._1.hashCode(), numPartitions)
+    case piv: Int => PivotHashPartitioner.nonNegativeMod(piv.hashCode(), numPartitions)
+    case _ => println("any type"); PivotHashPartitioner.nonNegativeMod(key.hashCode(), numPartitions)
+  }
+
+  override def equals(other: Any): Boolean = other match {
+    case h: PivotHashPartitioner =>
+      h.numPartitions == numPartitions
+    case _ =>
+      false
+  }
+
+  override def hashCode: Int = numPartitions
+}
+
+object PivotHashPartitioner {
+  // copy from org.apache.spark.util.Utils, as Utils is package private
+  def nonNegativeMod(x: Int, mod: Int): Int = {
+    val rawMod = x % mod
+    rawMod + (if (rawMod < 0) mod else 0)
   }
 }
