@@ -58,7 +58,7 @@ public class DesqDfsRunDistributedMiningLocally {
 			runDistributedMiningLocally(args);
 		} else {
 			localCorrectnessTest(); System.exit(0);
-			runDistributedMiningLocally("A1", 2, 1);
+			runDistributedMiningLocally("I1@1", 2, 1);
 		}
 	}
 
@@ -156,20 +156,19 @@ public class DesqDfsRunDistributedMiningLocally {
 		System.out.print("Determining pivot items... ");
 		Stopwatch pcTime = new Stopwatch().start();
 		Int2ObjectOpenHashMap<Object2LongOpenHashMap<Sequence>> partitions = new Int2ObjectOpenHashMap<>();
-		int seqNo = 0;
-		Int2ObjectOpenHashMap<OutputNFA> addNFAs;
+        NFAList addNFAs;
 		Object2LongOpenHashMap<Sequence> currentPartition;
 		for(Sequence inputSeq : inputSequences) {
 			// get NFAs
 			addNFAs = miner.generateOutputNFAs(inputSeq);
 			// add NFAs to our partitions Map
-			for(Int2ObjectMap.Entry<OutputNFA> entry : addNFAs.int2ObjectEntrySet()) {
-				currentPartition = partitions.getOrDefault(entry.getIntKey(),null);
+			for(OutputNFA nfa : addNFAs.getNFAs()) {
+				currentPartition = partitions.getOrDefault(nfa.pivot(),null);
 				if(currentPartition == null) {
-					currentPartition = new Object2LongOpenHashMap<Sequence>();
-					partitions.put(entry.getIntKey(), currentPartition);
+					currentPartition = new Object2LongOpenHashMap<>();
+					partitions.put(nfa.pivot(), currentPartition);
 				}
-				currentPartition.addTo(entry.getValue().mergeAndSerialize(), 1);
+				currentPartition.addTo(nfa.mergeAndSerialize(), 1);
 			}
 		}
 		pcTime.stop();

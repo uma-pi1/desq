@@ -58,19 +58,19 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         val baseMiner = new de.uni_mannheim.desq.mining.DesqDfs(baseContext)
 
         // output (pivot, nfa) pairs
-        var nfaIterator:ObjectIterator[Int2ObjectMap.Entry[OutputNFA]] = null
+        var nfaIterator:ObjectIterator[OutputNFA] = null
 
         override def hasNext: Boolean = {
 
           while((nfaIterator == null || !nfaIterator.hasNext) && inputSequences.hasNext) {
-            nfaIterator = baseMiner.generateOutputNFAs(inputSequences.next).int2ObjectEntrySet().fastIterator()
+            nfaIterator = baseMiner.generateOutputNFAs(inputSequences.next).getNFAs().iterator(); //int2ObjectEntrySet().fastIterator()
           }
           nfaIterator.hasNext
         }
 
         override def next(): (Int, Sequence) = {
-          val pivotNFA = nfaIterator.next()
-          (pivotNFA.getIntKey, pivotNFA.getValue.mergeAndSerialize)
+          val nfa = nfaIterator.next()
+          (nfa.pivot, nfa.mergeAndSerialize)
         }
       }
     })

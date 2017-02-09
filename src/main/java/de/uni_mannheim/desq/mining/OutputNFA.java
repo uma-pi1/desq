@@ -19,7 +19,7 @@ public class OutputNFA {
     int pivot;
 
     /** A link to the FST we use to encode this NFA */
-    public Fst fst;
+    Fst fst;
 
     /** Parallel lists to store the states of this NFA **/
     int numStates = 0;
@@ -58,37 +58,15 @@ public class OutputNFA {
     }
 
     /** Reset this NFA for reuse */
-    public void clear() {
+    public void clearAndPrepForPivot(int pivot) {
         numStates = 0;
         numSerializedStates = 0;
         numSerializedFinalStates = 0;
         numPaths = 0;
-    }
-
-    private int addState(int fromState) {
-        int id = numStates++;
-
-        // do we need to create new objects or have we had this number of states before in this object?
-        if(predecessor.size() > id) {
-            // reset an old state
-            outgoingTransitions.get(id).clear();
-            isFinal.clear(id);
-            mergedInto.set(id,id);
-            writtenNum.set(id,-1);
-
-            // set some info
-            isLeaf.set(id);
-            predecessor.set(id, fromState);
-        } else {
-            // create new ones
-            outgoingTransitions.add(new Object2IntAVLTreeMap<>());
-            mergedInto.add(id);
-            writtenNum.add(-1);
-
-            isLeaf.set(id);
-            predecessor.add(fromState);
-        }
-        return id;
+        isLeaf.clear();
+        isFinal.clear();
+        this.pivot = pivot;
+        addState(-1);
     }
 
     /**
@@ -98,7 +76,7 @@ public class OutputNFA {
      *
      * @param path
      */
-    protected int addOutLabelPathAndReturnNextPivot(OutputLabel[] path) {
+    protected int addPathAndReturnNextPivot(OutputLabel[] path) {
         numPaths++;
         int currentState;
         int nextLargest = -1, nextLargestInThisSet;
@@ -173,9 +151,39 @@ public class OutputNFA {
         }
     }
 
+    /** Adds a state to this NFA, with the given state as predecessor */
+    private int addState(int fromState) {
+        assert fromState < numStates : "The given fromState " + fromState + " is not a valid state (have " + numStates + ")";
+        int id = numStates++;
+
+        // do we need to create new objects or have we had this number of states before in this object?
+        if(predecessor.size() > id) {
+            // reset an old state
+            outgoingTransitions.get(id).clear();
+            mergedInto.set(id,id);
+            writtenNum.set(id,-1);
+
+            // set some info
+            isLeaf.set(id);
+            predecessor.set(id, fromState);
+        } else {
+            // create new ones
+            outgoingTransitions.add(new Object2IntAVLTreeMap<>());
+            mergedInto.add(id);
+            writtenNum.add(-1);
+
+            isLeaf.set(id);
+            predecessor.add(fromState);
+        }
+
+        return id;
+    }
+
+
+    /** Merges suffixes of this NFA and serializes it. Returns an integer list containing the serialized NFA. */
     public WeightedSequence mergeAndSerialize() {
         // merge
-        followGroup(isLeaf, true);
+        attemptMergeGroup(isLeaf, true);
 
         // serialize
         WeightedSequence send = new WeightedSequence();
@@ -191,11 +199,11 @@ public class OutputNFA {
     }
 
     /**
-     * Process a group of states. That means, we try to merge subsets of the passed group of states. Each of those groups,
+     * Attempts to merge a group of states. That means, we try to merge subsets of the passed group of states. Each of those groups,
      * we process recursively.
      * @param stateIds
      */
-    private void followGroup(BitSet stateIds, boolean definitelyMergeable) {
+    private void attemptMergeGroup(BitSet stateIds, boolean definitelyMergeable) {
         int target, merge;
 
         // we use this bitset to mark states that we have already merged in this iteration.
@@ -251,15 +259,25 @@ public class OutputNFA {
             }
 
             // if we have multiple predecessors, process them as group (later on)
-            if(predecessors.size()>0) {
+            if(predecessors.cardinality()>0) {
                 if(predecessor.getInt(target) != -1)
                     predecessors.set(predecessor.getInt(target));
-                followGroup(predecessors, false);
+                attemptMergeGroup(predecessors, false);
             }
         }
     }
 
 
+    /**
+     * Checks whether state merge is mergeable into state target.
+     * Two states are mergeable if:
+     *  (1) they are both final or both non-final, and
+     *  (2) they have the same outgoing transitions (same labels, same to-states)
+     *
+     * @param merge
+     * @param target
+     * @return
+     */
     public boolean isMergeableInto(int merge, int target) {
 
         if(isFinal.get(merge) != isFinal.get(target))
@@ -313,8 +331,8 @@ public class OutputNFA {
 
 
     /**
-     * Serializes this state using by-path representation to the given IntList.
-     * Processes un-processed children states recursively in DFS manner.
+     * Serializes the given state to a path-wise representation to the given IntList.
+     * Processes un-processed successor states recursively in DFS manner.
      *
      * @param send
      */
@@ -371,5 +389,8 @@ public class OutputNFA {
     }
 
 
+    public int pivot() {
+        return pivot;
+    }
 }
 

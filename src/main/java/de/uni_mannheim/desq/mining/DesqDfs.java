@@ -140,8 +140,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** Stores the current path through the FST */
 	private ObjectList<OutputLabel> path = new ObjectArrayList<>();
 
-	/** For each pivot item (and input sequence), we mergeAndSerialize a NFA producing the output sequences for that pivot item from the current input sequence */
-	private Int2ObjectOpenHashMap<OutputNFA> nfas = new Int2ObjectOpenHashMap<>();
+	/** For each pivot item (and input sequence), we store one NFA producing the output sequences for that pivot item from the current input sequence */
+	private NFAList nfas = new NFAList();
 
 	/** An nfaDecoder to decode nfas from a representation by path to one by state. Reuses internal data structures for all input nfas */
 	private NFADecoder nfaDecoder = null;
@@ -582,7 +582,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	 * @param inputSequence
 	 * @return pivotItems set of frequent output items of input sequence inputSequence
 	 */
-	public Int2ObjectOpenHashMap<OutputNFA> generateOutputNFAs(IntList inputSequence) {
+	public NFAList generateOutputNFAs(IntList inputSequence) {
 
 		// get the pivot elements with the corresponding paths through the FST
 		this.inputSequence = inputSequence;
@@ -649,19 +649,13 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				int numPivotsEmitted = 0;
 				while(pivotItem != -1) {
 					numPivotsEmitted++;
-					OutputNFA nfa;
-					if(!nfas.containsKey(pivotItem)) {
-						nfa = new OutputNFA(pivotItem, fst);
-						nfas.put(pivotItem, nfa);
-					} else {
-						nfa = nfas.get(pivotItem);
-					}
+					OutputNFA nfa = nfas.getNFAForPivot(pivotItem, fst);
 
 					// if the path doesn't contain the pivot, something went wrong here.
 					assert pivot(pathCopy) >= pivotItem: "Pivot in path is " + pivot(pathCopy) + ", but pivot item is " + pivotItem;
 
 					// add the path to the pivot (incl. kicking out items>pivot) and retrieve next pivot item
-					pivotItem = nfa.addOutLabelPathAndReturnNextPivot(pathCopy);
+					pivotItem = nfa.addPathAndReturnNextPivot(pathCopy);
 				}
 
 				if(numPivotsEmitted > maxPivotsForOnePath) maxPivotsForOnePath = numPivotsEmitted;
