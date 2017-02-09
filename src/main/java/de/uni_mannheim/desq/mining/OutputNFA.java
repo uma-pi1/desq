@@ -2,13 +2,9 @@ package de.uni_mannheim.desq.mining;
 
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.graphviz.FstVisualizer;
-import it.unimi.dsi.fastutil.ints.IntBidirectionalIterator;
-import it.unimi.dsi.fastutil.ints.IntLinkedOpenHashSet;
-import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import it.unimi.dsi.fastutil.objects.ObjectList;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.objects.*;
 import org.apache.commons.io.FilenameUtils;
-
 import java.util.BitSet;
 
 /**
@@ -19,44 +15,80 @@ import java.util.BitSet;
  * not relevant for that partition. We do the trimming while serializing.
  */
 public class OutputNFA {
-    PathState root;
-    int numPathStates = 0;
-    int numPaths = 0;
+    /** The pivot item of this NFA */
+    int pivot;
+
+    /** A link to the FST we use to encode this NFA */
+    public Fst fst;
+
+    /** Parallel lists to store the states of this NFA **/
+    int numStates = 0;
+    ObjectList<Object2IntAVLTreeMap<OutputLabel>> outgoingTransitions = new ObjectArrayList<>();
+    BitSet isFinal = new BitSet();
+    BitSet isLeaf =  new BitSet();
+    IntArrayList mergedInto =  new IntArrayList();
+    IntArrayList writtenNum =  new IntArrayList();
+    IntArrayList predecessor = new IntArrayList();
+
+    /** Counters for serialization */
     int numSerializedStates = 0;
     protected int numSerializedFinalStates = 0;
 
-    int pivot;
-
-    // special integers for serialization
+    /** Integer markers for NFA serialization */
     final static public int FINAL = 0;
     final static public int END_FINAL = Integer.MIN_VALUE;
     final static public int END = Integer.MAX_VALUE;
 
-    /** List of states in this NFA */
-    public ObjectList<PathState> pathStates = new ObjectArrayList<>();
+    /** Statistics */
+    int numPaths = 0;
 
-    /** List of leaf states in this NFA */
-    public IntLinkedOpenHashSet leafs = new IntLinkedOpenHashSet();
-
-    public Fst fst;
 
     public OutputNFA(int pivot, Fst fst) {
-        root = new PathState(this, null, 0);
+        addState(-1); // create root state
         this.pivot = pivot;
         this.fst = fst;
     }
 
-    /** Get the nth PathState of this NFA */
-    public PathState getPathStateByNumber(int n) {
-        return pathStates.get(n);
+    /** If the given state was merged, returns the merge target. Otherwise, returns the original id. */
+    public int getMergeTarget(int id) {
+        if(id != mergedInto.getInt(id))
+            return mergedInto.getInt(id);
+        else
+            return id;
     }
 
-    public PathState getMergeTarget(int n) {
-        PathState state = getPathStateByNumber(n);
-        if(state.id != state.mergedInto)
-            return getPathStateByNumber(state.mergedInto);
-        else
-            return state;
+    /** Reset this NFA for reuse */
+    public void clear() {
+        numStates = 0;
+        numSerializedStates = 0;
+        numSerializedFinalStates = 0;
+        numPaths = 0;
+    }
+
+    private int addState(int fromState) {
+        int id = numStates++;
+
+        // do we need to create new objects or have we had this number of states before in this object?
+        if(predecessor.size() > id) {
+            // reset an old state
+            outgoingTransitions.get(id).clear();
+            isFinal.clear(id);
+            mergedInto.set(id,id);
+            writtenNum.set(id,-1);
+
+            // set some info
+            isLeaf.set(id);
+            predecessor.set(id, fromState);
+        } else {
+            // create new ones
+            outgoingTransitions.add(new Object2IntAVLTreeMap<>());
+            mergedInto.add(id);
+            writtenNum.add(-1);
+
+            isLeaf.set(id);
+            predecessor.add(fromState);
+        }
+        return id;
     }
 
     /**
@@ -68,13 +100,13 @@ public class OutputNFA {
      */
     protected int addOutLabelPathAndReturnNextPivot(OutputLabel[] path) {
         numPaths++;
-        PathState currentState;
+        int currentState;
         int nextLargest = -1, nextLargestInThisSet;
         boolean seenPivotAsSingle = false;
         OutputLabel ol;
 
         // Run through the transitions of this path and add them to this NFA
-        currentState = this.root;
+        currentState = 0; // 0 is always root
         for(int i=0; i<path.length; i++) {
             ol = path[i];
 
@@ -99,11 +131,11 @@ public class OutputNFA {
                 nextLargest = Math.max(nextLargest, nextLargestInThisSet);
             }
 
-            currentState = currentState.followTransition(ol, this);
+            currentState = followLabelFromState(ol, currentState);
         }
 
         // we ran through the path, so the current state is a final state.
-        currentState.setFinal();
+        isFinal.set(currentState);
 
         if(seenPivotAsSingle)
             return -1; // meaning, we have an empty set for any pivot smaller the current pivot, so we stop
@@ -111,25 +143,49 @@ public class OutputNFA {
             return nextLargest;
     }
 
+    /**
+     * Starting from this state, follow a given transition with given input item. Returns the state the transition
+     * leads to.
+     *
+     * @param state     starting state
+     * @param ol		the OutputLabel for this transition
+     * @return
+     */
+    protected int followLabelFromState(OutputLabel ol, int state) {
+        Object2IntAVLTreeMap<OutputLabel> outTransitions = outgoingTransitions.get(state);
+
+        // if we have a tree branch with this transition already, follow it and return the state it leads to
+        if(outTransitions.containsKey(ol)) {
+            // return this state
+            int toState = outTransitions.getInt(ol);
+            return toState;
+        } else {
+            // if we don't have a path starting with that transition, we create a new one
+            int toState = addState(state);
+
+            // add the transition and the created state to the outgoing transitions of this state and return the state the transition moves to
+            outTransitions.put(ol.clone(), toState);
+
+            if(outTransitions.size() == 1)
+                isLeaf.clear(state);
+
+            return toState;
+        }
+    }
+
     public WeightedSequence mergeAndSerialize() {
         // merge
-//        swMerge.start();
-//        counterTrimCalls++;
-        followGroup(leafs, true);
-//        swMerge.stop();
+        followGroup(isLeaf, true);
 
         // serialize
-//        swSerialize.start();
-        WeightedSequence send = new WeightedSequence(0);
+        WeightedSequence send = new WeightedSequence();
         numSerializedStates = 0;
-        root.serializeDfs(send);
+        serializeStateUsingDfs(0, send); // 0 is always root
 
         // if we have only one final state and it's the last one, we don't need to send the marker
         if(numSerializedFinalStates == 1 && send.getInt(send.size()-1) == OutputNFA.FINAL) {
             send.size(send.size()-1);
         }
-//        swSerialize.stop();
-//        maxNumStates = Math.max(numSerializedStates, maxNumStates);
 
         return send;
     }
@@ -139,38 +195,31 @@ public class OutputNFA {
      * we process recursively.
      * @param stateIds
      */
-    private void followGroup(IntLinkedOpenHashSet stateIds, boolean definitelyMergeable) {
-//        if(stateIds.size() > maxFollowGroupSetSize) maxFollowGroupSetSize = stateIds.size();
-//        counterFollowGroupCalls++;
-        IntBidirectionalIterator it = stateIds.iterator();
-        int currentTargetStateId;
-        int sId;
-        PathState target, merge;
+    private void followGroup(BitSet stateIds, boolean definitelyMergeable) {
+        int target, merge;
 
         // we use this bitset to mark states that we have already merged in this iteration.
         // we use that to make sure we don't process them more than once
         BitSet alreadyMerged = new BitSet();
 
         // as we go over the passed set of states, we collect predecessor groups, which we will process afterwards
-        IntLinkedOpenHashSet predecessors = new IntLinkedOpenHashSet();
+        BitSet predecessors = new BitSet();
 
         int i = 0, j;
-        while(it.hasNext()) {
+        for (int currentTarget = stateIds.nextSetBit(0); currentTarget >= 0; currentTarget = stateIds.nextSetBit(currentTarget+1)) {
             // Retrieve the next state of the group. We will use this one as a merge target for all the following states
             // in the list
-            currentTargetStateId = it.nextInt();
             i++;
             if(alreadyMerged.get(i)) // we don't process this state if we have merged it into another state already
                 continue;
-            target = getMergeTarget(currentTargetStateId);
+            target = getMergeTarget(currentTarget);
 
             // begin a new set of predecessors
             predecessors.clear();
             j = i;
 
             // Now compare this state to all the following states. If we find merge-compatible states, we merge them into this one
-            while(it.hasNext()) {
-                sId = it.nextInt();
+            for(int sId = stateIds.nextSetBit(currentTarget+1); sId >=0; sId = stateIds.nextSetBit(sId+1)) {
                 j++;
 
                 if(alreadyMerged.get(j))  // don't process if we already merged this state into another one
@@ -178,60 +227,149 @@ public class OutputNFA {
 
                 merge = getMergeTarget(sId); // we retrieve the mapped number here. In case the state has already been merged somewhere else, we don't want to modify a merged state.
 
-                if(merge.id == target.id) { // if the two states we are looking at are the same ones, we don't need to make any changes.
+                if(merge == target) { // if the two states we are looking at are the same ones, we don't need to make any changes.
                     alreadyMerged.set(j);
-                } else if(definitelyMergeable || merge.isMergeableInto(target)) { // check whether the two states are mergeable
+                } else if(definitelyMergeable || isMergeableInto(merge, target)) { // check whether the two states are mergeable
 
                     // we write down that we merged this state into the target.
-                    merge.mergedInto = target.id;
+                    mergedInto.set(merge, target);
 
                     // also rewrite the original entry if the state we just merged was merged before
-                    if(merge.id != sId)
-                        getPathStateByNumber(sId).mergedInto = target.id;
+                    if(merge != sId)
+                        mergedInto.set(merge, target);
 
                     // mark this state as merged, so we don't process it multiple times
                     alreadyMerged.set(j);
 
                     // if we have a group of predecessors (more than one), we process them as group
-                    if(target.predecessor != null && merge.predecessor != null) {
-                        if (target.predecessor.id != merge.predecessor.id) {
-                            predecessors.add(merge.predecessor.id);
+                    if(predecessor.getInt(target) != -1 && predecessor.getInt(merge) != -1) {
+                        if (predecessor.getInt(target) != predecessor.getInt(merge)) {
+                            predecessors.set(predecessor.getInt(merge));
                         }
                     }
                 }
             }
 
-            // rewind the iterator
-            it.back(j-i);
-
             // if we have multiple predecessors, process them as group (later on)
             if(predecessors.size()>0) {
-                predecessors.add(target.predecessor.id);
+                if(predecessor.getInt(target) != -1)
+                    predecessors.set(predecessor.getInt(target));
                 followGroup(predecessors, false);
             }
         }
     }
 
+
+    public boolean isMergeableInto(int merge, int target) {
+
+        if(isFinal.get(merge) != isFinal.get(target))
+            return false;
+
+        if(outgoingTransitions.get(merge).size() != outgoingTransitions.get(target).size())
+            return false;
+
+        ObjectIterator<Object2IntMap.Entry<OutputLabel>> aIt = outgoingTransitions.get(merge).object2IntEntrySet().iterator();
+        ObjectIterator<Object2IntMap.Entry<OutputLabel>> bIt = outgoingTransitions.get(target).object2IntEntrySet().iterator();
+        Object2IntMap.Entry<OutputLabel> a, b;
+
+        // the two states have the same number of out transitions (checked above)
+        // now we only check whether those out transitions have the same outKey and point towards the same state
+
+        while(aIt.hasNext()) {
+            a = aIt.next();
+            b = bIt.next();
+
+            if(!a.getKey().equals(b.getKey()))
+                return false;
+
+            if(mergedInto.getInt(a.getIntValue()) != mergedInto.getInt(b.getIntValue()))
+                return false;
+        }
+
+        return true;
+    }
+
     /**
-     * Export the PathStates of this NFA with their transitions to PDF
+     * Export the state of this NFA with their transitions to PDF
      * @param file
      */
     public void exportGraphViz(String file) {
         FstVisualizer fstVisualizer = new FstVisualizer(FilenameUtils.getExtension(file), FilenameUtils.getBaseName(file));
         fstVisualizer.beginGraph();
-        for(PathState s : pathStates) {
-            if (s.mergedInto == s.id) {
-                for (Object2ObjectMap.Entry<OutputLabel, PathState> trEntry : s.outTransitions.object2ObjectEntrySet()) {
+        for(int s = 0; s<= numStates; s++) {
+            if (mergedInto.getInt(s) == s) {
+                for (Object2IntMap.Entry<OutputLabel> trEntry : outgoingTransitions.get(s).object2IntEntrySet()) {
                     OutputLabel ol = trEntry.getKey();
                     String label;
                     label = ol.outputItems.toString();
-                    fstVisualizer.add(String.valueOf(s.id), label, String.valueOf(trEntry.getValue().mergedInto));
+                    fstVisualizer.add(String.valueOf(s), label, String.valueOf(mergedInto.getInt(trEntry.getIntValue())));
                 }
-                if (s.isFinal)
-                    fstVisualizer.addFinalState(String.valueOf(s.id));
+                if (isFinal.get(s))
+                    fstVisualizer.addFinalState(String.valueOf(s));
             }
         }
         fstVisualizer.endGraph();
     }
+
+
+    /**
+     * Serializes this state using by-path representation to the given IntList.
+     * Processes un-processed children states recursively in DFS manner.
+     *
+     * @param send
+     */
+    protected void serializeStateUsingDfs(int state, IntArrayList send) {
+        OutputLabel ol;
+        int toState;
+
+        // keep track of the number of serialized states
+        numSerializedStates++; // we start state numbering at 1 for the serialization
+        writtenNum.set(state, numSerializedStates);
+
+        if(isFinal.get(state)) {
+            send.add(OutputNFA.FINAL);
+            numSerializedFinalStates++;
+        }
+
+        boolean firstTransition = true;
+        for(Object2IntMap.Entry<OutputLabel> entry : outgoingTransitions.get(state).object2IntEntrySet()) {
+            ol = entry.getKey();
+            toState = entry.getIntValue();
+
+            // if this is the first transition we process at this state, we don't need to write and structural information.
+            // we just follow the first path
+            if(firstTransition) {
+                firstTransition = false;
+            } else {
+                send.add(-(writtenNum.getInt(state)+fst.numberDistinctItemEx()+1));
+            }
+
+            // serialize the output label
+            if(ol.outputItems.size() > 1 && ol.outputItems.getInt(1) <= pivot) { // multiple output items, so we encode them using the transition
+                // TODO: the current serialization format doesn't allow us to send two output items directly. We need to think about this.
+                if(ol.outputItems.size() == 2 || ol.outputItems.getInt(2) > pivot) {
+                    // we have only two output items, so we encode them directly
+                    send.add(-1); // we use this as marker for two following output items
+                    send.add(ol.outputItems.getInt(0));
+                    send.add(ol.outputItems.getInt(1));
+                } else {
+                    send.add(-(fst.getItemExId(ol.tr)+1));
+                    send.add(ol.inputItem); // TODO: we can generalize this for the pivot
+                }
+            } else { // there is only one (relevant) output item, and we know it's the first in the list
+                send.add(ol.outputItems.getInt(0));
+            }
+
+            // serialize the to-state, either by processing it or by noting down it's number
+            toState = getMergeTarget(toState);
+            if(writtenNum.getInt(toState) == -1) {
+                serializeStateUsingDfs(toState, send);
+            } else {
+                send.add(-(writtenNum.getInt(toState)+fst.numberDistinctItemEx()+1));
+            }
+        }
+    }
+
+
 }
 
