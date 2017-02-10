@@ -171,6 +171,9 @@ public class DesqDfsRunDistributedMiningLocally {
 				currentPartition.addTo(nfa.mergeAndSerialize(), 1);
 			}
 		}
+		// clear the memory
+		addNFAs = null;
+		
 		pcTime.stop();
 		System.out.println(pcTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
 		if(writeShuffleStats) closeStatsWriter();
