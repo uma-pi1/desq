@@ -187,7 +187,7 @@ object DesqRunner {
     val result = miner.mine(data)
 
     // Calculate count and frequency
-    val (count, freq) = result.sequences.map(ws => (1,ws.weight)).reduce((a,b) => (a._1+b._1, a._2+b._2))
+    val (count, freq) = result.sequences.map(ws => (1,ws.weight)).fold((0,0L))((a,b) => (a._1+b._1, a._2+b._2))
     println("Pattern count: " + count)
     println("Pattern freq:  " + freq)
     val mineAndOutputTime = (System.nanoTime - t1) / 1e9d
@@ -207,6 +207,12 @@ object DesqRunner {
     verbose = false
     useCase = thisUseCase
     useCase match {
+      case "N0-1991" | "N0" => {
+        patternExp = "flourisher@NN@ flourisher@NN@"
+        sigma = 10
+        if (useCase.contains("1991")) sigma = sigma / 10
+        setNytData()
+      }
       case "N1-1991" | "N1" => {
         patternExp = "ENTITY@ (VB@+ NN@+? IN@?) ENTITY@"
         sigma = 10
@@ -236,6 +242,11 @@ object DesqRunner {
         sigma = 1000
         if (useCase.contains("1991")) sigma = sigma / 10
         setNytData()
+      }
+      case "A0" => {
+        patternExp = "B000BM3MMK B000BM3MMK"
+        sigma = 500
+        setAmznData()
       }
       case "A1" => {
         patternExp = "(Electronics^)[.{0,2}(Electronics^)]{1,4}"

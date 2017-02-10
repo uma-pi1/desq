@@ -422,6 +422,13 @@ public class DesqDfsRunDistributedMiningLocally {
 		verbose = false;
 		useCase = thisUseCase;
 		switch (useCase) {
+			case "N0": // a case that matches no sequence.
+			case "N0-1991":
+				patternExp = "flourisher@NN@ flourisher@NN@";
+				sigma = 10;
+				if(useCase.contains("1991")) sigma = sigma / 10;
+				setNytData();
+				break;
 			case "N1-1991":
 			case "N1":
 				patternExp = "ENTITY@ (VB@+ NN@+? IN@?) ENTITY@";
@@ -456,6 +463,11 @@ public class DesqDfsRunDistributedMiningLocally {
 				sigma = 1000;
 				if(useCase.contains("1991")) sigma = sigma / 10;
                 setNytData();
+				break;
+			case "A0":
+				patternExp = "B000BM3MMK B000BM3MMK";
+				sigma = 500;
+				setAmznData();
 				break;
 			case "A1":
 				patternExp = "(Electronics^)[.{0,2}(Electronics^)]{1,4}";
