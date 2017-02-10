@@ -179,11 +179,15 @@ public class OutputNFA {
         return id;
     }
 
+    /** Merges the suffixes of this NFA */
+    public void mergeSuffixes() {
+        attemptMergeGroup(isLeaf, true);
+    }
 
     /** Merges suffixes of this NFA and serializes it. Returns an integer list containing the serialized NFA. */
     public WeightedSequence mergeAndSerialize() {
-        // merge
-        attemptMergeGroup(isLeaf, true);
+        // merge suffixes
+        mergeSuffixes();
 
         // serialize
         WeightedSequence send = new WeightedSequence();
@@ -314,7 +318,7 @@ public class OutputNFA {
     public void exportGraphViz(String file) {
         FstVisualizer fstVisualizer = new FstVisualizer(FilenameUtils.getExtension(file), FilenameUtils.getBaseName(file));
         fstVisualizer.beginGraph();
-        for(int s = 0; s<= numStates; s++) {
+        for(int s = 0; s< numStates; s++) {
             if (mergedInto.getInt(s) == s) {
                 for (Object2IntMap.Entry<OutputLabel> trEntry : outgoingTransitions.get(s).object2IntEntrySet()) {
                     OutputLabel ol = trEntry.getKey();

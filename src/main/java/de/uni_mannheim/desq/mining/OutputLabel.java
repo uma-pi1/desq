@@ -7,12 +7,12 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
  * Specifies the output of a specific input item / transition combination
  *
  */
-class OutputLabel implements Cloneable, Comparable<OutputLabel> {
+public class OutputLabel implements Cloneable, Comparable<OutputLabel> {
     Transition tr;
     int inputItem = -1;
     IntArrayList outputItems;
 
-    OutputLabel(Transition tr, int inputItemFid, IntArrayList outputItems) {
+    public OutputLabel(Transition tr, int inputItemFid, IntArrayList outputItems) {
         this.outputItems = outputItems;
         this.inputItem = inputItemFid;
         this.tr = tr;
