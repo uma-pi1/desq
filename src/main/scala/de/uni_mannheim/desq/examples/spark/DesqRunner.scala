@@ -408,7 +408,11 @@ object DesqRunner {
   }
 
   def setAmznData() {
-    dataDir = baseFolder + "Data/prep/amzn/"
+    var dataset = "amzn"
+    if(runConf.contains("read.partitioned.dataset")) {
+      dataset += "-" + runConf.get("read.partitioned.dataset").get
+    }
+    dataDir = baseFolder + "Data/prep/" + dataset + "/"
   }
 
   def setICDMData() {
