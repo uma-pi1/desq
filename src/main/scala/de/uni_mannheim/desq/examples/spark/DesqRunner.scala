@@ -90,7 +90,7 @@ object DesqRunner {
   def runGrid() {
     val tests = Array("I1@1", "I1@2", "I2", "IA2", "IA4", "IX1", "IX2", "IX3", "IX4")
 //    val scenarios = Array(0, 1, 2, 3, 4, 5, 6)
-    val scenarios = Array(0, 2)
+    val scenarios = Array(0, 1, 2)
 
     var output = ""
     for (testCase <- tests) {

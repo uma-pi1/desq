@@ -99,7 +99,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 	// -- helper variables for distributing --------------------------------------------------------------------------
 	/** Set of output items created by one input sequence */
-	final IntSet pivotItems = new IntAVLTreeSet();
+	final IntSet pivotItems = new IntOpenHashSet();
 
 	/** Storing the current input sequence */
 	protected IntList inputSequence;
@@ -139,6 +139,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 	/** Stores the current path through the FST */
 	private ObjectList<OutputLabel> path = new ObjectArrayList<>();
+
+	/** Stores number of pivot-relevant items in the path (we use this for efficiently finding pivot elements for input sequences) */
+	private IntArrayList outputItemLimits = new IntArrayList();
 
 	/** For each pivot item (and input sequence), we store one NFA producing the output sequences for that pivot item from the current input sequence */
 	private NFAList nfas = new NFAList();
@@ -212,7 +215,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		this.fst = PatExUtils.toFst(ctx.dict, patternExpression);
 
 		// create two pass auxiliary variables (if needed)
-		if (useTwoPass && !skipDfaBuild) { // two-pass
+		if (useTwoPass) { // two-pass
 			// two-pass will always prune irrelevant input sequences, so notify the user when the corresponding
 			// property is not set
 			if (!pruneIrrelevantInputs) {
@@ -231,7 +234,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 
 		// create DFA or reverse DFA (if needed)
-		if(useTwoPass && !skipDfaBuild) {
+		if(useTwoPass && (!skipDfaBuild || !sendNFAs)) {
 			// construct the DFA for the FST (for the first pass)
 			// the DFA is constructed for the reverse FST
 			this.dfa = Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid, true, useLazyDfa);
@@ -286,6 +289,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 		root.clear();
 		currentNode = root;
+		sumInputSupports = 0;
 	}
 
 	// -- processing input sequences ----------------------------------------------------------------------------------
@@ -336,10 +340,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 			currentSpReachedWithoutOutput.clear();
 			incStep(0, fst.getInitialState(), 0, true);
 		}
+
+
+		sumInputSupports += inputSupport;
 	}
-
-
-
 
 	// -- mining ------------------------------------------------------------------------------------------------------
 
@@ -514,40 +518,17 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 	// ---------------- DesqDfs Distributed ---------------------------------------------------------
 
-	/**
-	 * Determine pivot items for one sequence, without storing them
-	 * @param inputSequences
-	 * @param verbose
-	 * @return
-	 * @throws IOException
-	 */
-	public Tuple2<Integer,Integer> determinePivotItemsForSequences(ObjectArrayList<Sequence> inputSequences, boolean verbose) throws IOException {
-		int numSequences = 0;
-		int totalPivotElements = 0;
-		IntSet pivotElements;
-		for(Sequence inputSequence: inputSequences) {
-			pivotElements = getPivotItemsOfOneSequence(inputSequence);
-			totalPivotElements += pivotElements.size();
-			if(verbose) {
-				System.out.println(inputSequence.toString() + " pivots:" + pivotElements.toString());
-			}
-			numSequences++;
-		}
-		return new Tuple2(numSequences,totalPivotElements);
-	}
 
 	/**
-	 * Produces set of frequent output elements created by one input sequence by running the FST
-	 * and storing all frequent output items
-	 *
-	 * We are using one pass for this for now, as it is generally safer to use.
+	 * Returns the set of pivot items for the given input sequence
 	 *
 	 * @param inputSequence
 	 * @return pivotItems set of frequent output items of input sequence inputSequence
 	 */
-	public IntSet getPivotItemsOfOneSequence(IntList inputSequence) {
+	public IntSet generatePivotItems(IntList inputSequence) {
 		pivotItems.clear();
 		this.inputSequence = inputSequence;
+
 		// check whether sequence produces output at all. if yes, produce output items
 		if(useTwoPass) {
 			// Run the DFA to find to determine whether the input has outputs and in which states
@@ -558,7 +539,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				// run the first incStep; start at all positions from which a final FST state can be reached
 				for (int i = 0; i<dfaInitialPos.size(); i++) {
 					// for those positions, start with the initial state
-					piStep(-1, dfaInitialPos.getInt(i), fst.getInitialState(), 0); // TODO: not working at the moment
+					piStep(-1, dfaInitialPos.getInt(i), fst.getInitialState(), 0);
 				}
 
 				// clean up
@@ -569,7 +550,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		} else { // one pass
 
 			if (!pruneIrrelevantInputs || dfa.accepts(inputSequence)) {
-				piStep(-1, 0, fst.getInitialState(), 0); // TODO: not working at the moment
+				piStep(-1, 0, fst.getInitialState(), 0);
 			}
 		}
 		return pivotItems;
@@ -659,11 +640,53 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				}
 
 				if(numPivotsEmitted > maxPivotsForOnePath) maxPivotsForOnePath = numPivotsEmitted;
+
 			} else {
-				// if we don't build the transition representation, just keep track of the pivot items
-//				for(int i=0; i<currentPivotItems.size(); i++) {
-//					pivotItems.add(currentPivotItems.exposeInts()[i]); // This isn't very nice, but it does not drop read elements from the heap. TODO: find a better way?
-//				} // TODO: implement or get rid of this
+			    // If we are not sending NFAs, we are only interested in the pivot items for this sequence.
+				// We extract these pivot items from the output items in the path.
+
+				// we work on subset of the output item sets in the path. In outputItemLimits, we store the index of
+				// the rightmost item of our subset.
+			   	for(int i=0; i<path.size(); i++) {
+			   		if(i >= outputItemLimits.size()) {
+						outputItemLimits.add(path.get(i).outputItems.size() - 1);
+					} else {
+			   			outputItemLimits.set(i, path.get(i).outputItems.size() - 1);
+					}
+				}
+
+			    int nextPivot = largestFidSeenIncoming;
+			    int currentPivot;
+			    int currentLimit;
+
+			    pivotloop:
+			    while(true) {
+			    	// for each pivot item we find, we drop items >= pivot from the output item sets and look for the
+					// next-largest output item, which then will be the next pivot item
+					// we stop when one of the sets in the path is empty
+
+					currentPivot = nextPivot;
+					nextPivot = -1;
+					pivotItems.add(currentPivot);
+
+					// go through each output set in the path
+					for (int i = 0; i < path.size(); i++) {
+						currentLimit = outputItemLimits.getInt(i);
+
+						// drop items >= the current pivot
+						while (path.get(i).outputItems.getInt(currentLimit) >= currentPivot) {
+							currentLimit--;
+
+							// if this set is empty, we have found all pivot items and can stop here
+							if(currentLimit < 0) {
+								break pivotloop;
+							}
+						}
+
+						outputItemLimits.set(i, currentLimit);
+						nextPivot = Math.max(nextPivot, path.get(i).outputItems.getInt(currentLimit));
+					}
+				}
 			}
 		}
 
@@ -769,14 +792,12 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	}
 
 
-
-
 	/**
-	 * Mine with respect to a specific pivot item. e.g, filter out all non-pivot sequences
-	 *   (e.g. filter out all sequences where pivotItem is not the max item)
+	 * Mines for frequent sequences in the given NFAs
 	 * @param pivotItem
+	 * @param inputNFAs
 	 */
-	public void minePivot(int pivotItem, Object2LongOpenHashMap<Sequence> inputNFAs) {
+	public void mineNFAs(int pivotItem, Object2LongOpenHashMap<Sequence> inputNFAs) {
 		this.pivotItem = pivotItem;
 
 		// if we don't have an nfaDecoder from a previous partition, create one
@@ -785,17 +806,29 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 		sumInputSupports = 0;
 		// transform aggregated nfas to a by-state representation
-		for(Object2LongMap.Entry<Sequence> nfaWithWeight : inputNFAs.object2LongEntrySet()) {
-		    Sequence nfa = nfaWithWeight.getKey();
+		for (Object2LongMap.Entry<Sequence> nfaWithWeight : inputNFAs.object2LongEntrySet()) {
+			Sequence nfa = nfaWithWeight.getKey();
 			inputSequences.add(nfaDecoder.convertPathToStateSerialization(nfa, pivotItem).withSupport(nfaWithWeight.getLongValue()));
 			sumInputSupports += nfaWithWeight.getLongValue();
 		}
 
-		// run the normal mine method. Filtering is done in expand() when the patterns are output
-		if(sendNFAs)
-			mineOnNFA();
-		else
-			mine();
+		mineOnNFA();
+
+		this.pivotItem = 0;
+		this.clear(false);
+	}
+
+
+
+	/**
+	 * Mine with respect to a specific pivot item. e.g, filter out all non-pivot sequences
+	 *   (e.g. filter out all sequences where pivotItem is not the max item)
+	 * @param pivotItem
+	 */
+	public void minePivot(int pivotItem) {
+		this.pivotItem = pivotItem;
+
+		mine();
 
 		// reset the pivot item, just to be sure. pivotItem=0 means no filter
 		this.pivotItem = 0;

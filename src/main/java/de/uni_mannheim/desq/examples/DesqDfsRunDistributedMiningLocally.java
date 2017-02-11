@@ -211,7 +211,7 @@ public class DesqDfsRunDistributedMiningLocally {
 				if(!sendNFAs)
 					miner.addInputSequence(weightedNFA.getKey(), weightedNFA.getLongValue(), true);
 			}
-			miner.minePivot(key, partitions.get(key));
+			miner.mineNFAs(key, partitions.get(key));
 
 		}
 

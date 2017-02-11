@@ -59,18 +59,31 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 
         // output (pivot, nfa) pairs
         var nfaIterator:ObjectIterator[OutputNFA] = null
+        var pivotIterator:IntIterator = null
+        var currentInputSequence:Sequence = null
 
         override def hasNext: Boolean = {
-
-          while((nfaIterator == null || !nfaIterator.hasNext) && inputSequences.hasNext) {
-            nfaIterator = baseMiner.generateOutputNFAs(inputSequences.next).getNFAs().iterator(); //int2ObjectEntrySet().fastIterator()
+          if(sendNFAs) {
+            while ((nfaIterator == null || !nfaIterator.hasNext) && inputSequences.hasNext) {
+              nfaIterator = baseMiner.generateOutputNFAs(inputSequences.next).getNFAs().iterator(); //int2ObjectEntrySet().fastIterator()
+            }
+            return nfaIterator.hasNext
+          } else {
+            while ((pivotIterator == null || !pivotIterator.hasNext) && inputSequences.hasNext) {
+              currentInputSequence = inputSequences.next()
+              pivotIterator = baseMiner.generatePivotItems(currentInputSequence).iterator();
+            }
+            return pivotIterator.hasNext
           }
-          nfaIterator.hasNext
         }
 
         override def next(): (Int, Sequence) = {
-          val nfa = nfaIterator.next()
-          (nfa.pivot, nfa.mergeAndSerialize)
+          if(sendNFAs) {
+            val nfa = nfaIterator.next()
+            (nfa.pivot, nfa.mergeAndSerialize)
+          } else {
+            (pivotIterator.nextInt(), currentInputSequence.clone())
+          }
         }
       }
     })
@@ -148,10 +161,13 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
                 for(row : Object2LongMap.Entry[Sequence] <- sequencesIt) {
                     baseMiner.addInputSequence(row.getKey, row.getLongValue, true)
                 }
-            }
 
-            // Mine this partition, only output patterns where the output item is the maximum item
-            baseMiner.minePivot(partitionItem, currentPartition._2)
+                // mine the added input sequences
+                baseMiner.minePivot(partitionItem);
+            } else {
+              // mine the passed NFAs
+              baseMiner.mineNFAs(partitionItem, currentPartition._2)
+            }
 
             // TODO: find a better way to get a Java List accepted as a Scala TraversableOnce
             outputIterator = result.getPatterns().asScala.iterator
