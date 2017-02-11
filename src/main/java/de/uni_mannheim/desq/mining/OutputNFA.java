@@ -76,7 +76,7 @@ public class OutputNFA {
      *
      * @param path
      */
-    protected int addPathAndReturnNextPivot(OutputLabel[] path) {
+    public int addPathAndReturnNextPivot(OutputLabel[] path) {
         numPaths++;
         int currentState;
         int nextLargest = -1, nextLargestInThisSet;
