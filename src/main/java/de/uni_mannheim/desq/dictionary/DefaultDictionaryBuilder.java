@@ -43,8 +43,15 @@ public class DefaultDictionaryBuilder implements DictionaryBuilder {
         int fid = dict.fidOf(sid);
         if (fid < 0) {
             newItem = true;
-            maxGidSoFar++;
-            fid = dict.addItem(maxGidSoFar, sid);
+            int gid = maxGidSoFar++;
+            if (sid.matches("\\d+")) {
+                int potentialGid = Integer.parseInt(sid);
+                if (!dict.containsGid(potentialGid)) {
+                    gid = potentialGid;
+                    maxGidSoFar = Math.max(gid, maxGidSoFar - 1);
+                }
+            }
+            fid = dict.addItem(gid, sid);
         }
         currentFids.add(fid);
         pair.setLeft(fid);
