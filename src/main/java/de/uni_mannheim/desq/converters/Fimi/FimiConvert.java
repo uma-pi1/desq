@@ -47,8 +47,10 @@ public class FimiConvert {
 
     }
 
+    /** Run: java filename dataPath*/
     public static void main(String args[]) throws IOException {
-        String dataPath="data/fimi/retail/retail.dat";
+        //String dataPath="data/fimi/bms/bms.dat";
+        String dataPath=args[0];
         Dictionary dict=new Dictionary();
         try {
             readDat(dataPath,dict);
