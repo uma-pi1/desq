@@ -19,7 +19,7 @@ public class FimiConvert {
         String line;
         List<Integer> data = new ArrayList<>();
         String storePath=dataPath.substring(0,dataPath.lastIndexOf('/')+1);
-        String fileName=dataPath.substring(dataPath.lastIndexOf('/'),dataPath.lastIndexOf('.'))
+        String fileName=dataPath.substring(dataPath.lastIndexOf('/'),dataPath.lastIndexOf('.'));
         while((line=br.readLine())!=null){
             for(String sid: line.split(" ")){
                 builder.appendItem(sid);
@@ -44,7 +44,7 @@ public class FimiConvert {
         }
         outputWriter.flush();
         outputWriter.close();
-        dict.write(storePath+fileName+".json");
+        dict.write(storePath+fileName+"-dict.json");
 
     }
 
