@@ -12,14 +12,13 @@ import it.unimi.dsi.fastutil.ints.IntList;
 import org.apache.log4j.Level;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.*;
-import scala.Tuple2;
 
 import org.apache.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Iterator;
-import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 
 public final class DesqDfs extends MemoryDesqMiner {
@@ -47,7 +46,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 	// -- helper variables --------------------------------------------------------------------------------------------
 
     /** Stores the final state transducer for DesqDfs (one-pass) */
-	private final Fst fst;
+	private static Fst fst;
+
+	/** Flags to help construct and number the FST only once per executor JVM */
+	private static Boolean fstConstructed = false;
+	private static Boolean fstNumbered = false;
 
     /** Stores the largest fid of an item with frequency at least sigma. Zsed to quickly determine
      * whether an item is frequent (if fid <= largestFrequentFid, the item is frequent */
@@ -65,7 +68,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 	// -- helper variables for pruning and twopass --------------------------------------------------------------------
 
 	/** The DFA corresponding to the FST (pruning) or reverse FST (two-pass). */
-	private final Dfa dfa;
+	private static Dfa dfa;
+
+	/** Flag to construct the DFA only once per executor JVM */
+	private static Boolean dfaConstructed = false;
 
     /** For each relevant input sequence, the sequence of states taken by dfa (two-pass only) */
 	private final ArrayList<DfaState[]> dfaStateSequences;
@@ -196,10 +202,12 @@ public final class DesqDfs extends MemoryDesqMiner {
 	public DesqDfs(DesqMinerContext ctx, boolean skipDfaBuild) {
 		super(ctx);
 		sigma = ctx.conf.getLong("desq.mining.min.support");
+		Stopwatch swFid = new Stopwatch().start();
 		if(ctx.dict instanceof MiningDictionary)
 			largestFrequentFid = ((MiningDictionary)ctx.dict).lastFrequentFid();
 		else
 			largestFrequentFid = ctx.dict.lastFidAbove(sigma);
+		System.out.println("find fid:"+swFid.stop().elapsed(TimeUnit.MILLISECONDS));
 
 		pruneIrrelevantInputs = ctx.conf.getBoolean("desq.mining.prune.irrelevant.inputs");
         useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
@@ -210,9 +218,20 @@ public final class DesqDfs extends MemoryDesqMiner {
 		maxNumShuffleOutputItems = ctx.conf.getInt("desq.mining.shuffle.max.num.output.items");
 
 
-		// create FST
+		// create FST once per JVM
+		Stopwatch swFst = new Stopwatch().start();
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
-		this.fst = PatExUtils.toFst(ctx.dict, patternExpression);
+		synchronized (fstConstructed) {
+			if(!fstConstructed) {
+				System.out.println("Constructing FST in thread " + Thread.currentThread().getId());
+				this.fst = PatExUtils.toFst(ctx.dict, patternExpression);
+				fstConstructed = true;
+			} else {
+				System.out.println("Already have FST for thread " + Thread.currentThread().getId());
+			}
+		}
+		System.out.println("Time to create FST at thread " + Thread.currentThread().getId() + ": " + swFst.stop().elapsed(TimeUnit.MILLISECONDS));
+
 
 		// create two pass auxiliary variables (if needed)
 		if (useTwoPass) { // two-pass
@@ -233,18 +252,28 @@ public final class DesqDfs extends MemoryDesqMiner {
 			dfaInitialPos = null;
 		}
 
-		// create DFA or reverse DFA (if needed)
-		if(useTwoPass && (!skipDfaBuild || !sendNFAs)) {
-			// construct the DFA for the FST (for the first pass)
-			// the DFA is constructed for the reverse FST
-			this.dfa = Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid, true, useLazyDfa);
-		} else if (pruneIrrelevantInputs && !skipDfaBuild) {
-			// construct the DFA to prune irrelevant inputs
-			// the DFA is constructed for the forward FST
-			this.dfa = Dfa.createDfa(fst, ctx.dict, largestFrequentFid, false, useLazyDfa);
-		} else {
-			this.dfa = null;
+		// create DFA or reverse DFA (if needed) (once per JVM)
+		Stopwatch swDfa = new Stopwatch().start();
+        synchronized (dfaConstructed) {
+        	if(!dfaConstructed) {
+				System.out.println("Constructing DFA in thread " + Thread.currentThread().getId());
+				if (useTwoPass && (!skipDfaBuild || !sendNFAs)) {
+					// construct the DFA for the FST (for the first pass)
+					// the DFA is constructed for the reverse FST
+					this.dfa = Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid, true, useLazyDfa);
+				} else if (pruneIrrelevantInputs && !skipDfaBuild) {
+					// construct the DFA to prune irrelevant inputs
+					// the DFA is constructed for the forward FST
+					this.dfa = Dfa.createDfa(fst, ctx.dict, largestFrequentFid, false, useLazyDfa);
+				} else {
+					this.dfa = null;
+				}
+				dfaConstructed = true;
+			} else {
+				System.out.println("Already have DFA for thread " + Thread.currentThread().getId());
+			}
 		}
+		System.out.println("Time to create DFA at thread " + Thread.currentThread().getId() + ": "+swDfa.stop().elapsed(TimeUnit.MILLISECONDS));
 
 		if(drawGraphs) fst.exportGraphViz(DesqDfsRunDistributedMiningLocally.useCase + "-fst.pdf");
 
@@ -253,7 +282,14 @@ public final class DesqDfs extends MemoryDesqMiner {
 		currentNode = root;
 		verbose = DesqDfsRunDistributedMiningLocally.verbose;
 
-		fst.numberTransitions();
+
+		// Number FST only once
+		synchronized (fstNumbered) {
+			if(!fstNumbered) {
+				fst.numberTransitions();
+				fstNumbered = true;
+			}
+		}
 
 
         // we need an itCache in deserialization of the NFAs, to produce the output items of transitions
