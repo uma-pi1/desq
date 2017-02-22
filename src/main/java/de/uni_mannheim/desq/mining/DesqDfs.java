@@ -50,6 +50,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 	/** Flags to help construct and number the FST only once per executor JVM */
 	private static String fstConstructedFor = "";
+	private static String fstNumberedFor = "";
 
     /** Stores the largest fid of an item with frequency at least sigma. Zsed to quickly determine
      * whether an item is frequent (if fid <= largestFrequentFid, the item is frequent */
@@ -228,7 +229,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 			} else {
 				System.out.println("Already have FST for thread " + Thread.currentThread().getId());
 			}
-			fst.numberTransitions();
 		}
 		System.out.println("Time to create FST at thread " + Thread.currentThread().getId() + ": " + swFst.stop().elapsed(TimeUnit.MILLISECONDS));
 
@@ -281,6 +281,17 @@ public final class DesqDfs extends MemoryDesqMiner {
 		root = new DesqDfsTreeNode(fst.numStates());
 		currentNode = root;
 		verbose = DesqDfsRunDistributedMiningLocally.verbose;
+
+
+		synchronized (fstNumberedFor) {
+			if(!fstNumberedFor.equals(patternExpression)) {
+				System.out.println("Numbering FST in thread " + Thread.currentThread().getId());
+				fst.numberTransitions();
+				fstNumberedFor = patternExpression;
+			} else {
+				System.out.println("Already numbered FST, thread " + Thread.currentThread().getId());
+			}
+		}
 
 
         // we need an itCache in deserialization of the NFAs, to produce the output items of transitions
