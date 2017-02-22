@@ -49,8 +49,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	private static Fst fst;
 
 	/** Flags to help construct and number the FST only once per executor JVM */
-	private static Boolean fstConstructed = false;
-	private static Boolean fstNumbered = false;
+	private static String fstConstructedFor = "";
 
     /** Stores the largest fid of an item with frequency at least sigma. Zsed to quickly determine
      * whether an item is frequent (if fid <= largestFrequentFid, the item is frequent */
@@ -71,7 +70,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	private static Dfa dfa;
 
 	/** Flag to construct the DFA only once per executor JVM */
-	private static Boolean dfaConstructed = false;
+	private static String dfaConstructedFor = "";
 
     /** For each relevant input sequence, the sequence of states taken by dfa (two-pass only) */
 	private final ArrayList<DfaState[]> dfaStateSequences;
@@ -221,14 +220,15 @@ public final class DesqDfs extends MemoryDesqMiner {
 		// create FST once per JVM
 		Stopwatch swFst = new Stopwatch().start();
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
-		synchronized (fstConstructed) {
-			if(!fstConstructed) {
+		synchronized (fstConstructedFor) {
+			if(!fstConstructedFor.equals(patternExpression)) {
 				System.out.println("Constructing FST in thread " + Thread.currentThread().getId());
 				this.fst = PatExUtils.toFst(ctx.dict, patternExpression);
-				fstConstructed = true;
+				fstConstructedFor = patternExpression;
 			} else {
 				System.out.println("Already have FST for thread " + Thread.currentThread().getId());
 			}
+			fst.numberTransitions();
 		}
 		System.out.println("Time to create FST at thread " + Thread.currentThread().getId() + ": " + swFst.stop().elapsed(TimeUnit.MILLISECONDS));
 
@@ -254,8 +254,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		// create DFA or reverse DFA (if needed) (once per JVM)
 		Stopwatch swDfa = new Stopwatch().start();
-        synchronized (dfaConstructed) {
-        	if(!dfaConstructed) {
+        synchronized (dfaConstructedFor) {
+        	if(!dfaConstructedFor.equals(patternExpression)) {
 				System.out.println("Constructing DFA in thread " + Thread.currentThread().getId());
 				if (useTwoPass && (!skipDfaBuild || !sendNFAs)) {
 					// construct the DFA for the FST (for the first pass)
@@ -268,7 +268,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				} else {
 					this.dfa = null;
 				}
-				dfaConstructed = true;
+				dfaConstructedFor = patternExpression;
 			} else {
 				System.out.println("Already have DFA for thread " + Thread.currentThread().getId());
 			}
@@ -281,15 +281,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 		root = new DesqDfsTreeNode(fst.numStates());
 		currentNode = root;
 		verbose = DesqDfsRunDistributedMiningLocally.verbose;
-
-
-		// Number FST only once
-		synchronized (fstNumbered) {
-			if(!fstNumbered) {
-				fst.numberTransitions();
-				fstNumbered = true;
-			}
-		}
 
 
         // we need an itCache in deserialization of the NFAs, to produce the output items of transitions
