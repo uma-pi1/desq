@@ -243,6 +243,36 @@ object DesqRunner {
         if (useCase.contains("1991")) sigma = sigma / 10
         setNytData()
       }
+      case "N0-full" => {
+        patternExp = "flourisher@NN flourisher@NN"
+        sigma = 10
+        setNytData()
+      }
+      case "N1-full" => {
+        patternExp = "ENTITY (VB+ NN+? IN?) ENTITY"
+        sigma = 10
+        setNytData()
+      }
+      case "N2-full" => {
+        patternExp = "(ENTITY^ VB+ NN+? IN? ENTITY^)"
+        sigma = 100
+        setNytData()
+      }
+      case "N3-full" => {
+        patternExp = "(ENTITY^ be@VB=^) DT? (RB? JJ? NN)"
+        sigma = 10
+        setNytData()
+      }
+      case "N4-full" => {
+        patternExp = "(.^){3} NN"
+        sigma = 1000
+        setNytData()
+      }
+      case "N5-full" => {
+        patternExp = "([.^ . .]|[. .^ .]|[. . .^])"
+        sigma = 1000
+        setNytData()
+      }
       case "A0" => {
         patternExp = "B000BM3MMK B000BM3MMK"
         sigma = 500
@@ -423,6 +453,8 @@ object DesqRunner {
     var dataset = "nyt"
     if(useCase.contains("1991")) {
       dataset = "nyt-1991"
+    } else if (useCase.contains("full")) {
+      dataset = "nyt-full"
     }
     if(runConf.contains("read.partitioned.dataset")) {
       dataset += "-" + runConf.get("read.partitioned.dataset").get
