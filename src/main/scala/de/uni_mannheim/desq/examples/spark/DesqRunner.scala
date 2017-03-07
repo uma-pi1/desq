@@ -178,28 +178,26 @@ object DesqRunner {
     ctx.conf.prettyPrint()
     val miner = DesqMiner.create(ctx)
 
-    val date = new Date()
-    val sdf = new SimpleDateFormat("HHmmss")
-
     // Mine
     var t1 = System.nanoTime // we are not using the Guava stopwatch here due to the packaging conflicts inside Spark (Guava 14)
     print("Mining (RDD construction)... ")
     val result = miner.mine(data)
 
-    // Calculate count and frequency
-    val (count, freq) = result.sequences.map(ws => (1,ws.weight)).fold((0,0L))((a,b) => (a._1+b._1, a._2+b._2))
-    println("Pattern count: " + count)
-    println("Pattern freq:  " + freq)
-    val mineAndOutputTime = (System.nanoTime - t1) / 1e9d
-    logger.fatal("mineAndOutputTime: " + mineAndOutputTime + "s")
+    if(runConf.contains("count.patterns")) {
+      // if count.only flag is passed, we just count the number of output patterns and aggregate their frequencies
+      val (count, freq) = result.sequences.map(ws => (1,ws.weight)).fold((0,0L))((a,b) => (a._1+b._1, a._2+b._2))
+      val cfFolder = "countfreq/" + sc.getConf.get("spark.app.id") + "_" + useCase + "_" + scenario + "_" + runConf.get("run").get
+      println("Writing (count,freq) (" + count + "," + freq + ") to " + cfFolder)
+      sc.parallelize(Array(count, freq), 1).saveAsTextFile(baseFolder + cfFolder)
 
+      (count, freq)
+    } else {
+      // otherwise, we store the patterns
+      val outputFolder = "desq_results/" + sc.getConf.get("spark.app.id") + "_" + useCase + "_" + scenario + "_" + runConf.get("run").get
+      result.sequences.saveAsTextFile(baseFolder + outputFolder);
 
-    // Debug output
-    val cfFolder = "countfreq/" + sc.getConf.get("spark.app.id") + "_" + useCase + "_" + scenario + "_" + runConf.get("run").get
-    println("Writing (count,freq) (" + count + "," + freq + ") to " + cfFolder)
-    sc.parallelize(Array(count, freq), 1).saveAsTextFile(baseFolder + cfFolder)
-
-    (count, freq)
+      (0, 0)
+    }
   }
 
 
