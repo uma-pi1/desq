@@ -17,14 +17,15 @@ import java.io.IOException;
 public class SpmfRunner {
     public static void implementSpmf(DesqProperties minerConf, SequenceReader dataReader) throws IOException {
 
-        //ExampleUtils.runWithStats(dataReader, minerConf);
-        ExampleUtils.runVerbose(dataReader, minerConf);
+        ExampleUtils.runWithStats(dataReader, minerConf);
+        //ExampleUtils.runVerbose(dataReader, minerConf);
 
     }
 
 
     public static void setSpmf(String dataPath, String dictPath,String[] multipleSupp,int loop) throws IOException {
-        String patternExp= "[.*[(item)item*]+(@)]+";
+        String patternExp= "[.*[(item)item*]+(@)]+[.*[(item)item*]+]|[.*[(item)item*]+]";
+        
 
 
         File dataFile=new File(dataPath);
