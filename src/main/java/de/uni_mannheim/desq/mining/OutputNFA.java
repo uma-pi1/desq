@@ -1,5 +1,7 @@
 package de.uni_mannheim.desq.mining;
 
+import de.uni_mannheim.desq.examples.DesqDfsRunDistributedMiningLocally;
+import de.uni_mannheim.desq.examples.spark.DesqRunner;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.graphviz.FstVisualizer;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -184,10 +186,24 @@ public class OutputNFA {
         attemptMergeGroup(isLeaf, true);
     }
 
-    /** Merges suffixes of this NFA and serializes it. Returns an integer list containing the serialized NFA. */
+    /** Serializes this NFA without merging suffixes */
+    public WeightedSequence serialize() {
+        return mergeAndSerialize(false);
+    }
+
+    /** Merges the suffixes of this NFA and serialize it */
     public WeightedSequence mergeAndSerialize() {
+        return mergeAndSerialize(true);
+    }
+
+    /** Serializes this NFA. Before that, it potentially merges the NFAs suffixes. Returns an integer list containing the serialized NFA. */
+    public WeightedSequence mergeAndSerialize(boolean merge) {
         // merge suffixes
-        mergeSuffixes();
+        if(merge)
+            mergeSuffixes();
+
+        if(DesqDfsRunDistributedMiningLocally.drawGraphs)
+            exportGraphViz("nfa-"+ DesqRunner.useCase() + "-s" + DesqRunner.scenario() + "-p" + this.pivot + "-" + Math.random()+".pdf");
 
         // serialize
         WeightedSequence send = new WeightedSequence();

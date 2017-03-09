@@ -10,6 +10,7 @@ import it.unimi.dsi.fastutil.objects._
 import scala.collection.JavaConverters._
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.Partitioner
+import org.apache.spark.rdd.RDD
 
 import collection.JavaConversions._
 
@@ -26,10 +27,9 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     assert(usesFids)  // assume we are using fids (for now)
 
     val sendNFAs = conf.getBoolean("desq.mining.send.nfas")
-    //val numPartitions = conf.getInt("desq.mining.num.mine.partitions")
     val mapRepartition = conf.getInt("desq.mining.map.repartition")
-    val dictHdfs = conf.getString("desq.mining.spark.dict.hdfs", "")
-    val reduceShuffleSequences = conf.getBoolean("desq.mining.reduce.shuffle.sequences", false)
+    val aggregateShuffleSequences = conf.getBoolean("desq.mining.aggregate.shuffle.sequences", false)
+    val mergeSuffixes = conf.getBoolean("desq.mining.merge.suffixes", false)
 
     var mappedSequences = data.sequences
     if(mapRepartition > 0) {
@@ -79,8 +79,12 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 
         override def next(): (Int, Sequence) = {
           if(sendNFAs) {
-            val nfa = nfaIterator.next()
-            (nfa.pivot, nfa.mergeAndSerialize)
+              val nfa = nfaIterator.next()
+              if(mergeSuffixes)
+                  (nfa.pivot, nfa.mergeAndSerialize)
+              else
+                  (nfa.pivot, nfa.serialize)
+
           } else {
             (pivotIterator.nextInt(), currentInputSequence.clone())
           }
@@ -101,86 +105,158 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 //    }.foreach(println)
 
 
-    // Combine into HashMaps
-    val createMap = (nfa:Sequence) => {
-      val map = new Object2LongOpenHashMap[Sequence]()
-      map.put(nfa, 1)
-      map
-    }
+    var patterns:RDD[WeightedSequence] = null
 
-    val addToMap = (map: Object2LongOpenHashMap[Sequence], nfa:Sequence) => {
-      map.addTo(nfa, 1)
-      map
-    }
+    /* We have two variants for running this:
+       (1) aggregate the sequences/NFAs that we send to the partitions by count: combineByKey
+       (2) don't aggregate: groupByKey
+       */
 
-    val mergeMaps = (map1: Object2LongOpenHashMap[Sequence], map2: Object2LongOpenHashMap[Sequence]) => {
-      for(entry: Object2LongMap.Entry[Sequence] <- map2.object2LongEntrySet()) {
-        map1.addTo(entry.getKey, entry.getLongValue)
+    // Variant (1): combineByKey
+    if(aggregateShuffleSequences) {
+      // Combine into HashMaps
+      val createMap = (nfa: Sequence) => {
+        val map = new Object2LongOpenHashMap[Sequence]()
+        map.put(nfa, 1)
+        map
       }
-      map1
-    }
 
-    val combinedSeqs = shuffleSequences.combineByKey(createMap, addToMap, mergeMaps)
+      val addToMap = (map: Object2LongOpenHashMap[Sequence], nfa: Sequence) => {
+        map.addTo(nfa, 1)
+        map
+      }
 
-    // Third, we flatMap over the (output item, Iterable[input sequences]) RDD to mine each partition,
-    //   with respect to the pivot item (=output item) of each partition. 
-    //   At each partition, we only output sequences where the respective output item is the maximum item
-    val patterns = combinedSeqs.mapPartitions(rows => {
-      //val patterns = outputItemPartitions.flatMap { (row) =>
+      val mergeMaps = (map1: Object2LongOpenHashMap[Sequence], map2: Object2LongOpenHashMap[Sequence]) => {
+        for (entry: Object2LongMap.Entry[Sequence] <- map2.object2LongEntrySet()) {
+          map1.addTo(entry.getKey, entry.getLongValue)
+        }
+        map1
+      }
 
-      new Iterator[WeightedSequence] {
-        // grab the necessary variables
-
-        val dict:BasicDictionary = dictBroadcast.value
-
-        val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext()
-        baseContext.dict = dict
-        baseContext.conf = conf
-
-        // Set a memory pattern writer so we are able to retrieve the patterns later
-        val result: MemoryPatternWriter = new MemoryPatternWriter()
-        baseContext.patternWriter = result
-
-        // Set up the miner
-        val baseMiner = new de.uni_mannheim.desq.mining.DesqDfs(baseContext, true) // here in the second stage, we don't use the dfa, so we don't need to build it
-
-        var outputIterator: Iterator[WeightedSequence] = _
-        var currentPartition: (Int, Object2LongOpenHashMap[Sequence]) = _
-        var partitionItem: Int = _
+      val combinedSeqs = shuffleSequences.combineByKey(createMap, addToMap, mergeMaps)
 
 
-        override def hasNext: Boolean = {
-          while ((outputIterator == null || !outputIterator.hasNext) && rows.hasNext) {
-            currentPartition = rows.next()
-            partitionItem = currentPartition._1
+      // Third, we flatMap over the (output item, Iterable[input sequences]) RDD to mine each partition,
+      //   with respect to the pivot item (=output item) of each partition.
+      //   At each partition, we only output sequences where the respective output item is the maximum item
+      patterns = combinedSeqs.mapPartitions(rows => {
+        //val patterns = outputItemPartitions.flatMap { (row) =>
 
-            result.clear()
+        new Iterator[WeightedSequence] {
+          // grab the necessary variables
 
-            if(!sendNFAs) {
+          val dict: BasicDictionary = dictBroadcast.value
+
+          val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext()
+          baseContext.dict = dict
+          baseContext.conf = conf
+
+          // Set a memory pattern writer so we are able to retrieve the patterns later
+          val result: MemoryPatternWriter = new MemoryPatternWriter()
+          baseContext.patternWriter = result
+
+          // Set up the miner
+          val baseMiner = new de.uni_mannheim.desq.mining.DesqDfs(baseContext, true) // here in the second stage, we don't use the dfa, so we don't need to build it
+
+          var outputIterator: Iterator[WeightedSequence] = _
+          var currentPartition: (Int, Object2LongOpenHashMap[Sequence]) = _
+          var partitionItem: Int = _
+
+
+          override def hasNext: Boolean = {
+            while ((outputIterator == null || !outputIterator.hasNext) && rows.hasNext) {
+              currentPartition = rows.next()
+              partitionItem = currentPartition._1
+
+              result.clear()
+
+              if (!sendNFAs) {
                 val sequencesIt = currentPartition._2.object2LongEntrySet()
-                for(row : Object2LongMap.Entry[Sequence] <- sequencesIt) {
-                    baseMiner.addInputSequence(row.getKey, row.getLongValue, true)
+                for (row: Object2LongMap.Entry[Sequence] <- sequencesIt) {
+                  baseMiner.addInputSequence(row.getKey, row.getLongValue, true)
                 }
 
                 // mine the added input sequences
                 baseMiner.minePivot(partitionItem);
-            } else {
-              // mine the passed NFAs
-              baseMiner.mineNFAs(partitionItem, currentPartition._2)
+              } else {
+                // mine the passed NFAs
+                baseMiner.mineNFAs(partitionItem, currentPartition._2)
+              }
+
+              // TODO: find a better way to get a Java List accepted as a Scala TraversableOnce
+              outputIterator = result.getPatterns().asScala.iterator
             }
-
-            // TODO: find a better way to get a Java List accepted as a Scala TraversableOnce
-            outputIterator = result.getPatterns().asScala.iterator
+            if (outputIterator == null) return false
+            outputIterator.hasNext
           }
-          if(outputIterator == null) return false
-          outputIterator.hasNext
-        }
 
-        override def next: WeightedSequence = {
-          outputIterator.next()
+          override def next: WeightedSequence = {
+            outputIterator.next()
+          }
         }
-      }
-    })
+      })
+
+    // Variant 2: groupByKey
+    } else {
+
+        patterns = shuffleSequences.groupByKey().mapPartitions(rows => {
+            //val patterns = outputItemPartitions.flatMap { (row) =>
+
+            new Iterator[WeightedSequence] {
+                // grab the necessary variables
+
+                val dict: BasicDictionary = dictBroadcast.value
+
+                val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext()
+                baseContext.dict = dict
+                baseContext.conf = conf
+
+                // Set a memory pattern writer so we are able to retrieve the patterns later
+                val result: MemoryPatternWriter = new MemoryPatternWriter()
+                baseContext.patternWriter = result
+
+                // Set up the miner
+                val baseMiner = new de.uni_mannheim.desq.mining.DesqDfs(baseContext, true) // here in the second stage, we don't use the dfa, so we don't need to build it
+
+                var outputIterator: Iterator[WeightedSequence] = _
+                var currentPartition: (Int, Iterable[Sequence]) = _
+                var partitionItem: Int = _
+
+
+                override def hasNext: Boolean = {
+                    while ((outputIterator == null || !outputIterator.hasNext) && rows.hasNext) {
+                        currentPartition = rows.next()
+                        partitionItem = currentPartition._1
+
+                        result.clear()
+
+                        if (!sendNFAs) {
+                            val sequencesIt = currentPartition._2.iterator
+                            for(seq <- sequencesIt) {
+                                baseMiner.addInputSequence(seq, 1, true)
+                            }
+
+                            // mine the added input sequences
+                            baseMiner.minePivot(partitionItem);
+                        } else {
+                            // mine the passed NFAs
+                            baseMiner.mineNFAs(partitionItem, currentPartition._2.asJava)
+                        }
+
+                        // TODO: find a better way to get a Java List accepted as a Scala TraversableOnce
+                        outputIterator = result.getPatterns().asScala.iterator
+                    }
+                    if (outputIterator == null) return false
+                    outputIterator.hasNext
+                }
+
+                override def next: WeightedSequence = {
+                    outputIterator.next()
+                }
+            }
+        })
+    }
+
 
     // all done, return result (last parameter is true because mining.DesqCount always produces fids)
     new DesqDataset(patterns, data, true)

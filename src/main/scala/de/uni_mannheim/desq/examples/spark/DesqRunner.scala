@@ -38,7 +38,7 @@ object DesqRunner {
   var mergeSuffixes: Boolean = _
   var useDesqCount: Boolean = _
   var useTwoPass: Boolean = _
-  var maxNumberShuffleOutputItems: Integer = _
+  var aggregateShuffleSequences: Boolean = _
 
   val runConf = scala.collection.mutable.Map[String,String]()
 
@@ -81,6 +81,7 @@ object DesqRunner {
       runDesq()
     } else {
       setDataLoc("")
+      runConf.put("count.patterns", "true")
 //      prepDataset(); System.exit(0)
 //      runGrid(); System.exit(0)
       runDesq("T2-A-200-3-1", 2, 1)
@@ -90,7 +91,7 @@ object DesqRunner {
   def runGrid() {
     val tests = Array("I1@1", "I1@2", "I2", "IA2", "IA4", "IX1", "IX2", "IX3", "IX4")
 //    val scenarios = Array(0, 1, 2, 3, 4, 5, 6)
-    val scenarios = Array(0, 1, 2)
+    val scenarios = Array(0, 1, 2, 3, 4)
 
     var output = ""
     for (testCase <- tests) {
@@ -162,7 +163,7 @@ object DesqRunner {
     minerConf.setProperty("desq.mining.use.two.pass", useTwoPass)
     minerConf.setProperty("desq.mining.send.nfas", sendNFAs)
     minerConf.setProperty("desq.mining.merge.suffixes", mergeSuffixes)
-    minerConf.setProperty("desq.mining.shuffle.max.num.output.items", maxNumberShuffleOutputItems)
+    minerConf.setProperty("desq.mining.aggregate.shuffle.sequences", aggregateShuffleSequences)
 
     minerConf.setProperty("desq.mining.map.repartition", runConf.get("map.repartition").get)
 
@@ -389,21 +390,30 @@ object DesqRunner {
     sendNFAs = false
     mergeSuffixes = false
     useDesqCount = false
-    useTwoPass = false
-    maxNumberShuffleOutputItems = 2
+    useTwoPass = true
+    aggregateShuffleSequences = false
     scenario match {
       case 0 =>
-        scenarioStr = "Count, shuffle output sequences"
+        scenarioStr = "DDesqCount"
         useDesqCount = true
-        useTwoPass = true
       case 1 =>
-        scenarioStr = "Dfs, shuffle input sequences"
-        useTwoPass = true
+        scenarioStr = "DDesqIP-I"
+        aggregateShuffleSequences = false
       case 2 =>
-        scenarioStr = "Dfs, shuffle transition DAGs, two-pass, generalize inputs"
+        scenarioStr = "DDesqIP-NFA"
         sendNFAs = true
         mergeSuffixes = true
-        useTwoPass = true
+        aggregateShuffleSequences = true
+      case 3 =>
+        scenarioStr = "DDesqIP-Tree"
+        sendNFAs = true
+        mergeSuffixes = false
+        aggregateShuffleSequences = false
+      case 4 =>
+        scenarioStr = "DDesqIP-NFA-NC"
+        sendNFAs = true
+        mergeSuffixes = true
+        aggregateShuffleSequences = false
       case _ =>
         System.out.println("Unknown variant")
         System.exit(0)

@@ -125,9 +125,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** If true, DesqDfs Distributed merges shared suffixes in the tree representation */
 	final boolean mergeSuffixes;
 
-	/** Maximum number of output items to shuffle. More output items are encoded using transition numbers */
-	final int maxNumShuffleOutputItems;
-
 	/** Stores one Transition iterator per recursion level for reuse */
 	final ArrayList<Iterator<Transition>> transitionIterators = new ArrayList<>();
 
@@ -215,7 +212,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		sendNFAs = ctx.conf.getBoolean("desq.mining.send.nfas", false);
 		mergeSuffixes = ctx.conf.getBoolean("desq.mining.merge.suffixes", false);
-		maxNumShuffleOutputItems = ctx.conf.getInt("desq.mining.shuffle.max.num.output.items");
 
 
 		// create FST once per JVM
@@ -831,7 +827,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 
 	/**
-	 * Mines for frequent sequences in the given NFAs
+	 * Mines for frequent sequences in the given HashMap of aggregated NFAs
 	 * @param pivotItem
 	 * @param inputNFAs
 	 */
@@ -848,6 +844,31 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			Sequence nfa = nfaWithWeight.getKey();
 			inputSequences.add(nfaDecoder.convertPathToStateSerialization(nfa, pivotItem).withSupport(nfaWithWeight.getLongValue()));
 			sumInputSupports += nfaWithWeight.getLongValue();
+		}
+
+		mineOnNFA();
+
+		this.pivotItem = 0;
+		this.clear(false);
+	}
+
+	/**
+	 * Mines for frequent sequences form the given Iterable of NFAs
+	 * @param pivotItem
+	 * @param inputNFAs
+	 */
+	public void mineNFAs(int pivotItem, Iterable<Sequence> inputNFAs) {
+		this.pivotItem = pivotItem;
+
+		// if we don't have an nfaDecoder from a previous partition, create one
+		if(nfaDecoder == null)
+			nfaDecoder = new NFADecoder(fst, itCaches.get(0));
+
+		sumInputSupports = 0;
+		// transform aggregated nfas to a by-state representation
+        for(Sequence nfa : inputNFAs) {
+			inputSequences.add(nfaDecoder.convertPathToStateSerialization(nfa, pivotItem).withSupport(1));
+			sumInputSupports += 1;
 		}
 
 		mineOnNFA();
