@@ -40,7 +40,7 @@ public class SpmfConverter extends DefaultDictionaryAndSequenceBuilder{
             //splitting itemsets
             for(String sid:line.split(" ")){
                 try {
-                    //checking if the item is separator as separator is already added initially
+                    //checking if the item is separator because separator is already added initially
                     if (Integer.parseInt(sid) < 0){
                         if(Integer.parseInt(sid)==-1){
                             builder.currentFids.add(builder.dict.fidOf("@"));
@@ -68,7 +68,12 @@ public class SpmfConverter extends DefaultDictionaryAndSequenceBuilder{
             data.addAll(Arrays.asList(line.split(sep)));
             //removing the last item="-2"
             data.remove(data.size()-1);
+            //"itemsetCount" and "itemsetCheck" is to keep a count of which itemset is being printed to a file to prevent "@"
+            // from being concatenated after the last itemset
+            int itemsetCount=data.size();
+            int itemsetCheck=0;
             for(String lineItems:data){
+                itemsetCheck++;
                 for(String sid:lineItems.trim().split(" ")){
                     dataItems.add(builder.dict.fidOf(sid));
                 }
@@ -76,7 +81,9 @@ public class SpmfConverter extends DefaultDictionaryAndSequenceBuilder{
                 for(int it:dataItems){
                     outputWriter.write(builder.dict.gidOf(it)+" ");
                 }
-                outputWriter.write(builder.dict.gidOf("@")+" ");
+                if(itemsetCheck!=itemsetCount){
+                    outputWriter.write(builder.dict.gidOf("@")+" ");
+                }
                 dataItems.clear();
             }
             outputWriter.newLine();
