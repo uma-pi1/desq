@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.converters.nyt;
 
+import com.google.common.io.Files;
 import de.uni_mannheim.desq.converters.nyt.avroschema.Article;
 import de.uni_mannheim.desq.converters.nyt.avroschema.Sentence;
 import de.uni_mannheim.desq.converters.nyt.avroschema.Token;
@@ -41,12 +42,13 @@ public class ConvertNyt {
     private static final Set<String> POS_SET = new HashSet<String>(Arrays.asList(POS_VALUES));
 
     // IO paths
-    String pathToAvroFiles = "";
+    String pathToAvroFiles = "data-local/NYTimesProcessed/results";
+//    String pathToAvroFiles = "data-local/nyt-1991-data/sequences/";
 
-    String processedNytDataFileGid = "";
-    String processedNytDataFileFid = "";
-    String processedNytDictFileJson = "";
-    String processedNytDictFileAvro = "";
+    String processedNytDataFileGid = "data-local/processed/nyt_all/gid_all.del";
+    String processedNytDataFileFid = "data-local/processed/nyt_all/fid_all.del";
+    String processedNytDictFileJson = "data-local/processed/nyt_all/dict_all.json";
+    String processedNytDictFileAvro = "data-local/processed/nyt_all/dict_all.avro.gz";
 
 
     public void buildDesqDataset() throws IOException {
@@ -57,7 +59,12 @@ public class ConvertNyt {
 
         // Create desqbuilder and writers
         DefaultDictionaryBuilder dictionaryBuilder = new DefaultDictionaryBuilder();
-        SequenceWriter sequenceWriter = new DelSequenceWriter(new FileOutputStream(processedNytDataFileGid), false);
+        File outFile = new File(processedNytDataFileGid);
+        File parentFile = outFile.getParentFile();
+        if (!parentFile.exists()) {
+            parentFile.mkdirs();
+        }
+        SequenceWriter sequenceWriter = new DelSequenceWriter(new FileOutputStream(outFile), false);
         IntList itemFids = new IntArrayList();
 
         // Var to hold return vals from dictionary builder
@@ -70,6 +77,9 @@ public class ConvertNyt {
         for (File folder: subDirs){
             File [] listOfFiles = folder.listFiles();
                 for (File f: listOfFiles){
+                    if(!Files.getFileExtension(f.getPath()).contains("avro")){
+                        continue;
+                    }
                 DatumReader<Article> userDatumReader = new SpecificDatumReader<>(Article.class);
                 DataFileReader<Article> dataFileReader = new DataFileReader<>(f, userDatumReader);
                 Article article = null;
@@ -149,7 +159,7 @@ public class ConvertNyt {
 
                                 // 1) Add item to sequence
                                 word = word + "@" + lemma + "@" + pos;
-                                apiResult = dictionaryBuilder.appendItem(word);
+                               apiResult = dictionaryBuilder.appendItem(word);
                                 itemFid = apiResult.getLeft();
                                 itemFids.add(itemFid);
                                 newItem = apiResult.getRight();
@@ -191,7 +201,7 @@ public class ConvertNyt {
         dictionary.recomputeFids();
         sequenceReader.close();
 
-        logger.info("Wwriting dictionary");
+        logger.info("Writing dictionary");
         dictionary.write(processedNytDictFileJson);
         dictionary.write(processedNytDictFileAvro);
 
@@ -261,8 +271,6 @@ public class ConvertNyt {
 
         return subdirs;
     }
-
-
 
 
     public  static  void main(String[] args) throws IOException {
