@@ -48,8 +48,9 @@ public class DesqDfsDriver extends Driver {
 
         DesqMinerContext ctx = new DesqMinerContext();
         ctx.dict = dict;
-        //DelPatternWriter patternWriter = new DelPatternWriter(new FileOutputStream(outFile), DelPatternWriter.TYPE.SID);
-        //ctx.patternWriter = patternWriter;
+//        DelPatternWriter patternWriter = new DelPatternWriter(new FileOutputStream(outFile), DelPatternWriter.TYPE.SID);
+//        patternWriter.setDictionary(dict);
+//        ctx.patternWriter = patternWriter;
         CountPatternWriter result = new CountPatternWriter();
         ctx.patternWriter = result;
 
@@ -70,7 +71,7 @@ public class DesqDfsDriver extends Driver {
         miner.mine();
         miningTime.stop();
 
-        //patternWriter.close();
+//        patternWriter.close();
         result.close();
 
 
