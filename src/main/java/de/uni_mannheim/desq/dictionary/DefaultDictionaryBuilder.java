@@ -30,7 +30,7 @@ public class DefaultDictionaryBuilder implements DictionaryBuilder {
     }
 
     /** Informs the dictionary builder that a new input sequences is being processed. Must also be called after
-      * the last input sequence has been processed. */
+     * the last input sequence has been processed. */
     public void newSequence(long weight) {
         dict.incFreqs(currentFids, itemCfreqs, ascendantFids, true, currentWeight);
         currentWeight = weight;
@@ -43,7 +43,7 @@ public class DefaultDictionaryBuilder implements DictionaryBuilder {
         int fid = dict.fidOf(sid);
         if (fid < 0) {
             newItem = true;
-            int gid = maxGidSoFar++;
+            int gid = ++maxGidSoFar;
             if (sid.matches("\\d+")) {
                 int potentialGid = Integer.parseInt(sid);
                 if (!dict.containsGid(potentialGid)) {

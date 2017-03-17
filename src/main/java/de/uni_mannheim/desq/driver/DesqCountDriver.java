@@ -52,7 +52,8 @@ public class DesqCountDriver extends Driver {
 
         DesqMinerContext ctx = new DesqMinerContext();
         ctx.dict = dict;
-        //DelPatternWriter patternWriter = new DelPatternWriter(new FileOutputStream(outFile), DelPatternWriter.TYPE.SID);
+//        DelPatternWriter patternWriter = new DelPatternWriter(new FileOutputStream(outFile), DelPatternWriter.TYPE.SID);
+//        patternWriter.setDictionary(dict);
         //ctx.patternWriter = patternWriter;
         CountPatternWriter result = new CountPatternWriter();
         ctx.patternWriter = result;
