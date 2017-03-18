@@ -28,8 +28,7 @@ class SpmfNetflix extends DefaultDictionaryAndSequenceBuilder{
       }
       newSequence()
     }
-    dict.recomputeFids
-    dict.write(storePath+"test.json")
+
 
 
     val items = new mutable.ArrayBuffer[String]
@@ -95,6 +94,7 @@ class SpmfNetflix extends DefaultDictionaryAndSequenceBuilder{
           }
           if(sidCheck+1!=sidCount){
             fileWriter.print(dict.gidOf("@")+" ")
+            currentFids.add(dict.fidOf("@"))
             //fileWriter.print("-1 ")
           }
 
@@ -109,9 +109,10 @@ class SpmfNetflix extends DefaultDictionaryAndSequenceBuilder{
 
       }
       fileWriter.print("\n")
-
+      newSequence()
     }
-
+    dict.recomputeFids
+    dict.write(storePath+"test.json")
   }
 }
 
