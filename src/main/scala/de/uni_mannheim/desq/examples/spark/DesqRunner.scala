@@ -272,6 +272,16 @@ object DesqRunner {
         sigma = 1000
         setNytData()
       }
+      case r"N4-full-o(\d+)$o" => {
+        patternExp = "(.^){3} NN"
+        sigma = o.toInt
+        setNytData()
+      }
+      case r"N5-full-o(\d+)$o" => {
+        patternExp = "([.^ . .]|[. .^ .]|[. . .^])"
+        sigma = o.toInt
+        setNytData()
+      }
       case "A0" => {
         patternExp = "B000BM3MMK B000BM3MMK"
         sigma = 500
