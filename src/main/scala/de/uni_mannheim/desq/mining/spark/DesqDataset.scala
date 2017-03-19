@@ -75,6 +75,7 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
 
     // and put them in the dictionary
     val newDict = dict.deepCopy()
+    newDict.clearFreqs() // reset all frequencies to 0 (important for items that do not occur in totalItemFreqs)
     for (itemFreqs <- totalItemFreqs) {
       val fid = if (usesFids) itemFreqs._1 else newDict.fidOf(itemFreqs._1)
       newDict.setDfreqOf(fid, itemFreqs._2._1)
