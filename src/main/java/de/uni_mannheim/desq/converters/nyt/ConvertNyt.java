@@ -42,13 +42,13 @@ public class ConvertNyt {
     private static final Set<String> POS_SET = new HashSet<String>(Arrays.asList(POS_VALUES));
 
     // IO paths
-    String pathToAvroFiles = "data-local/NYTimesProcessed/results";
+    String pathToAvroFiles = "data-local/NYTimesProcessed/results/2005";
 //    String pathToAvroFiles = "data-local/nyt-1991-data/sequences/";
 
-    String processedNytDataFileGid = "data-local/processed/nyt_all/gid_all.del";
-    String processedNytDataFileFid = "data-local/processed/nyt_all/fid_all.del";
-    String processedNytDictFileJson = "data-local/processed/nyt_all/dict_all.json";
-    String processedNytDictFileAvro = "data-local/processed/nyt_all/dict_all.avro.gz";
+    String processedNytDataFileGid = "data-local/processed/nyt_2005/gid.del";
+    String processedNytDataFileFid = "data-local/processed/nyt_2005/fid.del";
+    String processedNytDictFileJson = "data-local/processed/nyt_2005/dict.json";
+    String processedNytDictFileAvro = "data-local/processed/nyt_2005/dict.avro.gz";
 
 
     public void buildDesqDataset() throws IOException {
@@ -87,7 +87,6 @@ public class ConvertNyt {
                 while (dataFileReader.hasNext()) {
                     article = dataFileReader.next(article);
                     articleCount++;
-
                     for(Sentence sentence : article.getSentences()) {
                         sentenceCount++;
                         if(sentenceCount%500000 == 0) {

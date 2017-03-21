@@ -44,15 +44,15 @@ public class DesqDfsDriver extends Driver {
         if (!parentFile.exists()) {
             parentFile.mkdirs();
         }
-        outFile.delete();
+//        outFile.delete();
 
         DesqMinerContext ctx = new DesqMinerContext();
         ctx.dict = dict;
-//        DelPatternWriter patternWriter = new DelPatternWriter(new FileOutputStream(outFile), DelPatternWriter.TYPE.SID);
-//        patternWriter.setDictionary(dict);
-//        ctx.patternWriter = patternWriter;
-        CountPatternWriter result = new CountPatternWriter();
-        ctx.patternWriter = result;
+        DelPatternWriter patternWriter = new DelPatternWriter(new FileOutputStream(outFile), DelPatternWriter.TYPE.SID);
+        patternWriter.setDictionary(dict);
+        ctx.patternWriter = patternWriter;
+//        CountPatternWriter result = new CountPatternWriter();
+//        ctx.patternWriter = result;
 
         ctx.conf = DesqDfs.createConf(patternExpression, sigma);
         ctx.conf.setProperty("desq.mining.prune.irrelevant.inputs", pruneIrrelevantInputs);
@@ -71,8 +71,8 @@ public class DesqDfsDriver extends Driver {
         miner.mine();
         miningTime.stop();
 
-//        patternWriter.close();
-        result.close();
+        patternWriter.close();
+//        result.close();
 
 
         StringBuilder stringBuilder = new StringBuilder();
@@ -80,8 +80,8 @@ public class DesqDfsDriver extends Driver {
         stringBuilder.append(constructionTime.elapsed(TimeUnit.SECONDS) + ", ");
         stringBuilder.append(readInputTime.elapsed(TimeUnit.SECONDS) + ", ");
         stringBuilder.append(miningTime.elapsed(TimeUnit.SECONDS) + ", ");
-        stringBuilder.append(result.getCount() + ", ");
-        stringBuilder.append(result.getTotalFrequency());
+//        stringBuilder.append(result.getCount() + ", ");
+//        stringBuilder.append(result.getTotalFrequency());
 
         logger.info(stringBuilder.toString());
 
