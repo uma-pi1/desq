@@ -4,235 +4,92 @@ import com.google.common.io.Files;
 import de.uni_mannheim.desq.converters.nyt.avroschema.Article;
 import de.uni_mannheim.desq.converters.nyt.avroschema.Sentence;
 import de.uni_mannheim.desq.converters.nyt.avroschema.Token;
-import de.uni_mannheim.desq.dictionary.DefaultDictionaryBuilder;
-import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.io.DelSequenceReader;
-import de.uni_mannheim.desq.io.DelSequenceWriter;
-import de.uni_mannheim.desq.io.SequenceReader;
-import de.uni_mannheim.desq.io.SequenceWriter;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntList;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.specific.SpecificDatumReader;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
-import java.io.*;
-import java.util.*;
+import java.io.File;
+import java.io.FileFilter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
 
 /**
  * Convert NYT dataset to Desq format. We treat each sentence as an input sequence, and
  * create semantic and syntactic hierarchy. Requires NYT articles annotated in Avro format.
+ * Set the boolean flag to true in order to split the dataset by the online sections.
  *
  * @author kbeedkar {kbeedkar@uni-mannheim.de}.
+ * @author igoseman
  */
 public class ConvertNyt {
-
     private static final Logger logger = Logger.getLogger(ConvertNyt.class.getSimpleName());
-    private static final String ENTITY = "ENTITY";
-
-    private static final String[] POS_VALUES = new String[] {
-            "CC","CD","DT","EX","FW","IN","JJ","JJR","JJS","LS","MD",
-            "NN","NNS","NNP","NNPS","PDT","POS","PRP","PRP$",
-            "RB","RBR","RBS","RP","SYM","TO","UH",
-            "VB","VBD","VBG","VBN","VBP","VBZ","WDT","WP","WP$","WRB"
-    };
-    private static final Set<String> POS_SET = new HashSet<String>(Arrays.asList(POS_VALUES));
 
     // IO paths
     String pathToAvroFiles = "data-local/NYTimesProcessed/results/2005";
-//    String pathToAvroFiles = "data-local/nyt-1991-data/sequences/";
-
-    String processedNytDataFileGid = "data-local/processed/nyt_2005/gid.del";
-    String processedNytDataFileFid = "data-local/processed/nyt_2005/fid.del";
-    String processedNytDictFileJson = "data-local/processed/nyt_2005/dict.json";
-    String processedNytDictFileAvro = "data-local/processed/nyt_2005/dict.avro.gz";
+    //    String pathToAvroFiles = "data-local/nyt-1991-data/sequences/";
+    String pathToOutputDir = "data-local/processed/nyt_2005/";
 
 
-    public void buildDesqDataset() throws IOException {
+    public void buildDesqDataset(boolean splitByNewsroom) throws IOException {
 
-        int sentenceCount = 0;
-        int articleCount = 0;
-
-
-        // Create desqbuilder and writers
-        DefaultDictionaryBuilder dictionaryBuilder = new DefaultDictionaryBuilder();
-        File outFile = new File(processedNytDataFileGid);
-        File parentFile = outFile.getParentFile();
-        if (!parentFile.exists()) {
-            parentFile.mkdirs();
-        }
-        SequenceWriter sequenceWriter = new DelSequenceWriter(new FileOutputStream(outFile), false);
-        IntList itemFids = new IntArrayList();
-
-        // Var to hold return vals from dictionary builder
-        Pair<Integer, Boolean> apiResult;
-        int itemFid;
-        boolean newItem;
-
+//        // Create desqbuilder and writers
+        HashMap<String, Newsroom> newsrooms = new HashMap<>();
+        Newsroom newsroom;
+        String newsroomName = "";
         // Iterate through the list of files
         List<File> subDirs = getLeafSubdirs(new File(pathToAvroFiles));
-        for (File folder: subDirs){
-            File [] listOfFiles = folder.listFiles();
-                for (File f: listOfFiles){
-                    if(!Files.getFileExtension(f.getPath()).contains("avro")){
-                        continue;
-                    }
+        for (File folder : subDirs) {
+            File[] listOfFiles = folder.listFiles();
+            for (File f : listOfFiles) {
+                if (!Files.getFileExtension(f.getPath()).contains("avro")) {
+                    continue;
+                }
                 DatumReader<Article> userDatumReader = new SpecificDatumReader<>(Article.class);
                 DataFileReader<Article> dataFileReader = new DataFileReader<>(f, userDatumReader);
                 Article article = null;
 
                 while (dataFileReader.hasNext()) {
                     article = dataFileReader.next(article);
-                    articleCount++;
-                    for(Sentence sentence : article.getSentences()) {
-                        sentenceCount++;
-                        if(sentenceCount%500000 == 0) {
-                            logger.info("Processed " + sentenceCount + " sentences and " + articleCount + " articles");
+                    if (splitByNewsroom) {
+                        if (article.getOnlineSections().length() > 0) {
+                            newsroomName = article.getOnlineSections().split(";")[0];
+                        } else {
+                            newsroomName = "undefined";
                         }
-
-
-                        // Inform the dictionary about starting a new sequence
-                        dictionaryBuilder.newSequence();
-                        itemFids.clear(); //TODO: Dictionary Builder should support this
-
-                        List<Token> tokens =  sentence.getTokens();
-
-                        for(int i = 0; i < tokens.size(); i++) {
-                            Token token = tokens.get(i);
-                            String word = token.getWord().toLowerCase();
-                            String ner = token.getNer();
-                            String lemma = token.getLemma();
-                            String pos = token.getPos();
-
-                            // If the word is named entity (person or location, or organization
-                            //if(!ner.equals("O")) {
-                            if(ner.equals("PERSON") || ner.equals("LOCATION") || ner.equals("ORGANIZATION")) {
-                                String nerPlus = ner;
-                                String wordPlus = word;
-                                int j = i + 1;
-                                for(; j < tokens.size(); j++) {
-                                    token = tokens.get(j);
-                                    ner = token.getNer();
-                                    word = token.getWord().toLowerCase();
-                                    if(!nerPlus.equals(ner)) {
-                                        break;
-                                    } else {
-                                        wordPlus = wordPlus + "_" + word;
-                                    }
-                                    i = j;
-                                }
-
-                                // add wordPlus -> nePlus -> entity to hierarchy
-
-                                // 1) Add item to sequence
-                                wordPlus = wordPlus + "@" + nerPlus + "@" + ENTITY;
-                                apiResult = dictionaryBuilder.appendItem(wordPlus);
-                                itemFid = apiResult.getLeft();
-                                itemFids.add(itemFid);
-                                newItem = apiResult.getRight();
-
-
-                                // 2) If its a new item, we add parents
-                                if (newItem) {
-                                    nerPlus = nerPlus+ "@" + ENTITY;
-                                    apiResult = dictionaryBuilder.addParent(itemFid, nerPlus);
-                                    itemFid = apiResult.getLeft();
-                                    newItem = apiResult.getRight();
-
-                                    // If we have not yet added this ner
-                                    if(newItem) {
-                                        dictionaryBuilder.addParent(itemFid, ENTITY);
-                                    }
-                                }
-                                continue;
-                            }
-
-                            // If the word is not a named entity (additionally ignore punctuation)
-                            if(POS_SET.contains(pos)) {
-                                pos = shortenPos(pos);
-
-                                // add word -> lemma -> pos to hierarchy
-
-                                // 1) Add item to sequence
-                                word = word + "@" + lemma + "@" + pos;
-                               apiResult = dictionaryBuilder.appendItem(word);
-                                itemFid = apiResult.getLeft();
-                                itemFids.add(itemFid);
-                                newItem = apiResult.getRight();
-
-                                // 2) If its a new item, add parents
-                                if (newItem) {
-                                    lemma = lemma + "@" + pos;
-                                    apiResult = dictionaryBuilder.addParent(itemFid, lemma);
-                                    itemFid = apiResult.getLeft();
-                                    newItem = apiResult.getRight();
-
-                                    if (newItem) {
-                                        dictionaryBuilder.addParent(itemFid, pos);
-                                    }
-                                }
-                            }
-
-                        }
-                        // We read all tokens, write sequence
-                        sequenceWriter.write(itemFids);
-                        //System.out.println(dictionaryBuilder.getDictionary().sidsOfGids(itemFids).toString());
+                    } else {
+                        newsroomName = "all";
+                    }
+                    if (newsrooms.containsKey(newsroomName)) {
+                        newsrooms.get(newsroomName).processArticle(article);
+                    } else {
+                        newsroom = new Newsroom(pathToOutputDir, newsroomName);
+                        newsrooms.put(newsroomName, newsroom);
+                        newsroom.processArticle(article);
                     }
                 }
                 dataFileReader.close();
             }
         }
-        dictionaryBuilder.newSequence();
-        itemFids.clear();
-        sequenceWriter.close();
-
-        logger.info("Processed " + sentenceCount + " sentences and " + articleCount + " articles");
-
-        logger.info("Updating dictionary");
-        // scan sequence gids and count again
-        SequenceReader sequenceReader = new DelSequenceReader(new FileInputStream(processedNytDataFileGid), false);
-        Dictionary dictionary = dictionaryBuilder.getDictionary();
-        dictionary.clearFreqs();
-        dictionary.incFreqs(sequenceReader);
-        dictionary.recomputeFids();
-        sequenceReader.close();
-
-        logger.info("Writing dictionary");
-        dictionary.write(processedNytDictFileJson);
-        dictionary.write(processedNytDictFileAvro);
-
-
-        // Write sequences as fids
-        logger.info("Writing sequences as fids");
-        sequenceReader = new DelSequenceReader(new FileInputStream(processedNytDataFileGid), false);
-        sequenceWriter = new DelSequenceWriter(new FileOutputStream(processedNytDataFileFid), false);
-        sequenceWriter.setDictionary(dictionary);
-        while(sequenceReader.read(itemFids)) {
-            dictionary.gidsToFids(itemFids);
-            sequenceWriter.write(itemFids);
+        int articleCount = 0;
+        int sentenceCount = 0;
+        for (Newsroom room : newsrooms.values()) {
+            articleCount += room.getArticleCount();
+            sentenceCount += room.getSentenceCount();
+            room.shutdown();
         }
-        sequenceWriter.close();
-        sequenceReader.close();
-    }
-
-
-    public static String shortenPos(String pos) {
-        String result = pos;
-        if(pos.length() > 2) {
-            result = pos.substring(0,2);
-        }
-        return result;
+        logger.info("Processed a total of " + sentenceCount + " sentences and " + articleCount + " articles in " + newsrooms.size() + " different newsrooms.");
     }
 
     /**
      * Given a sentence, return the string of the sentence
      */
-    public static String getSentenceString(Sentence s){
+    public static String getSentenceString(Sentence s) {
         StringBuilder sbSentence = new StringBuilder();
-        for (Token t: s.getTokens()){
+        for (Token t : s.getTokens()) {
             sbSentence.append(t.getWord());
             sbSentence.append(" ");
         }
@@ -240,16 +97,15 @@ public class ConvertNyt {
     }
 
     // Get all the leaf sub-directories
-    public static List<File> getLeafSubdirs(File file){
+    public static List<File> getLeafSubdirs(File file) {
         List<File> leafSubdirs = new ArrayList<File>();
         List<File> allSubdirs = getSubdirs(file);
 
-        for (File f: allSubdirs){
-            File [] subfiles = f.listFiles();
-            File [] subSubFiles = subfiles[0].listFiles();
+        for (File f : allSubdirs) {
+            File[] subfiles = f.listFiles();
+            File[] subSubFiles = subfiles[0].listFiles();
             if (subSubFiles == null) leafSubdirs.add(f);
         }
-
         return leafSubdirs;
     }
 
@@ -263,7 +119,7 @@ public class ConvertNyt {
         subdirs = new ArrayList<File>(subdirs);
 
         List<File> deepSubdirs = new ArrayList<File>();
-        for(File subdir : subdirs) {
+        for (File subdir : subdirs) {
             deepSubdirs.addAll(getSubdirs(subdir));
         }
         subdirs.addAll(deepSubdirs);
@@ -271,11 +127,10 @@ public class ConvertNyt {
         return subdirs;
     }
 
-
-    public  static  void main(String[] args) throws IOException {
-        logger.setLevel(Level.INFO);
+    public static void main(String[] args) throws IOException {
         ConvertNyt nyt = new ConvertNyt();
-        nyt.buildDesqDataset();
+        nyt.buildDesqDataset(false);
+
     }
 
 }
