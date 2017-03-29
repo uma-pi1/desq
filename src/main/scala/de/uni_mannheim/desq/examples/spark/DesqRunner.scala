@@ -307,6 +307,33 @@ object DesqRunner {
         sigma = 100
         setAmznData()
       }
+          // ------------------------------------------------------
+      case "A0-large" => {
+        patternExp = "B000BM3MMK B000BM3MMK"
+        sigma = 500
+        setAmznData()
+      }
+      case "A1-large" => {
+        patternExp = "(Electronics@^)[.{0,2}(Electronics@^)]{1,4}"
+        sigma = 500
+        setAmznData()
+      }
+      case "A2-large" => {
+        patternExp = "(Books@)[.{0,2}(Books@)]{1,4}"
+        sigma = 100
+        setAmznData()
+      }
+      case "A3-large" => {
+        patternExp = "\"Digital Cameras@Camera & Photo@Electronics@\"[.{0,3}(.^)]{1,4}"
+        sigma = 100
+        setAmznData()
+      }
+      case "A4-large" => {
+        patternExp = "(\"Musical Instruments@\"^)[.{0,2}(\"Musical Instruments@\"^)]{1,4}"
+        sigma = 100
+        setAmznData()
+      }
+        // -----------------------------------------------------
       case r"T1-(N|A|N1991)$d-(\d+)$o-(\d+)$l" => { // T1-[dataset]-[omega]-[lambda]
         patternExp = "(.){1,"+l.toInt+"}"
         sigma = o.toInt
@@ -457,6 +484,9 @@ object DesqRunner {
 
   def setAmznData() {
     var dataset = "amzn"
+    if(useCase.contains("large"))
+      dataset = "amazon-large"
+
     if(runConf.contains("read.partitioned.dataset")) {
       dataset += "-" + runConf.get("read.partitioned.dataset").get
     }
