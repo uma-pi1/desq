@@ -334,12 +334,12 @@ object DesqRunner {
         setAmznData()
       }
         // -----------------------------------------------------
-      case r"T1-(N|A|N1991)$d-(\d+)$o-(\d+)$l" => { // T1-[dataset]-[omega]-[lambda]
+      case r"T1-(N|A|N1991|C|C25|C50)$d-(\d+)$o-(\d+)$l" => { // T1-[dataset]-[omega]-[lambda]
         patternExp = "(.){1,"+l.toInt+"}"
         sigma = o.toInt
         handleDataset(d)
       }
-      case r"T2-(N|A|N1991)$d-(\d+)$o-(\d+)$l-(\d+)$g" => { // T1-[dataset]-[omega]-[lambda]-[gamma]
+      case r"T2-(N|A|N1991|C|C25|C50)$d-(\d+)$o-(\d+)$l-(\d+)$g" => { // T2-[dataset]-[omega]-[lambda]-[gamma]
         patternExp = "(.)[.{0,"+g.toInt+"}(.)]{1,"+(l.toInt-1)+"}"
         sigma = o.toInt
         handleDataset(d)
@@ -476,6 +476,8 @@ object DesqRunner {
       setAmznData()
     else if(d.equals("I"))
       setICDMData()
+    else if(d.charAt(0).equals('C'))
+      setCWData()
     else {
       println("Unkown dataset " + d + ". Exiting.")
       System.exit(1)
@@ -495,6 +497,14 @@ object DesqRunner {
 
   def setICDMData() {
     dataDir = baseFolder + "Data/prep/icdm16fids/"
+  }
+
+  def setCWData() {
+    var dataset = "50"
+    if(useCase.contains("25")) {
+      dataset = "25"
+    }
+    dataDir = "hdfs:///data/clueweb-mpii/cw-sen-seq-"+dataset+"-DesqDataset/"
   }
 
   def setNytData() {
