@@ -159,34 +159,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 	public long counterTotalRecursions = 0;
 	private boolean verbose;
 	private boolean drawGraphs = DesqDfsRunDistributedMiningLocally.drawGraphs;
-	private int numSerializedStates = 0;
-
-	/** Stop watches and counters */
-	public Stopwatch swFirstPass = new Stopwatch();
-	public Stopwatch swSecondPass = new Stopwatch();
-	public Stopwatch swPrep = new Stopwatch();
-	public Stopwatch swSetup = new Stopwatch();
-	public Stopwatch swTrim = new Stopwatch();
-	public Stopwatch swMerge = new Stopwatch();
-	public Stopwatch swSerialize = new Stopwatch();
-	public Stopwatch swReplace = new Stopwatch();
-	public long maxNumStates = 0;
-	public long maxRelevantSuccessors = 0;
-	public long counterTrimCalls = 0;
-	public long counterFollowGroupCalls = 0;
-	public long counterIsMergeableIntoCalls = 0;
-	public long counterFollowTransitionCalls = 0;
-	public long counterTransitionsCreated = 0;
-	public long counterSerializedStates = 0;
-	public long counterSerializedTransitions = 0;
-	public long counterPathsAdded = 0;
-	public long maxFollowGroupSetSize = 0;
-	public long maxPivotsForOneSequence = 0;
-	public long maxPivotsForOnePath = 0;
-	public long maxNumOutTrs = 0;
-	public long counterPrunedOutputs = 0;
-	public long maxNumOutputItems = 0;
-
 
 
 
@@ -430,7 +402,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					// in the two pass algorithm, we don't need to consider empty-output paths that reach the initial state
 					// because we'll start from those positions later on anyway. Those paths are only possible
 					// in DesqDfs when we expand the empty prefix (equiv. current node is root)
-					// NOT NEEDED ANYMORE (covered by indexing below)
+					// not needed anymore (covered by indexing below)
 					// if (useTwoPass && current.node==root && toState == fst.getInitialState()) {
 					//	continue;
 					// }
@@ -550,7 +522,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 
 
-	// ---------------- DesqDfs Distributed ---------------------------------------------------------
+	// ---------------- Distributed ---------------------------------------------------------
 
 
 	/**
@@ -603,32 +575,22 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		this.inputSequence = inputSequence;
 		path.clear();
 		nfas.clear();
-		// TODO: experiment whether nfas.trim() helps here
 
 		if(useTwoPass) {
 			dfaStateSequence.clear();
-			swFirstPass.start();
 			if (dfa.acceptsReverse(inputSequence, dfaStateSequence, dfaInitialPos)) {
 
-				swFirstPass.stop();
 				// run the first incStep; start at all positions from which a final FST state can be reached
-				swSecondPass.start();
 				for (int i = 0; i < dfaInitialPos.size(); i++) {
 					piStep(-1, dfaInitialPos.getInt(i), fst.getInitialState(), 0);
 				}
-				swSecondPass.stop();
 
 				// clean up
 				dfaInitialPos.clear();
-			} else {
-				swFirstPass.stop();
 			}
 		} else {
 			piStep(-1, 0, fst.getInitialState(), 0);
 		}
-
-
-		if(nfas.size() > maxPivotsForOneSequence) maxPivotsForOneSequence = nfas.size();
 
 		return nfas;
 	}
@@ -650,8 +612,6 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			processedPathSize = path.size();
 
 			if(sendNFAs) {
-				counterPathsAdded++;
-
 				// make a deep copy of the path, as we will kick items out of the sets
 				OutputLabel[] pathCopy = new OutputLabel[path.size()];
 				for(int i=0; i<pathCopy.length; i++) {
@@ -672,9 +632,6 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					// add the path to the pivot (incl. kicking out items>pivot) and retrieve next pivot item
 					pivotItem = nfa.addPathAndReturnNextPivot(pathCopy);
 				}
-
-				if(numPivotsEmitted > maxPivotsForOnePath) maxPivotsForOnePath = numPivotsEmitted;
-
 			} else {
 			    // If we are not sending NFAs, we are only interested in the pivot items for this sequence.
 				// We extract these pivot items from the output items in the path.
@@ -966,10 +923,8 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			// output the patterns for the current child node if it turns out to be frequent
 			if (support >= sigma) {
 				// if we are mining a specific pivot partition (meaning, pivotItem>0), then we output only sequences with that pivot
-				if (ctx.patternWriter != null && (pivotItem==0 || pivot(prefix) == pivotItem)) { // TODO: investigate what is pruned here (whether we can improve)
+				if (ctx.patternWriter != null && (pivotItem==0 || pivot(prefix) == pivotItem)) {
 					ctx.patternWriter.write(prefix, support);
-				} else {
-					counterPrunedOutputs++;
 				}
 			}
 			// expandOnNFA the child node
@@ -1015,9 +970,9 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	}
 
 	/**
-	 * Determines the pivot item of a sequence
+	 * Returns the pivot item of the given sequence
 	 * @param sequence
-	 * @return
+	 * @return pivot item
 	 */
 	private int pivot(IntList sequence) {
 		int pivotItem = 0;
@@ -1027,6 +982,11 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		return pivotItem;
 	}
 
+	/**
+	 * Returns the pivot item of the given path
+	 * @param path
+	 * @return pivot items
+	 */
 	private int pivot(OutputLabel[] path) {
 		int pivot = -1;
 		for(OutputLabel ol : path) {
@@ -1034,7 +994,4 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		}
 		return pivot;
 	}
-
-
-
 }
