@@ -263,41 +263,6 @@ public class DesqDfsRunDistributedMiningLocally {
 			e.printStackTrace();
 		}
 
-		try{
-			PrintWriter writer = new PrintWriter(new FileOutputStream(new File(baseFolder + "Dropbox/Master/Thesis/Experiments/H/timings-"+runVersion+".txt"), true));
-			String timings = expNo + "\t" + theCase + "\t" + scenarioStr + "\t" + run + "\t" +
-					miner.swFirstPass.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					miner.swSecondPass.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					miner.swPrep.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					miner.swSetup.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					miner.swTrim.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					miner.swMerge.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					miner.swSerialize.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					miner.swReplace.elapsed(TimeUnit.MILLISECONDS) + "\t" +
-					miner.maxNumStates + "\t" +
-					miner.maxRelevantSuccessors + "\t" +
-					miner.counterTrimCalls + "\t" +
-					miner.counterFollowGroupCalls + "\t" +
-					miner.counterIsMergeableIntoCalls + "\t" +
-					miner.counterFollowTransitionCalls + "\t" +
-					miner.counterTransitionsCreated + "\t" +
-					miner.counterSerializedStates + "\t" +
-					miner.counterSerializedTransitions + "\t" +
-					miner.counterPathsAdded + "\t" +
-					miner.maxFollowGroupSetSize + "\t" +
-					miner.maxPivotsForOneSequence + "\t" +
-					miner.maxPivotsForOnePath + "\t" +
-					miner.maxNumOutTrs + "\t" +
-					miner.counterPrunedOutputs + "\t" +
-					miner.maxNumOutputItems + "\t" +
-					"";
-
-			writer.println(timings);
-			writer.close();
-		} catch (Exception e) {
-			System.out.println("Can't open file!");
-			e.printStackTrace();
-		}
 
 		return new Tuple2(patCount, patTotalFreq);
 	}
