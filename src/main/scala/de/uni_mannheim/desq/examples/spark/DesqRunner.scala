@@ -299,32 +299,20 @@ object DesqRunner {
                 setAmznData()
             }
             // -- Traditional frequent sequence mining constraints ---------------------------------------------
-            // traditional constraints: no hierarchy, max length, only consecutive sequences: T1-[ds]-[omega]-[lambda]
-            case r"T1-(N|A|N1991|C|C25|C50)$d-(\d+)$o-(\d+)$l" => {
-                patternExp = "(.){1," + l.toInt + "}"
-                sigma = o.toInt
-                handleDataset(d)
-            }
-            // traditional constraints: no hierarchy, max length, max gap (e.g. MG-FSM): T2-[ds]-[omega]-[lambda]-[gamma]
-            case r"T2-(N|A|N1991|C|C25|C50)$d-(\d+)$o-(\d+)$l-(\d+)$g" => {
+            // traditional constraints: no hierarchy, max length, max gap (e.g. MG-FSM): M-[ds]-[omega]-[lambda]-[gamma]
+            case r"M-(.+)$d-(\d+)$o-(\d+)$g-(\d+)$l" => {
                 patternExp = "(.)[.{0," + g.toInt + "}(.)]{1," + (l.toInt - 1) + "}"
                 sigma = o.toInt
                 handleDataset(d)
             }
-            // traditional constraints: with hierarchy, max length, only consecutive sequences: G1-[ds]-[omega]-[lambda]
-            case r"G1-(N|A|N1991)$d-(\d+)$o-(\d+)$l" => {
-                patternExp = "(.^){1," + l.toInt + "}"
-                sigma = o.toInt
-                handleDataset(d)
-            }
-            // traditional constraints: with hierarchy, max length, max gap (e.g. LASH): G2-[ds]-[omega]-[lambda]-[gamma]
-            case r"G2-(N|A|N1991|I)$d-(\d+)$o-(\d+)$l-(\d+)$g" => {
+            // traditional constraints: with hierarchy, max length, max gap (e.g. LASH): L-[ds]-[omega]-[lambda]-[gamma]
+            case r"L-(.+)$d-(\d+)$o-(\d+)$g-(\d+)$l" => {
                 patternExp = "(.^)[.{0," + g.toInt + "}(.^)]{1," + (l.toInt - 1) + "}"
                 sigma = o.toInt
                 handleDataset(d)
             }
             // traditional constraints: no hierarchy, max length  (e.g. PrefixSpan): S-[ds]-[omega]-[maxLength]
-            case r"S-(N|A|N1991)$d-(\d+)$o-(\d+)$m" => {
+            case r"S-(N|A|N1991|Nfull)$d-(\d+)$o-(\d+)$m" => {
                 patternExp = "(.)[.*(.)]{," + m.toInt + "}"
                 sigma = o.toInt
                 handleDataset(d)
