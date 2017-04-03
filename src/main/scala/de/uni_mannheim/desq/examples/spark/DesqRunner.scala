@@ -461,8 +461,11 @@ object DesqRunner {
         var dataset = "50"
         if (useCase.contains("25")) {
             dataset = "25"
+            dataDir = "hdfs:///data/clueweb-mpii/cw-sen-seq-" + dataset + "-DesqDataset/"
+        } else {
+            dataDir = "hdfs:///user/alex/clueweb-mpii/cw-sen-seq-50-DesqDataset-p2048"
         }
-        dataDir = "hdfs:///data/clueweb-mpii/cw-sen-seq-" + dataset + "-DesqDataset/"
+
     }
 
     def setNytData() {
