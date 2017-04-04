@@ -12,10 +12,7 @@ import org.apache.log4j.Logger;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 /**
  * Convert NYT dataset to Desq format. We treat each sentence as an input sequence, and
@@ -29,9 +26,9 @@ public class ConvertNyt {
     private static final Logger logger = Logger.getLogger(ConvertNyt.class.getSimpleName());
 
     // IO paths
-    String pathToAvroFiles = "data-local/NYTimesProcessed/results/2005";
+    String pathToAvroFiles = "data-local/NYTimesProcessed/results/2007/06";
     //    String pathToAvroFiles = "data-local/nyt-1991-data/sequences/";
-    String pathToOutputDir = "data-local/processed/nyt_2005/";
+    String pathToOutputDir = "data-local/processed/nyt_200701/";
 
 
     public void buildDesqDataset(boolean splitByNewsroom) throws IOException {
@@ -42,6 +39,9 @@ public class ConvertNyt {
         String newsroomName = "";
         // Iterate through the list of files
         List<File> subDirs = getLeafSubdirs(new File(pathToAvroFiles));
+        if (!(subDirs.size() > 0)) {
+            subDirs = Arrays.asList(new File(pathToAvroFiles));
+        }
         for (File folder : subDirs) {
             File[] listOfFiles = folder.listFiles();
             for (File f : listOfFiles) {
@@ -65,10 +65,13 @@ public class ConvertNyt {
                     }
                     if (newsrooms.containsKey(newsroomName)) {
                         newsrooms.get(newsroomName).processArticle(article);
+//                        newsrooms.get(newsroomName).getCounts(article);
                     } else {
                         newsroom = new Newsroom(pathToOutputDir, newsroomName);
-                        newsrooms.put(newsroomName, newsroom);
+                        newsroom.initialize();
                         newsroom.processArticle(article);
+                        newsrooms.put(newsroomName, newsroom);
+//                        newsrooms.get(newsroomName).getCounts(article);
                     }
                 }
                 dataFileReader.close();
@@ -80,6 +83,7 @@ public class ConvertNyt {
             articleCount += room.getArticleCount();
             sentenceCount += room.getSentenceCount();
             room.shutdown();
+//            room.shutdownSimple();
         }
         logger.info("Processed a total of " + sentenceCount + " sentences and " + articleCount + " articles in " + newsrooms.size() + " different newsrooms.");
     }

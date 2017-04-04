@@ -16,10 +16,10 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import java.io.*;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.*;
 
 /**
  * Created by ivo on 23.03.17.
@@ -60,10 +60,14 @@ public class Newsroom {
         this.dictionaryBuilder = new DefaultDictionaryBuilder();
         this.outputRoot = outputDir;
         this.newsroomName = newsroomName;
-        this.processedNytDataFileFid = outputDir + newsroomName + this.processedNytDataFileFid;
-        this.processedNytDataFileGid = outputDir + newsroomName + this.processedNytDataFileGid;
-        this.processedNytDictFileJson = outputDir + newsroomName + this.processedNytDictFileJson;
-        this.processedNytDictFileAvro = outputDir + newsroomName + this.processedNytDictFileAvro;
+    }
+
+    public void initialize() throws FileNotFoundException {
+        this.dictionaryBuilder = new DefaultDictionaryBuilder();
+        this.processedNytDataFileFid = this.outputRoot + newsroomName + this.processedNytDataFileFid;
+        this.processedNytDataFileGid = this.outputRoot + newsroomName + this.processedNytDataFileGid;
+        this.processedNytDictFileJson = this.outputRoot + newsroomName + this.processedNytDictFileJson;
+        this.processedNytDictFileAvro = this.outputRoot + newsroomName + this.processedNytDictFileAvro;
         File outFile = new File(processedNytDataFileGid);
         File parentFile = outFile.getParentFile();
         if (!parentFile.exists()) {
@@ -109,11 +113,38 @@ public class Newsroom {
         sequenceReader.close();
     }
 
+    public void shutdownSimple() {
+        try {
+            String path = this.outputRoot + "statistics.txt";
+            File outFile = new File(path);
+            File parentFile = outFile.getParentFile();
+            if (!parentFile.exists()) {
+                parentFile.mkdirs();
+            }
+            if (!outFile.exists()) {
+                outFile.createNewFile();
+                Files.write(Paths.get(outFile.getPath()), "newsroom, articlecount, sentencecount".getBytes(), StandardOpenOption.APPEND);
+            }
+
+
+            logger.info(this.newsroomName + " has " + articleCount + " articles and " + sentenceCount + " sentences");
+            String result = this.newsroomName + "," + this.articleCount + "," + this.sentenceCount + "\n";
+            Files.write(Paths.get(path), result.getBytes(), StandardOpenOption.APPEND);
+        } catch (IOException e) {
+            logger.warn("Exception writing the statistics for " + this.newsroomName + "to file");
+        }
+    }
+
+    public void getCounts(Article article) {
+        articleCount++;
+        sentenceCount += article.getSentences().size();
+    }
+
     public void processArticle(Article article) {
         articleCount++;
         for (Sentence sentence : article.getSentences()) {
             sentenceCount++;
-            if (sentenceCount % 100000 == 0) {
+            if (sentenceCount % 500000 == 0) {
                 logger.info("Processed " + sentenceCount + " sentences and " + articleCount + " articles in Newsroom " + newsroomName);
             }
 
