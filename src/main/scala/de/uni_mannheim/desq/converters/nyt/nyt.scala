@@ -1,21 +1,19 @@
 package de.uni_mannheim.desq.converters.nyt
 
-import java.io.{File, FileInputStream, ObjectInputStream}
+import java.io.File
 import java.util
 
+import com.google.common.io.Files
 import de.uni_mannheim.desq.comparing.{DesqCompareMulti, DesqCountMulti}
 import de.uni_mannheim.desq.converters.nyt.avroschema.{Article, Sentence, Span}
-import de.uni_mannheim.desq.dictionary.{DefaultDictionaryBuilder, Dictionary}
+import de.uni_mannheim.desq.dictionary.DefaultDictionaryBuilder
 import it.unimi.dsi.fastutil.ints.IntArrayList
-import org.apache.avro.file.DataFileReader
-import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericRecord}
 import org.apache.spark._
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.{Row, SparkSession}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 /**
   * Created by ivo on 22.03.17.
@@ -28,45 +26,26 @@ class nyt(val rootDir: String) {
 
   val subDirs = ConvertNyt.getLeafSubdirs(new File(rootDir))
 
-  def createIndex {
-    for (dir: File <- subDirs.asScala; file: File <- dir.listFiles() if (file.getAbsolutePath.endsWith("avro"))) {
-      val schema = Article.SCHEMA$
-      val userDatumReader = new GenericDatumReader[GenericRecord](schema)
-      val dataFileReader = new DataFileReader[GenericRecord](file, userDatumReader)
-      val printSections = ListBuffer[String]()
-      var article: GenericRecord = null
-
-      val index: util.HashMap[Integer, util.HashSet[String]] = null
-
-      val fis = new FileInputStream("./data-local/processed/nyt_200701/all/index.ser")
-      var ois = new ObjectInputStream(fis)
-      val map = ois.readObject().asInstanceOf[util.HashMap[Integer, util.HashSet[String]]]
-      ois.close()
-      fis.close()
-      val terms = "Trump"
-      val fullDict = Dictionary.loadFrom("data-local/processed/nyt_200701/all/dict.avro.gz")
-      val fid = fullDict.fidOf(terms)
-      val relevantDocs = map.get(fid)
-      while (dataFileReader.hasNext) {
-        article = dataFileReader.next()
-        val articleID = article.get("filename")
-        val sentences = article.get("sentences").asInstanceOf[GenericData.Array[GenericRecord]]
-
-
-      }
-      for (section <- printSections) println(section)
-    }
-  }
 
   def readNytSpark: Unit = {
     val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
     implicit val sc = new SparkContext(conf)
-    val path = "./data-local/NYTimesProcessed/results/2005/01/part-r-00000.avro"
+    val path = "./data-local/NYTimesProcessed/results/2005"
+    val subDirs = ConvertNyt.getLeafSubdirs(new File(path))
+    val paths = for (folder: File <- subDirs.asScala;
+                     file: File <- folder.listFiles();
+                     if Files.getFileExtension(file.getPath()).endsWith("avro")
+    ) yield {
+      file.getPath()
+    }
+
+
     val job = AvroUtils.getJobInputKeyAvroSchema(Article.SCHEMA$)
     val schema = Article.SCHEMA$
     val spark = SparkSession.builder().master("local").getOrCreate()
 
-    val articles = spark.read.format("com.databricks.spark.avro").option("avroSchema", schema.toString).load(path).cache()
+    val articles = paths.toList.map(path => spark.read.format("com.databricks.spark.avro").option("avroSchema", schema.toString).load(path)).reduce((df1, df2) => df1.union(df2)).cache
+    //    val articles = spark.read.format("com.databricks.spark.avro").option("avroSchema", schema.toString).load(path).cache()
 
     import org.apache.spark.sql.functions._
     val sentences = articles.select(articles.col("filename"), explode(articles.col("sentences")))
@@ -80,13 +59,13 @@ class nyt(val rootDir: String) {
 
     val uniqueByKey = index.aggregateByKey(initialSet)(addTokenDocPair, mergeSets)
 
-    val filter = uniqueByKey.filter(_._1.matches("Trump"))
+    val filter = uniqueByKey.filter(_._1.matches("Trump")).filter(!_._1.matches("Clinton"))
     val articlesFiltered = articles.filter(articles.col("filename").isin(filter.collect().apply(0)._2.toList: _*))
 
-    val filterRight = uniqueByKey.filter(_._1.matches("Clinton"))
+    val filterRight = uniqueByKey.filter(_._1.matches("Clinton")).filter(!_._1.matches("Trump"))
     val articlesFilteredRight = articles.filter(articles.col("filename").isin(filterRight.collect().apply(0)._2.toList: _*))
 
-    val roomRight = new Newsroom("./data-local/processed/results/","right")
+    val roomRight = new Newsroom("./data-local/processed/results/", "right")
     roomRight.initialize()
     for (article <- articlesFilteredRight.collect()) {
       val avroArticle = convertToArticle(article)
@@ -103,10 +82,15 @@ class nyt(val rootDir: String) {
     room.shutdown()
 
     val multi = DesqCountMulti.run()
-   val compare = new DesqCompareMulti(multi)
-    compare.compare(compare.leftCurrent, compare.itLeft, compare.rightCurrent, compare.itRight)
-
-
+    val compare = new DesqCompareMulti(multi)
+    val leftSeq = compare.compare(compare.leftDataset, compare.rightDataset)
+    val rightSeq = compare.compare(compare.leftDataset, compare.rightDataset)
+    leftSeq.sequences
+    println("*******************************************LEFT SEQUENCES*******************************************")
+    leftSeq.print()
+    println("*******************************************RIGHT SEQUENCES******************************************")
+    rightSeq.print()
+    //    compare.compare(compare.leftCurrent, compare.itLeft, compare.rightCurrent, compare.itRight)
   }
 
 

@@ -4,16 +4,13 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 import com.google.common.base.Stopwatch
-
-import scala.collection.JavaConverters._
-import de.uni_mannheim.desq.mining.spark.{DesqCount, DesqDataset, DesqMiner, DesqMinerContext}
-import de.uni_mannheim.desq.Desq._
 import de.uni_mannheim.desq.converters.nyt.ConvertNyt
 import de.uni_mannheim.desq.dictionary.Dictionary
-import de.uni_mannheim.desq.mining.WeightedSequence
+import de.uni_mannheim.desq.mining.spark.{DesqCount, DesqDataset, DesqMiner, DesqMinerContext}
 import de.uni_mannheim.desq.util.DesqProperties
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.SparkContext
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 /**
@@ -21,11 +18,8 @@ import scala.collection.mutable
   */
 object DesqCountMulti {
   def run()(implicit sc: SparkContext): mutable.Buffer[(String, DesqMiner, DesqDataset)] = {
-//    val confSpark = new SparkConf().setAppName(getClass.getName).setMaster("local")
-//    initDesq(confSpark)
-//    implicit val sc = new SparkContext(confSpark)
     val patternExpression = "(.){3,5}"
-    val sigma = 10;
+    val sigma = 100;
 
     val confDesq = DesqCount.createConf(patternExpression, sigma)
     confDesq.setProperty("desq.mining.prune.irrelevant.inputs", true)
