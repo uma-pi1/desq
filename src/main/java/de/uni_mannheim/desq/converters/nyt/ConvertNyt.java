@@ -42,12 +42,12 @@ public class ConvertNyt {
         if (!(subDirs.size() > 0)) {
             subDirs = Arrays.asList(new File(pathToAvroFiles));
         }
-        for (File folder : subDirs) {
-            File[] listOfFiles = folder.listFiles();
-            for (File f : listOfFiles) {
-                if (!Files.getFileExtension(f.getPath()).contains("avro")) {
-                    continue;
-                }
+    for (File folder : subDirs) {
+        File[] listOfFiles = folder.listFiles();
+        for (File f : listOfFiles) {
+            if (!Files.getFileExtension(f.getPath()).endsWith("avro")) {
+                continue;
+            }
                 DatumReader<Article> userDatumReader = new SpecificDatumReader<>(Article.class);
                 DataFileReader<Article> dataFileReader = new DataFileReader<>(f, userDatumReader);
                 Article article = null;
