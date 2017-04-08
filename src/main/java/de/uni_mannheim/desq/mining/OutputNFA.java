@@ -202,9 +202,6 @@ public class OutputNFA {
         if(merge)
             mergeSuffixes();
 
-        if(DesqDfsRunDistributedMiningLocally.drawGraphs)
-            exportGraphViz("nfa-"+ DesqRunner.useCase() + "-s" + DesqRunner.scenario() + "-p" + this.pivot + "-" + Math.random()+".pdf");
-
         // serialize
         WeightedSequence send = new WeightedSequence();
         numSerializedStates = 0;

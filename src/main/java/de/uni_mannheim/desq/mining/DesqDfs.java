@@ -176,7 +176,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 			largestFrequentFid = ((MiningDictionary)ctx.dict).lastFrequentFid();
 		else
 			largestFrequentFid = ctx.dict.lastFidAbove(sigma);
-		System.out.println("find fid:"+swFid.stop().elapsed(TimeUnit.MILLISECONDS));
 
 		pruneIrrelevantInputs = ctx.conf.getBoolean("desq.mining.prune.irrelevant.inputs");
         useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
@@ -191,14 +190,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
 		synchronized (fstConstructedFor) {
 			if(!fstConstructedFor.equals(patternExpression)) {
-				System.out.println("Constructing FST in thread " + Thread.currentThread().getId());
 				this.fst = PatExUtils.toFst(ctx.dict, patternExpression);
 				fstConstructedFor = patternExpression;
-			} else {
-				System.out.println("Already have FST for thread " + Thread.currentThread().getId());
 			}
 		}
-		System.out.println("Time to create FST at thread " + Thread.currentThread().getId() + ": " + swFst.stop().elapsed(TimeUnit.MILLISECONDS));
 
 
 		// create two pass auxiliary variables (if needed)
@@ -224,7 +219,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 		Stopwatch swDfa = new Stopwatch().start();
         synchronized (dfaConstructedFor) {
         	if(!dfaConstructedFor.equals(patternExpression)) {
-				System.out.println("Constructing DFA in thread " + Thread.currentThread().getId());
 				if (useTwoPass && (!skipDfaBuild || !sendNFAs)) {
 					// construct the DFA for the FST (for the first pass)
 					// the DFA is constructed for the reverse FST
@@ -237,11 +231,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 					this.dfa = null;
 				}
 				dfaConstructedFor = patternExpression;
-			} else {
-				System.out.println("Already have DFA for thread " + Thread.currentThread().getId());
 			}
 		}
-		System.out.println("Time to create DFA at thread " + Thread.currentThread().getId() + ": "+swDfa.stop().elapsed(TimeUnit.MILLISECONDS));
 
 		if(drawGraphs) fst.exportGraphViz(DesqDfsRunDistributedMiningLocally.useCase + "-fst.pdf");
 
@@ -253,11 +244,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		synchronized (fstNumberedFor) {
 			if(!fstNumberedFor.equals(patternExpression)) {
-				System.out.println("Numbering FST in thread " + Thread.currentThread().getId());
 				fst.numberTransitions();
 				fstNumberedFor = patternExpression;
-			} else {
-				System.out.println("Already numbered FST, thread " + Thread.currentThread().getId());
 			}
 		}
 

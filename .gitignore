@@ -23,3 +23,5 @@ OutputNFAs/
 *.pdf
 .DS_Store
 dependency-reduced-pom.xml
+readme.html
+*.crc
