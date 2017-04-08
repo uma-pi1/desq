@@ -34,13 +34,13 @@ public class DesqDfsRunDistributedMiningLocally {
 	static String scenarioStr;
 	static String runVersion;
 
-	static PrintWriter statsWriter;
 
 	public static boolean verbose;
-	public static boolean writeShuffleStats = false;
 	public static boolean drawGraphs = false;
 
-	/** main
+	/** In theory: a driver class to mining in distributed fashion, but locally
+	 *  Usefull for measuring certain parts of the algorithm and algorithm development.
+	 *  At the moment, it's working only partially.
 	 *
 	 * @param args
 	 * @throws IOException
@@ -48,11 +48,7 @@ public class DesqDfsRunDistributedMiningLocally {
 	public static void main(String[] args) throws IOException {
 
 
-		if(System.getProperty("os.name").startsWith("Mac")) {
-			baseFolder = "/Users/alex/";
-		} else {
-			baseFolder = "/home/alex/";
-		}
+		baseFolder = "";
 		if(args.length > 0) {
 		    drawGraphs = false;
 			runDistributedMiningLocally(args);
@@ -152,7 +148,6 @@ public class DesqDfsRunDistributedMiningLocally {
 		System.out.println(ioTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
 
 		// run partition construction
-		if(writeShuffleStats) openStatsWriter();
 		System.out.print("Determining pivot items... ");
 		Stopwatch pcTime = new Stopwatch().start();
 		Int2ObjectOpenHashMap<Object2LongOpenHashMap<Sequence>> partitions = new Int2ObjectOpenHashMap<>();
@@ -176,7 +171,6 @@ public class DesqDfsRunDistributedMiningLocally {
 		
 		pcTime.stop();
 		System.out.println(pcTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
-		if(writeShuffleStats) closeStatsWriter();
 
 
 		// clear the memory
@@ -254,16 +248,6 @@ public class DesqDfsRunDistributedMiningLocally {
 				patCount + "\t" + patTotalFreq;
 		System.out.println(out);
 
-		try{
-			PrintWriter writer = new PrintWriter(new FileOutputStream(new File(baseFolder + "Dropbox/Master/Thesis/Experiments/F/log-"+runVersion+".txt"), true));
-			writer.println(out);
-			writer.close();
-		} catch (Exception e) {
-			System.out.println("Can't open file!");
-			e.printStackTrace();
-		}
-
-
 		return new Tuple2(patCount, patTotalFreq);
 	}
 
@@ -316,14 +300,12 @@ public class DesqDfsRunDistributedMiningLocally {
 		System.out.println(ioTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
 
 		// run partition construction
-		if(writeShuffleStats) openStatsWriter();
 		System.out.print("Adding input sequences to miner ...");
 		Stopwatch pcTime = new Stopwatch().start();
 		for(IntList sequence : inputSequences) {
 			miner.addInputSequence(sequence, 1, true);
 		}
 		System.out.println(pcTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
-		if(writeShuffleStats) closeStatsWriter();
 
 		// clear the memory
 		inputSequences.clear();
@@ -369,14 +351,6 @@ public class DesqDfsRunDistributedMiningLocally {
 				0 + "\t" + patCount + "\t" + patTotalFreq;
 		System.out.println(out);
 
-		try{
-			PrintWriter writer = new PrintWriter(new FileOutputStream(new File(baseFolder + "Dropbox/Master/Thesis/Experiments/H/log-"+runVersion+".txt"), true));
-			writer.println(out);
-			writer.close();
-		} catch (Exception e) {
-			System.out.println("Can't open file!");
-			e.printStackTrace();
-		}
 
 		return new Tuple2(patCount, patTotalFreq);
 	}
@@ -568,20 +542,4 @@ public class DesqDfsRunDistributedMiningLocally {
 		dataFile  = new File(dataDir + dataset + "-data.del");
 	}
 
-	public static void openStatsWriter() {
-		try{
-			statsWriter = new PrintWriter(new FileOutputStream(new File(baseFolder + "Dropbox/Master/Thesis/Experiments/F/numSerializedStates-"+runVersion+".txt"), true));
-		} catch (Exception e) {
-			System.out.println("Can't open file to write shuffle stats!");
-			e.printStackTrace();
-		}
-	}
-
-	public static void closeStatsWriter() {
-        statsWriter.close();
-	}
-
-	public static void writeShuffleStats(int seqNo, int pivotItem, int numStates) {
-		statsWriter.println(useCase + "\t" + scenario + "\t" + seqNo + "\t" + pivotItem + "\t" + numStates);
-	}
 }
