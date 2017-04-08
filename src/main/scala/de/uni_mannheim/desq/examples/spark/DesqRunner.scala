@@ -1,7 +1,7 @@
 package de.uni_mannheim.desq.examples.spark
 
 import de.uni_mannheim.desq.Desq
-import de.uni_mannheim.desq.mining.spark.{DesqCount, DesqDfs}
+import de.uni_mannheim.desq.mining.spark.{DesqCount, DDIN}
 import de.uni_mannheim.desq.mining.spark.{DesqDataset, DesqMiner, DesqMinerContext}
 import org.apache.spark.{SparkConf, SparkContext}
 import java.io.File
@@ -127,7 +127,7 @@ object DesqRunner {
         // Build miner conf
         patternExp = PatExUtils.toFidPatEx(data.dict, patternExp)
         // translate pattern expression to fids
-        var minerConf = DesqDfs.createConf(patternExp, sigma)
+        var minerConf = DDIN.createConf(patternExp, sigma)
         if (useDesqCount) {
             minerConf = DesqCount.createConf(patternExp, sigma)
         }

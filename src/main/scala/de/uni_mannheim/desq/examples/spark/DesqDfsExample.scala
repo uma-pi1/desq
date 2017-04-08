@@ -1,6 +1,6 @@
 package de.uni_mannheim.desq.examples.spark
 
-import de.uni_mannheim.desq.mining.spark.DesqDfs
+import de.uni_mannheim.desq.mining.spark.DDIN
 import org.apache.spark.{SparkConf, SparkContext}
 
 /**
@@ -11,7 +11,7 @@ object DesqDfsExample {
     val patternExpression = "[c|d]([A^|B=^]+)e"
     //val patternExpression = "(.)"
     val sigma = 2
-    val conf = DesqDfs.createConf(patternExpression, sigma)
+    val conf = DDIN.createConf(patternExpression, sigma)
     conf.setProperty("desq.mining.prune.irrelevant.inputs", "true")
     conf.setProperty("desq.mining.use.two.pass", "true")
     ExampleUtils.runIcdm16(conf)

@@ -20,7 +20,7 @@ object MinerConfigurations {
     
     def desqDfs(sigma: Long, patternExpression: String, useFlist: Boolean, iterative: Boolean,
                   pruneIrrelevantInputs: Boolean, useTwoPass: Boolean): (String, DesqProperties) = {
-        val conf = DesqDfs.createConf(patternExpression, sigma)
+        val conf = DDIN.createConf(patternExpression, sigma)
         conf.setProperty("desq.mining.use.flist", useFlist)
         conf.setProperty("desq.mining.iterative", iterative)
         conf.setProperty("desq.mining.prune.irrelevant.inputs", pruneIrrelevantInputs)

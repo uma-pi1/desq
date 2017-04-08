@@ -17,7 +17,7 @@ import org.apache.spark.rdd.RDD
   * High-level code for running DESQ with item-based partitioning
   * Created by alexrenz on 05.10.2016.
   */
-class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
+class DDIN(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     override def mine(data: DesqDataset): DesqDataset = {
         // localize the variables we need in the RDD
         val conf = ctx.conf
@@ -256,10 +256,10 @@ class DesqDfs(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     }
 }
 
-object DesqDfs {
+object DDIN {
     def createConf(patternExpression: String, sigma: Long): DesqProperties = {
         val conf = de.uni_mannheim.desq.mining.DesqDfs.createConf(patternExpression, sigma)
-        conf.setProperty("desq.mining.miner.class", classOf[DesqDfs].getCanonicalName)
+        conf.setProperty("desq.mining.miner.class", classOf[DDIN].getCanonicalName)
         conf
     }
 }
