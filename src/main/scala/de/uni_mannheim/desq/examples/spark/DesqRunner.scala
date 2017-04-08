@@ -71,7 +71,7 @@ object DesqRunner {
             runDesq()
         } else { // use default settings for local running: run the thesis example in all algorithms
             runConf.put("count.patterns", "true")
-            runConf.put("input", "thesis-example/DesqDataset/")
+            runConf.put("input", "data/thesis-example/DesqDataset/")
             runGrid(Array("Thesis"), Array("DDCount", "DDIS", "DDIN", "DDIN/NA", "DDIN/A"))
             // We could also directly run a pattern expression with one specific algorithm
             // runDesq("Thesis", 2)
