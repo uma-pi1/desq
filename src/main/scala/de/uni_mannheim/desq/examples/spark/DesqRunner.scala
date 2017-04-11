@@ -57,8 +57,7 @@ object DesqRunner {
         // set up SparkContext
         var appName = getClass.getName
         if (runConf.contains("case"))
-            appName = runConf.get("case").get +
-                " s" + runConf.get("algorithm").get
+            appName = runConf.get("case").get + "@" + runConf.get("algorithm").get
         if (runConf.contains("master"))
             sparkConf = new SparkConf().setAppName(appName).setMaster(runConf.get("master").get)
         else
