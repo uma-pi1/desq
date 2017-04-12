@@ -43,7 +43,7 @@ output=hdfs:///output-path/ \
 case=[case] \
 algorithm=[algorithm]
 ```
-The path specified by `input` should contain a [`DesqDataset`](src/main/scala/de/uni_mannheim/desq/mining/spark/DesqDataset.scala). The `case` option gives quick access to pattern expressions used in the thesis: 
+The path specified by `input` should contain a [`DesqDataset`](src/main/scala/de/uni_mannheim/desq/mining/spark/DesqDataset.scala). There are pointers on how to create a `DesqDataset` in [`DesqBuilderExample.scala`](src/main/scala/de/uni_mannheim/desq/examples/spark/DesqBuilderExample.scala)  The `case` option gives quick access to pattern expressions used in the thesis: 
 * `Thesis`: the running example in the thesis
 * `A1`, `A2`, `A3`, `A4`, `N1`, `N2`, `N3`, `N4`, and `N5` all with pre-defined sigma-values as given in the thesis. 
 * `L-sigma-gamma-lambda`: LASH-style constraints - maximum gap constraint *gamma*, maximum length constraint *lambda*, and every match item is generalized
