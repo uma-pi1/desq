@@ -30,7 +30,7 @@ object DesqCountExample {
     initDesq(conf)
     implicit val sc = new SparkContext(conf)
     //sc.setLogLevel("INFO")
-    icdm16
-    //nyt
+    //icdm16
+    nyt
   }
 }
