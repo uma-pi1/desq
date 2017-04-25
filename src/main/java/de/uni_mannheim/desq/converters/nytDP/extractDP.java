@@ -5,21 +5,24 @@ import de.uni_mannheim.desq.converters.nyt.ConvertNyt;
 import de.uni_mannheim.desq.converters.nyt.avroschema.Article;
 import de.uni_mannheim.desq.converters.nyt.avroschema.Sentence;
 import de.uni_mannheim.desq.converters.nyt.avroschema.Token;
-import de.uni_mannheim.desq.io.DelSequenceWriter;
-import de.uni_mannheim.desq.io.SequenceWriter;
+import de.uni_mannheim.desq.dictionary.*;
+import de.uni_mannheim.desq.dictionary.Dictionary;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import java.io.*;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Created by ryan on 10.04.17.
  */
-public class extractDP {
+public class extractDP extends DefaultDictionaryAndSequenceBuilder {
     private static final Logger logger = Logger.getLogger(ConvertNyt.class.getSimpleName());
     private static final String ENTITY = "ENTITY";
 
@@ -43,6 +46,10 @@ public class extractDP {
     String getProcessedNytDataFileDP="data-local/processed/nyt_all/rawDP.del";
     String getProcessedNytDataFileSentDP="data-local/processed/nyt_all/sentRawDP.del";
 
+    String serializedDP="data-local/processed/nyt_all/serializedDP.del";
+    String serializedDict="data-local/processed/nyt_all/serializedDP.json";
+    String serializedDel="data-local/processed/nyt_all/serializedDel.del";
+
     public void buildDP() throws IOException {
         int sentenceCount = 0;
         int articleCount = 0;
@@ -50,7 +57,18 @@ public class extractDP {
 
         BufferedWriter dpWriter = new BufferedWriter(new FileWriter(getProcessedNytDataFileDP));
         BufferedWriter sentdpWriter = new BufferedWriter(new FileWriter(getProcessedNytDataFileSentDP));
+        BufferedWriter serializedDpWriter = new BufferedWriter(new FileWriter(serializedDP));
+        BufferedWriter serializedDelWriter = new BufferedWriter(new FileWriter(serializedDel));
         int subDirCount=0;
+
+        //initializing dictionary
+        dict.addItem(Integer.MAX_VALUE,"rel");
+        dict.addItem(Integer.MAX_VALUE-1,"node");
+        dict.addItem(Integer.MAX_VALUE-2,"<");
+        dict.addItem(Integer.MAX_VALUE-3,">");
+        int parentRel=dict.gidOf("rel");
+        int parentNode=dict.gidOf("node");
+        newSequence();
 
         // Iterate through the list of files
         List<File> subDirs = getLeafSubdirs(new File(pathToAvroFiles));
@@ -81,17 +99,83 @@ public class extractDP {
                             logger.info("Processed " + sentenceCount + " sentences and " + articleCount + " articles");
                         }
                         List<Token> tokens=sentence.getTokens();
+                        List<String> words = new ArrayList<String>();
                         for(int i=0;i<tokens.size();i++){
                             Token token = tokens.get(i);
                             String word = token.getWord().toLowerCase();
+                            words.add(word);
                             String ner = token.getNer();
                             sentdpWriter.write(word+" "+ner);
+                            //System.out.print(words.get(i)+" ");
                         }
+                        //System.out.print("\n");
                         sentdpWriter.newLine();
                         String dp=sentence.getDp();
                         dpWriter.write(dp);
-                        System.out.println(dp);
+
+                        System.out.println(dp.substring(1,dp.length()-1));
+
+                        int count=0;
+                        Pattern p=Pattern.compile("word");
+                        Matcher m = p.matcher( sentence.getTokens().toString() );
+                        while (m.find()) {
+                            count++;
+                        }
+                        //System.out.println(count);
+
+
+                        //Serializing the dependency tree
+                        String[][] matrix=new String[count+1][count+1];
+                        String dp1=dp.substring(1,dp.length()-1);
+                        String dp_new=dp1+", ";
+                        String[] relations=(dp_new).split("\\), ");
+
+                        int root = 0;
+                        Pattern p1=Pattern.compile("(.*)\\(.*-(.*), .*-(.*)");
+                        Matcher matchRoot=p1.matcher(relations[0]);
+                        if(matchRoot.find()) {
+                            root=Integer.parseInt( matchRoot.group(3));
+
+                        }
+                        for(String exp:relations){
+                            //System.out.println(exp);
+                            Matcher match=p1.matcher(exp);
+                            if(match.find()){
+                                String rel=match.group(1);
+                                String st=match.group(2);
+                                String end=match.group(3);
+                                //System.out.println(rel+" "+st+" "+end);
+                                matrix[Integer.parseInt(st)][Integer.parseInt(end)]=rel;
+                            }
+
+
+                        }
+                        //s contains the serialized dependency string
+                        StringBuilder s=new StringBuilder();
+                        s.append(words.get(root-1)).append("<");
+
+                        //adding item to dictionary
+                        currentFids.add(dict.fidOf("<"));
+                        Pair<Integer,Boolean> pair=appendItem(words.get(root-1));
+                        if(pair.getRight()){
+                            addParent(pair.getLeft(),"node");
+                        }
+                        //writing del file
+                        serializedDelWriter.write(dict.gidOf(words.get(root-1))+" "+dict.gidOf("<")+" ");
+
+
+                        //using dfs to serialize the tree
+                        dfs(matrix,root,words,s,serializedDelWriter);
+
+                        //writing dependency tree to file
+                        serializedDpWriter.write(s.toString());
+                        System.out.println(s.toString());
+
+                        //defining new line
+                        serializedDpWriter.newLine();
+                        serializedDelWriter.newLine();
                         dpWriter.newLine();
+                        newSequence();
                     }
                 }
             }
@@ -100,6 +184,50 @@ public class extractDP {
         dpWriter.close();
         sentdpWriter.flush();
         sentdpWriter.close();
+        serializedDpWriter.flush();
+        serializedDpWriter.close();
+        serializedDelWriter.flush();
+        serializedDelWriter.close();
+        dict.write(serializedDict);
+
+    }
+
+    public void dfs(String[][] matrix, int root, List<String> words, StringBuilder s,BufferedWriter serializedDelWriter) throws IOException {
+
+        Stack stack = new Stack();
+        int i=0;
+        for(String rels:matrix[root]){
+
+            if(rels!=null){
+                stack.push(i);
+            }
+            i=i+1;
+        }
+        while(!stack.isEmpty()){
+            int next= (int) stack.pop();
+            s.append(matrix[root][next]).append(words.get(next-1)).append("<");
+            //adding item to dictionary
+            currentFids.add(dict.fidOf("<"));
+            Pair<Integer,Boolean> pair=appendItem(words.get(next-1));
+            if(pair.getRight()){
+                addParent(pair.getLeft(),"node");
+            }
+            pair=appendItem(matrix[root][next]);
+            if(pair.getRight()){
+                addParent(pair.getLeft(),"rel");
+            }
+            //writing del file
+            serializedDelWriter.write(dict.gidOf(matrix[root][next])+" "+dict.gidOf(words.get(next-1))+" "+dict.gidOf("<")+" ");
+
+            dfs(matrix,next,words,s,serializedDelWriter);
+        }
+        s.append(">");
+
+        currentFids.add(dict.fidOf(">"));
+
+        //writing del file
+        serializedDelWriter.write(dict.gidOf(">")+" ");
+
     }
 
     /**
