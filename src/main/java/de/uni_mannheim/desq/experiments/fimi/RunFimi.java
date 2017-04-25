@@ -26,7 +26,8 @@ public class RunFimi {
 
         Dictionary dict=Dictionary.loadFrom(dictFile);
         dataReader.setDictionary(dict);
-        ExampleUtils.runWithStats(dataReader, minerConf);
+        //ExampleUtils.runWithStats(dataReader, minerConf);
+        ExampleUtils.runVerbose(dataReader,minerConf);
 
     }
 
