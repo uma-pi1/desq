@@ -25,6 +25,7 @@ import java.util.regex.Pattern;
 public class extractDP extends DefaultDictionaryAndSequenceBuilder {
     private static final Logger logger = Logger.getLogger(ConvertNyt.class.getSimpleName());
     private static final String ENTITY = "ENTITY";
+    static int maxDepCount;
 
     private static final String[] POS_VALUES = new String[] {
             "CC","CD","DT","EX","FW","IN","JJ","JJR","JJS","LS","MD",
@@ -47,7 +48,7 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
     String getProcessedNytDataFileSentDP="data-local/processed/nyt_all/sentRawDP.del";
 
     String serializedDP="data-local/processed/nyt_all/serializedDP.del";
-    String serializedDict="data-local/processed/nyt_all/serializedDP.json";
+    String serializedDict="data-local/processed/nyt_all/serializedDict.json";
     String serializedDel="data-local/processed/nyt_all/serializedDel.del";
 
     public void buildDP() throws IOException {
@@ -62,11 +63,11 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
         int subDirCount=0;
 
         //initializing dictionary
-        dict.addItem(Integer.MAX_VALUE,"rel");
+        dict.addItem(Integer.MAX_VALUE,"edge");
         dict.addItem(Integer.MAX_VALUE-1,"node");
         dict.addItem(Integer.MAX_VALUE-2,"<");
         dict.addItem(Integer.MAX_VALUE-3,">");
-        int parentRel=dict.gidOf("rel");
+        int parentRel=dict.gidOf("edge");
         int parentNode=dict.gidOf("node");
         newSequence();
 
@@ -152,20 +153,30 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
                         }
                         //s contains the serialized dependency string
                         StringBuilder s=new StringBuilder();
-                        s.append(words.get(root-1)).append("<");
+                        s.append("start").append(words.get(root-1)).append("<");
 
                         //adding item to dictionary
-                        currentFids.add(dict.fidOf("<"));
-                        Pair<Integer,Boolean> pair=appendItem(words.get(root-1));
+
+                        //adding a relation "start" before root
+                        Pair<Integer,Boolean> pair=appendItem("start");
+                        if(pair.getRight()){
+                            addParent(pair.getLeft(),"edge");
+                        }
+
+
+                        pair=appendItem(words.get(root-1));
                         if(pair.getRight()){
                             addParent(pair.getLeft(),"node");
                         }
-                        //writing del file
-                        serializedDelWriter.write(dict.gidOf(words.get(root-1))+" "+dict.gidOf("<")+" ");
 
+                        currentFids.add(dict.fidOf("<"));
+                        //writing del file
+                        serializedDelWriter.write(dict.gidOf("start")+" "+dict.gidOf(words.get(root-1))+" "+dict.gidOf("<")+" ");
+
+                        int depCount=1;
 
                         //using dfs to serialize the tree
-                        dfs(matrix,root,words,s,serializedDelWriter);
+                        dfs(matrix,root,words,s,serializedDelWriter,depCount);
 
                         //writing dependency tree to file
                         serializedDpWriter.write(s.toString());
@@ -189,10 +200,11 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
         serializedDelWriter.flush();
         serializedDelWriter.close();
         dict.write(serializedDict);
+        System.out.println("MaxDepth="+maxDepCount);
 
     }
 
-    public void dfs(String[][] matrix, int root, List<String> words, StringBuilder s,BufferedWriter serializedDelWriter) throws IOException {
+    public void dfs(String[][] matrix, int root, List<String> words, StringBuilder s,BufferedWriter serializedDelWriter, int depCount) throws IOException {
 
         Stack stack = new Stack();
         int i=0;
@@ -214,12 +226,12 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
             }
             pair=appendItem(matrix[root][next]);
             if(pair.getRight()){
-                addParent(pair.getLeft(),"rel");
+                addParent(pair.getLeft(),"edge");
             }
             //writing del file
             serializedDelWriter.write(dict.gidOf(matrix[root][next])+" "+dict.gidOf(words.get(next-1))+" "+dict.gidOf("<")+" ");
 
-            dfs(matrix,next,words,s,serializedDelWriter);
+            dfs(matrix,next,words,s,serializedDelWriter,depCount+1);
         }
         s.append(">");
 
@@ -227,6 +239,10 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
 
         //writing del file
         serializedDelWriter.write(dict.gidOf(">")+" ");
+
+        if(depCount>maxDepCount){
+            maxDepCount=depCount;
+        }
 
     }
 

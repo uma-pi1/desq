@@ -8,45 +8,55 @@ import de.uni_mannheim.desq.mining.DesqDfs
 
 class SyntaxTree{
 
-  def depthTree(x:Int,recurse:String):String={
-    if(x==1){
-      if(recurse=="Y"){
-        return "rel node < >"
-      }
-      else{
-        return ".*(rel node < >)"
-      }
+  def depthTree(x:Int):String={
+    if(x==0){
+      return "< >"
     }
-    if(x==2){
-      if(recurse=="Y"){
-        return "rel node < ["+depthTree(x-1,"Y")+"]+ >"
-      }
-      else{
-        return ".*(rel node < ["+depthTree(x-1,"Y")+"]+ >)"
-      }
+    else{
+      return "< [ edge node "+depthTree(x-1)+"]* >"
     }
-    var str=".*(rel node < [ ["
-    var i=0
-    for( i <-1 to x-1){
-      if(i==x-1){
-        str=str+"]*"+depthTree(i,"Y")+"]+ >)"
-      }
-      else{
-        str=str+depthTree(i,"Y")
-        if(i!=x-2){
-          str=str+"|"
+  }
+
+  //returns pattern expression to mine sngrams based on the input n
+  def sng(x:Int,child:String,dmax:String):String={
+    var str=path(x-1,child,dmax)
+    val skipStr=".*(edge node <)"
+    var j=(x-1)/2
+    if(j>=1){
+      var i=0
+      for(i<-1 to j){
+        var str1=path(i,child,dmax)
+        var str2=path(x-i-1,child,dmax)
+        str=str+"|"+str1.substring(0,str1.lastIndexOf("(>)"))+str2.substring(skipStr.length)
+        if(i!=x-i-1){
+          str=str+"|"+str2.substring(0,str2.lastIndexOf("(>)"))+str1.substring(skipStr.length)
         }
       }
     }
-    if(recurse=="Y"){
-      return str.substring(3,str.length-1)
+    return str
+  }
+
+  //return path of length y
+  def path(y:Int,child:String,dmax:String):String={
+    if(y==0){
+      return "(edge node)"+dmax
     }
     else{
-      return  str
+      val temp_str=path(y-1,child,dmax)
+      if(y==1){
+        return ".*(edge node <)"+"["+child+"]*"+temp_str+"["+child+"]*"+"(>)"
+      }
+      else{
+        return ".*(edge node <)"+"["+child+"]*"+temp_str.substring(".*".length)+"["+child+"]*"+"(>)"
+      }
     }
-
   }
+
 }
+
+
+
+
 
 /**
   * Created by ryan on 22.04.17.
@@ -54,13 +64,13 @@ class SyntaxTree{
 object RunNYTDependencyMining extends App {
   val dataPath=args(0)
   val dictPath=args(1)
-  //val D1 = "rel node < >"
-  //val patternExpression=".*(rel node < [rel node < >]+ >)"
-  //val D2="rel node < ["+D1+"]+ >"
-  //val D3=".*(rel node < [ ["+D1+"]*"+D2+"]+ > )"
   val ob=new SyntaxTree()
-  val patEx=ob.depthTree(2,"NY")
-  val sigma = 2
+  val maxDepth=3
+  val child="edge node "+ob.depthTree(maxDepth)
+  val dmax=ob.depthTree(maxDepth)
+  //val patEx=".*(node <)["+child+"]*"+"(edge node)"+ob.depthTree(maxDepth)+"["+child+"]*"+"(>)"
+  val patEx=ob.sng(6,child,dmax)
+  val sigma = 1
   val conf = DesqDfs.createConf(patEx, sigma)
   conf.setProperty("desq.mining.prune.irrelevant.inputs", true)
   conf.setProperty("desq.mining.use.two.pass", true)
