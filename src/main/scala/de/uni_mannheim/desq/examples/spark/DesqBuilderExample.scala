@@ -1,7 +1,9 @@
 package de.uni_mannheim.desq.examples.spark
 
 import java.io.FileOutputStream
+import java.util.concurrent.TimeUnit
 
+import com.google.common.base.Stopwatch
 import de.uni_mannheim.desq.Desq._
 import de.uni_mannheim.desq.converters.nyt.{ConvertNyt, NytUtil}
 import de.uni_mannheim.desq.dictionary.Dictionary
@@ -48,23 +50,32 @@ object DesqBuilderExample {
 
   def nyt_scala()(implicit sc: SparkContext) {
 
-    val nyt_avro = "data-local/NYTimesProcessed/results/2007/01/"
-    val nytJavaOutDir = "data-local/processed/sparkconvert/200701_java/"
+    val nyt_avro = "data-local/NYTimesProcessed/results/2007/"
+    val nytJavaOutDir = "data-local/processed/sparkconvert/2007_java/"
     val nytConverter = new ConvertNyt
-    nytConverter.buildDesqDataset(nyt_avro, nytJavaOutDir, false)
 
+    print("Converting the raw data using the Java NYT Converter... ")
+    val javaTime = Stopwatch.createStarted()
+    nytConverter.buildDesqDataset(nyt_avro, nytJavaOutDir, false)
+    javaTime.stop()
+    println(javaTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+
+    print("Converting the raw data using the Scala NYT Converter")
+    val scalaTime = Stopwatch.createStarted()
     val articles_raw = NytUtil.loadArticlesFromFile(nyt_avro).flatMap(r=>NytUtil.convertToArticle(r).getSentences)
     val data = DesqDataset.buildFromSentences(articles_raw)
+    scalaTime.stop()
+    println(scalaTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
-    val dataSaved = data.save("data-local/processed/sparkconvert/200701_scala")
+    val dataSaved = data.save("data-local/processed/sparkconvert/2007_scala")
     dataSaved.print(5)
     println("--")
 
-    val loadedData = DesqDataset.load("data-local/processed/sparkconvert/200701_scala")
+    val loadedData = DesqDataset.load("data-local/processed/sparkconvert/2007_scala")
     loadedData.print(5)
     println("--")
 
-    val fullDict = Dictionary.loadFrom("data-local/processed/sparkconvert/200701_java/all/dict.avro.gz")
+    val fullDict = Dictionary.loadFrom("data-local/processed/sparkconvert/2007_java/all/dict.avro.gz")
     for (fid <- fullDict.fids) {
       if (fullDict.childrenOf(fid).size() == 0) {
         // only verify leafs
