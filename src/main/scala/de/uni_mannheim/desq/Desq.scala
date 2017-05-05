@@ -12,5 +12,6 @@ object Desq {
     } else {
       conf.set("spark.kryo.registrator", s"$currentRegistrator,de.uni_mannheim.desq.io.spark.DesqKryoRegistrator")
     }
+    conf.set("spark.kryoserializer.buffer.max", "512")
   }
 }

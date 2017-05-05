@@ -5,6 +5,7 @@ import java.util.Calendar
 import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
 import de.uni_mannheim.desq.avro.AvroDesqDatasetDescriptor
+import de.uni_mannheim.desq.converters.nyt.avroschema.{Sentence, Token}
 import de.uni_mannheim.desq.dictionary.{DefaultDictionaryBuilder, DefaultSequenceBuilder, Dictionary, DictionaryBuilder}
 import de.uni_mannheim.desq.io.DelSequenceReader
 import de.uni_mannheim.desq.mining.WeightedSequence
@@ -18,6 +19,9 @@ import org.apache.hadoop.io.NullWritable
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
+
+import scala.collection.immutable.HashSet
+import scala.util.control.Breaks.{break, breakable}
 
 /**
   * Created by rgemulla on 12.09.2016.
@@ -335,15 +339,118 @@ object DesqDataset {
         seqBuilder.appendItem(string)
       }
     }
+
     build[Array[String]](rawData, parse)
+  }
+
+  /**
+    * Builds a DesqDataset from an RDD of rows. Every row corresponds to one article, which may contain many sentences.
+    * Every sentence contains tokens. The generated hierarchy is deep.
+    */
+
+  def buildFromSentences(rawData: RDD[Sentence]): DesqDataset = {
+
+    val parse = (sentence: Sentence, seqBuilder: DictionaryBuilder) => {
+      val ENTITY = "ENTITY"
+      val POS_VALUES = Array[String]("CC", "CD", "DT", "EX", "FW", "IN", "JJ", "JJR", "JJS", "LS", "MD", "NN", "NNS", "NNP", "NNPS",
+        "PDT", "POS", "PRP", "PRP$", "RB", "RBR", "RBS", "RP", "SYM", "TO", "UH", "VB", "VBD", "VBG", "VBN", "VBP", "VBZ", "WDT", "WP", "WP$", "WRB")
+      val POS_SET = HashSet(POS_VALUES.toList: _*)
+      var token: Token = null
+      var word = ""
+      var ner = ""
+      var lemma = ""
+      var pos = ""
+      seqBuilder.newSequence(1)
+      val tokens = sentence.getTokens
+      var i = 0
+      while (i < tokens.size()) {
+        breakable {
+          token = tokens.get(i)
+          word = token.getWord.toLowerCase
+          ner = token.getNer
+          lemma = token.getLemma
+          pos = token.getPos
+          if (ner.equals("PERSON") || ner.equals("LOCATION") || ner.equals("ORGANIZATION")) {
+            var nerPlus = ner
+            var wordPlus = word
+            var j = i + 1
+            breakable {
+              while (j < tokens.size()) {
+                token = tokens.get(j)
+                ner = token.getNer
+                word = token.getWord.toLowerCase
+                if (!nerPlus.equals(ner)) {
+                  break
+                }
+                else {
+                  wordPlus = wordPlus + "_" + word
+                }
+                i = j
+                j += 1
+              }
+            }
+            // add wordPlus -> nePlus -> entity to hierarchy
+            // 1) Add item to sequence
+            wordPlus = wordPlus + "@" + nerPlus + "@" + ENTITY
+            var apiResult = seqBuilder.appendItem(wordPlus)
+            var itemFid = apiResult.getLeft
+            var newItem = apiResult.getRight
+            // 2) If its a new item, we add parents
+            if (newItem) {
+              nerPlus = nerPlus + "@" + ENTITY
+              apiResult = seqBuilder.addParent(itemFid, nerPlus)
+              itemFid = apiResult.getLeft
+              newItem = apiResult.getRight
+              // If we have not yet added this ner
+              if (newItem) {
+                seqBuilder.addParent(itemFid, ENTITY)
+              }
+            }
+            i += 1
+            break
+          }
+
+          // If the word is not a named entity (additionally ignore punctuation)
+          if (POS_SET.contains(pos)) {
+            pos = shortenPos(pos)
+            // add word -> lemma -> pos to hierarchy
+            // 1) Add item to sequence
+            word = word + "@" + lemma + "@" + pos
+            var apiResult = seqBuilder.appendItem(word)
+            var itemFid = apiResult.getLeft
+            var newItem = apiResult.getRight
+            // 2) If its a new item, add parents
+            if (newItem) {
+              lemma = lemma + "@" + pos
+              apiResult = seqBuilder.addParent(itemFid, lemma)
+              itemFid = apiResult.getLeft
+              newItem = apiResult.getRight
+              if (newItem) {
+                seqBuilder.addParent(itemFid, pos)
+              }
+            }
+          }
+          i += 1
+        }
+
+        def shortenPos(pos: String): String = {
+          var result = pos;
+          if (pos.length() > 2) {
+            result = pos.substring(0, 2);
+          }
+          return result;
+        }
+      }
+    }
+    build[Sentence](rawData, parse)
   }
 
   /** Builds a DesqDataset from arbitrary input data. The dataset is linked to the original data and parses it again
     * when used. For improved performance, save the dataset once created.
     *
     * @param rawData the input data as an RDD
-    * @param parse method that takes an input element, parses it, and registers the resulting items (and their parents)
-    *              with the provided DictionaryBuilder. Used to construct the dictionary and to translate the data.
+    * @param parse   method that takes an input element, parses it, and registers the resulting items (and their parents)
+    *                with the provided DictionaryBuilder. Used to construct the dictionary and to translate the data.
     * @tparam T type of input data elements
     * @return the created DesqDataset
     */
@@ -356,7 +463,10 @@ object DesqDataset {
       }
       dictBuilder.newSequence(0) // flush last sequence
       Iterator.single(dictBuilder.getDictionary)
-    }).treeReduce((d1, d2) => { d1.mergeWith(d2); d1 }, 3)
+    }).treeReduce((d1, d2) => {
+      d1.mergeWith(d2);
+      d1
+    }, 3)
     dict.recomputeFids()
 
     // now convert the sequences (lazily)

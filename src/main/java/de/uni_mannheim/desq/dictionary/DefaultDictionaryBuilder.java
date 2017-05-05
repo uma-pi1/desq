@@ -1,6 +1,8 @@
 package de.uni_mannheim.desq.dictionary;
 
 import it.unimi.dsi.fastutil.ints.*;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -45,7 +47,12 @@ public class DefaultDictionaryBuilder implements DictionaryBuilder {
             newItem = true;
             int gid = ++maxGidSoFar;
             if (sid.matches("\\d+")) {
-                int potentialGid = Integer.parseInt(sid);
+                int potentialGid = 0;
+                try {
+                    potentialGid = Integer.parseInt(sid);
+                } catch (NumberFormatException e ){
+                    potentialGid = gid;
+                }
                 if (!dict.containsGid(potentialGid)) {
                     gid = potentialGid;
                     maxGidSoFar = Math.max(gid, maxGidSoFar - 1);

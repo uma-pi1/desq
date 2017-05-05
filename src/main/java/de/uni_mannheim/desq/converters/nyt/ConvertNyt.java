@@ -25,14 +25,12 @@ import java.util.*;
 public class ConvertNyt {
     private static final Logger logger = Logger.getLogger(ConvertNyt.class.getSimpleName());
 
-    // IO paths
-    String pathToAvroFiles = "data-local/NYTimesProcessed/results/2007/06";
-    //    String pathToAvroFiles = "data-local/nyt-1991-data/sequences/";
-    String pathToOutputDir = "data-local/processed/nyt_200701/";
+    public void buildDesqDataset(String avroDir, String outputDir, boolean splitByNewsroom) throws IOException {
 
-
-    public void buildDesqDataset(boolean splitByNewsroom) throws IOException {
-
+        // IO paths
+        String pathToAvroFiles = avroDir;
+        //    String pathToAvroFiles = "data-local/nyt-1991-data/sequences/";
+        String pathToOutputDir = outputDir;
 //        // Create desqbuilder and writers
         HashMap<String, Newsroom> newsrooms = new HashMap<>();
         Newsroom newsroom;
@@ -90,6 +88,7 @@ public class ConvertNyt {
 
     /**
      * Given a sentence, return the string of the sentence
+     * Given a sentence, return the string of the sentence
      */
     public static String getSentenceString(Sentence s) {
         StringBuilder sbSentence = new StringBuilder();
@@ -133,7 +132,11 @@ public class ConvertNyt {
 
     public static void main(String[] args) throws IOException {
         ConvertNyt nyt = new ConvertNyt();
-        nyt.buildDesqDataset(false);
+        // IO paths
+        String pathToAvroFiles = "data-local/NYTimesProcessed/results/2007/01";
+        //    String pathToAvroFiles = "data-local/nyt-1991-data/sequences/";
+        String pathToOutputDir = "data-local/processed/nyt_200701_java/";
+        nyt.buildDesqDataset(pathToAvroFiles, pathToOutputDir,false);
 
     }
 
