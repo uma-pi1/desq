@@ -109,10 +109,12 @@ class DesqCompare {
     * @param k     Number of Interesting Phrases to return
     * @return (Top-K sequences of left, Top-K sequences of right)
     */
-  def findTopKPattern(left: DesqDataset, right: DesqDataset, k: Int = 20): (Array[(WeightedSequence, Float)], Array[(WeightedSequence, Float)]) = {
+  def findTopKPattern(left: DesqDataset, right: DesqDataset, k: Int = 20, measure: Int = 1): (Array[(WeightedSequence, Float)], Array[(WeightedSequence, Float)]) = {
     val temp1 = left.sequences.map(ws => (ws, ws.weight))
     val temp2 = right.sequences.map(ws => (ws, ws.weight))
-    val global = temp1.fullOuterJoin(temp2).map(ws => (ws._1, ws._2._1.getOrElse(0L), ws._2._1.getOrElse(0L) / (ws._2._1.getOrElse(0L) + ws._2._2.getOrElse(0L)).toFloat, ws._2._2.getOrElse(0L), ws._2._2.getOrElse(0L) / (ws._2._1.getOrElse(0L) + ws._2._2.getOrElse(0L)).toFloat))
+//    simple interestingness
+//    val global = temp1.fullOuterJoin(temp2).map(ws => (ws._1, ws._2._1.getOrElse(0L), ws._2._1.getOrElse(0L) / (ws._2._1.getOrElse(0L) + ws._2._2.getOrElse(0L)).toFloat, ws._2._2.getOrElse(0L), ws._2._2.getOrElse(0L) / (ws._2._1.getOrElse(0L) + ws._2._2.getOrElse(0L)).toFloat))
+    val global = temp1.fullOuterJoin(temp2).map(ws => (ws._1, ws._2._1.getOrElse(0L), (1 + ws._2._1.getOrElse(0L)) / (1 + ws._2._2.getOrElse(0L)).toFloat, ws._2._2.getOrElse(0L), (1 + ws._2._2.getOrElse(0L)) / (1 + ws._2._1.getOrElse(0L)).toFloat))
     val topleft = global.sortBy(ws => (ws._3, ws._2), ascending = false).take(k).map(ws => (ws._1.withSupport(ws._2), ws._3))
     val topright = global.sortBy(ws => (ws._5, ws._4), ascending = false).take(k).map(ws => (ws._1.withSupport(ws._4), ws._5))
     (topleft, topright)
