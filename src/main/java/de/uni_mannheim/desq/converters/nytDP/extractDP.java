@@ -10,6 +10,8 @@ import de.uni_mannheim.desq.dictionary.Dictionary;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.commons.collections.bidimap.TreeBidiMap;
+import org.apache.commons.collections.map.HashedMap;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -61,7 +63,7 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
         BufferedWriter serializedDpWriter = new BufferedWriter(new FileWriter(serializedDP));
         BufferedWriter serializedDelWriter = new BufferedWriter(new FileWriter(serializedDel));
         int subDirCount=0;
-
+        Pair<Integer, Boolean> apiResult;
         //initializing dictionary
         dict.addItem(Integer.MAX_VALUE,"edge");
         dict.addItem(Integer.MAX_VALUE-1,"node");
@@ -100,36 +102,154 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
                             logger.info("Processed " + sentenceCount + " sentences and " + articleCount + " articles");
                         }
                         List<Token> tokens=sentence.getTokens();
+                        String dp=sentence.getDp();
+                        dp=dp.substring(1,dp.length()-1)+", ";
+                        Map<Integer,Integer> subtractIndex=new TreeMap<Integer,Integer>();
+                        int diff=0;
                         List<String> words = new ArrayList<String>();
                         for(int i=0;i<tokens.size();i++){
                             Token token = tokens.get(i);
-                            String word = token.getWord().toLowerCase();
-                            words.add(word);
+                            String wordExp=token.getWord();;
+                            String word=wordExp.toLowerCase();
+                            String pos = token.getPos();
+                            String lemma = token.getLemma();
                             String ner = token.getNer();
-                            sentdpWriter.write(word+" "+ner);
+                            int index=token.getIndex();
+                            //words.add(word);
+
+                            sentdpWriter.write(word+" <"+pos+","+ner+","+lemma+","+index+"> ");
                             //System.out.print(words.get(i)+" ");
+
+
+                            // If the word is named entity (person or location, or organization
+                            //if(!ner.equals("O")) {
+                            if(ner.equals("PERSON") || ner.equals("LOCATION") || ner.equals("ORGANIZATION")) {
+                                List<String> groupWords = new ArrayList<String>();
+                                groupWords.add(wordExp+"-"+index);
+                                int len=1;
+                                int startIndex=index;
+                                String nerPlus = ner;
+                                String wordPlus = word;
+                                int j = i + 1;
+                                for(; j < tokens.size(); j++) {
+
+                                    token = tokens.get(j);
+                                    ner = token.getNer();
+                                    wordExp = token.getWord();
+                                    word=wordExp.toLowerCase();
+                                    index=token.getIndex();
+
+                                    if(!nerPlus.equals(ner)) {
+                                        break;
+                                    } else {
+                                        groupWords.add(wordExp+"-"+index);
+                                        len=len+1;
+                                        wordPlus = wordPlus + "_" + word;
+
+                                    }
+                                    i = j;
+                                }
+                                //updating subtractIndex and diff
+
+                                subtractIndex.put(startIndex,diff);
+                                diff=diff+len-1;
+
+                                // add wordPlus -> nePlus -> entity to hierarchy
+
+                                // 1) Add item to sequence
+                                wordPlus = wordPlus + "@" + nerPlus + "@" + ENTITY;
+                                words.add(wordPlus);
+                                dp=transformDP(dp,startIndex,wordPlus,groupWords,len);
+
+
+
+                                apiResult =appendItem(wordPlus);
+
+
+
+                                // 2) If its a new item, we add parents
+                                if (apiResult.getRight()) {
+                                    nerPlus = nerPlus+ "@" + ENTITY;
+                                    apiResult = addParent(apiResult.getLeft(), nerPlus);
+
+
+                                    // If we have not yet added this ner
+                                    if(apiResult.getRight()) {
+                                        apiResult=addParent(apiResult.getLeft(), ENTITY);
+
+                                        if(apiResult.getRight()){
+                                            addParent(apiResult.getLeft(), "node");
+                                        }
+
+                                    }
+                                }
+                                continue;
+                            }
+
+                            // If the word is not a named entity (additionally ignore punctuation)
+                            else if(POS_SET.contains(pos)) {
+                                subtractIndex.put(index,diff);
+                                pos = shortenPos(pos);
+
+                                // add word -> lemma -> pos to hierarchy
+
+                                // 1) Add item to sequence
+                                word = word + "@" + lemma + "@" + pos;
+                                apiResult = appendItem(word);
+
+                                words.add(word);
+
+                                //ModifyDP(dp,wordExp,index,word);
+                                String patex1="("+wordExp+"-"+index+")";
+                                dp=dp.replaceAll(patex1,word+"-"+index);
+
+                                // 2) If its a new item, add parents
+                                if (apiResult.getRight()) {
+                                    lemma = lemma + "@" + pos;
+                                    apiResult = addParent(apiResult.getLeft(), lemma);
+
+                                    if (apiResult.getRight()) {
+                                        apiResult =addParent(apiResult.getLeft(), pos);
+
+                                        if(apiResult.getRight()){
+                                            addParent(apiResult.getLeft(), "node");
+                                        }
+
+                                    }
+                                }
+                            }
+                            //adding punctuation and others to hierarchy under "node"
+                            else{
+                                subtractIndex.put(index,diff);
+                                apiResult =appendItem(word);
+
+                                words.add(word);
+                                // 2) If its a new item, we add parents
+                                if (apiResult.getRight()) {
+                                    addParent(apiResult.getLeft(), "node");
+                                }
+                            }
+
                         }
                         //System.out.print("\n");
                         sentdpWriter.newLine();
-                        String dp=sentence.getDp();
+
+                        //subtract index from dp due to grouping of named entities
+                        dp=reformatIndex(subtractIndex,dp);
+
                         dpWriter.write(dp);
 
-                        System.out.println(dp.substring(1,dp.length()-1));
+                        System.out.println(dp);
 
-                        int count=0;
-                        Pattern p=Pattern.compile("word");
-                        Matcher m = p.matcher( sentence.getTokens().toString() );
-                        while (m.find()) {
-                            count++;
-                        }
+                        int count=subtractIndex.size();
+
                         //System.out.println(count);
 
 
                         //Serializing the dependency tree
                         String[][] matrix=new String[count+1][count+1];
-                        String dp1=dp.substring(1,dp.length()-1);
-                        String dp_new=dp1+", ";
-                        String[] relations=(dp_new).split("\\), ");
+
+                        String[] relations=(dp).split("\\), ");
 
                         int root = 0;
                         Pattern p1=Pattern.compile("(.*)\\(.*-(.*), .*-(.*)");
@@ -162,14 +282,15 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
                         if(pair.getRight()){
                             addParent(pair.getLeft(),"edge");
                         }
-
+/*
 
                         pair=appendItem(words.get(root-1));
                         if(pair.getRight()){
                             addParent(pair.getLeft(),"node");
                         }
-
+ */
                         currentFids.add(dict.fidOf("<"));
+
                         //writing del file
                         serializedDelWriter.write(dict.gidOf("start")+" "+dict.gidOf(words.get(root-1))+" "+dict.gidOf("<")+" ");
 
@@ -204,6 +325,37 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
 
     }
 
+    public String reformatIndex(Map<Integer,Integer> subtractIndex,String dp){
+        for (Map.Entry<Integer, Integer> entry : subtractIndex.entrySet()) {
+            Integer key = entry.getKey();
+            Integer diff=entry.getValue();
+            int newkey=key-diff;
+            dp=dp.replaceAll("-"+key,"-"+newkey);
+
+        }
+        return dp;
+    }
+
+
+    public String transformDP(String dp, int startIndex, String wordplus, List<String> groupWords, int len) throws IOException{
+        int i,j;
+        for(i=0;i<len;i++){
+            for(j=i+1;j<len;j++){
+                //deleting all intradependent dependencies
+                String p1="([a-zA-Z]*\\("+groupWords.get(i)+", "+groupWords.get(j)+"\\), )";
+                dp=dp.replaceAll(p1,"");
+                p1="([a-zA-Z]*\\("+groupWords.get(j)+", "+groupWords.get(i)+"\\), )";
+                dp=dp.replaceAll(p1,"");
+            }
+        }
+        for(i=0;i<len;i++){
+            //updating all interdependent dependencies with the grouped named entity
+            dp=dp.replaceAll(groupWords.get(i),wordplus+"-"+startIndex);
+        }
+        return dp;
+    }
+
+
     public void dfs(String[][] matrix, int root, List<String> words, StringBuilder s,BufferedWriter serializedDelWriter, int depCount) throws IOException {
 
         Stack stack = new Stack();
@@ -220,10 +372,12 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
             s.append(matrix[root][next]).append(words.get(next-1)).append("<");
             //adding item to dictionary
             currentFids.add(dict.fidOf("<"));
-            Pair<Integer,Boolean> pair=appendItem(words.get(next-1));
+            Pair<Integer,Boolean> pair;
+            /*
+            pair=appendItem(words.get(next-1));
             if(pair.getRight()){
                 addParent(pair.getLeft(),"node");
-            }
+            }*/
             pair=appendItem(matrix[root][next]);
             if(pair.getRight()){
                 addParent(pair.getLeft(),"edge");
@@ -289,6 +443,16 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
 
         return subdirs;
     }
+
+    public static String shortenPos(String pos) {
+        String result = pos;
+        if(pos.length() > 2) {
+            result = pos.substring(0,2);
+        }
+        return result;
+    }
+
+
 
     public static void main(String[] args)throws IOException{
         logger.setLevel(Level.INFO);
