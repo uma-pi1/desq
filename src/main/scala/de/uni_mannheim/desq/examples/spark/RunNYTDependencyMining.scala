@@ -17,7 +17,7 @@ class SyntaxTree{
     }
   }
 
-  //returns pattern expression to mine sngrams based on the input n
+  /**returns pattern expression to mine sngrams based on the input n*/
   def sng(x:Int,child:String,dmax:String):String={
     var str=path(x-1,child,dmax)
     val skipStr=".*(edge node <)"
@@ -36,7 +36,7 @@ class SyntaxTree{
     return str
   }
 
-  //return path of length y
+  /**return path of length y*/
   def path(y:Int,child:String,dmax:String):String={
     if(y==0){
       return "(edge node)"+dmax
@@ -65,11 +65,11 @@ object RunNYTDependencyMining extends App {
   val dataPath=args(0)
   val dictPath=args(1)
   val ob=new SyntaxTree()
-  val maxDepth=3
+  val maxDepth=2
   val child="edge node "+ob.depthTree(maxDepth)
   val dmax=ob.depthTree(maxDepth)
   //val patEx=".*(node <)["+child+"]*"+"(edge node)"+ob.depthTree(maxDepth)+"["+child+"]*"+"(>)"
-  val patEx=ob.sng(6,child,dmax)
+  val patEx=ob.sng(3,child,dmax)
   val sigma = 1
   val conf = DesqDfs.createConf(patEx, sigma)
   conf.setProperty("desq.mining.prune.irrelevant.inputs", true)
