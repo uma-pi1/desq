@@ -4,6 +4,7 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import de.uni_mannheim.desq.avro.AvroItem;
 import de.uni_mannheim.desq.avro.AvroItemProperties;
+import de.uni_mannheim.desq.io.IoUtils;
 import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.util.CollectionUtils;
 import de.uni_mannheim.desq.util.DesqProperties;
@@ -17,6 +18,7 @@ import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableUtils;
+import org.apache.spark.SparkContext;
 
 import java.io.*;
 import java.net.URL;
@@ -575,6 +577,10 @@ public class Dictionary extends BasicDictionary implements Externalizable, Writa
 	// -- I/O ---------------------------------------------------------------------------------------------------------
 
 	public static Dictionary loadFrom(String fileName) throws IOException {
+		if (fileName.startsWith("hdfs")) {
+			throw new IOException("Can't read from HDFS. Use method loadFrom(String fileName, SparkContext sc) " +
+					"instead.");
+		}
 		return loadFrom(new File(fileName));
 	}
 
@@ -590,48 +596,43 @@ public class Dictionary extends BasicDictionary implements Externalizable, Writa
 		return dict;
 	}
 
+	/** Reads file from any Hadoop-supported file system. */
+	public static Dictionary loadFrom(String fileName, SparkContext sc) throws IOException {
+		Dictionary dict = new Dictionary();
+		dict.read(fileName, IoUtils.readHadoop(fileName, sc));
+		return dict;
+	}
+
 	/** Reads a dictionary from a file. Automatically determines the right format based on file extension. */
 	public void read(File file) throws IOException {
-		ensureWritable();
-		if (file.getName().endsWith(".json")) {
-			readJson(new FileInputStream(file));
-			return;
-		}
-		if (file.getName().endsWith(".json.gz")) {
-			readJson(new GZIPInputStream(new FileInputStream(file)));
-			return;
-		}
-		if (file.getName().endsWith(".avro")) {
-			readAvro(new FileInputStream(file));
-			return;
-		}
-		if (file.getName().endsWith(".avro.gz")) {
-			readAvro(new GZIPInputStream(new FileInputStream(file)));
-			return;
-		}
-		throw new IllegalArgumentException("unknown file extension: " + file.getName());
+		read(file.getName(), new FileInputStream(file));
 	}
 
 	/** Reads a dictionary from an URL. Automatically determines the right format based on file extension. */
 	public void read(URL url) throws IOException {
-		ensureWritable();
-		if (url.getFile().endsWith(".json")) {
-			readJson(url.openStream());
+		read(url.getFile(), url.openStream());
+	}
+
+	/** Reads a dictionary from an input stream. The filename is only used to determine the right format (based
+	 * on the file extension. */
+	private void read(String fileName, InputStream inputStream) throws IOException {
+		if (fileName.endsWith(".json")) {
+			readJson(inputStream);
 			return;
 		}
-		if (url.getFile().endsWith(".json.gz")) {
-			readJson(new GZIPInputStream(url.openStream()));
+		if (fileName.endsWith(".json.gz")) {
+			readJson(new GZIPInputStream(inputStream));
 			return;
 		}
-		if (url.getFile().endsWith(".avro")) {
-			readAvro(url.openStream());
+		if (fileName.endsWith(".avro")) {
+			readAvro(inputStream);
 			return;
 		}
-		if (url.getFile().endsWith(".avro.gz")) {
-			readAvro(new GZIPInputStream(url.openStream()));
+		if (fileName.endsWith(".avro.gz")) {
+			readAvro(new GZIPInputStream(inputStream));
 			return;
 		}
-		throw new IllegalArgumentException("unknown file extension: " + url.getFile());
+		throw new IllegalArgumentException("unknown file extension: " + fileName);
 	}
 
 	public void write(String fileName) throws IOException {
