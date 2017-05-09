@@ -123,7 +123,7 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
 
                             // If the word is named entity (person or location, or organization
                             //if(!ner.equals("O")) {
-                            if(ner.equals("PERSON") || ner.equals("LOCATION") || ner.equals("ORGANIZATION")) {
+                            if(ner.equals("PERSON") || ner.equals("LOCATION") || ner.equals("ORGANIZATION") || ner.equals("DURATION")) {
                                 List<String> groupWords = new ArrayList<String>();
                                 groupWords.add(wordExp+"-"+index);
                                 int len=1;
@@ -233,7 +233,7 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
                         }
                         //System.out.print("\n");
                         sentdpWriter.newLine();
-
+                        System.out.println(dp);
                         //subtract index from dp due to grouping of named entities
                         dp=reformatIndex(subtractIndex,dp);
 
@@ -330,7 +330,8 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
             Integer key = entry.getKey();
             Integer diff=entry.getValue();
             int newkey=key-diff;
-            dp=dp.replaceAll("-"+key,"-"+newkey);
+            dp=dp.replaceAll("-"+key+"\\)","-"+newkey+")");
+            dp=dp.replaceAll("-"+key+",","-"+newkey+",");
 
         }
         return dp;
@@ -360,13 +361,22 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
 
         Stack stack = new Stack();
         int i=0;
+        TreeMap<String,Integer> sortEdges=new TreeMap<String,Integer>();
+
+        //sorting the edges using a treeMap
         for(String rels:matrix[root]){
 
             if(rels!=null){
-                stack.push(i);
+                sortEdges.put(rels,i);
             }
             i=i+1;
         }
+
+        //pushing the sorted edges in a stack for dfs computation
+        for(Map.Entry<String,Integer> entry : sortEdges.entrySet()) {
+            stack.push(entry.getValue());
+        }
+
         while(!stack.isEmpty()){
             int next= (int) stack.pop();
             s.append(matrix[root][next]).append(words.get(next-1)).append("<");
@@ -384,8 +394,12 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
             }
             //writing del file
             serializedDelWriter.write(dict.gidOf(matrix[root][next])+" "+dict.gidOf(words.get(next-1))+" "+dict.gidOf("<")+" ");
+            //try{
+                dfs(matrix,next,words,s,serializedDelWriter,depCount+1);
+            //}//catch(StackOverflowError t){
+               // System.out.println("Stack overflow Error: "+maxDepCount);
+            //}
 
-            dfs(matrix,next,words,s,serializedDelWriter,depCount+1);
         }
         s.append(">");
 
