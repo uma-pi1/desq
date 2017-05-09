@@ -65,11 +65,11 @@ object RunNYTDependencyMining extends App {
   val dataPath=args(0)
   val dictPath=args(1)
   val ob=new SyntaxTree()
-  val maxDepth=2
+  val maxDepth=5
   val child="edge node "+ob.depthTree(maxDepth)
   val dmax=ob.depthTree(maxDepth)
   //val patEx=".*(node <)["+child+"]*"+"(edge node)"+ob.depthTree(maxDepth)+"["+child+"]*"+"(>)"
-  val patEx=ob.sng(3,child,dmax)
+  val patEx=ob.sng(2,child,dmax)
   val sigma = 1
   val conf = DesqDfs.createConf(patEx, sigma)
   conf.setProperty("desq.mining.prune.irrelevant.inputs", true)

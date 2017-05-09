@@ -32,8 +32,9 @@ public class RunFimi {
     }
 
     public static void setFimi(String dataPath, String dictPath) throws IOException {
-        String patternExp= "[.*(.)]+";
-        int sigma =50;
+        //String patternExp= "[.*(.)]+";
+        String patternExp=".*(edge node <)[edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >]* >]* >]* >]* >]* >]*(edge node)< [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >]* >]* >]* >]* >]* >[edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >]* >]* >]* >]* >]* >]*(>)";
+        int sigma =1;
 
         DesqProperties conf = DesqDfs.createConf(patternExp, sigma);
         conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
@@ -41,9 +42,12 @@ public class RunFimi {
         implementFimi(conf, dataPath, dictPath);
     }
 
+    /**argument1->del file  argument2->dictionary*/
     public static void main(String[] args) throws IOException {
-        String dataPath="data/fimi/retail/test.del";
-        String dictPath="data/fimi/retail/test-dict.json";
+        //String dataPath="data/fimi/retail/test.del";
+        //String dictPath="data/fimi/retail/test-dict.json";
+        String dataPath=args[0];
+        String dictPath=args[1];
         setFimi(dataPath,dictPath);
     }
 }
