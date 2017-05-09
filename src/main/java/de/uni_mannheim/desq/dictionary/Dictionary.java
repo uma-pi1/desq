@@ -2,25 +2,20 @@ package de.uni_mannheim.desq.dictionary;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
-
 import de.uni_mannheim.desq.avro.AvroItem;
+import de.uni_mannheim.desq.io.IoUtils;
 import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.util.DataInput2InputStreamWrapper;
 import de.uni_mannheim.desq.util.IntSetUtils;
 import de.uni_mannheim.desq.util.Writable2Serializer;
 import it.unimi.dsi.fastutil.ints.*;
-
 import org.apache.avro.file.DataFileStream;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.io.*;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.SparkContext;
 
 import java.io.*;
 import java.net.URL;
@@ -659,9 +654,9 @@ public final class Dictionary implements Externalizable, Writable {
 	// -- I/O ---------------------------------------------------------------------------------------------------------
 
 	public static Dictionary loadFrom(String fileName) throws IOException {
-		if(fileName.startsWith("hdfs")) {
-			System.out.println("ERROR. To read from HDFS, we need the SparkContext. Please use loadFrom(fileName, SparkContext), passing the SparkContext. Returning empty dictionary.");
-			return new Dictionary();
+		if (fileName.startsWith("hdfs")) {
+			throw new IOException("Can't read from HDFS. Use method loadFrom(String fileName, SparkContext sc) " +
+					"instead.");
 		}
 		return loadFrom(new File(fileName));
 	}
@@ -678,71 +673,26 @@ public final class Dictionary implements Externalizable, Writable {
 		return dict;
 	}
 
-	/** Reads file from either HDFS or local file system (or other Hadoop-supported file systems
-	 * 
-	 * Note: for now, this is just a hack to be able to read dictionaries on the cluster.
-	 * 		 We should do this nicer if we integrate this into the master branch 
-	 * 		 (and we should do it for write too)
-	 */
-	public static Dictionary loadFrom(String fileName, JavaSparkContext sc) throws IOException {
-		// Get Hadoop configuration from Spark Context
-		Configuration conf = sc.hadoopConfiguration();
-
-		// Get information about the file system of the given path
-		Path path = new Path(fileName);
-		FileSystem fs = FileSystem.get(path.toUri(), conf);
-		FSDataInputStream inputStream = fs.open(path);
-
-		// Build dictionary
+	/** Reads file from any Hadoop-supported file system. */
+	public static Dictionary loadFrom(String fileName, SparkContext sc) throws IOException {
 		Dictionary dict = new Dictionary();
-		dict.read(fileName, inputStream);
+		dict.read(fileName, IoUtils.readHadoop(fileName, sc));
 		return dict;
 	}
 
 	/** Reads a dictionary from a file. Automatically determines the right format based on file extension. */
 	public void read(File file) throws IOException {
-		if (file.getName().endsWith(".json")) {
-			readJson(new FileInputStream(file));
-			return;
-		}
-		if (file.getName().endsWith(".json.gz")) {
-			readJson(new GZIPInputStream(new FileInputStream(file)));
-			return;
-		}
-		if (file.getName().endsWith(".avro")) {
-			readAvro(new FileInputStream(file));
-			return;
-		}
-		if (file.getName().endsWith(".avro.gz")) {
-			readAvro(new GZIPInputStream(new FileInputStream(file)));
-			return;
-		}
-		throw new IllegalArgumentException("unknown file extension: " + file.getName());
+		read(file.getName(), new FileInputStream(file));
 	}
 
 	/** Reads a dictionary from an URL. Automatically determines the right format based on file extension. */
 	public void read(URL url) throws IOException {
-		if (url.getFile().endsWith(".json")) {
-			readJson(url.openStream());
-			return;
-		}
-		if (url.getFile().endsWith(".json.gz")) {
-			readJson(new GZIPInputStream(url.openStream()));
-			return;
-		}
-		if (url.getFile().endsWith(".avro")) {
-			readAvro(url.openStream());
-			return;
-		}
-		if (url.getFile().endsWith(".avro.gz")) {
-			readAvro(new GZIPInputStream(url.openStream()));
-			return;
-		}
-		throw new IllegalArgumentException("unknown file extension: " + url.getFile());
+		read(url.getFile(), url.openStream());
 	}
 	
-	/** Reads a dictionary from a FSDataInputStream. Automatically determines the right format based on file extension. */
-	public void read(String fileName, FSDataInputStream inputStream) throws IOException {
+	/** Reads a dictionary from an input stream. The filename is only used to determine the right format (based
+	 * on the file extension. */
+	private void read(String fileName, InputStream inputStream) throws IOException {
 		if (fileName.endsWith(".json")) {
 			readJson(inputStream);
 			return;
