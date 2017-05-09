@@ -6,14 +6,10 @@ import java.util
 import com.google.common.io.Files
 import de.uni_mannheim.desq.Desq.initDesq
 import de.uni_mannheim.desq.converters.nyt.avroschema.{Article, Sentence, Span}
-import de.uni_mannheim.desq.examples.spark.DesqBuilderExample.getClass
-import org.apache.avro.generic.GenericRecord
-import org.apache.avro.mapred.{AvroInputFormat, AvroWrapper}
-import org.apache.hadoop.io.NullWritable
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{Dataset, Row, SparkSession}
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
+import org.apache.spark.sql.{Row, SparkSession}
 
 import scala.collection.JavaConverters._
 
@@ -44,7 +40,13 @@ object NytUtil {
   def convertToArticle(row: Row): Article = {
     val article = new Article()
     article.setAbstract$(row.getString(0))
+    article.setFilename(row.getString(1))
     article.setSentences(convertToSentence(row.getSeq[Any](2)))
+    article.setPublicationYear(row.getString(6))
+    article.setPublicationMonth(row.getString(3))
+    article.setPublicationDayOfMonth(row.getString(7))
+    article.setContent(row.getString(13))
+    article.setOnlineSections(row.getString(15))
     article
   }
 
@@ -82,20 +84,11 @@ object NytUtil {
     span
   }
 
-  def loadArticles(path:String)(implicit sc:SparkContext) : Unit ={
-    val avroRDD = sc.hadoopFile[AvroWrapper[GenericRecord], NullWritable, AvroInputFormat[GenericRecord]](path)
-//    avroRDD.map(l => new String(l._1.datum.g{ et("username").toString()) } ).first
-    //avroRDD.collect().apply(0)._1.datum().get(2)
-//    avroRDD.flatMap(a=>a._1.datum().get(2).asInstanceOf[Array[Sentence]].toIterator)
-    avroRDD.flatMap(a=>a._1.datum().get(2).asInstanceOf[TraversableOnce[GenericRecord]])
-    avroRDD
-  }
-
   def main(args:Array[String]): Unit ={
-    val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
+    val conf = new SparkConf().setAppName(getClass.getName).setMaster("local").remove("spark.serializer")
     initDesq(conf)
     implicit val sc = new SparkContext(conf)
-    val dir = "data-local/NYTimesProcessed/results/2008/01/"
+    val dir = "data-local/NYTimesProcessed/results/2007/01/"
     loadArticlesFromFile(dir)
   }
 }

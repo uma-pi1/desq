@@ -12,7 +12,10 @@ import org.apache.log4j.Logger;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
 
 /**
  * Convert NYT dataset to Desq format. We treat each sentence as an input sequence, and
@@ -26,7 +29,6 @@ public class ConvertNyt {
     private static final Logger logger = Logger.getLogger(ConvertNyt.class.getSimpleName());
 
     public void buildDesqDataset(String avroDir, String outputDir, boolean splitByNewsroom) throws IOException {
-
         // IO paths
         String pathToAvroFiles = avroDir;
         //    String pathToAvroFiles = "data-local/nyt-1991-data/sequences/";
@@ -138,6 +140,7 @@ public class ConvertNyt {
         String pathToOutputDir = "data-local/processed/nyt_200701_java/";
         nyt.buildDesqDataset(pathToAvroFiles, pathToOutputDir,false);
 
+//        nyt.loadArticles(pathToAvroFiles);
     }
 
 }

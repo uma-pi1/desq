@@ -17,7 +17,7 @@ import scala.collection.JavaConversions._
   */
 object DesqBuilderExample {
 
-  def nyt_del()(implicit sc: SparkContext) {
+  def nyt()(implicit sc: SparkContext) {
     // create the dataset
     val lines = sc.textFile("data-local/nyt-1991-data.del")
     val data = DesqDataset.buildFromStrings(lines.map(s => s.split(" ")))
@@ -60,7 +60,7 @@ object DesqBuilderExample {
     javaTime.stop()
     println(javaTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
-    print("Converting the raw data using the Scala NYT Converter")
+    print("Converting the raw data using the Scala NYT Converter... ")
     val scalaTime = Stopwatch.createStarted()
     val articles_raw = NytUtil.loadArticlesFromFile(nyt_avro).flatMap(r=>NytUtil.convertToArticle(r).getSentences)
     val data = DesqDataset.buildFromSentences(articles_raw)

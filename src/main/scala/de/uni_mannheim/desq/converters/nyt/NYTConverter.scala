@@ -19,7 +19,7 @@ import scala.collection.mutable
 /**
   * Created by ivo on 22.03.17.
   */
-class nyt(val rootDir: String) {
+class NYTConverter(val rootDir: String) {
 
   val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
   implicit val sc = new SparkContext(conf)
@@ -105,8 +105,8 @@ class nyt(val rootDir: String) {
 
 }
 
-object Converter extends App {
-  val converter = new nyt("data-local/NYTimesProcessed/results/2006/01")
+object NYTConverter extends App {
+  val converter = new NYTConverter("data-local/NYTimesProcessed/results/2006/01")
   val rootDir = "./data-local/NYTimesProcessed/results/2006/01"
   val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
   initDesq(conf)

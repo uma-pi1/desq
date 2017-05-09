@@ -1,0 +1,352 @@
+{
+  "type" : "record",
+  "name" : "AvroArticle",
+  "namespace" : "de.uni_mannheim.desq.avro",
+  "fields" : [ {
+    "name" : "abstract",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "filename",
+    "type" : {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }
+  }, {
+    "name" : "sentences",
+    "type" : [ "null", {
+      "type" : "array",
+      "items" : {
+        "type" : "record",
+        "name" : "Sentence",
+        "fields" : [ {
+          "name" : "tokens",
+          "type" : [ "null", {
+            "type" : "array",
+            "items" : {
+              "type" : "record",
+              "name" : "Token",
+              "fields" : [ {
+                "name" : "pos",
+                "type" : [ {
+                  "type" : "string",
+                  "avro.java.string" : "String"
+                }, "null" ]
+              }, {
+                "name" : "ner",
+                "type" : [ {
+                  "type" : "string",
+                  "avro.java.string" : "String"
+                }, "null" ]
+              }, {
+                "name" : "span",
+                "type" : {
+                  "type" : "record",
+                  "name" : "Span",
+                  "fields" : [ {
+                    "name" : "start_index",
+                    "type" : [ "int", "null" ]
+                  }, {
+                    "name" : "end_index",
+                    "type" : [ "int", "null" ]
+                  } ]
+                }
+              }, {
+                "name" : "lemma",
+                "type" : [ {
+                  "type" : "string",
+                  "avro.java.string" : "String"
+                }, "null" ]
+              }, {
+                "name" : "word",
+                "type" : [ {
+                  "type" : "string",
+                  "avro.java.string" : "String"
+                }, "null" ]
+              }, {
+                "name" : "index",
+                "type" : [ "int", "null" ]
+              } ]
+            }
+          } ]
+        }, {
+          "name" : "s_id",
+          "type" : [ "int", "null" ]
+        }, {
+          "name" : "sg",
+          "type" : [ {
+            "type" : "string",
+            "avro.java.string" : "String"
+          }, "null" ]
+        }, {
+          "name" : "dp",
+          "type" : [ {
+            "type" : "string",
+            "avro.java.string" : "String"
+          }, "null" ]
+        }, {
+          "name" : "span",
+          "type" : [ "Span", "null" ]
+        } ]
+      }
+    } ]
+  }, {
+    "name" : "publication_month",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "print_page_number",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "titles",
+    "type" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string",
+        "avro.java.string" : "String"
+      }
+    }
+  }, {
+    "name" : "publication_year",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "publication_day_of_month",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "alternate_url",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "title",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "feature_page",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "correction_date",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "dsk",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "content",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "publication_day_of_week",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "online_sections",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "column_name",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "banner",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "slug",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "print_column",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "lead_paragraph",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "url",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "print_section",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "online_headline",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "online_titles",
+    "type" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string",
+        "avro.java.string" : "String"
+      }
+    }
+  }, {
+    "name" : "locations",
+    "type" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string",
+        "avro.java.string" : "String"
+      }
+    }
+  }, {
+    "name" : "names",
+    "type" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string",
+        "avro.java.string" : "String"
+      }
+    }
+  }, {
+    "name" : "descriptors",
+    "type" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string",
+        "avro.java.string" : "String"
+      }
+    }
+  }, {
+    "name" : "general_descriptors",
+    "type" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string",
+        "avro.java.string" : "String"
+      }
+    }
+  }, {
+    "name" : "author_info",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "series_name",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "normalized_byline",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "people",
+    "type" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string",
+        "avro.java.string" : "String"
+      }
+    }
+  }, {
+    "name" : "online_people",
+    "type" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string",
+        "avro.java.string" : "String"
+      }
+    }
+  }, {
+    "name" : "dateline",
+    "type" : [ {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }, "null" ]
+  }, {
+    "name" : "organizations",
+    "type" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string",
+        "avro.java.string" : "String"
+      }
+    }
+  }, {
+    "name" : "online_organizations",
+    "type" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string",
+        "avro.java.string" : "String"
+      }
+    }
+  }, {
+    "name" : "taxonomic_classifiers",
+    "type" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string",
+        "avro.java.string" : "String"
+      }
+    }
+  }, {
+    "name" : "types_of_material",
+    "type" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string",
+        "avro.java.string" : "String"
+      }
+    }
+  }, {
+    "name" : "word_count",
+    "type" : [ "int", "null" ]
+  } ]
+}
+
