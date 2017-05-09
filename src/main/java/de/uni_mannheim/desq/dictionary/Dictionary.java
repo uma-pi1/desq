@@ -616,6 +616,7 @@ public class Dictionary extends BasicDictionary implements Externalizable, Writa
 	/** Reads a dictionary from an input stream. The filename is only used to determine the right format (based
 	 * on the file extension. */
 	private void read(String fileName, InputStream inputStream) throws IOException {
+		ensureWritable();
 		if (fileName.endsWith(".json")) {
 			readJson(inputStream);
 			return;
