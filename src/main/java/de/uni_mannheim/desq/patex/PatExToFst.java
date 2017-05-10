@@ -22,7 +22,7 @@ public final class PatExToFst {
 
 	/** If the pattern expression contains string item identifiers, the dict needs to be of type {@link Dictionary}.
 	 *
-	 * @param optimizeRepeats if true, the FST is optimized before any repeat experssion (e.g., Kleene star) is used.
+	 * @param optimizeRepeats if true, the FST is optimized before any repeat experssion (e.g., {0,10) is used.
 	 *                           Can save substantial computational cost for large FSTs.
 	 */
 	public PatExToFst(String expression, BasicDictionary dict, boolean optimizeRepeats) {
@@ -186,7 +186,6 @@ public final class PatExToFst {
 		@Override
 		public Fst visitStarExpression(StarExpressionContext ctx) {
 			Fst fst = visit(ctx.repeatexp());
-			if (optimizeRepeats) fst.optimize();
 			return FstOperations.kleene(fst);
 		}
 
