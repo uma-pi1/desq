@@ -3,20 +3,20 @@ package de.uni_mannheim.desq.fst.graphviz;
 import java.io.File;
 
 /**
- * FstVisualizer.java
+ * AutomatonVisualizer.java
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
-public class FstVisualizer {
+public class AutomatonVisualizer {
 	GraphViz gv = new GraphViz();
 	String type = "pdf";
 	String outfile;
 
-	public FstVisualizer(String type, String outfile) {
+	public AutomatonVisualizer(String type, String outfile) {
 		this.type = type;
 		this.outfile = outfile;
 	}
 
-	public FstVisualizer(String outfile) {
+	public AutomatonVisualizer(String outfile) {
 		this.outfile = outfile;
 	}
 
@@ -40,9 +40,9 @@ public class FstVisualizer {
 
 	public void addFinalState(String state, boolean isFinalComplete) {
 		if(isFinalComplete)
-			gv.add(state + " [shape=doublecircle, style=filled, fillcolor=gray]");
+			gv.add(state + " [shape=doublecircle, style=filled, fillcolor=gray]\n");
 		else
-			gv.add(state + " [shape=doublecircle]");
+			gv.add(state + " [shape=doublecircle]\n");
 	}
 
 	public void add(String fromState, String iLabel, String oLabel,  String toState) {

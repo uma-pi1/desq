@@ -2,7 +2,7 @@ package de.uni_mannheim.desq.fst;
 
 
 import com.google.common.base.Strings;
-import de.uni_mannheim.desq.fst.graphviz.FstVisualizer;
+import de.uni_mannheim.desq.fst.graphviz.AutomatonVisualizer;
 import de.uni_mannheim.desq.util.CollectionUtils;
 import it.unimi.dsi.fastutil.ints.*;
 import org.apache.commons.io.FilenameUtils;
@@ -200,17 +200,17 @@ public final class Fst {
 	
 	/** Exports the fst using graphviz (type bsed on extension, e.g., "gv" (source file), "pdf", ...) */
 	public void exportGraphViz(String file) {
-		FstVisualizer fstVisualizer = new FstVisualizer(FilenameUtils.getExtension(file), FilenameUtils.getBaseName(file));
-		fstVisualizer.beginGraph();
+		AutomatonVisualizer automatonVisualizer = new AutomatonVisualizer(FilenameUtils.getExtension(file), FilenameUtils.getBaseName(file));
+		automatonVisualizer.beginGraph();
 		for(State s : states) {
 			for(Transition t : s.transitionList)
-                fstVisualizer.add(String.valueOf(s.id), t.itemExpression(), String.valueOf(t.getToState().id));
+                automatonVisualizer.add(String.valueOf(s.id), t.itemExpression(), String.valueOf(t.getToState().id));
 			if(s.isFinal)
-				fstVisualizer.addFinalState(String.valueOf(s.id));
+				automatonVisualizer.addFinalState(String.valueOf(s.id));
 			if(s.isFinalComplete)
-				fstVisualizer.addFinalState(String.valueOf(s.id), true);
+				automatonVisualizer.addFinalState(String.valueOf(s.id), true);
 		}
-		fstVisualizer.endGraph();
+		automatonVisualizer.endGraph();
 	}
 
 	/** Creates a pattern expression that is equivalent to this FST. In general, the resulting pattern experssions
