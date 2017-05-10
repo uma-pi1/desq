@@ -7,12 +7,14 @@ import de.uni_mannheim.desq.patex.PatExParser.*;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
+import org.apache.log4j.Logger;
 
 import java.util.HashMap;
 import java.util.Map;
 
 
 public final class PatExToFst {
+	private static final Logger logger = Logger.getLogger(PatExToFst.class);
 	String expression;
 	BasicDictionary dict;
 	Map<String,Transition> transitionCache = new HashMap<>(); // caches transition
@@ -47,6 +49,12 @@ public final class PatExToFst {
 
 		fst.updateStates();
 		fst.optimize();
+
+		if (fst.getFinalStates().isEmpty() || !fst.hasOutput()) {
+			logger.warn("FST has no transitions that can produce outputs. Did you forget to add capture groups? " +
+					"Pattern expression: " + expression);
+		}
+
 		return fst;
 	}
 

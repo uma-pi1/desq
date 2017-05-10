@@ -131,6 +131,15 @@ public final class Fst {
 		}
 	}
 
+	public boolean hasOutput() {
+		for (State s : states) {
+			for (Transition t : s.getTransitions()) {
+				if (t.hasOutput()) return true;
+			}
+		}
+		return false;
+	}
+
 	// -- printing ----------------------------------------------------------------------------------------------------
 
 	public void print() {

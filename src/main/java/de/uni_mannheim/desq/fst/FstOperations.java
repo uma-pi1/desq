@@ -169,6 +169,8 @@ public final class FstOperations {
 		List<State> newInitialStates = new ArrayList<>(); // will be old final states
 		for (State s : fst.states) {
 			s.transitionList = reversedIncomingTransitionsOfState.get(s.id);
+			if (s.transitionList==null)
+				s.transitionList = new ArrayList<>();
 			/*if(s.isFinal) {
 				newInitialStates.add(s);
 				s.isFinal = false;

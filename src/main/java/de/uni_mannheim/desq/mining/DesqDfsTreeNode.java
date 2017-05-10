@@ -197,12 +197,12 @@ final class DesqDfsTreeNode {
 			child.currentSnapshots.set(spIndex);
 			child.projectedDatabase.addNonNegativeInt(inputId-child.projectedDatabaseCurrentInputId);
 			child.projectedDatabaseCurrentInputId = inputId;
-			if (possibleState < 0)
+			if (child.possibleState < 0)
 				child.projectedDatabase.addNonNegativeInt(stateId);
 			child.projectedDatabase.addNonNegativeInt(position);
 		} else if (!child.currentSnapshots.get(spIndex)) {
 			child.currentSnapshots.set(spIndex);
-			if (possibleState < 0)
+			if (child.possibleState < 0)
 				child.projectedDatabase.addNonNegativeInt(stateId);
 			child.projectedDatabase.addNonNegativeInt(position);
 		}

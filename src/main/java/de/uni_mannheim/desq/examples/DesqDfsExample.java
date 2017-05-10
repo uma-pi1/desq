@@ -1,8 +1,13 @@
 package de.uni_mannheim.desq.examples;
 
+import de.uni_mannheim.desq.dictionary.Dictionary;
+import de.uni_mannheim.desq.fst.Fst;
+import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.mining.DesqDfs;
+import de.uni_mannheim.desq.patex.PatExToFst;
 import de.uni_mannheim.desq.util.DesqProperties;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 
 public class DesqDfsExample {
@@ -76,11 +81,33 @@ public class DesqDfsExample {
 		ExampleUtils.runProtein(conf);
 	}
 
+	public static void ryan() throws IOException {
+		Dictionary dict = Dictionary.loadFrom("data-local/ryan/serializedDict.json");
+		DelSequenceReader reader = new DelSequenceReader(new FileInputStream("data-local/ryan/serializedDel.del"), false);
+		reader.setDictionary(dict);
+		//String patternExpr = "(edge node <)[edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >]* >]* >]* >]* >]* >]*(edge node)< [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >]* >]* >]* >]* >]* >[edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >]* >]* >]* >]* >]* >]*(>)";
+		//String patternExpr = ".*(edge node <)[edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >]*(edge node <)[edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >]*(edge node)< [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >[edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >]*(>)[edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >]*(>)|.*(edge node <)[edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >]*(edge node)< [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >[edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >]*[edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >]*(edge node)< [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >[edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >]*(>) ";
+		String patternExpr = ".*(edge node <)[edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >]*(edge node <)[edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >]*(edge NN)< [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >[edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >]*(>)[edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >]*(>)|.*(edge node <)[edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >]*(edge NN)< [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >[edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >]*[edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >]*(edge NN)< [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >[edge node < [ edge node < [ edge node < [ edge node < [ edge node < [ edge node < >]* >]* >]* >]* >]* >]*(>) ";
+		long support = 1;
+
+		ExampleUtils.runVerbose(reader, DesqDfs.createConf(patternExpr, support));
+
+		PatExToFst patEx = new PatExToFst(patternExpr, dict);
+		Fst fst = patEx.translate();
+		fst.exportGraphViz("ryan.pdf"); // graphviz needs to be installed
+		fst.minimize();
+		fst.annotate();
+		System.out.println("Minimized FST");
+		fst.print();
+		fst.exportGraphViz("ryan-minimized.pdf"); // graphviz needs to be installed
+	}
+
 	public static void main(String[] args) throws IOException {
 		//icdm16();
 		//nyt();
 		//netflixFlat();
         //netflixDeep();
-		protein();
+		//protein();
+		ryan();
 	}
 }
