@@ -210,7 +210,7 @@ public final class Fst {
 			if(s.isFinalComplete)
 				automatonVisualizer.addFinalState(String.valueOf(s.id), true);
 		}
-		automatonVisualizer.endGraph();
+		automatonVisualizer.endGraph(String.valueOf(initialState.id));
 	}
 
 	/** Creates a pattern expression that is equivalent to this FST. In general, the resulting pattern experssions

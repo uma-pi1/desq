@@ -174,7 +174,7 @@ public final class Dfa {
 					BitSet firedTransitions = s.firedTransitionsByIndex.get(i);
 					for (int j = firedTransitions.nextSetBit(0); j >= 0; j = firedTransitions.nextSetBit(j+1)) {
 						label = label + sep + s.transitionLabels[j];
-						sep = "∧";
+						sep = ";";
 					}
 				}
 				automatonVisualizer.add(String.valueOf(numOf.getInt(s)), label, String.valueOf(numOf.getInt(t)));
@@ -184,7 +184,7 @@ public final class Dfa {
 			if(s.isFinalComplete)
 				automatonVisualizer.addFinalState(String.valueOf(numOf.getInt(s)), true);
 		}
-		automatonVisualizer.endGraph();
+		automatonVisualizer.endGraph(String.valueOf(numOf.getInt(initial)));
 	}
 
 }
