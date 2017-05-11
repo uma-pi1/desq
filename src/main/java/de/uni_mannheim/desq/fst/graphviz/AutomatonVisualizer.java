@@ -9,6 +9,7 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -45,14 +46,17 @@ public class AutomatonVisualizer {
 
 	public void endGraph(String initialState) {
 		// 	tell dot to place vertices with same distance from initial state on same rank
-		DijkstraShortestPath<String, Pair<Integer, String>> dsp = null;
+		final  DijkstraShortestPath<String, Pair<Integer, String>> dsp = new DijkstraShortestPath<>(graph);
+		List<Pair<Integer, String>> edges = new ArrayList<>(graph.getEdges());
 		if (initialState!=null) {
-			dsp = new DijkstraShortestPath<>(graph);
+			int maxRank = 0;
 
 			// organize vertices by distance
+			int maxDist = 0;
 			Int2ObjectMap<List<String>> vertexByDistance = new Int2ObjectOpenHashMap<>();
 			for (String vertex : graph.getVertices()) {
 				int dist = dsp.getDistance(initialState, vertex).intValue();
+				maxDist = Math.max(dist, maxDist);
 				List<String> vertices = vertexByDistance.get(dist);
 				if (vertices == null) {
 					vertices = new ArrayList<>();
@@ -61,14 +65,15 @@ public class AutomatonVisualizer {
 				vertices.add(vertex);
 			}
 
-			for (Int2ObjectMap.Entry<List<String>> entry : vertexByDistance.int2ObjectEntrySet()) {
-				int dist = entry.getIntKey();
+			// put same-distance vertices on same rank
+			for (int dist = 0; dist<=maxDist; dist++) {
+				List<String> vertices = vertexByDistance.get(dist);
 				if (dist == 0) {
 					gv.addln("{rank=source; \"" + initialState + "\"}");
 				} else {
 					StringBuilder sb = new StringBuilder();
 					sb.append("{rank=same; ");
-					for (String vertex : entry.getValue()) {
+					for (String vertex : vertices) {
 						sb.append("\"");
 						sb.append(vertex);
 						sb.append("\" ");
@@ -77,10 +82,23 @@ public class AutomatonVisualizer {
 					gv.addln(sb.toString());
 				}
 			}
+
+			// order edges by distance from initial state
+			Collections.sort(edges, (Pair<Integer, String> e1, Pair<Integer, String> e2) -> {
+				edu.uci.ics.jung.graph.util.Pair<String> endpoints = graph.getEndpoints(e1);
+				String sourceVertex1 = endpoints.getFirst();
+				int distSource1 = dsp.getDistance(initialState, sourceVertex1).intValue();
+				endpoints = graph.getEndpoints(e2);
+				String sourceVertex2 = endpoints.getFirst();
+				int distSource2 = dsp.getDistance(initialState, sourceVertex2).intValue();
+				int cmp = Integer.compare(distSource1, distSource2);
+				if (cmp==0) cmp = sourceVertex1.compareTo(sourceVertex2);
+				return cmp;
+			});
 		}
 
 		// output the edges
-		for (Pair<Integer, String> e : graph.getEdges()) {
+		for (Pair<Integer, String> e : edges) {
 			String edgeLabel = e.getRight();
 			edu.uci.ics.jung.graph.util.Pair<String> endpoints = graph.getEndpoints(e);
 			String sourceVertex = endpoints.getFirst();
@@ -90,17 +108,18 @@ public class AutomatonVisualizer {
 				int distSource = dsp.getDistance(initialState, sourceVertex).intValue();
 				int distEnd = dsp.getDistance(initialState, endVertex).intValue();
 				if (distEnd <= distSource) {
-					dotString += ",constraint=false";
+					dotString += ",constraint=false"; // don't use back-edges for determining vertex rank
 				}
 				if (!sourceVertex.equals(endVertex) && distEnd == 0 && edgeLabel.isEmpty()) { // other to source vertex
-					dotString += ",color=\"#cccccc\",fontcolor=\"#cccccc\"";
+					dotString += ",color=\"#cccccc\",fontcolor=\"#cccccc\",constraint=false";
 				}
 			}
 			dotString += "];";
 			gv.addln(dotString);
 		}
-		gv.addln(gv.end_graph());
 
+		// we are done
+		gv.addln(gv.end_graph());
 		File out = new File(outfile + "." + type);
 		gv.writeGraphToFile(gv.getGraph(gv.getDotSource(), type), out);
 	}
