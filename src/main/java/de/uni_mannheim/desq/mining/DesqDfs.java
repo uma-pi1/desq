@@ -377,4 +377,10 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		// we are done processing the node, so remove its item from the prefix
 		prefix.removeInt(lastPrefixIndex);
 	}
+
+	// -- accessors to internal data structures (use with care) -------------------------------------------------------
+
+	public Dfa getDfa() {
+		return dfa;
+	}
 }

@@ -1,7 +1,10 @@
 package de.uni_mannheim.desq.fst;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
+import de.uni_mannheim.desq.fst.graphviz.AutomatonVisualizer;
 import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import org.apache.commons.io.FilenameUtils;
 
 import java.util.BitSet;
 import java.util.HashMap;
@@ -26,7 +29,7 @@ public final class Dfa {
 	DfaState initial;
 
 	/** Maps a set of FST states (as given in the bitset) to a DfaState of this DFA, if present. */
-	Map<BitSet, DfaState> states = new HashMap<BitSet, DfaState>();
+	Map<BitSet, DfaState> states = new HashMap<>();
 
 	Dfa(Dictionary dict, int largestFrequentItemFid, boolean processFinalCompleteStates) {
 		this.dict = dict;
@@ -133,4 +136,55 @@ public final class Dfa {
 	public int numStates() {
 		return states.size();
 	}
+
+	/** Exports the DFA using graphviz (type bsed on extension, e.g., "gv" (source file), "pdf", ...). Works for eager
+	 * and lazy DFAs.
+	 *
+	 * The initial state has number 1; all other state numbers are assigned arbitrarily. The method tries to assign
+	 * useful edge labels. Each edge is labeled with a conjunction of item expressions and is taken by an item if
+	 * it matches every one of those item expressions. Unlabeled edges mean "all other items".
+	 *
+	 * If the output file is a PDF document, may take a very (very very) long time.
+	 */
+	public void exportGraphViz(String file) {
+		// number the states
+		Object2IntOpenHashMap<DfaState> numOf = new Object2IntOpenHashMap<>();
+		numOf.put(initial, 1);
+		int i = 1;
+		for (DfaState s : states.values()) {
+			if (!numOf.containsKey(s)) {
+				numOf.put(s, ++i);
+			}
+		}
+
+		AutomatonVisualizer automatonVisualizer = new AutomatonVisualizer(
+				FilenameUtils.getExtension(file), FilenameUtils.getBaseName(file));
+
+		automatonVisualizer.beginGraph();
+		for (DfaState s : states.values()) {
+			for (i=0; i<s.reachableDfaStates.size(); i++) {
+				DfaState t = s.reachableDfaStates.get(i);
+				String label;
+				if (i==0) {
+					if (t==null) continue;
+					label = ""; // unlabeled edges mean "all other"
+				} else {
+					label = "";
+					String sep = "";
+					BitSet firedTransitions = s.firedTransitionsByIndex.get(i);
+					for (int j = firedTransitions.nextSetBit(0); j >= 0; j = firedTransitions.nextSetBit(j+1)) {
+						label = label + sep + s.transitionLabels[j];
+						sep = ";";
+					}
+				}
+				automatonVisualizer.add(String.valueOf(numOf.getInt(s)), label, String.valueOf(numOf.getInt(t)));
+			}
+			if(s.isFinal)
+				automatonVisualizer.addFinalState(String.valueOf(numOf.getInt(s)));
+			if(s.isFinalComplete)
+				automatonVisualizer.addFinalState(String.valueOf(numOf.getInt(s)), true);
+		}
+		automatonVisualizer.endGraph(String.valueOf(numOf.getInt(initial)));
+	}
+
 }

@@ -7,22 +7,34 @@ import de.uni_mannheim.desq.patex.PatExParser.*;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
+import org.apache.log4j.Logger;
 
 import java.util.HashMap;
 import java.util.Map;
 
 
 public final class PatExToFst {
+	private static final Logger logger = Logger.getLogger(PatExToFst.class);
 	String expression;
 	BasicDictionary dict;
 	Map<String,Transition> transitionCache = new HashMap<>(); // caches transition
+	boolean optimizeRepeats;
 
-	/** If the pattern expression contains string item identifiers, the dict needs to be of type {@link Dictionary}. */
-	public PatExToFst(String expression, BasicDictionary dict) {
+	/** If the pattern expression contains string item identifiers, the dict needs to be of type {@link Dictionary}.
+	 *
+	 * @param optimizeRepeats if true, the FST is optimized before any repeat experssion (e.g., {0,10) is used.
+	 *                           Can save substantial computational cost for large FSTs.
+	 */
+	public PatExToFst(String expression, BasicDictionary dict, boolean optimizeRepeats) {
 		this.expression = expression;
 		this.dict = dict;
+		this.optimizeRepeats = optimizeRepeats;
 	}
-	
+
+	public PatExToFst(String expression, BasicDictionary dict) {
+		this(expression, dict, true);
+	}
+
 	public Fst translate() {
 		transitionCache.clear();
 		ANTLRInputStream input = new ANTLRInputStream(expression);
@@ -47,6 +59,12 @@ public final class PatExToFst {
 
 		fst.updateStates();
 		fst.optimize();
+
+		if (fst.getFinalStates().isEmpty() || !fst.hasOutput()) {
+			logger.warn("FST has no transitions that can produce outputs. Did you forget to add capture groups? " +
+					"Pattern expression: " + expression);
+		}
+
 		return fst;
 	}
 
@@ -119,27 +137,35 @@ public final class PatExToFst {
 		public Fst visitRepeatMinMaxExpression(RepeatMinMaxExpressionContext ctx) {
 			int min = Integer.parseInt(ctx.INT(0).getText());
 			int max = Integer.parseInt(ctx.INT(1).getText());
-			return FstOperations.repeatMinMax(visit(ctx.repeatexp()), min, max);
+			Fst fst = visit(ctx.repeatexp());
+			if (optimizeRepeats) fst.optimize();
+			return FstOperations.repeatMinMax(fst, min, max);
 		}
 
 
 		@Override
 		public Fst visitRepeatExactlyExpression(RepeatExactlyExpressionContext ctx) {
 			int n = Integer.parseInt(ctx.INT().getText());
-			return FstOperations.repeatExactly(visit(ctx.repeatexp()), n);
+			Fst fst = visit(ctx.repeatexp());
+			if (optimizeRepeats) fst.optimize();
+			return FstOperations.repeatExactly(fst, n);
 		}
 		
 		@Override
 		public Fst visitRepeatMaxExpression(RepeatMaxExpressionContext ctx) {
 			int max = Integer.parseInt(ctx.INT().getText());
-			return FstOperations.repeatMinMax(visit(ctx.repeatexp()), 0, max);
+			Fst fst = visit(ctx.repeatexp());
+			if (optimizeRepeats) fst.optimize();
+			return FstOperations.repeatMinMax(fst, 0, max);
 		}
 
 		
 		@Override
 		public Fst visitRepeatMinExpression(RepeatMinExpressionContext ctx) {
 			int min = Integer.parseInt(ctx.INT().getText());
-			return FstOperations.repeatMin(visit(ctx.repeatexp()), min);
+			Fst fst = visit(ctx.repeatexp());
+			if (optimizeRepeats) fst.optimize();
+			return FstOperations.repeatMin(fst, min);
 		}
 
 		
@@ -151,13 +177,16 @@ public final class PatExToFst {
 		
 		@Override
 		public Fst visitPlusExpression(PlusExpressionContext ctx) {
-			return FstOperations.plus(visit(ctx.repeatexp()));
+			Fst fst = visit(ctx.repeatexp());
+			if (optimizeRepeats) fst.optimize();
+			return FstOperations.plus(fst);
 		}
 
 		
 		@Override
 		public Fst visitStarExpression(StarExpressionContext ctx) {
-			return FstOperations.kleene(visit(ctx.repeatexp()));
+			Fst fst = visit(ctx.repeatexp());
+			return FstOperations.kleene(fst);
 		}
 
 		
