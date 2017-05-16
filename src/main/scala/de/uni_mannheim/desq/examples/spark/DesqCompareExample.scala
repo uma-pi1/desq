@@ -55,7 +55,7 @@ object DesqCompareExample {
 
   def buildAndCompare()(implicit sc: SparkContext): Unit = {
     val patternExpression = "(.^ JJ NN)"
-    val sigma = 3
+    val sigma = 100
     val k = 5
 
     print("Initializing Compare... ")
@@ -68,14 +68,14 @@ object DesqCompareExample {
     print("Loading raw articles for left collection from disk... ")
     val loadLeftArticlesTime = Stopwatch.createStarted
     val dir_left = "data-local/NYTimesProcessed/results/2006"
-    val raw_left = NytUtil.loadArticlesFromFile(dir_left).flatMap(r => NytUtil.convertToArticle(r).getSentences)
+    val raw_left = NytUtil.loadArticlesFromFile(dir_left).flatMap(r => r.getSentences)
     loadLeftArticlesTime.stop
     println(loadLeftArticlesTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
     print("Loading raw articles for right collection from disk... ")
     val loadRightTime = Stopwatch.createStarted
     val dir_right = "data-local/NYTimesProcessed/results/2005"
-    val raw_right = NytUtil.loadArticlesFromFile(dir_right).flatMap(r => NytUtil.convertToArticle(r).getSentences)
+    val raw_right = NytUtil.loadArticlesFromFile(dir_right).flatMap(r => r.getSentences)
     loadRightTime.stop
     println(loadRightTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
@@ -90,7 +90,7 @@ object DesqCompareExample {
     val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
     initDesq(conf)
     implicit val sc = new SparkContext(conf)
-        buildAndCompare()
-//    compareDatasets()
+//        buildAndCompare()
+    compareDatasets()
   }
 }

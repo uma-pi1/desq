@@ -1,15 +1,15 @@
 package de.uni_mannheim.desq.converters.nyt
 
-import java.io.File
 import java.util
 
-import com.google.common.io.Files
 import de.uni_mannheim.desq.Desq.initDesq
+import de.uni_mannheim.desq.avro.AvroArticle
 import de.uni_mannheim.desq.converters.nyt.avroschema.{Article, Sentence, Span}
+import de.uni_mannheim.desq.io.spark.AvroIO
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
-import org.apache.spark.sql.{Row, SparkSession}
 
 import scala.collection.JavaConverters._
 
@@ -18,22 +18,9 @@ import scala.collection.JavaConverters._
   */
 object NytUtil {
 
-  def loadArticlesFromFile(rootDir: String)(implicit sc: SparkContext): RDD[Row] = {
-    val subDirs = ConvertNyt.getLeafSubdirs(new File(rootDir))
-    if (subDirs.size() == 0) {
-      subDirs.add(new File(rootDir))
-    }
-    val paths = for (folder: File <- subDirs.asScala;
-                     file: File <- folder.listFiles();
-                     if Files.getFileExtension(file.getPath()).endsWith("avro")
-    ) yield {
-      file.getPath()
-    }
-    val job = AvroUtils.getJobInputKeyAvroSchema(Article.SCHEMA$)
-    val schema = Article.SCHEMA$
-    val spark = SparkSession.builder().master("local").getOrCreate()
-    val articles = paths.toList.map(path => spark.read.format("com.databricks.spark.avro").option("avroSchema", schema.toString).load(path)).reduce((df1, df2) => df1.union(df2))
-    articles.rdd
+  def loadArticlesFromFile(rootDir: String)(implicit sc: SparkContext): RDD[AvroArticle] = {
+    val articles = AvroIO.read[AvroArticle](rootDir, AvroArticle.SCHEMA$)
+    articles
   }
 
 
@@ -84,7 +71,7 @@ object NytUtil {
     span
   }
 
-  def main(args:Array[String]): Unit ={
+  def main(args: Array[String]): Unit = {
     val conf = new SparkConf().setAppName(getClass.getName).setMaster("local").remove("spark.serializer")
     initDesq(conf)
     implicit val sc = new SparkContext(conf)

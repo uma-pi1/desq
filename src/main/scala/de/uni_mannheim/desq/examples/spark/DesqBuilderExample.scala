@@ -54,15 +54,15 @@ object DesqBuilderExample {
     val nytJavaOutDir = "data-local/processed/sparkconvert/2007_java/"
     val nytConverter = new ConvertNyt
 
-    print("Converting the raw data using the Java NYT Converter... ")
-    val javaTime = Stopwatch.createStarted()
-    nytConverter.buildDesqDataset(nyt_avro, nytJavaOutDir, false)
-    javaTime.stop()
-    println(javaTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+//    print("Converting the raw data using the Java NYT Converter... ")
+//    val javaTime = Stopwatch.createStarted()
+//    nytConverter.buildDesqDataset(nyt_avro, nytJavaOutDir, false)
+//    javaTime.stop()
+//    println(javaTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
     print("Converting the raw data using the Scala NYT Converter... ")
     val scalaTime = Stopwatch.createStarted()
-    val articles_raw = NytUtil.loadArticlesFromFile(nyt_avro).flatMap(r=>NytUtil.convertToArticle(r).getSentences)
+    val articles_raw = NytUtil.loadArticlesFromFile(nyt_avro).flatMap(r => r.getSentences)
     val data = DesqDataset.buildFromSentences(articles_raw)
     scalaTime.stop()
     println(scalaTime.elapsed(TimeUnit.MILLISECONDS) + "ms")

@@ -1,19 +1,11 @@
 package de.uni_mannheim.desq.comparing
 
-import java.io.FileOutputStream
-
-import de.uni_mannheim.desq.Desq.initDesq
-import de.uni_mannheim.desq.converters.nyt.NytUtil
-import de.uni_mannheim.desq.converters.nyt.avroschema.Sentence
+import de.uni_mannheim.desq.avro.Sentence
 import de.uni_mannheim.desq.dictionary.Dictionary
 import de.uni_mannheim.desq.mining.WeightedSequence
 import de.uni_mannheim.desq.mining.spark.{DesqCount, DesqDataset, DesqMiner, DesqMinerContext}
+import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.Row
-import org.apache.spark.{SparkConf, SparkContext}
-
-import scala.collection.JavaConversions._
-import scala.reflect.io.File
 
 /**
   * Created by ivo on 02.05.17.
@@ -112,8 +104,8 @@ class DesqCompare {
   def findTopKPattern(left: DesqDataset, right: DesqDataset, k: Int = 20, measure: Int = 1): (Array[(WeightedSequence, Float)], Array[(WeightedSequence, Float)]) = {
     val temp1 = left.sequences.map(ws => (ws, ws.weight))
     val temp2 = right.sequences.map(ws => (ws, ws.weight))
-//    simple interestingness
-//    val global = temp1.fullOuterJoin(temp2).map(ws => (ws._1, ws._2._1.getOrElse(0L), ws._2._1.getOrElse(0L) / (ws._2._1.getOrElse(0L) + ws._2._2.getOrElse(0L)).toFloat, ws._2._2.getOrElse(0L), ws._2._2.getOrElse(0L) / (ws._2._1.getOrElse(0L) + ws._2._2.getOrElse(0L)).toFloat))
+    //    simple interestingness
+    //    val global = temp1.fullOuterJoin(temp2).map(ws => (ws._1, ws._2._1.getOrElse(0L), ws._2._1.getOrElse(0L) / (ws._2._1.getOrElse(0L) + ws._2._2.getOrElse(0L)).toFloat, ws._2._2.getOrElse(0L), ws._2._2.getOrElse(0L) / (ws._2._1.getOrElse(0L) + ws._2._2.getOrElse(0L)).toFloat))
     val global = temp1.fullOuterJoin(temp2).map(ws => (ws._1, ws._2._1.getOrElse(0L), (1 + ws._2._1.getOrElse(0L)) / (1 + ws._2._2.getOrElse(0L)).toFloat, ws._2._2.getOrElse(0L), (1 + ws._2._2.getOrElse(0L)) / (1 + ws._2._1.getOrElse(0L)).toFloat))
     val topleft = global.sortBy(ws => (ws._3, ws._2), ascending = false).take(k).map(ws => (ws._1.withSupport(ws._2), ws._3))
     val topright = global.sortBy(ws => (ws._5, ws._4), ascending = false).take(k).map(ws => (ws._1.withSupport(ws._4), ws._5))
