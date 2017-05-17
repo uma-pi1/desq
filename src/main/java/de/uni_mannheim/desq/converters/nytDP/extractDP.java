@@ -54,8 +54,8 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
     String serializedDel="data-local/processed/nyt_all/serializedDel.del";
 
     public void buildDP() throws IOException {
-        int sentenceCount = 0;
-        int articleCount = 0;
+
+
 
 
         BufferedWriter dpWriter = new BufferedWriter(new FileWriter(getProcessedNytDataFileDP));
@@ -89,14 +89,24 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
                 DatumReader<Article> userDatumReader = new SpecificDatumReader<>(Article.class);
                 DataFileReader<Article> dataFileReader = new DataFileReader<>(f, userDatumReader);
                 Article article = null;
-
+                int articleCount = 0;
                 while (dataFileReader.hasNext()) {
-                    if(articleCount==1)break;
                     article = dataFileReader.next(article);
-                    articleCount++;
+     /*               if(articleCount<6){
+                        articleCount++;
+                        continue;
+                    }*/
+                    if(articleCount==2)break;
 
+                    articleCount++;
+                    int sentenceCount = 0;
                     for (Sentence sentence : article.getSentences()) {
-                        if(sentenceCount==5)break;
+/*
+                        if(sentenceCount<1){
+                            sentenceCount++;
+                            continue;
+                        }*/
+                        //if(sentenceCount==5)break;
                         sentenceCount++;
                         if (sentenceCount % 500000 == 0) {
                             logger.info("Processed " + sentenceCount + " sentences and " + articleCount + " articles");
@@ -351,7 +361,8 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
         }
         for(i=0;i<len;i++){
             //updating all interdependent dependencies with the grouped named entity
-            dp=dp.replaceAll(groupWords.get(i),wordplus+"-"+startIndex);
+            dp=dp.replaceAll(groupWords.get(i)+"\\)",wordplus+"-"+startIndex+"\\)");
+            dp=dp.replaceAll(groupWords.get(i)+",",wordplus+"-"+startIndex+",");
         }
         return dp;
     }
@@ -379,10 +390,22 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
 
         while(!stack.isEmpty()){
             int next= (int) stack.pop();
-            s.append(matrix[root][next]).append(words.get(next-1)).append("<");
+            //checking for direction of child nodes
+            String dir;
+            if(next-root>0)
+                dir="L";
+            else
+                dir="R";
+
+            s.append(matrix[root][next]).append(dir).append(words.get(next-1)).append("<");
             //adding item to dictionary
             currentFids.add(dict.fidOf("<"));
+
             Pair<Integer,Boolean> pair;
+            pair=appendItem(dir);
+            if(pair.getRight()){
+                addParent(pair.getLeft(),"direction");
+            }
             /*
             pair=appendItem(words.get(next-1));
             if(pair.getRight()){
@@ -393,11 +416,12 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
                 addParent(pair.getLeft(),"edge");
             }
             //writing del file
-            serializedDelWriter.write(dict.gidOf(matrix[root][next])+" "+dict.gidOf(words.get(next-1))+" "+dict.gidOf("<")+" ");
+            serializedDelWriter.write(dict.gidOf(matrix[root][next])+" "+dict.gidOf(dir)+" "+dict.gidOf(words.get(next-1))+" "+dict.gidOf("<")+" ");
             //try{
                 dfs(matrix,next,words,s,serializedDelWriter,depCount+1);
-            //}//catch(StackOverflowError t){
-               // System.out.println("Stack overflow Error: "+maxDepCount);
+            //}catch(StackOverflowError t){
+                //System.out.println("Stack overflow Error: "+maxDepCount+"yep!");
+                //System.exit(0);
             //}
 
         }
