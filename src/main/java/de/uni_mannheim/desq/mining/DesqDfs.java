@@ -380,6 +380,10 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 	// -- accessors to internal data structures (use with care) -------------------------------------------------------
 
+	public Fst getFst() {
+		return fst;
+	}
+
 	public Dfa getDfa() {
 		return dfa;
 	}

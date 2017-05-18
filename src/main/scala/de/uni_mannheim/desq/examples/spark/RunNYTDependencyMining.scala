@@ -3,8 +3,6 @@ package de.uni_mannheim.desq.examples.spark
 import de.uni_mannheim.desq.experiments.fimi.RunFimi
 import de.uni_mannheim.desq.mining.DesqDfs
 
-import scala.collection.JavaConverters._
-
 
 
 
@@ -97,7 +95,7 @@ object RunNYTDependencyMining extends App {
   val dataPath=args(0)
   val dictPath=args(1)
   val ob=new SyntaxTree()
-  val maxDepth=17
+  val maxDepth=10
   //child is used to skip a partucular child(along with all its children) of a node
   val child="edge direction node "+ob.depthTree(maxDepth)
   val dmax=ob.depthTree(maxDepth)
@@ -105,12 +103,17 @@ object RunNYTDependencyMining extends App {
   val patEx=ob.shortestPath("NN","DT",1,3,child,dmax)
   //patEx to mine syntactic n-grams
   //val patEx=ob.subsetSumUtility(4,child,dmax)
+  print(patEx)
+
   val sigma = 1
   val conf = DesqDfs.createConf(patEx, sigma)
   conf.setProperty("desq.mining.use.lazy.dfa", true)
   conf.setProperty("desq.mining.prune.irrelevant.inputs", true)
   conf.setProperty("desq.mining.use.two.pass", true)
-  RunFimi.implementFimi(conf,dataPath,dictPath);
+  val miner = RunFimi.implementFimi(conf,dataPath,dictPath).asInstanceOf[DesqDfs]
+  miner.getFst.exportGraphViz("ryan-fst.pdf")
+  miner.getDfa.exportGraphViz("ryan-dfa.pdf")
+
 }
 
 
