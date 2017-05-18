@@ -5,20 +5,19 @@ import de.uni_mannheim.desq.examples.ExampleUtils;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.mining.DesqDfs;
+import de.uni_mannheim.desq.mining.DesqMiner;
 import de.uni_mannheim.desq.util.DesqProperties;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.URL;
 
 /**
  * Created by ryan on 15.02.17.
  */
 public class RunFimi {
 
-    public static void implementFimi(DesqProperties minerConf, String dataPath, String dictPath) throws IOException {
+    public static DesqMiner implementFimi(DesqProperties minerConf, String dataPath, String dictPath) throws IOException {
         File dataFile=new File(dataPath);
         File dictFile=new File(dictPath);
 
@@ -27,7 +26,7 @@ public class RunFimi {
         Dictionary dict=Dictionary.loadFrom(dictFile);
         dataReader.setDictionary(dict);
         //ExampleUtils.runWithStats(dataReader, minerConf);
-        ExampleUtils.runVerbose(dataReader,minerConf);
+        return ExampleUtils.runVerbose(dataReader,minerConf);
 
     }
 
