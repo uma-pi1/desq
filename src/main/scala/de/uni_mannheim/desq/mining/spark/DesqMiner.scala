@@ -1,5 +1,7 @@
 package de.uni_mannheim.desq.mining.spark
 
+import de.uni_mannheim.desq.mining.Sequence
+
 /**
   * Created by rgemulla on 12.09.2016.
   */
@@ -7,6 +9,7 @@ abstract class DesqMiner(val ctx: DesqMinerContext) {
   /** Mines the given dataset using this miner and returns the result. Note that computation may or may not be
     * triggered by this method, i.e., can be performed lazily when accessing the sequence RDD in the result. */
   def mine(data: DesqDataset): DesqDataset
+  def mine(data:DesqDataset, filter: ((Sequence, Long))=>Boolean) : DesqDataset
 }
 
 object DesqMiner {
