@@ -37,6 +37,13 @@ public class Sequence extends IntArrayList implements Externalizable, Writable {
         result.size = this.size;
         return result;
     }
+    /** Wraps this sequence into a WeightedSequence with the specified support. No data is copied, i.e., this
+     * sequence and the returned sequence share the same backing array. */
+    public IdentifiableWeightedSequence withSupport(long id, long support) {
+        IdentifiableWeightedSequence result = new IdentifiableWeightedSequence(id, a, support);
+        result.size = this.size;
+        return result;
+    }
 
     @Override
     public Sequence clone() {

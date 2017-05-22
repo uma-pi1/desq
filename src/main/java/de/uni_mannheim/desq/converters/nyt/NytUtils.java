@@ -5,6 +5,7 @@ import de.uni_mannheim.desq.avro.Sentence;
 import de.uni_mannheim.desq.avro.Token;
 import de.uni_mannheim.desq.dictionary.DictionaryBuilder;
 import org.apache.commons.lang3.tuple.Pair;
+import org.elasticsearch.index.mapper.SourceToParse;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -27,10 +28,13 @@ public class NytUtils {
     };
     private static final Set<String> POS_SET = new HashSet<String>(Arrays.asList(POS_VALUES));
 
+    public static void processSentence(Sentence sentence, DictionaryBuilder dictionaryBuilder){
+        processSentence(-1L, sentence, dictionaryBuilder);
+    }
 
-    public static void processSentence(Sentence sentence, DictionaryBuilder dictionaryBuilder) {
+    public static void processSentence(Long id, Sentence sentence, DictionaryBuilder dictionaryBuilder) {
         // Inform the dictionary about starting a new sequence
-        dictionaryBuilder.newSequence();
+        dictionaryBuilder.newSequence(id,1L);
         List<Token> tokens = sentence.getTokens();
 
         for (int i = 0; i < tokens.size(); i++) {
@@ -102,7 +106,6 @@ public class NytUtils {
                     apiResult = dictionaryBuilder.addParent(itemFid, lemma);
                     itemFid = apiResult.getLeft();
                     newItem = apiResult.getRight();
-
                     if (newItem) {
                         dictionaryBuilder.addParent(itemFid, pos);
                     }

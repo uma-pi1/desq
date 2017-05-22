@@ -1,12 +1,14 @@
 package de.uni_mannheim.desq.examples.spark
 
+import java.nio.file.{Files, Paths}
 import java.util.concurrent.TimeUnit
 
 import com.google.common.base.Stopwatch
 import de.uni_mannheim.desq.Desq.initDesq
 import de.uni_mannheim.desq.comparing.DesqCompare
 import de.uni_mannheim.desq.converters.nyt.NytUtil
-import de.uni_mannheim.desq.mining.spark.{DesqDataset, DesqMiner}
+import de.uni_mannheim.desq.elastic.NYTElasticSearchUtils
+import de.uni_mannheim.desq.mining.spark.DesqDataset
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.JavaConversions._
@@ -86,11 +88,74 @@ object DesqCompareExample {
     println(buildCompareTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
   }
 
+  def searchAndCompare(path_source: String, query_left: String, query_right:String, patternExpression:String, sigma: Int = 1, k:Int=10)(implicit sc:SparkContext): Unit ={
+    print("Initializing Compare... ")
+    val prepTime = Stopwatch.createStarted
+    val es = new NYTElasticSearchUtils
+    val compare = new DesqCompare
+    val dataset = DesqDataset.load(path_source)
+    prepTime.stop()
+    println(prepTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+
+    val ids_query_l = es.searchES(query_left)
+    val ids_query_r = es.searchES(query_right)
+    println(s"overlap ${ids_query_l.intersect(ids_query_r).size}")
+
+    println("Initialize Left Side Dataset with ES Query")
+    val leftPrepTime = Stopwatch.createStarted
+    val ids_left = ids_query_l.diff(ids_query_r)
+    println(s"only left ${ids_left.size}")
+    val dataset_left_ = new DesqDataset(dataset.sequences.filter(f=>ids_left.contains(String.valueOf(f.id))), dataset.dict.deepCopy(), true)
+    val dataset_left = dataset_left_.copyWithRecomputedCountsAndFids()
+    leftPrepTime.stop()
+    println(leftPrepTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+
+    println("Initialize Right Side Dataset with ES Query")
+    val rightPrepTime = Stopwatch.createStarted
+    val ids_right = ids_query_r.diff(ids_query_l)
+    println(s"only right ${ids_right.size}")
+    val dataset_right_ = new DesqDataset(dataset.sequences.filter(f=>ids_right.contains(String.valueOf(f.id))), dataset.dict.deepCopy(), true)
+    val dataset_right = dataset_right_.copyWithRecomputedCountsAndFids()
+    rightPrepTime.stop()
+    println(leftPrepTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+
+    println("Comparing the two collections... ")
+    val compareTime = Stopwatch.createStarted
+    compare.compare(dataset_left, dataset_right, patternExpression, sigma, k)
+    compareTime.stop
+    println(compareTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+
+  }
+
+  def createIndexAndDataSet(path_in:String, path_out:String)(implicit sc:SparkContext): Unit ={
+    print("Indexing Articles and Creating DesqDataset... ")
+    val dataTime = Stopwatch.createStarted
+    val nytEs = new NYTElasticSearchUtils
+    nytEs.createIndexAndDataset(path_in, path_out)
+    dataTime.stop()
+    println(dataTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+  }
+
   def main(args: Array[String]) {
     val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
     initDesq(conf)
     implicit val sc = new SparkContext(conf)
-//        buildAndCompare()
-    compareDatasets()
+//    buildAndCompare()
+//    compareDatasets()
+
+    val path_in = "data-local/NYTimesProcessed/results/2006/"
+    val path_out = "data-local/processed/sparkconvert/es/"
+    if(!Files.exists(Paths.get(path_out))) createIndexAndDataSet(path_in, path_out)
+
+    val path_source = "data-local/processed/sparkconvert/es/"
+    val query_left = "\"Donald Trump\""
+    val query_right = "\"Hillary Clinton\""
+    val patternExpression = "(DT+? RB+ JJ+ NN+ PR+)"
+    val patternExpression2 = "(RB+ MD+ VB+)"
+    val patternExpression3 = "(ENTITY)"
+    val patternExpression4 = "(VB)"
+    val sigma = 1
+    val k = 20
+    searchAndCompare(path_source, query_left, query_right, patternExpression2, k=k)
   }
 }

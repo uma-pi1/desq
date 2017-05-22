@@ -56,7 +56,7 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
       }
     }).reduceByKey(_ + _) // now sum up count
       .filter(_._2 >= minSupport) // and drop infrequent output sequences
-      .map(s => s._1.withSupport(s._2)) // and pack the remaining sequences into a WeightedSequence
+      .map(s => s._1.withSupport(-1,s._2)) // and pack the remaining sequences into a IdentifiableWeightedSequence
 
     // all done, return result (last parameter is true because mining.DesqCount always produces fids)
     new DesqDataset(patterns, data, true)

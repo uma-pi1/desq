@@ -2,7 +2,7 @@ package de.uni_mannheim.desq.comparing
 
 import de.uni_mannheim.desq.avro.Sentence
 import de.uni_mannheim.desq.dictionary.Dictionary
-import de.uni_mannheim.desq.mining.WeightedSequence
+import de.uni_mannheim.desq.mining.IdentifiableWeightedSequence
 import de.uni_mannheim.desq.mining.spark.{DesqCount, DesqDataset, DesqMiner, DesqMinerContext}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
@@ -29,9 +29,16 @@ class DesqCompare {
     conf.setProperty("desq.mining.use.two.pass", true)
     val ctx = new DesqMinerContext(conf)
     val miner = DesqMiner.create(ctx)
+
+    val conf2 = DesqCount.createConf(patternExpression, sigma)
+    conf2.setProperty("desq.mining.prune.irrelevant.inputs", true)
+    conf2.setProperty("desq.mining.use.two.pass", true)
+    val ctx2 = new DesqMinerContext(conf2)
+    val miner2 = DesqMiner.create(ctx2)
+
     //    Mine the two datasets
     val left_result = miner.mine(left)
-    val right_result = miner.mine(right)
+    val right_result = miner2.mine(right)
     //    create global dict and complete the other two dictionaries
     val global_dict = createGlobalDictionary(left_result.dict, right_result.dict)
     val global_dict_zeroCounts = global_dict.deepCopy()
@@ -41,7 +48,7 @@ class DesqCompare {
 
     //    Compare the two results based on interestingness and return the top-K from both datasets
     val result = findTopKPattern(left_result, right_result, k)
-    printPattern(result._1, result._2, global_dict, true, k)
+    printPattern(result._1, result._2, global_dict, false, k)
   }
 
   /**
@@ -101,23 +108,48 @@ class DesqCompare {
     * @param k     Number of Interesting Phrases to return
     * @return (Top-K sequences of left, Top-K sequences of right)
     */
-  def findTopKPattern(left: DesqDataset, right: DesqDataset, k: Int = 20, measure: Int = 1): (Array[(WeightedSequence, Float)], Array[(WeightedSequence, Float)]) = {
-    val temp1 = left.sequences.map(ws => (ws, ws.weight))
-    val temp2 = right.sequences.map(ws => (ws, ws.weight))
-    //    simple interestingness
-    //    val global = temp1.fullOuterJoin(temp2).map(ws => (ws._1, ws._2._1.getOrElse(0L), ws._2._1.getOrElse(0L) / (ws._2._1.getOrElse(0L) + ws._2._2.getOrElse(0L)).toFloat, ws._2._2.getOrElse(0L), ws._2._2.getOrElse(0L) / (ws._2._1.getOrElse(0L) + ws._2._2.getOrElse(0L)).toFloat))
-    val global = temp1.fullOuterJoin(temp2).map(ws => (ws._1, ws._2._1.getOrElse(0L), (1 + ws._2._1.getOrElse(0L)) / (1 + ws._2._2.getOrElse(0L)).toFloat, ws._2._2.getOrElse(0L), (1 + ws._2._2.getOrElse(0L)) / (1 + ws._2._1.getOrElse(0L)).toFloat))
+  def findTopKPattern(left: DesqDataset, right: DesqDataset, k: Int = 20, measure: Int = 1)(implicit sc: SparkContext): (Array[(IdentifiableWeightedSequence, Float)], Array[(IdentifiableWeightedSequence, Float)]) = {
+
+    val print = (dict: Dictionary, seq: IdentifiableWeightedSequence, usesFids: Boolean) => {
+      val sids = for (element <- seq.elements()) yield {
+        if (usesFids) {
+          dict.sidOfFid(element)
+        } else {
+          dict.sidOfGid(element)
+        }
+      }
+      val output = sids.deep.mkString("[", " ", "]")
+      println(output)
+    }
+    val prints = (dict: Dictionary, seqs: RDD[IdentifiableWeightedSequence], max: Int, usesFids: Boolean) => {
+      var i = 0
+      for (seq <- seqs.toLocalIterator) {
+        if (i < max) print(dict, seq, false)
+        i += 1
+      }
+    }
+//  The Miner delivers the sequences in the form of fids which need to be converted to gids for comparability
+    val temp1 = left.toGids().sequences.map(ws => (ws.getUniqueIdentifier, ws))
+    val temp2 = right.toGids().sequences.map(ws => (ws.getUniqueIdentifier, ws))
+
+    val global = temp1.fullOuterJoin(temp2).map[(IdentifiableWeightedSequence, Long, Float, Long, Float)] {
+      case (k, (lv, None)) => (lv.get, lv.get.weight, (1 + lv.get.weight) / 1.toFloat, 0, 1 / (1 + lv.get.weight).toFloat)
+      case (k, (None, rv)) => (rv.get, 0, 1 / (1 + rv.get.weight).toFloat, 0, (1 + rv.get.weight) / 1.toFloat)
+      case (k, (lv, rv)) => (lv.get, lv.get.weight, (1 + lv.get.weight) / (1 + rv.get.weight).toFloat, rv.get.weight, (1 + rv.get.weight) / (1 + lv.get.weight).toFloat)
+    }
+
     val topleft = global.sortBy(ws => (ws._3, ws._2), ascending = false).take(k).map(ws => (ws._1.withSupport(ws._2), ws._3))
     val topright = global.sortBy(ws => (ws._5, ws._4), ascending = false).take(k).map(ws => (ws._1.withSupport(ws._4), ws._5))
     (topleft, topright)
   }
 
   //  Merge two RDDs of WeightedSequences
-  def mergeSequences(left: RDD[WeightedSequence], right: RDD[WeightedSequence]): RDD[WeightedSequence] = {
+  def mergeSequences(left: RDD[IdentifiableWeightedSequence], right: RDD[IdentifiableWeightedSequence]): RDD[IdentifiableWeightedSequence] = {
     val temp1 = left.map(ws => (ws, ws.weight))
     val temp2 = right.map(ws => (ws, ws.weight))
     //    val global = temp1.join(temp2).map(ws => (ws._1, ws._2._1 + ws._2._2)).map(tuple=>{tuple._1.withSupport(tuple._2)} )
     val global = temp1.join(temp2).map(ws => ws._1.withSupport(ws._2._1 + ws._2._2))
+
     global
   }
 
@@ -130,7 +162,7 @@ class DesqCompare {
     * @param usesFids           Boolean Flag
     * @param k                  Integer
     */
-  def printPattern(topKSequencesLeft: Array[(WeightedSequence, Float)], topKSequencesRight: Array[(WeightedSequence, Float)], dict: Dictionary, usesFids: Boolean = true, k: Int = 10): Unit = {
+  def printPattern(topKSequencesLeft: Array[(IdentifiableWeightedSequence, Float)], topKSequencesRight: Array[(IdentifiableWeightedSequence, Float)], dict: Dictionary, usesFids: Boolean = false, k: Int = 10): Unit = {
     println(s"_____________________ Top ${
       k
     } Interesting Sequences for Left  _____________________")
@@ -141,7 +173,7 @@ class DesqCompare {
     } Interesting Sequences for Right _____________________")
     print(topKSequencesRight)
 
-    def print(sequences: Array[(WeightedSequence, Float)]) {
+    def print(sequences: Array[(IdentifiableWeightedSequence, Float)]) {
       for (tuple <- sequences) {
         val sids = for (element <- tuple._1.elements()) yield {
           if (usesFids) {

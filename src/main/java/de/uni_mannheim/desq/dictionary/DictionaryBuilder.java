@@ -20,6 +20,8 @@ public interface DictionaryBuilder {
      * and after the last input sequence has been processed. Uses the given weight for the started sequence. */
     void newSequence(long weight);
 
+    void newSequence(long id, long weight);
+
     /** Appends an item to the current input sequence using its sid.
      *
      * @return the fid of the item being added and a flag indicating whether the item is new (true) or has been seen

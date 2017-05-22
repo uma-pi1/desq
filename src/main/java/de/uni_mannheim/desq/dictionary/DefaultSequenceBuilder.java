@@ -7,6 +7,7 @@ import org.apache.commons.lang3.tuple.Pair;
 
 public class DefaultSequenceBuilder implements SequenceBuilder {
     private long currentWeight = 0;
+    private long currentId = -1L;
     private IntList currentGids = new IntArrayList();
     private MutablePair<Integer,Boolean> pair = new MutablePair<>(null, false);
     private Dictionary dict;
@@ -23,6 +24,12 @@ public class DefaultSequenceBuilder implements SequenceBuilder {
     @Override
     public void newSequence(long weight) {
         currentWeight = weight;
+        currentGids.clear();
+    }
+
+    public void newSequence(long id, long weight) {
+        currentWeight = weight;
+        currentId = id;
         currentGids.clear();
     }
 
@@ -43,7 +50,7 @@ public class DefaultSequenceBuilder implements SequenceBuilder {
     public long getCurrentWeight() {
         return currentWeight;
     }
-
+    public long getCurrentId(){return currentId;}
     /** The returned list is reused so make sure to create a copy it if it needs to be retained. */
     public IntList getCurrentGids() {
         return currentGids;

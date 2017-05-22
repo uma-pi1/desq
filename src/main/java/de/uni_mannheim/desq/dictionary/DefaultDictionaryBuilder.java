@@ -14,6 +14,7 @@ public class DefaultDictionaryBuilder implements DictionaryBuilder {
     protected IntList currentFids = new IntArrayList();
     private IntSet ascendantFids = new IntOpenHashSet();
     protected long currentWeight = 0;
+    protected long currentId = -1;
     private Int2LongMap itemCfreqs = new Int2LongOpenHashMap();
     private int maxGidSoFar = 0;
     private MutablePair<Integer,Boolean> pair = new MutablePair<>();
@@ -36,6 +37,13 @@ public class DefaultDictionaryBuilder implements DictionaryBuilder {
     public void newSequence(long weight) {
         dict.incFreqs(currentFids, itemCfreqs, ascendantFids, true, currentWeight);
         currentWeight = weight;
+        currentFids.clear();
+    }
+
+    public void newSequence(long id, long weight) {
+        dict.incFreqs(currentFids, itemCfreqs, ascendantFids, true, currentWeight);
+        currentWeight = weight;
+        currentId = id;
         currentFids.clear();
     }
 

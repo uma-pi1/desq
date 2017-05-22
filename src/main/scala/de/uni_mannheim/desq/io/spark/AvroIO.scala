@@ -13,6 +13,7 @@ import scala.reflect.ClassTag
   * Created by ivo on 16.05.17.
   *
   * Additionally the Avro Schema should be registered with the DesqKryoRegistrator
+  * http://subprotocol.com/system/apache-spark-ec2-avro.html
   */
 object AvroIO {
   def read[T: ClassTag](path: String, schema: Schema, recursive:Boolean = true)(implicit sc:SparkContext): RDD[T] = {
