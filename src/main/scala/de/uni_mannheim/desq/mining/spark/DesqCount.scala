@@ -4,12 +4,19 @@ import de.uni_mannheim.desq.mining.Sequence
 import de.uni_mannheim.desq.util.DesqProperties
 import it.unimi.dsi.fastutil.ints.IntArrayList
 import it.unimi.dsi.fastutil.objects.{ObjectIterator, ObjectLists}
+import org.apache.spark.rdd.RDD
 
 /**
   * Created by rgemulla on 14.09.2016.
   */
 class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
   override def mine(data: DesqDataset): DesqDataset = {
+    val minSupport = ctx.conf.getLong("desq.mining.min.support")
+    val filterFunction = (x: (Sequence, Long)) => x._2 >= minSupport
+    mine(data, filterFunction)
+  }
+
+  override def mine(data: DesqDataset, filter: ((Sequence, Long)) => Boolean): DesqDataset = {
     // localize the variables we need in the RDD
     val dictBroadcast = data.broadcastDictionary()
     val conf = ctx.conf
@@ -19,7 +26,7 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     // build RDD to perform the minig
     val patterns = data.sequences.mapPartitions(rows => {
       // for each row, get output of FST and produce (output sequence, 1) pair
-      new Iterator[(Sequence,Long)] {
+      new Iterator[(Sequence, Long)] {
         // initialize the sequential desq miner
         val dict = dictBroadcast.value
         val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext(conf, dict)
@@ -54,10 +61,10 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
           (pattern, currentSupport)
         }
       }
-    }).reduceByKey(_ + _) // now sum up count
-      .filter(_._2 >= minSupport) // and drop infrequent output sequences
-      .map(s => s._1.withSupport(-1,s._2)) // and pack the remaining sequences into a IdentifiableWeightedSequence
-
+    }).reduceByKey(_ + _) // now sum up counts
+      .filter(filter)
+      //      .filter(_._2 >= minSupport) // and drop infrequent output sequences
+      .map(s => s._1.withSupport(-1, s._2)) // and pack the remaining sequences into a IdentifiableWeightedSequence
     // all done, return result (last parameter is true because mining.DesqCount always produces fids)
     new DesqDataset(patterns, data, true)
   }
