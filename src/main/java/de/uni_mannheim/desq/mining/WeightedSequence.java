@@ -12,7 +12,7 @@ import java.io.*;
 import java.util.List;
 
 /** A sequence of integers plus a weight (support). */
-public final class WeightedSequence extends Sequence implements Externalizable, Writable {
+public class WeightedSequence extends Sequence implements Externalizable, Writable {
     /** Weight of the sequence (often represents document frequency) */
     public long weight;
 
