@@ -73,7 +73,7 @@ class NYTElasticSearchUtils extends Serializable {
 }
 
 object NYTElasticSearchUtils extends App {
-  val sparkConf = new SparkConf().setAppName(getClass.getName).setMaster("local").remove("spark.serializer")
+  val sparkConf = new SparkConf().setAppName(getClass.getName).setMaster("local")
   sparkConf.set("es.index.auto.create", "true")
   sparkConf.set("es.resource", "nyt/article")
   initDesq(sparkConf)

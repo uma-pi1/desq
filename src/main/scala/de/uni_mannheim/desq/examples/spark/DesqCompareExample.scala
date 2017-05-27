@@ -117,7 +117,7 @@ object DesqCompareExample {
     val dataset_right_ = new DesqDataset(dataset.sequences.filter(f=>ids_right.contains(String.valueOf(f.id))), dataset.dict.deepCopy(), true)
     val dataset_right = dataset_right_.copyWithRecomputedCountsAndFids()
     rightPrepTime.stop()
-    println(leftPrepTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+    println(rightPrepTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
     println("Comparing the two collections... ")
     val compareTime = Stopwatch.createStarted
@@ -143,19 +143,33 @@ object DesqCompareExample {
 //    buildAndCompare()
 //    compareDatasets()
 
-    val path_in = "data-local/NYTimesProcessed/results/2006/"
-    val path_out = "data-local/processed/sparkconvert/es/"
-    if(!Files.exists(Paths.get(path_out))) createIndexAndDataSet(path_in, path_out)
+    val path_in = "data-local/NYTimesProcessed/results/2007/"
+    val path_out = "data-local/processed/es_2007/"
+    if(!Files.exists(Paths.get(path_out))){
+      Files.createDirectory(Paths.get(path_out))
+      createIndexAndDataSet(path_in, path_out)
+    }
 
-    val path_source = "data-local/processed/sparkconvert/es/"
     val query_left = "\"Donald Trump\""
     val query_right = "\"Hillary Clinton\""
     val patternExpression = "(DT+? RB+ JJ+ NN+ PR+)"
     val patternExpression2 = "(RB+ MD+ VB+)"
     val patternExpression3 = "(ENTITY)"
     val patternExpression4 = "(VB)"
-    val sigma = 1
-    val k = 20
-    searchAndCompare(path_source, query_left, query_right, patternExpression2, k=k)
+    val patternExpressionN1 = "ENTITY (VB+ NN+? IN?) ENTITY"
+    val patternExpressionN2 = "(ENTITY^ VB+ NN+? IN? ENTITY^)"
+    val patternExpressionN21 = "(ENTITY VB+ NN+? IN? ENTITY)"
+    val patternExpressionN3 = "(ENTITY^ be@VB=^) DT? (RB? JJ? NN)"
+    val patternExpressionN4 = "(.^){3} NN"
+    val patternExpressionO1 = "(JJ NN) ."
+    val patternExpressionO2 = "(RB JJ) ^NN"
+    val patternExpressionO3 = "(JJ JJ) ^NN"
+    val patternExpressionO4 = "(NN JJ) ^NN"
+    val patternExpressionO5 = "(RB VB) ."
+    val patternExpressionO1_5 = "(JJ NN .)| (RB JJ ^NN)| (JJ JJ ^NN) | (NN JJ ^NN) | (RB VB .)"
+    val patternExpressionOpinion2 = "(ENTITY).^{1,3} [(JJ NN .)| (RB JJ ^NN)| (JJ JJ ^NN) | (NN JJ ^NN) | (RB VB .)]"
+    val sigma = 10
+    val k = 40
+    searchAndCompare(path_out, query_left, query_right, patternExpressionO1, sigma, k)
   }
 }
