@@ -237,7 +237,7 @@ class DesqCompare {
           }
         }
         val output = sids.deep.mkString("[", " ", "]")
-        println(output + "@" + tuple._1.weight + "@" + tuple._2)
+        println(output + "@" + tuple._2)
       }
     }
   }
