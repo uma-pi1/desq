@@ -23,13 +23,13 @@ class SyntaxTree{
     var str=""
     for(i<-minDist to maxDist){
       if(i==minDist)
-        str+=".*("+item1+" <)"+dist(i,item2,child,dmax)+"["+child+"]*(>)"+" | "+".*("+item2+" <)"+dist(i,item1,child,dmax)+"["+child+"]*(>)"
+        str+=".*("+item1+" <)"+dist(i,item2,child,dmax)+"["+child+"]*(>)"
       else{
-        str+=" | "+".*("+item1+" <)"+dist(i,item2,child,dmax)+"["+child+"]*(>)"+" | "+".*("+item2+" <)"+dist(i,item1,child,dmax)+"["+child+"]*(>)"
+        str+=" | "+".*("+item1+" <)"+dist(i,item2,child,dmax)+"["+child+"]*(>)"
       }
 
       for(j<-1 to i-1){
-        str+=" | "+".*(node <)"+dist(j,item1,child,dmax)+dist(i-j,item2,child,dmax)+"["+child+"]*(>)"+" | "+".*(node <)"+dist(j,item2,child,dmax)+dist(i-j,item1,child,dmax)+"["+child+"]*(>)"
+        str+=" | "+".*(node <)"+dist(j,item1,child,dmax)+dist(i-j,item2,child,dmax)+"["+child+"]*(>)"
       }
 
     }
