@@ -263,13 +263,13 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
 
                         //System.out.print("\n");
                         sentdpWriter.newLine();
-                        //System.out.println(dp);
+                        System.out.println(dp);
                         //subtract index from dp due to grouping of named entities
                         dp=reformatIndex(subtractIndex,dp);
 
                         dpWriter.write(dp);
 
-                        //System.out.println(dp);
+                        System.out.println(dp);
 
                         int count=subtractIndex.size();
 
@@ -345,7 +345,7 @@ public class extractDP extends DefaultDictionaryAndSequenceBuilder {
 
                         //writing dependency tree to file
                         serializedDpWriter.write(s.toString());
-                        //System.out.println(s.toString());
+                        System.out.println(s.toString());
 
                         //defining new line
                         serializedDpWriter.newLine();
