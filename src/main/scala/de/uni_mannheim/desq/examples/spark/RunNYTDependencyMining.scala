@@ -100,9 +100,9 @@ object RunNYTDependencyMining extends App {
   val child="edge direction node "+ob.depthTree(maxDepth)
   val dmax=ob.depthTree(maxDepth)
   //patEx to find shortest path between 2 items
-  val patEx=ob.shortestPath("NN","DT",1,3,child,dmax)
+  //val patEx=ob.shortestPath("NN","DT",1,3,child,dmax)
   //patEx to mine syntactic n-grams
-  //val patEx=ob.subsetSumUtility(4,child,dmax)
+  val patEx=ob.subsetSumUtility(4,child,dmax)
   print(patEx)
 
   val sigma = 1
@@ -111,8 +111,8 @@ object RunNYTDependencyMining extends App {
   conf.setProperty("desq.mining.prune.irrelevant.inputs", true)
   conf.setProperty("desq.mining.use.two.pass", true)
   val miner = RunFimi.implementFimi(conf,dataPath,dictPath).asInstanceOf[DesqDfs]
-  miner.getFst.exportGraphViz("ryan-fst.pdf")
-  miner.getDfa.exportGraphViz("ryan-dfa.pdf")
+  //miner.getFst.exportGraphViz("ryan-fst.pdf")
+  //miner.getDfa.exportGraphViz("ryan-dfa.pdf")
 
 }
 
