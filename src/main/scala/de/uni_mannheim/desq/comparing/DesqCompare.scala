@@ -31,7 +31,7 @@ class DesqCompare {
     val miner = DesqMiner.create(ctx)
 
     val results = if (sigma > 1) {
-//      Mine the data and find those significant differences
+      //      Mine the data and find those significant differences
       val results = mine(left, right, patternExpression, sigma, k)
       results
     } else {
@@ -45,7 +45,7 @@ class DesqCompare {
       results
     }
     val global_dict = mergeDictionaries(left.dict, right.dict)
-    printPattern(results._1, results._2, global_dict, false, k)
+    printTable(results, global_dict, false, k)
   }
 
   /**
@@ -67,7 +67,7 @@ class DesqCompare {
     compare(left, right, patternExpression, sigma, k)
   }
 
-  def mine(left: DesqDataset, right: DesqDataset, patternExpression: String, sigma: Long, k: Int = 20)(implicit sc: SparkContext): (Array[(IdentifiableWeightedSequence, Float)], Array[(IdentifiableWeightedSequence, Float)]) = {
+  def mine(left: DesqDataset, right: DesqDataset, patternExpression: String, sigma: Long, k: Int = 20)(implicit sc: SparkContext): Array[((IdentifiableWeightedSequence, Float), (IdentifiableWeightedSequence, Float))] = {
     val conf = DesqCount.createConf(patternExpression, sigma)
     conf.setProperty("desq.mining.prune.irrelevant.inputs", true)
     conf.setProperty("desq.mining.use.two.pass", true)
@@ -75,14 +75,14 @@ class DesqCompare {
     val miner = DesqMiner.create(ctx)
 
     //  The Miner delivers the sequences in the form of fids which need to be converted to gids for comparability
-    val result_l = miner.mine(left).toGids().sequences.map(ws => (ws.getUniqueIdentifier, ws))
-    val result_r = miner.mine(right).toGids().sequences.map(ws => (ws.getUniqueIdentifier, ws))
+    val result_l = miner.mine(left).sequences.map(ws => (ws.getUniqueIdentifier, ws))
+    val result_r = miner.mine(right).sequences.map(ws => (ws.getUniqueIdentifier, ws))
 
     val seq_weight = result_l.fullOuterJoin(result_r).map[(IdentifiableWeightedSequence, Long, Long)] {
       case (k, (lv, None)) => (lv.get, lv.get.weight, 0)
       case (k, (None, rv)) => (rv.get, 0, rv.get.weight)
       case (k, (lv, rv)) => (lv.get, lv.get.weight, rv.get.weight)
-    }
+    }.cache()
 
     val left_dict = left.dict
     val right_dict = right.dict
@@ -97,7 +97,7 @@ class DesqCompare {
       new Sequence(f._1).hashCode()
     }).collect.toSeq
 
-    //    Create the filer functions for DesqCount
+    //    Create the filter functions for DesqCount
     val filter_left = (seq: (Sequence, Long)) => rddSecondRun_left.contains(seq._1.hashCode())
     val filter_right = (seq: (Sequence, Long)) => rddSecondRun_right.contains(seq._1.hashCode())
 
@@ -126,18 +126,17 @@ class DesqCompare {
       case (k, (lv, rv)) => (lv.get.getUniqueIdentifier, lv.get.withSupport(lv.get.weight + rv.get.weight))
     }
 
-    //    Join the sequences of both sides and compute the interestigness values
-    val global = full_l.fullOuterJoin(full_r).map[(IdentifiableWeightedSequence, Long, Float, Long, Float)] {
-      case (k, (lv, None)) => (lv.get, lv.get.weight, (1 + lv.get.weight) / 1.toFloat, 0, 1 / (1 + lv.get.weight).toFloat)
-      case (k, (None, rv)) => (rv.get, 0, 1 / (1 + rv.get.weight).toFloat, rv.get.weight, (1 + rv.get.weight) / 1.toFloat)
-      case (k, (lv, rv)) => (lv.get, lv.get.weight, (1 + lv.get.weight) / (1 + rv.get.weight).toFloat, rv.get.weight, (1 + rv.get.weight) / (1 + lv.get.weight).toFloat)
-    }
+
+    //    Join the sequences of both sides and compute the interestingness values
+    val global = full_l.fullOuterJoin(full_r).map[(IdentifiableWeightedSequence, Float, Long, Float, Long)] {
+      case (k, (lv, None)) => (lv.get, (1 + lv.get.weight) / 1.toFloat, lv.get.weight, 1 / (1 + lv.get.weight).toFloat, 0)
+      case (k, (None, rv)) => (rv.get, 1 / (1 + rv.get.weight).toFloat, 0, (1 + rv.get.weight) / 1.toFloat, rv.get.weight)
+      case (k, (lv, rv)) => (lv.get, (1 + lv.get.weight) / (1 + rv.get.weight).toFloat, lv.get.weight, (1 + rv.get.weight) / (1 + lv.get.weight).toFloat, rv.get.weight)
+    }.cache()
 
     //    Get the Top k sequences of each side
-    val topleft = global.filter(f => f._2 >= sigma).sortBy(ws => (ws._3, ws._2), ascending = false).take(k).map(ws => (ws._1.withSupport(ws._2), ws._3))
-    val topright = global.filter(f => f._4 >= sigma).sortBy(ws => (ws._5, ws._4), ascending = false).take(k).map(ws => (ws._1.withSupport(ws._4), ws._5))
-
-    (topleft, topright)
+    val topEverything = global.filter(f => f._3 >= sigma || f._5 >= sigma).sortBy(ws => math.max(ws._2, ws._4), ascending = false).take(k).map(ws => ((ws._1.withSupport(ws._3), ws._2), (ws._1.withSupport(ws._5), ws._4)))
+    topEverything
   }
 
   /**
@@ -178,32 +177,30 @@ class DesqCompare {
     * @param k     Number of Interesting Phrases to return
     * @return (Top-K sequences of left, Top-K sequences of right)
     */
-  def findTopKPattern(left: DesqDataset, right: DesqDataset, k: Int = 20, measure: Int = 1, sigma: Long)(implicit sc: SparkContext): (Array[(IdentifiableWeightedSequence, Float)], Array[(IdentifiableWeightedSequence, Float)]) = {
+  def findTopKPattern(left: DesqDataset, right: DesqDataset, k: Int = 20, measure: Int = 1, sigma: Long)(implicit sc: SparkContext): (Array[((IdentifiableWeightedSequence, Float), (IdentifiableWeightedSequence, Float))]) = {
 
     //  The Miner delivers the sequences in the form of fids which need to be converted to gids for comparability
     val temp1 = left.toGids().sequences.map(ws => (ws.getUniqueIdentifier, ws))
     val temp2 = right.toGids().sequences.map(ws => (ws.getUniqueIdentifier, ws))
 
 
-    val global = temp1.fullOuterJoin(temp2).map[(IdentifiableWeightedSequence, Long, Float, Long, Float)] {
-      case (k, (lv, None)) => (lv.get, lv.get.weight, (1 + lv.get.weight) / 1.toFloat, 0, 1 / (1 + lv.get.weight).toFloat)
-      case (k, (None, rv)) => (rv.get, 0, 1 / (1 + rv.get.weight).toFloat, rv.get.weight, (1 + rv.get.weight) / 1.toFloat)
-      case (k, (lv, rv)) => (lv.get, lv.get.weight, (1 + lv.get.weight) / (1 + rv.get.weight).toFloat, rv.get.weight, (1 + rv.get.weight) / (1 + lv.get.weight).toFloat)
-    }
+    //    case class SequenceWithScores(sequence: IdentifiableWeightedSequence, leftScore: Float, leftSupport: Long, rightScore: Float, rightSupport: Long)
+    //    Join the sequences of both sides and compute the interestigness values
+    val global = temp1.fullOuterJoin(temp2).map[(IdentifiableWeightedSequence, Float, Long, Float, Long)] {
+      case (k, (lv, None)) => (lv.get, (1 + lv.get.weight) / 1.toFloat, lv.get.weight, 1 / (1 + lv.get.weight).toFloat, 0)
+      case (k, (None, rv)) => (rv.get, 1 / (1 + rv.get.weight).toFloat, 0, (1 + rv.get.weight) / 1.toFloat, rv.get.weight)
+      case (k, (lv, rv)) => (lv.get, (1 + lv.get.weight) / (1 + rv.get.weight).toFloat, lv.get.weight, (1 + rv.get.weight) / (1 + lv.get.weight).toFloat, rv.get.weight)
+    }.cache()
 
-    val topleft = global.filter(f => f._2 >= sigma).sortBy(ws => (ws._3, ws._2), ascending = false).take(k).map(ws => (ws._1.withSupport(ws._2), ws._3))
-    val topright = global.filter(f => f._4 >= sigma).sortBy(ws => (ws._5, ws._4), ascending = false).take(k).map(ws => (ws._1.withSupport(ws._4), ws._5))
-
-    (topleft, topright)
+    val topEverything = global.filter(f => f._3 >= sigma || f._5 >= sigma).sortBy(ws => math.max(ws._2, ws._4), ascending = false).take(k).map(ws => ((ws._1.withSupport(ws._3), ws._2), (ws._1.withSupport(ws._5), ws._4)))
+    topEverything
   }
 
   //  Merge two RDDs of WeightedSequences
   def mergeSequences(left: RDD[IdentifiableWeightedSequence], right: RDD[IdentifiableWeightedSequence]): RDD[IdentifiableWeightedSequence] = {
     val temp1 = left.map(ws => (ws, ws.weight))
     val temp2 = right.map(ws => (ws, ws.weight))
-    //    val global = temp1.join(temp2).map(ws => (ws._1, ws._2._1 + ws._2._2)).map(tuple=>{tuple._1.withSupport(tuple._2)} )
     val global = temp1.join(temp2).map(ws => ws._1.withSupport(ws._2._1 + ws._2._2))
-
     global
   }
 
@@ -238,6 +235,25 @@ class DesqCompare {
         }
         val output = sids.deep.mkString("[", " ", "]")
         println(output + "@" + tuple._2)
+      }
+    }
+  }
+
+  def printTable(topKSequences: Array[((IdentifiableWeightedSequence, Float), (IdentifiableWeightedSequence, Float))], dict: Dictionary, usesFids: Boolean = false, k: Int = 10): Unit = {
+
+    println(s"| Top ${k.toString} Interesting Sequences | | |")
+    println("|--------|--------|--------|")
+    print(topKSequences)
+
+    def print(sequences: Array[((IdentifiableWeightedSequence, Float), (IdentifiableWeightedSequence, Float))]) {
+
+      for (s <- sequences) s match {
+        case ((s._1._1, s._1._2), (s._2._1, s._2._2)) => {
+          val sids = for (e <- s._1._1.elements) yield {
+            dict.sidOfFid(e)
+          }
+          println(s"|${sids.deep.mkString("[", " ", "]")}|${s._1._2}|${s._2._2}|")
+        }
       }
     }
   }

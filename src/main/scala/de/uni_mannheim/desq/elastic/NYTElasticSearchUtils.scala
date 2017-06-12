@@ -31,10 +31,10 @@ class NYTElasticSearchUtils extends Serializable {
     * @param sc SparkContext
     * @return
     */
-  def createIndexAndDataset(path_in: String, path_out: String)(implicit sc: SparkContext) = {
+  def createIndexAndDataset(path_in: String, path_out: String, index: String)(implicit sc: SparkContext) = {
     val articles = NytUtil.loadArticlesFromFile(path_in)
     val articlesWithId = articles.zipWithUniqueId()
-    this.writeArticlesToEs(articlesWithId)
+    this.writeArticlesToEs(articlesWithId, index:String)
     val sentences = articlesWithId.map(f => (f._2, f._1)).flatMapValues(f => f.getSentences)
     val dataset = DesqDataset.buildFromSentencesWithID(sentences)
     dataset.save(path_out)
@@ -46,14 +46,14 @@ class NYTElasticSearchUtils extends Serializable {
     *
     * @param articles RDD containing Articles with IDs
     */
-  def writeArticlesToEs(articles: RDD[(AvroArticle, Long)]) = {
+  def writeArticlesToEs(articles: RDD[(AvroArticle, Long)], index: String) = {
     case class NYTEsArticle(abstract$: String, content: String, publication: String, onlineSections: String) /*, sentences: java.util.List[Sentence])*/
     articles.map(a => {
       val article = a._1
       val publicationDate = article.getPublicationMonth + "." + article.getPublicationDayOfMonth + "." + article.getPublicationYear
       val esArticle = NYTEsArticle(article.getAbstract$, article.getContent, publicationDate, article.getOnlineSections) /*, article.getSentences)*/
       (String.valueOf(a._2), esArticle)
-    }).saveToEsWithMeta("nyt/article")
+    }).saveToEsWithMeta(index)
     print("done")
   }
 
@@ -64,11 +64,12 @@ class NYTElasticSearchUtils extends Serializable {
     * @param limit_i Limit of Results
     * @return IDs of the matching articles as Strings
     */
-  def searchES(query_s: String, limit_i: Int = 10000): Seq[String] = {
+  def searchES(query_s: String, index: String, limit_i: Int = 10000): Seq[Long] = {
     val resp = ESConnection.client.execute {
-      search("nyt" / "article") storedFields "_id" query query_s fetchSource false limit limit_i
+      search(index) storedFields "_id" query query_s fetchSource false limit limit_i
     }.await
-    resp.ids
+    val ids = resp.ids.map(id=>id.toLong)
+    ids
   }
 }
 
@@ -83,12 +84,12 @@ object NYTElasticSearchUtils extends App {
   val path_out = "data-local/processed/sparkconvert/es/"
 
   val nytEs = new NYTElasticSearchUtils
-  nytEs.createIndexAndDataset(path_in, path_out)
+  nytEs.createIndexAndDataset(path_in, path_out, "nyt200701/article")
 
   val dataset = DesqDataset.load(path_out)
-  val ids_1 = nytEs.searchES("usa")
+  val ids_1 = nytEs.searchES("usa", "nyt/article")
 
-  val ids_2 = nytEs.searchES("germany")
+  val ids_2 = nytEs.searchES("germany", "nyt/article")
 
   println(s"count of ids: ${ids_1.size}")
   println(s"count before filter: ${dataset.sequences.count()}")
