@@ -8,7 +8,7 @@ import de.uni_mannheim.desq.avro.{AvroDesqDatasetDescriptor, Sentence}
 import de.uni_mannheim.desq.converters.nyt.NytUtils
 import de.uni_mannheim.desq.dictionary._
 import de.uni_mannheim.desq.io.DelSequenceReader
-import de.uni_mannheim.desq.mining.{IdentifiableWeightedSequence, WeightedSequence}
+import de.uni_mannheim.desq.mining.IdentifiableWeightedSequence
 import de.uni_mannheim.desq.util.DesqProperties
 import it.unimi.dsi.fastutil.ints._
 import org.apache.avro.io.{DecoderFactory, EncoderFactory}
@@ -46,7 +46,7 @@ class DesqDataset(val sequences: RDD[IdentifiableWeightedSequence], val dict: Di
     val usesFids = this.usesFids
     val dictBroadcast = broadcastDictionary()
     val totalItemFreqs = sequences.mapPartitions(rows => {
-      new Iterator[(Int, (Long,Long))] {
+      new Iterator[(Int, (Long, Long))] {
         val dict = dictBroadcast.value
         val itemCfreqs = new Int2LongOpenHashMap()
         var currentItemCfreqsIterator = itemCfreqs.int2LongEntrySet().fastIterator()
@@ -65,10 +65,10 @@ class DesqDataset(val sequences: RDD[IdentifiableWeightedSequence], val dict: Di
 
         override def next(): (Int, (Long, Long)) = {
           val entry = currentItemCfreqsIterator.next()
-          (entry.getIntKey, (currentWeight, entry.getLongValue*currentWeight))
+          (entry.getIntKey, (currentWeight, entry.getLongValue * currentWeight))
         }
       }
-    }).reduceByKey((c1,c2) => (c1._1+c2._1, c1._2+c2._2)).collect
+    }).reduceByKey((c1, c2) => (c1._1 + c2._1, c1._2 + c2._2)).collect
 
     // and put them in the dictionary
     val newDict = dict.deepCopy()
@@ -110,7 +110,7 @@ class DesqDataset(val sequences: RDD[IdentifiableWeightedSequence], val dict: Di
   // -- conversion ----------------------------------------------------------------------------------------------------
 
   /** Returns dataset with sequences encoded as Fids.
-    *  If sequences are encoded as gids, they are converted to fids. Otherwise, nothing is done.
+    * If sequences are encoded as gids, they are converted to fids. Otherwise, nothing is done.
     */
   //noinspection AccessorLikeMethodIsEmptyParen
   def toFids(): DesqDataset = {
@@ -140,7 +140,7 @@ class DesqDataset(val sequences: RDD[IdentifiableWeightedSequence], val dict: Di
   }
 
   /** Returns dataset with sequences encoded as Gids.
-    *  If sequences are encoded as fids, they are converted to gids. Otherwise, nothing is done.
+    * If sequences are encoded as fids, they are converted to gids. Otherwise, nothing is done.
     */
   //noinspection AccessorLikeMethodIsEmptyParen
   def toGids(): DesqDataset = {
@@ -171,12 +171,12 @@ class DesqDataset(val sequences: RDD[IdentifiableWeightedSequence], val dict: Di
 
   /** Returns an RDD that contains for each sequence an array of its string identifiers and its weight. */
   //noinspection AccessorLikeMethodIsEmptyParen
-  def toSidsWeightPairs(): RDD[(Array[String],Long)] = {
+  def toSidsWeightPairs(): RDD[(Array[String], Long)] = {
     val dictBroadcast = broadcastDictionary()
     val usesFids = this.usesFids // to localize
 
     sequences.mapPartitions(rows => {
-      new Iterator[(Array[String],Long)] {
+      new Iterator[(Array[String], Long)] {
         val dict = dictBroadcast.value
 
         override def hasNext: Boolean = rows.hasNext
@@ -184,7 +184,7 @@ class DesqDataset(val sequences: RDD[IdentifiableWeightedSequence], val dict: Di
         override def next(): (Array[String], Long) = {
           val s = rows.next()
           val itemSids = new Array[String](s.size())
-          for (i <- Range(0,s.size())) {
+          for (i <- Range(0, s.size())) {
             if (usesFids) {
               itemSids(i) = dict.sidOfFid(s.getInt(i))
             } else {
@@ -204,7 +204,7 @@ class DesqDataset(val sequences: RDD[IdentifiableWeightedSequence], val dict: Di
 
     // write sequences
     val sequencePath = s"$outputPath/sequences"
-    sequences.map(s => (NullWritable.get(),s)).saveAsSequenceFile(sequencePath)
+    sequences.map(s => (NullWritable.get(), s)).saveAsSequenceFile(sequencePath)
 
     // write dictionary
     val dictPath = s"$outputPath/dict.avro.gz"
@@ -346,100 +346,8 @@ object DesqDataset {
     */
 
   def buildFromSentences(rawData: RDD[Sentence]): DesqDataset = {
-//    val parse = (sentence: Sentence, seqBuilder: DictionaryBuilder) => {
-//      val ENTITY = "ENTITY"
-//      val POS_VALUES = Array[String]("CC", "CD", "DT", "EX", "FW", "IN", "JJ", "JJR", "JJS", "LS", "MD", "NN", "NNS", "NNP", "NNPS",
-//        "PDT", "POS", "PRP", "PRP$", "RB", "RBR", "RBS", "RP", "SYM", "TO", "UH", "VB", "VBD", "VBG", "VBN", "VBP", "VBZ", "WDT", "WP", "WP$", "WRB")
-//      val POS_SET = HashSet(POS_VALUES.toList: _*)
-//      var token: Token = null
-//      var word = ""
-//      var ner = ""
-//      var lemma = ""
-//      var pos = ""
-//      seqBuilder.newSequence(1)
-//      val tokens = sentence.getTokens
-//      var i = 0
-//      while (i < tokens.size()) {
-//        breakable {
-//          token = tokens.get(i)
-//          word = token.getWord.toLowerCase
-//          ner = token.getNer
-//          lemma = token.getLemma
-//          pos = token.getPos
-//          if (ner.equals("PERSON") || ner.equals("LOCATION") || ner.equals("ORGANIZATION")) {
-//            var nerPlus = ner
-//            var wordPlus = word
-//            var j = i + 1
-//            breakable {
-//              while (j < tokens.size()) {
-//                token = tokens.get(j)
-//                ner = token.getNer
-//                word = token.getWord.toLowerCase
-//                if (!nerPlus.equals(ner)) {
-//                  j += 1
-//                  break
-//                }
-//                else {
-//                  wordPlus = wordPlus + "_" + word
-//                }
-//                i = j
-//                j += 1
-//              }
-//            }
-//            // add wordPlus -> nePlus -> entity to hierarchy
-//            // 1) Add item to sequence
-//            wordPlus = wordPlus + "@" + nerPlus + "@" + ENTITY
-//            var apiResult = seqBuilder.appendItem(wordPlus)
-//            var itemFid = apiResult.getLeft
-//            var newItem = apiResult.getRight
-//            // 2) If its a new item, we add parents
-//            if (newItem) {
-//              nerPlus = nerPlus + "@" + ENTITY
-//              apiResult = seqBuilder.addParent(itemFid, nerPlus)
-//              itemFid = apiResult.getLeft
-//              newItem = apiResult.getRight
-//              // If we have not yet added this ner
-//              if (newItem) {
-//                seqBuilder.addParent(itemFid, ENTITY)
-//              }
-//            }
-//            i += 1
-//            break
-//          }
-//
-//          // If the word is not a named entity (additionally ignore punctuation)
-//          if (POS_SET.contains(pos)) {
-//            pos = shortenPos(pos)
-//            // add word -> lemma -> pos to hierarchy
-//            // 1) Add item to sequence
-//            word = word + "@" + lemma + "@" + pos
-//            var apiResult = seqBuilder.appendItem(word)
-//            var itemFid = apiResult.getLeft
-//            var newItem = apiResult.getRight
-//            // 2) If its a new item, add parents
-//            if (newItem) {
-//              lemma = lemma + "@" + pos
-//              apiResult = seqBuilder.addParent(itemFid, lemma)
-//              itemFid = apiResult.getLeft
-//              newItem = apiResult.getRight
-//              if (newItem) {
-//                seqBuilder.addParent(itemFid, pos)
-//              }
-//            }
-//          }
-//          i += 1
-//        }
-//
-//        def shortenPos(pos: String): String = {
-//          var result = pos;
-//          if (pos.length() > 2) {
-//            result = pos.substring(0, 2);
-//          }
-//          return result;
-//        }
-//      }
-//    }
-    val parse = (sentence:Sentence, dictionaryBuilder:DictionaryBuilder)=>NytUtils.processSentence(-1L, sentence, dictionaryBuilder)
+    //    val parse = NytUtil.parse
+    val parse = (sentence: Sentence, dictionaryBuilder: DictionaryBuilder) => NytUtils.processSentence(-1L, sentence, dictionaryBuilder)
     build[Sentence](rawData, parse)
   }
 
@@ -449,7 +357,7 @@ object DesqDataset {
     */
 
   def buildFromSentencesWithID(rawData: RDD[(Long, Sentence)]): DesqDataset = {
-    val parse = (id: Long, sentence: Sentence, dictionaryBuilder:DictionaryBuilder) => NytUtils.processSentence(id, sentence, dictionaryBuilder)
+    val parse = (id: Long, sentence: Sentence, dictionaryBuilder: DictionaryBuilder) => NytUtils.processSentence(id, sentence, dictionaryBuilder)
     buildWithId[Sentence](rawData, parse)
   }
 
@@ -488,7 +396,7 @@ object DesqDataset {
 
       override def next(): IdentifiableWeightedSequence = {
         parse.apply(rows.next(), seqBuilder)
-        val s = new IdentifiableWeightedSequence(seqBuilder.getCurrentId,seqBuilder.getCurrentGids, seqBuilder.getCurrentWeight)
+        val s = new IdentifiableWeightedSequence(seqBuilder.getCurrentId, seqBuilder.getCurrentGids, seqBuilder.getCurrentWeight)
         dict.gidsToFids(s)
         s
       }
@@ -499,6 +407,7 @@ object DesqDataset {
     result.dictBroadcast = dictBroadcast
     result
   }
+
   /** Builds a DesqDataset from arbitrary input data. The dataset is linked to the original data and parses it again
     * when used. For improved performance, save the dataset once created.
     *
@@ -534,8 +443,8 @@ object DesqDataset {
 
       override def next(): IdentifiableWeightedSequence = {
         val row = rows.next()
-        parse.apply(row._1,row._2, seqBuilder)
-        val s = new IdentifiableWeightedSequence(seqBuilder.getCurrentId(),seqBuilder.getCurrentGids, seqBuilder.getCurrentWeight)
+        parse.apply(row._1, row._2, seqBuilder)
+        val s = new IdentifiableWeightedSequence(seqBuilder.getCurrentId(), seqBuilder.getCurrentGids, seqBuilder.getCurrentWeight)
         dict.gidsToFids(s)
         s
       }

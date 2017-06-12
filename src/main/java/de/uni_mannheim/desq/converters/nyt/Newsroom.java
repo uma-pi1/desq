@@ -151,7 +151,7 @@ public class Newsroom {
 
             // Inform the dictionary about starting a new sequence
             dictionaryBuilder.newSequence();
-            this.itemFids.clear(); //TODO: Dictionary Builder should support this
+            itemFids.clear(); //TODO: Dictionary Builder should support this
 
             List<Token> tokens = sentence.getTokens();
 

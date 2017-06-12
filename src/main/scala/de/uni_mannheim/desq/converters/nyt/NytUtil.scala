@@ -1,17 +1,13 @@
 package de.uni_mannheim.desq.converters.nyt
 
-import java.util
-
 import de.uni_mannheim.desq.Desq.initDesq
-import de.uni_mannheim.desq.avro.AvroArticle
-import de.uni_mannheim.desq.converters.nyt.avroschema.{Article, Sentence, Span}
+import de.uni_mannheim.desq.avro.{AvroArticle, Sentence, Token}
+import de.uni_mannheim.desq.dictionary.DictionaryBuilder
 import de.uni_mannheim.desq.io.spark.AvroIO
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
-
-import scala.collection.JavaConverters._
+import scala.util.control.Breaks._
+import scala.collection.immutable.HashSet
 
 /**
   * Created by ivo on 03.05.17.
@@ -23,52 +19,98 @@ object NytUtil {
     articles
   }
 
+  def parse = (sentence: Sentence, seqBuilder: DictionaryBuilder) => {
+    val ENTITY = "ENTITY"
+    val POS_VALUES = Array[String]("CC", "CD", "DT", "EX", "FW", "IN", "JJ", "JJR", "JJS", "LS", "MD", "NN", "NNS", "NNP", "NNPS",
+      "PDT", "POS", "PRP", "PRP$", "RB", "RBR", "RBS", "RP", "SYM", "TO", "UH", "VB", "VBD", "VBG", "VBN", "VBP", "VBZ", "WDT", "WP", "WP$", "WRB")
+    val POS_SET = HashSet(POS_VALUES.toList: _*)
+    var token: Token = null
+    var word = ""
+    var ner = ""
+    var lemma = ""
+    var pos = ""
+    seqBuilder.newSequence(1)
+    val tokens = sentence.getTokens
+    var i = 0
+    while (i < tokens.size()) {
+      breakable {
+        token = tokens.get(i)
+        word = token.getWord.toLowerCase
+        ner = token.getNer
+        lemma = token.getLemma
+        pos = token.getPos
+        if (ner.equals("PERSON") || ner.equals("LOCATION") || ner.equals("ORGANIZATION")) {
+          var nerPlus = ner
+          var wordPlus = word
+          var j = i + 1
+          breakable {
+            while (j < tokens.size()) {
+              token = tokens.get(j)
+              ner = token.getNer
+              word = token.getWord.toLowerCase
+              if (!nerPlus.equals(ner)) {
+                j += 1
+                break
+              }
+              else {
+                wordPlus = wordPlus + "_" + word
+              }
+              i = j
+              j += 1
+            }
+          }
+          // add wordPlus -> nePlus -> entity to hierarchy
+          // 1) Add item to sequence
+          wordPlus = wordPlus + "@" + nerPlus + "@" + ENTITY
+          var apiResult = seqBuilder.appendItem(wordPlus)
+          var itemFid = apiResult.getLeft
+          var newItem = apiResult.getRight
+          // 2) If its a new item, we add parents
+          if (newItem) {
+            nerPlus = nerPlus + "@" + ENTITY
+            apiResult = seqBuilder.addParent(itemFid, nerPlus)
+            itemFid = apiResult.getLeft
+            newItem = apiResult.getRight
+            // If we have not yet added this ner
+            if (newItem) {
+              seqBuilder.addParent(itemFid, ENTITY)
+            }
+          }
+          i += 1
+          break
+        }
 
-  def convertToArticle(row: Row): Article = {
-    val article = new Article()
-    article.setAbstract$(row.getString(0))
-    article.setFilename(row.getString(1))
-    article.setSentences(convertToSentence(row.getSeq[Any](2)))
-    article.setPublicationYear(row.getString(6))
-    article.setPublicationMonth(row.getString(3))
-    article.setPublicationDayOfMonth(row.getString(7))
-    article.setContent(row.getString(13))
-    article.setOnlineSections(row.getString(15))
-    article
-  }
+        // If the word is not a named entity (additionally ignore punctuation)
+        if (POS_SET.contains(pos)) {
+          pos = shortenPos(pos)
+          // add word -> lemma -> pos to hierarchy
+          // 1) Add item to sequence
+          word = word + "@" + lemma + "@" + pos
+          var apiResult = seqBuilder.appendItem(word)
+          var itemFid = apiResult.getLeft
+          var newItem = apiResult.getRight
+          // 2) If its a new item, add parents
+          if (newItem) {
+            lemma = lemma + "@" + pos
+            apiResult = seqBuilder.addParent(itemFid, lemma)
+            itemFid = apiResult.getLeft
+            newItem = apiResult.getRight
+            if (newItem) {
+              seqBuilder.addParent(itemFid, pos)
+            }
+          }
+        }
+        i += 1
+      }
 
-  def convertToSentence(sentencesRaw: Seq[Any]): util.List[Sentence] = {
-    val sentences = for (sentenceRaw <- sentencesRaw) yield {
-      val sentence = new Sentence
-      sentence.setTokens(convertToTokens(sentenceRaw.asInstanceOf[GenericRowWithSchema].getSeq(0)))
-      sentence.setSId(sentenceRaw.asInstanceOf[GenericRowWithSchema].getInt(1))
-      sentence.setSg(sentenceRaw.asInstanceOf[GenericRowWithSchema].getString(2))
-      sentence.setDp(sentenceRaw.asInstanceOf[GenericRowWithSchema].getString(3))
-      sentence.setSpan(convertToSpan(sentenceRaw.asInstanceOf[GenericRowWithSchema].get(4)))
-      sentence
+      def shortenPos(pos: String): String = {
+        var result = pos;
+        if (pos.length() > 2) {
+          result = pos.substring(0, 2);
+        }
+        return result;
+      }
     }
-    sentences.asJava
-  }
-
-  def convertToTokens(tokensRaw: Seq[Any]): util.List[avroschema.Token] = {
-    val tokens = for (tokenRaw <- tokensRaw) yield {
-      val token = new avroschema.Token()
-      token.setPos(tokenRaw.asInstanceOf[GenericRowWithSchema].getString(0))
-      token.setNer(tokenRaw.asInstanceOf[GenericRowWithSchema].getString(1))
-      token.setSpan(convertToSpan(tokenRaw.asInstanceOf[GenericRowWithSchema].get(2)))
-      token.setLemma(tokenRaw.asInstanceOf[GenericRowWithSchema].getString(3))
-      token.setWord(tokenRaw.asInstanceOf[GenericRowWithSchema].getString(4))
-      token.setIndex(tokenRaw.asInstanceOf[GenericRowWithSchema].getInt(5))
-      token
-    }
-    tokens.asJava
-  }
-
-  def convertToSpan(rawSpan: Any): Span = {
-    val span = new Span()
-    span.setStartIndex(rawSpan.asInstanceOf[GenericRowWithSchema].getInt(0))
-    span.setEndIndex(rawSpan.asInstanceOf[GenericRowWithSchema].getInt(1))
-    span
   }
 
   def main(args: Array[String]): Unit = {
