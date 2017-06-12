@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.elastic
 
+import com.sksamuel.elastic4s.ElasticDsl._
 import com.sksamuel.elastic4s.{ElasticsearchClientUri, TcpClient}
 import de.uni_mannheim.desq.Desq.initDesq
 import de.uni_mannheim.desq.avro.AvroArticle
@@ -9,8 +10,10 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.spark._
-import com.sksamuel.elastic4s.ElasticDsl._
+
 import scala.collection.JavaConversions._
+import scala.collection.immutable.BitSet
+import scala.collection.mutable
 
 /**
   * Created by ivo on 08.05.17.
@@ -26,15 +29,15 @@ class NYTElasticSearchUtils extends Serializable {
     * Loads the Articles with their ID to ElasticSearch
     * Creates a DataSet with IdentifiableWeightedSequences, where each one has the Article ID
     *
-    * @param path_in Directory where the source avro articles lay
+    * @param path_in  Directory where the source avro articles lay
     * @param path_out Directory where the DataSet should be written
-    * @param sc SparkContext
+    * @param sc       SparkContext
     * @return
     */
   def createIndexAndDataset(path_in: String, path_out: String, index: String)(implicit sc: SparkContext) = {
     val articles = NytUtil.loadArticlesFromFile(path_in)
     val articlesWithId = articles.zipWithUniqueId()
-    this.writeArticlesToEs(articlesWithId, index:String)
+    this.writeArticlesToEs(articlesWithId, index: String)
     val sentences = articlesWithId.map(f => (f._2, f._1)).flatMapValues(f => f.getSentences)
     val dataset = DesqDataset.buildFromSentencesWithID(sentences)
     dataset.save(path_out)
@@ -68,9 +71,22 @@ class NYTElasticSearchUtils extends Serializable {
     val resp = ESConnection.client.execute {
       search(index) storedFields "_id" query query_s fetchSource false limit limit_i
     }.await
-    val ids = resp.ids.map(id=>id.toLong)
+    val ids = resp.ids.map(id => id.toLong)
     ids
   }
+
+  def searchESCombines(index: String, limit_i: Int, queries: String*): mutable.Map[Long, mutable.BitSet] = {
+    val map = mutable.Map[Long, mutable.BitSet]()
+    for (i <- 0 to queries.size-1) yield {
+      val ids = searchES(queries.get(i), index, limit_i)
+      for (id <- ids) {
+        val newBitSet = map.getOrElse(id, mutable.BitSet(i)) += i
+        map += (id -> newBitSet)
+      }
+    }
+    map
+  }
+
 }
 
 object NYTElasticSearchUtils extends App {
