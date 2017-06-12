@@ -13,7 +13,7 @@ import org.apache.spark.rdd.RDD
   * Class which supports building DesqDatasets from NYT Articles in Avro format, as well as comparing these datasets.
   *
   */
-class DesqCompare {
+class DesqCompareNaive {
   /**
     *
     * @param left              Original DesqDataset for left collection of articles

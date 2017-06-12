@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 
 import com.google.common.base.Stopwatch
 import de.uni_mannheim.desq.Desq.initDesq
-import de.uni_mannheim.desq.comparing.DesqCompare
+import de.uni_mannheim.desq.comparing.DesqCompareNaive
 import de.uni_mannheim.desq.converters.nyt.NytUtil
 import de.uni_mannheim.desq.elastic.NYTElasticSearchUtils
 import de.uni_mannheim.desq.mining.spark.DesqDataset
@@ -24,7 +24,7 @@ object DesqCompareExample {
 
     print("Initializing Compare... ")
     val prepTime = Stopwatch.createStarted
-    val compare = new DesqCompare
+    val compare = new DesqCompareNaive
     prepTime.stop()
     println(prepTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
@@ -63,7 +63,7 @@ object DesqCompareExample {
 
     print("Initializing Compare... ")
     val prepTime = Stopwatch.createStarted
-    val compare = new DesqCompare
+    val compare = new DesqCompareNaive
     prepTime.stop()
     println(prepTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
@@ -89,11 +89,11 @@ object DesqCompareExample {
     println(buildCompareTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
   }
 
-  def searchAndCompare(path_source: String, query_left: String, query_right: String, patternExpression: String, sigma: Int = 1, k: Int = 10, index: String)(implicit sc: SparkContext): Unit = {
+  def searchAndCompareNaive(path_source: String, query_left: String, query_right: String, patternExpression: String, sigma: Int = 1, k: Int = 10, index: String)(implicit sc: SparkContext): Unit = {
     print("Initializing Compare... ")
     val prepTime = Stopwatch.createStarted
     val es = new NYTElasticSearchUtils
-    val compare = new DesqCompare
+    val compare = new DesqCompareNaive
     val dataset = DesqDataset.load(path_source)
     //    dataset.sequences.cache()
     prepTime.stop()
@@ -102,13 +102,12 @@ object DesqCompareExample {
     val queryTime = Stopwatch.createStarted
     val ids_query_l = es.searchES(query_left, index)
     val ids_query_r = es.searchES(query_right, index)
-    println(s"overlap ${ids_query_l.intersect(ids_query_r).size}")
     queryTime.stop()
     println(queryTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
     println("Initialize Left Side Dataset with ES Query")
     val leftPrepTime = Stopwatch.createStarted
-    val ids_left = sc.broadcast(ids_query_l.diff(ids_query_r))
+    val ids_left = sc.broadcast(ids_query_l)
     println(s"only left ${ids_left.value.size()}")
     val dataset_left = new DesqDataset(dataset.sequences.filter(f => ids_left.value.contains(f.id)).repartition(18), dataset.dict.deepCopy(), true)
     //    val dataset_left = new DesqDataset(dataset.sequences.filter{case (seq) => ids_left.value.contains(seq.id)}, dataset.dict.deepCopy())
@@ -119,7 +118,7 @@ object DesqCompareExample {
 
     println("Initialize Right Side Dataset with ES Query")
     val rightPrepTime = Stopwatch.createStarted
-    val ids_right = sc.broadcast(ids_query_r.diff(ids_query_l))
+    val ids_right = sc.broadcast(ids_query_r)
     println(s"only right ${ids_right.value.size}")
     val dataset_right = new DesqDataset(dataset.sequences.filter(f => ids_right.value.contains(f.id)).repartition(18), dataset.dict.deepCopy(), true)
     //    val dataset_right = new DesqDataset(dataset.sequences.filter{case (seq) => ids_right.value.contains(seq.id)}, dataset.dict.deepCopy())
@@ -130,6 +129,38 @@ object DesqCompareExample {
     println("Comparing the two collections... ")
     val compareTime = Stopwatch.createStarted
     compare.compare(dataset_left, dataset_right, patternExpression, sigma, k)
+    compareTime.stop
+    println(compareTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+
+  }
+
+  def searchAndCompare(path_source: String, query_left: String, query_right: String, patternExpression: String, sigma: Int = 1, k: Int = 10, index: String)(implicit sc: SparkContext): Unit = {
+    print("Initializing Compare... ")
+    val prepTime = Stopwatch.createStarted
+    val es = new NYTElasticSearchUtils
+    val compare = new DesqCompareNaive
+    val dataset = DesqDataset.load(path_source)
+    //    dataset.sequences.cache()
+    prepTime.stop()
+    println(prepTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+    print("Querying Elastic... ")
+    val queryTime = Stopwatch.createStarted
+    val docIDMap = es.searchESCombines(index, 10000, query_left, query_right)
+    queryTime.stop()
+    println(queryTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+
+    println("Initialize Dataset with ES Query")
+    val leftPrepTime = Stopwatch.createStarted
+    val ids = sc.broadcast(docIDMap)
+
+    val dataset_left = new DesqDataset(dataset.sequences.filter(f => ids.value.contains(f.id)).repartition(18), dataset.dict.deepCopy(), true)
+
+    leftPrepTime.stop()
+    println(leftPrepTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+
+    println("Comparing the two collections... ")
+    val compareTime = Stopwatch.createStarted
+    //    compare.compare(dataset, patternExpression, sigma, k)
     compareTime.stop
     println(compareTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
