@@ -2,6 +2,8 @@ package de.uni_mannheim.desq.mining.spark
 
 import de.uni_mannheim.desq.mining.Sequence
 
+import scala.collection.mutable
+
 /**
   * Created by rgemulla on 12.09.2016.
   */
@@ -10,6 +12,7 @@ abstract class DesqMiner(val ctx: DesqMinerContext) {
     * triggered by this method, i.e., can be performed lazily when accessing the sequence RDD in the result. */
   def mine(data: DesqDataset): DesqDataset
   def mine(data:DesqDataset, filter: ((Sequence, Long))=>Boolean) : DesqDataset
+  def mine(data:DesqDataset, docIDs : mutable.Map[Long, mutable.BitSet], filter: ((Sequence, (Long, Long)))=>Boolean): DesqDataset
 }
 
 object DesqMiner {
