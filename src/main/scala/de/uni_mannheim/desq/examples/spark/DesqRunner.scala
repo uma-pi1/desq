@@ -214,19 +214,19 @@ object DesqRunner {
                 sigma = 100
             }
             // -- Traditional frequent sequence mining constraints ---------------------------------------------
-            // traditional constraints: no hierarchy, max length, max gap (e.g. MG-FSM): M-[ds]-[omega]-[lambda]-[gamma]
-            case r"M-(\d+)$o-(\d+)$g-(\d+)$l" => {
+            // traditional constraints: no hierarchy, max length, max gap (e.g. MG-FSM): M(minSupport,maxGap,maxLength)
+            case r"M\((\d+)$o,(\d+)$g,(\d+)$l\)" => {
                 patternExp = "(.)[.{0," + g.toInt + "}(.)]{1," + (l.toInt - 1) + "}"
                 sigma = o.toInt
             }
-            // traditional constraints: with hierarchy, max length, max gap (e.g. LASH): L-[ds]-[omega]-[lambda]-[gamma]
-            case r"L-(\d+)$o-(\d+)$g-(\d+)$l" => {
+            // traditional constraints: with hierarchy, max length, max gap (e.g. LASH): L(minSupport,maxGap,maxLength)
+            case r"L\((\d+)$o,(\d+)$g,(\d+)$l\)" => {
                 patternExp = "(.^)[.{0," + g.toInt + "}(.^)]{1," + (l.toInt - 1) + "}"
                 sigma = o.toInt
             }
-            // traditional constraints: no hierarchy, max length  (e.g. PrefixSpan): S-[ds]-[omega]-[maxLength]
-            case r"S-(N|A|N1991|Nfull)$d-(\d+)$o-(\d+)$m" => {
-                patternExp = "(.)[.*(.)]{," + m.toInt + "}"
+            // traditional constraints: no hierarchy, max length  (e.g. PrefixSpan): S(minSupport,maxLength)
+            case r"S\((\d+)$o,(\d+)$m\)" => {
+                patternExp = "(.)[.*(.)]{," + (m.toInt - 1)+ "}"
                 sigma = o.toInt
             }
             // -- Toy dataset examples ---------------------------------------------
