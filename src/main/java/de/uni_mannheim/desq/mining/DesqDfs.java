@@ -521,6 +521,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	 */
 	public IntSet generatePivotItems(IntList inputSequence) {
 		pivotItems.clear();
+		currentSpReachedWithoutOutput.clear();
 		this.inputSequence = inputSequence;
 
 		// check whether sequence produces output at all. if yes, produce output items
@@ -564,6 +565,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		path.clear();
 		nfas.clear();
 
+		currentSpReachedWithoutOutput.clear();
 		if(useTwoPass) {
 			dfaStateSequence.clear();
 			if (dfa.acceptsReverse(inputSequence, dfaStateSequence, dfaInitialPos)) {
@@ -714,8 +716,16 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 			// We handle the different output label types differently
 			if(!tr.hasOutput()) { // this transition doesn't produce output
-				// an eps transition does not introduce potential pivot elements, so we simply continue recursion
-				piStep(largestFidSeen, pos + 1, toState, level + 1);
+				// if we saw this state at this position without output (for this input sequence and for the currently
+				// expanded node) before, we do not need to process it again
+				int spIndex = pos * fst.numStates() + toState.getId();
+				if(!currentSpReachedWithoutOutput.get(spIndex)) {
+					// haven't seen it, so process
+					currentSpReachedWithoutOutput.set(spIndex);
+
+					// an eps transition does not introduce potential pivot elements, so we simply continue recursion
+					piStep(largestFidSeen, pos + 1, toState, level + 1);
+				}
 
 			} else { // this transition produces output
 				// collect all output elements into the outputItems set
