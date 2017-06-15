@@ -29,6 +29,7 @@ object DesqRunner {
     var mergeSuffixes: Boolean = _
     var useDesqCount: Boolean = _
     var aggregateShuffleSequences: Boolean = _
+    var trimInputSequences: Boolean = _
 
     val runConf = scala.collection.mutable.Map[String, String]()
 
@@ -125,6 +126,7 @@ object DesqRunner {
         minerConf.setProperty("desq.mining.merge.suffixes", mergeSuffixes)
         minerConf.setProperty("desq.mining.aggregate.shuffle.sequences", aggregateShuffleSequences)
         minerConf.setProperty("desq.mining.map.repartition", runConf.get("map.repartition").get)
+        minerConf.setProperty("desq.mining.trim.input.sequences", trimInputSequences)
 
         // Construct miner
         val ctx = new DesqMinerContext(minerConf)
@@ -289,11 +291,15 @@ object DesqRunner {
         mergeSuffixes = false
         useDesqCount = false
         aggregateShuffleSequences = false
+        trimInputSequences = false
         algorithm match {
             case "DDCount" =>
                 useDesqCount = true
             case "DDIS" =>
                 aggregateShuffleSequences = false
+            case "DDIS.tr" =>
+                aggregateShuffleSequences = false
+                trimInputSequences = true
             case "DDIN" =>
                 sendNFAs = true
                 mergeSuffixes = true

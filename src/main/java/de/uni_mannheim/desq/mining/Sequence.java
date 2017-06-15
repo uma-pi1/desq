@@ -47,6 +47,15 @@ public class Sequence extends IntArrayList implements Externalizable, Writable {
         return c;
     }
 
+    /** Clones a subrange of this sequence to a new sequence. Indexes `from` and `to` are included */
+    public Sequence cloneSubList(int from, int to) {
+        Sequence c = new Sequence(to-from+1);
+        System.arraycopy(this.a, from, c.a, 0, to-from+1);
+        c.size = to-from+1;
+        return c;
+    }
+
+
     @Override
     public int hashCode() {
         return super.hashCode();

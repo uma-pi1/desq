@@ -1,6 +1,6 @@
 package de.uni_mannheim.desq.mining.spark
 
-import de.uni_mannheim.desq.mining.{OutputNFA, Sequence, WeightedSequence}
+import de.uni_mannheim.desq.mining.{OutputNFA, RelevantPositions, Sequence, WeightedSequence}
 import de.uni_mannheim.desq.util.DesqProperties
 import it.unimi.dsi.fastutil.ints._
 import de.uni_mannheim.desq.io.MemoryPatternWriter
@@ -31,6 +31,7 @@ class DDIN(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         val sendNFAs = conf.getBoolean("desq.mining.send.nfas")  // if true: send NFA. otherwise: send input sequences
         val mergeSuffixes = conf.getBoolean("desq.mining.merge.suffixes", false) // if true: merge the suffixes of the NFA
         val aggregateShuffleSequences = conf.getBoolean("desq.mining.aggregate.shuffle.sequences", false)  // if true: aggregate NFA for the shuffle and the local mining
+        val trimInputSequences = conf.getBoolean("desq.mining.trim.input.sequences", false)
 
         // manual repartition
         var mappedSequences = data.sequences
@@ -68,6 +69,7 @@ class DDIN(ctx: DesqMinerContext) extends DesqMiner(ctx) {
                 var pivotIterator: IntIterator = null
                 var currentInputSequence: Sequence = null
 
+                val relevantPositions = new RelevantPositions()
                 override def hasNext: Boolean = {
                     // we either send NFA that encode the candidate sequences
                     if (sendNFAs) {
@@ -78,7 +80,8 @@ class DDIN(ctx: DesqMinerContext) extends DesqMiner(ctx) {
                     } else { // or we send input sequences
                         while ((pivotIterator == null || !pivotIterator.hasNext) && inputSequences.hasNext) {
                             currentInputSequence = inputSequences.next()
-                            pivotIterator = baseMiner.generatePivotItems(currentInputSequence).iterator();
+                            relevantPositions.clear()
+                            pivotIterator = baseMiner.generatePivotItems(currentInputSequence, relevantPositions).iterator()
                         }
                         return pivotIterator.hasNext
                     }
@@ -93,7 +96,13 @@ class DDIN(ctx: DesqMinerContext) extends DesqMiner(ctx) {
                             (nfa.pivot, nfa.serialize)
 
                     } else {
-                        (pivotIterator.nextInt(), currentInputSequence.clone())
+                        val pivot = pivotIterator.nextInt()
+                        if(trimInputSequences) {
+                            val sendSeq = currentInputSequence.cloneSubList(relevantPositions.getFirstRelevant(pivot), relevantPositions.getLastRelevant(pivot))
+                            (pivot, sendSeq)
+                        } else {
+                            (pivot, currentInputSequence.clone())
+                        }
                     }
                 }
             }

@@ -125,6 +125,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** If true, DesqDfs Distributed merges shared suffixes in the tree representation */
 	final boolean mergeSuffixes;
 
+	/** If true, DesqDfs Distributed merges shared suffixes in the tree representation */
+	final boolean trimInputSequences;
+
 	/** Stores one Transition iterator per recursion level for reuse */
 	final ArrayList<Iterator<Transition>> transitionIterators = new ArrayList<>();
 
@@ -183,6 +186,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		sendNFAs = ctx.conf.getBoolean("desq.mining.send.nfas", false);
 		mergeSuffixes = ctx.conf.getBoolean("desq.mining.merge.suffixes", false);
+		trimInputSequences = ctx.conf.getBoolean("desq.mining.trim.input.sequences", false);
 
 
 		// create FST once per JVM
@@ -397,7 +401,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 					// if we saw this state at this position without output (for this input sequence and for the currently
 					// expanded node) before, we do not need to process it again
-					int spIndex = pos * fst.numStates() + toState.getId(); // TODO: understand this part and add it to piStep, if useful
+					int spIndex = pos * fst.numStates() + toState.getId();
 					if (!currentSpReachedWithoutOutput.get(spIndex)) {
 						// haven't seen it, so process
 						currentSpReachedWithoutOutput.set(spIndex);
@@ -519,7 +523,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	 * @param inputSequence
 	 * @return pivotItems set of frequent output items of input sequence inputSequence
 	 */
-	public IntSet generatePivotItems(IntList inputSequence) {
+	public IntSet generatePivotItems(IntList inputSequence, RelevantPositions relevantPositions) {
 		pivotItems.clear();
 		currentSpReachedWithoutOutput.clear();
 		this.inputSequence = inputSequence;
@@ -534,7 +538,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				// run the first incStep; start at all positions from which a final FST state can be reached
 				for (int i = 0; i<dfaInitialPos.size(); i++) {
 					// for those positions, start with the initial state
-					piStep(-1, dfaInitialPos.getInt(i), fst.getInitialState(), 0);
+					piStep(-1, dfaInitialPos.getInt(i), fst.getInitialState(), 0, relevantPositions, -1);
 				}
 
 				// clean up
@@ -545,12 +549,13 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		} else { // one pass
 
 			if (!pruneIrrelevantInputs || dfa.accepts(inputSequence)) {
-				piStep(-1, 0, fst.getInitialState(), 0);
+				piStep(-1, 0, fst.getInitialState(), 0, relevantPositions, -1);
 			}
 		}
 		return pivotItems;
 	}
 
+	public static long isMergeableCalls = 0;
 
 
 	/** Generates all Output NFAs of the given input sequence and returns them in a Map: pivItem -> NFA
@@ -572,14 +577,14 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 				// run the first incStep; start at all positions from which a final FST state can be reached
 				for (int i = 0; i < dfaInitialPos.size(); i++) {
-					piStep(-1, dfaInitialPos.getInt(i), fst.getInitialState(), 0);
+					piStep(-1, dfaInitialPos.getInt(i), fst.getInitialState(), 0, null, -1);
 				}
 
 				// clean up
 				dfaInitialPos.clear();
 			}
 		} else {
-			piStep(-1, 0, fst.getInitialState(), 0);
+			piStep(-1, 0, fst.getInitialState(), 0, null, -1);
 		}
 
 		return nfas;
@@ -594,8 +599,13 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	 * @param state current state
 	 * @param level current level
 	 */
-	private void piStep(final int largestFidSeenIncoming, int pos, State state, int level) {
+	private void piStep(final int largestFidSeenIncoming, int pos, State state, int level,
+						   RelevantPositions relevantPositions, int currentLastIrrelevant) {
 		counterTotalRecursions++;
+
+		if(state.getId() == 0 && path.size() == 0) {
+			currentLastIrrelevant = pos;
+		}
 
 		// if we reached a final state, we add the current set of pivot items at this state to the global set of pivot items for this sequences
 		if(state.isFinal() && path.size() > processedPathSize) {
@@ -649,6 +659,8 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					currentPivot = nextPivot;
 					nextPivot = -1;
 					pivotItems.add(currentPivot);
+					if(trimInputSequences)
+						relevantPositions.addLimitsForPivot(currentPivot, currentLastIrrelevant, pos);
 
 					// go through each output set in the path
 					for (int i = 0; i < path.size(); i++) {
@@ -724,7 +736,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					currentSpReachedWithoutOutput.set(spIndex);
 
 					// an eps transition does not introduce potential pivot elements, so we simply continue recursion
-					piStep(largestFidSeen, pos + 1, toState, level + 1);
+					piStep(largestFidSeen, pos + 1, toState, level + 1, relevantPositions, currentLastIrrelevant);
 				}
 
 			} else { // this transition produces output
@@ -772,7 +784,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
                     // add this output label to the path and follow the path further. afterwards, remove the
 					//   output label from the path and continue with the next transition
 					path.add(ol);
-					piStep(largestFidSeen, pos + 1, toState, level + 1);
+					piStep(largestFidSeen, pos + 1, toState, level + 1, relevantPositions, currentLastIrrelevant);
 					path.remove(path.size() - 1);
 					processedPathSize = path.size();
 				}
