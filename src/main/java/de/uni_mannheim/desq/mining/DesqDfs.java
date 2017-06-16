@@ -101,8 +101,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 	 */
 	BitSet currentSpReachedWithoutOutput = new BitSet();
 
-	ObjectList<BitSet> spReachedWithoutOutput = new ObjectArrayList<>();
-
 	// -- construction/clearing ---------------------------------------------------------------------------------------
 
 	// -- helper variables for distributing --------------------------------------------------------------------------
@@ -529,12 +527,6 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		pivotItems.clear();
 		this.inputSequence = inputSequence;
 
-		while(spReachedWithoutOutput.size() <= this.inputSequence.size()) {
-			spReachedWithoutOutput.add(new BitSet());
-		}
-		currentSpReachedWithoutOutput = spReachedWithoutOutput.get(0);
-		currentSpReachedWithoutOutput.clear();
-
 		// check whether sequence produces output at all. if yes, produce output items
 		if(useTwoPass) {
 			// Run the DFA to find to determine whether the input has outputs and in which states
@@ -576,12 +568,6 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		this.inputSequence = inputSequence;
 		path.clear();
 		nfas.clear();
-
-		while(spReachedWithoutOutput.size() <= this.inputSequence.size()) {
-			spReachedWithoutOutput.add(new BitSet());
-		}
-		currentSpReachedWithoutOutput = spReachedWithoutOutput.get(0);
-		currentSpReachedWithoutOutput.clear();
 
 		if(useTwoPass) {
 			dfaStateSequence.clear();
@@ -741,16 +727,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			// We handle the different output label types differently
 			if(!tr.hasOutput()) { // this transition doesn't produce output
                 // an eps transition does not introduce potential pivot elements, so we simply continue recursion
-
-				// if we saw this state at this position without output (for this input sequence and for the currently
-				// expanded node) before, we do not need to process it again
-				int spIndex = pos * fst.numStates() + toState.getId();
-				if(!currentSpReachedWithoutOutput.get(spIndex)) {
-					// haven't seen it, so process
-					currentSpReachedWithoutOutput.set(spIndex);
-
-					piStep(largestFidSeen, pos + 1, toState, level + 1, relevantPositions, currentLastIrrelevant);
-				}
+                piStep(largestFidSeen, pos + 1, toState, level + 1, relevantPositions, currentLastIrrelevant);
 
 			} else { // this transition produces output
 				// collect all output elements into the outputItems set
@@ -797,11 +774,8 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
                     // add this output label to the path and follow the path further. afterwards, remove the
 					//   output label from the path and continue with the next transition
 					path.add(ol);
-					currentSpReachedWithoutOutput = spReachedWithoutOutput.get(path.size());
-					currentSpReachedWithoutOutput.clear();
 					piStep(largestFidSeen, pos + 1, toState, level + 1, relevantPositions, currentLastIrrelevant);
 					path.remove(path.size() - 1);
-					currentSpReachedWithoutOutput = spReachedWithoutOutput.get(path.size());
 					processedPathSize = path.size();
 				}
 			}
