@@ -5,6 +5,7 @@ import de.uni_mannheim.desq.mining.spark.{DesqCount, DDIN}
 import de.uni_mannheim.desq.mining.spark.{DesqDataset, DesqMiner, DesqMinerContext}
 import org.apache.spark.{SparkConf, SparkContext}
 import de.uni_mannheim.desq.patex.PatExUtils
+import org.apache.spark.mllib.fpm.PrefixSpan
 
 
 /**
@@ -68,7 +69,10 @@ object DesqRunner {
 
         // start application
         if (args.length > 0) { // use command line settings
-            runDesq()
+            if(runConf.get("algorithm").get == "PrefixSpan")
+                runMllib()
+            else
+                runDesq()
         } else { // use default settings for local running: run the thesis example in all algorithms
             runConf.put("count.patterns", "true")
             runConf.put("input", "data/thesis-example/DesqDataset/")
@@ -149,6 +153,84 @@ object DesqRunner {
         }
     }
 
+    /** Runs MLLIB's PrefixSpan implementation */
+    def runMllib(): (Long, Long) = {
+
+        var sigma = 0
+        var maxLength = 0
+
+        // parse the given case
+        runConf.get("case").get match {
+            case r"S\((\d+)$o,(\d+)$m\)" => {
+                maxLength = m.toInt
+                sigma = o.toInt // absolute value. for MLLIB's PrefixSpan, we need to convert this to a fraction
+            }
+        }
+
+        System.out.println("------------------------------------------------------------------")
+        System.out.println("Mining " + runConf.get("case").get + " with " + runConf.get("algorithm").get)
+        System.out.println("------------------------------------------------------------------")
+
+        println(sparkConf.toDebugString)
+
+        var inputPath = runConf.get("input").get
+        if(inputPath.last == '/')
+            inputPath = inputPath.substring(0,inputPath.length-1)
+
+        /*
+        // If flag create.dataset is given, we convert the given dataset to a MLLIB compatible version
+        if(runConf.contains("create.dataset")) {
+            println("Creating dataset for MLLIB...")
+            val desqData = DesqDataset.load(inputPath)
+            val seqs = desqData.sequences.map(_.toArray.map(item => Array(item)))
+            seqs.saveAsTextFile(inputPath + "_mllib")
+        }
+        */
+
+        println("Loading dataset from " + runConf.get("input").get)
+//        val data = sc.objectFile[Array[Array[Int]]](inputPath + "_mllib").sample(fraction=0.001, withReplacement = false)
+        val desqData = DesqDataset.load(inputPath)
+        val data = desqData.sequences.map(_.toArray.map(item => Array(item)))
+        val numSeqs = data.count()
+
+        val minSupport = 1.0 * sigma / numSeqs
+        println("sigma=" + sigma + ", numSeqs=" + numSeqs + " -> minSup=" + minSupport + ". maxLength=" + maxLength)
+
+        // cache the sequences as soon as we read them the first time
+        data.cache()
+
+        // mine
+        println("-------------------")
+        println("mining...")
+        println("-------------------")
+        val sw = new Stopwatch().start()
+        val prefixSpan = new PrefixSpan().setMinSupport(minSupport).setMaxPatternLength(maxLength)
+        val model = prefixSpan.run(data)
+
+
+        // output the frequent sequences
+        model.freqSequences.map(fs => "[" + fs.sequence.map(_(0)).mkString(" ") + "]@" + fs.freq).saveAsTextFile(runConf.get("output").get)
+
+
+        // count, freq output
+        if(runConf.contains("count.patterns")) {
+            model.freqSequences.first().freq
+            val count = model.freqSequences.cache().count()
+            val freq = model.freqSequences.map(_.freq).reduce(_ + _)
+            println("-------------------")
+            println("count, freq")
+            println("-------------------")
+            println("(" + count + ", " + freq + ")")
+            println("Took " + sw.stop().elapsed(TimeUnit.MILLISECONDS))
+
+            model.freqSequences.unpersist()
+            return (count, freq)
+        }
+
+        data.unpersist()
+
+        (0,0)
+    }
 
 
     // -- pattern expressions ----------------------------------------------------------------------------------------
