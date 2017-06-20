@@ -68,15 +68,25 @@ class DDIN(ctx: DesqMinerContext) extends DesqMiner(ctx) {
                 var nfaIterator: ObjectIterator[OutputNFA] = null
                 var pivotIterator: IntIterator = null
                 var currentInputSequence: Sequence = null
+                var totalNFAs = 0
+                var stoppedNFAs = 0
 
                 val relevantPositions = new RelevantPositions()
                 override def hasNext: Boolean = {
                     // we either send NFA that encode the candidate sequences
                     if (sendNFAs) {
                         while ((nfaIterator == null || !nfaIterator.hasNext) && inputSequences.hasNext) {
-                            nfaIterator = baseMiner.generateOutputNFAs(inputSequences.next).getNFAs().iterator(); //int2ObjectEntrySet().fastIterator()
+                            currentInputSequence = inputSequences.next()
+                            nfaIterator = baseMiner.generateOutputNFAs(currentInputSequence).getNFAs().iterator(); //int2ObjectEntrySet().fastIterator()
                         }
-                        return nfaIterator.hasNext
+                        if(!nfaIterator.hasNext) {
+                            // cleanup
+                           println(stoppedNFAs + " / " + totalNFAs + " stopped NFAs")
+                            return false
+                        } else {
+                            return true
+                        }
+//                        return nfaIterator.hasNext
                     } else { // or we send input sequences
                         while ((pivotIterator == null || !pivotIterator.hasNext) && inputSequences.hasNext) {
                             currentInputSequence = inputSequences.next()
@@ -90,10 +100,18 @@ class DDIN(ctx: DesqMinerContext) extends DesqMiner(ctx) {
                 override def next(): (Int, Sequence) = {
                     if (sendNFAs) {
                         val nfa = nfaIterator.next()
-                        if (mergeSuffixes)
-                            (nfa.pivot, nfa.mergeAndSerialize)
-                        else
-                            (nfa.pivot, nfa.serialize)
+                        totalNFAs = totalNFAs + 1
+                        if(nfa.hasStoppedNFAconstruction) { // stoppedNFAconstruction will not be true unless useHybrid=true
+                            // if we stopped NFA construction at some point, we send the relevant part of the input sequence
+                            stoppedNFAs = stoppedNFAs + 1
+                            (nfa.pivot, nfa.prepInputSequence(currentInputSequence))
+                        } else {
+                            // otherwise, we send serialize the NFA we constructed
+                            if (mergeSuffixes)
+                                (nfa.pivot, nfa.mergeAndSerialize)
+                            else
+                                (nfa.pivot, nfa.serialize)
+                        }
 
                     } else {
                         val pivot = pivotIterator.nextInt()

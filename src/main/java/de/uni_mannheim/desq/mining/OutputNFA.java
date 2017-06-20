@@ -36,6 +36,16 @@ public class OutputNFA {
     int numSerializedStates = 0;
     protected int numSerializedFinalStates = 0;
 
+    /** Markers for last relevant and last irrelevant positions of the input sequence */
+    int lastIrrelevant = Integer.MAX_VALUE;
+    int lastRelevant = 0;
+
+    /** If set to true, we have stopped to construct the NFA for this pivot.
+     * Instead, we will send the relevant part of the input sequence. */
+    boolean stoppedNFAconstruction = false;
+    boolean useHybrid;
+
+
     /** Integer markers for NFA serialization */
     final static public int FINAL = 0;
     final static public int END_FINAL = Integer.MIN_VALUE;
@@ -45,10 +55,11 @@ public class OutputNFA {
     int numPaths = 0;
 
 
-    public OutputNFA(int pivot, Fst fst) {
+    public OutputNFA(int pivot, Fst fst, boolean useHybrid) {
         addState(-1); // create root state
         this.pivot = pivot;
         this.fst = fst;
+        this.useHybrid = useHybrid;
     }
 
     /** If the given state was merged, returns the merge target. Otherwise, returns the original id. */
@@ -67,6 +78,9 @@ public class OutputNFA {
         numPaths = 0;
         isLeaf.clear();
         isFinal.clear();
+        lastIrrelevant = Integer.MAX_VALUE;
+        lastRelevant = 0;
+        stoppedNFAconstruction = false;
         this.pivot = pivot;
         addState(-1);
     }
@@ -78,12 +92,23 @@ public class OutputNFA {
      *
      * @param path
      */
-    public int addPathAndReturnNextPivot(OutputLabel[] path) {
+    public int addPathAndReturnNextPivot(OutputLabel[] path, int currentLastIrrelevant, int pos) {
         numPaths++;
         int currentState;
         int nextLargest = -1, nextLargestInThisSet;
         boolean seenPivotAsSingle = false;
         OutputLabel ol;
+
+        if(useHybrid) {
+            // update the information about last irrelevant and last relevant (for this pivot) position of the input sequence
+            lastIrrelevant = Math.min(lastIrrelevant, currentLastIrrelevant);
+            lastRelevant = Math.max(lastRelevant, pos);
+
+            // criterion for stopping to construct NFA (we stop if the NFA gets much larger than the relevant part of the input sequence)
+            if (numStates > 5 * Math.abs(lastRelevant - lastIrrelevant)) {
+                stoppedNFAconstruction = true;
+            }
+        }
 
         // Run through the transitions of this path and add them to this NFA
         currentState = 0; // 0 is always root
@@ -111,11 +136,13 @@ public class OutputNFA {
                 nextLargest = Math.max(nextLargest, nextLargestInThisSet);
             }
 
-            currentState = followLabelFromState(ol, currentState);
+            if(!stoppedNFAconstruction)
+                currentState = followLabelFromState(ol, currentState);
         }
 
         // we ran through the path, so the current state is a final state.
-        isFinal.set(currentState);
+        if(!stoppedNFAconstruction)
+            isFinal.set(currentState);
 
         if(seenPivotAsSingle)
             return -1; // meaning, we have an empty set for any pivot smaller the current pivot, so we stop
@@ -213,6 +240,10 @@ public class OutputNFA {
         }
 
         return send;
+    }
+
+    public Sequence prepInputSequence(Sequence inputSequence) {
+        return inputSequence.cloneSubListWithLeadingZero(lastIrrelevant, lastRelevant-1);
     }
 
     /**
@@ -408,6 +439,10 @@ public class OutputNFA {
 
     public int pivot() {
         return pivot;
+    }
+
+    public boolean hasStoppedNFAconstruction() {
+        return stoppedNFAconstruction;
     }
 }
 

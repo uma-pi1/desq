@@ -18,7 +18,6 @@ import org.apache.log4j.Logger;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Iterator;
-import java.util.concurrent.TimeUnit;
 
 
 public final class DesqDfs extends MemoryDesqMiner {
@@ -128,6 +127,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** If true, DesqDfs Distributed merges shared suffixes in the tree representation */
 	final boolean trimInputSequences;
 
+	/** If true, we send either NFAs or input sequence */
+	final boolean useHybrid;
+
 	/** Stores one Transition iterator per recursion level for reuse */
 	final ArrayList<Iterator<Transition>> transitionIterators = new ArrayList<>();
 
@@ -145,6 +147,12 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 	/** Stores the current path through the FST */
 	private ObjectList<OutputLabel> path = new ObjectArrayList<>();
+
+	/** Stores input NFAs for current partition */
+	protected final ObjectArrayList<WeightedSequence> inputNFAs = new ObjectArrayList<>();
+
+	/** The items of the NFA we are processing */
+	WeightedSequence currentNFA;
 
 	/** Stores number of pivot-relevant items in the path (we use this for efficiently finding pivot elements for input sequences) */
 	private IntArrayList outputItemLimits = new IntArrayList();
@@ -187,6 +195,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		sendNFAs = ctx.conf.getBoolean("desq.mining.send.nfas", false);
 		mergeSuffixes = ctx.conf.getBoolean("desq.mining.merge.suffixes", false);
 		trimInputSequences = ctx.conf.getBoolean("desq.mining.trim.input.sequences", false);
+		useHybrid = ctx.conf.getBoolean("desq.mining.use.hybrid", false);
 
 
 		// create FST once per JVM
@@ -241,7 +250,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		if(drawGraphs) fst.exportGraphViz(DesqDfsRunDistributedMiningLocally.useCase + "-fst.pdf");
 
 		// other auxiliary variables
-		root = new DesqDfsTreeNode(fst.numStates());
+		root = new DesqDfsTreeNode(fst.numStates(), !sendNFAs || useHybrid, sendNFAs); // if we use NFAs, we need only one BitSet per node
 		currentNode = root;
 		verbose = DesqDfsRunDistributedMiningLocally.verbose;
 
@@ -278,8 +287,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 	public void clear(boolean trimInputSequences) {
 		inputSequences.clear();
+		inputNFAs.clear();
 		if(trimInputSequences) {
 			inputSequences.trimToSize();
+			inputNFAs.trim();
 		}
 		if (useTwoPass && dfaStateSequences != null) {
 			dfaStateSequences.clear();
@@ -622,13 +633,13 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				int numPivotsEmitted = 0;
 				while(pivotItem != -1) {
 					numPivotsEmitted++;
-					OutputNFA nfa = nfas.getNFAForPivot(pivotItem, fst);
+					OutputNFA nfa = nfas.getNFAForPivot(pivotItem, fst, useHybrid);
 
 					// if the path doesn't contain the pivot, something went wrong here.
 					assert pivot(pathCopy) >= pivotItem: "Pivot in path is " + pivot(pathCopy) + ", but pivot item is " + pivotItem;
 
 					// add the path to the pivot (incl. kicking out items>pivot) and retrieve next pivot item
-					pivotItem = nfa.addPathAndReturnNextPivot(pathCopy);
+					pivotItem = nfa.addPathAndReturnNextPivot(pathCopy, currentLastIrrelevant, pos);
 				}
 			} else {
 			    // If we are not sending NFAs, we are only interested in the pivot items for this sequence.
@@ -786,9 +797,9 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	/**
 	 * Mines for frequent sequences in the given HashMap of aggregated NFAs
 	 * @param pivotItem
-	 * @param inputNFAs
+	 * @param serializedInputNFAs
 	 */
-	public void mineNFAs(int pivotItem, Object2LongOpenHashMap<Sequence> inputNFAs) {
+	public void mineNFAs(int pivotItem, Object2LongOpenHashMap<Sequence> serializedInputNFAs) {
 		this.pivotItem = pivotItem;
 
 		// if we don't have an nfaDecoder from a previous partition, create one
@@ -797,10 +808,18 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 		sumInputSupports = 0;
 		// transform aggregated nfas to a by-state representation
-		for (Object2LongMap.Entry<Sequence> nfaWithWeight : inputNFAs.object2LongEntrySet()) {
+		for (Object2LongMap.Entry<Sequence> nfaWithWeight : serializedInputNFAs.object2LongEntrySet()) {
 			Sequence nfa = nfaWithWeight.getKey();
-			inputSequences.add(nfaDecoder.convertPathToStateSerialization(nfa, pivotItem).withSupport(nfaWithWeight.getLongValue()));
-			sumInputSupports += nfaWithWeight.getLongValue();
+			long weight = nfaWithWeight.getLongValue();
+			if(useHybrid && nfa.getInt(0) == 0) {
+                // this is an input sequence
+                nfa.removeInt(0); // remove the first int (the first int signals that this is an input sequence rather than an NFA)
+                addInputSequence(nfa, weight, true);
+			}
+			else {
+				inputNFAs.add(nfaDecoder.convertPathToStateSerialization(nfa, pivotItem).withSupport(weight));
+			}
+			sumInputSupports += weight;
 		}
 
 		mineOnNFA();
@@ -811,10 +830,11 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 	/**
 	 * Mines for frequent sequences form the given Iterable of NFAs
+	 * Works without aggregation of NFAs
 	 * @param pivotItem
-	 * @param inputNFAs
+	 * @param serializedInputNFAs
 	 */
-	public void mineNFAs(int pivotItem, Iterable<Sequence> inputNFAs) {
+	public void mineNFAs(int pivotItem, Iterable<Sequence> serializedInputNFAs) {
 		this.pivotItem = pivotItem;
 
 		// if we don't have an nfaDecoder from a previous partition, create one
@@ -823,8 +843,14 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 		sumInputSupports = 0;
 		// transform aggregated nfas to a by-state representation
-        for(Sequence nfa : inputNFAs) {
-			inputSequences.add(nfaDecoder.convertPathToStateSerialization(nfa, pivotItem).withSupport(1));
+        for(Sequence nfa : serializedInputNFAs) {
+        	if(useHybrid && nfa.getInt(0) == 0) {
+				// this is an input sequence
+				nfa.removeInt(0);
+				addInputSequence(nfa, 1, true);
+			} else {
+				inputNFAs.add(nfaDecoder.convertPathToStateSerialization(nfa, pivotItem).withSupport(1));
+			}
 			sumInputSupports += 1;
 		}
 
@@ -853,15 +879,17 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 	public void mineOnNFA() {
 		if (sumInputSupports >= sigma) {
-			DesqDfsTreeNode root = new DesqDfsTreeNode(sendNFAs ? 1 : fst.numStates()); // if we use NFAs, we need only one BitSet per node
 			currentNode = root;
-			// and process all input sequences to compute the roots children
-			for (int inputId = 0; inputId < inputSequences.size(); inputId++) {
+			// and process all given NFAs
+			for (int inputId = 0; inputId < inputNFAs.size(); inputId++) {
 				currentInputId = inputId;
-				currentInputSequence = inputSequences.get(inputId);
+				currentNFA = inputNFAs.get(inputId);
 				incStepOnNFA(0, true);
 			}
-			// the root has already been processed; now recursively grow the patterns
+
+			// we processed the input sequences already when we added them, see addInputSequence()
+
+            // we have processed both NFAs and sequences, now recursively grow the patterns
 			root.pruneInfrequentChildren(sigma);
 			expandOnNFA(new IntArrayList(), root);
 		}
@@ -895,29 +923,67 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			if(childNode.prefixSupport > 0) {
 				// set up the expansion
 				boolean expand = childNode.prefixSupport >= sigma;
-				projectedDatabaseIt.reset(childNode.projectedDatabase);
+
+				/** Iterate over all NFA snapshots for this node */
+				projectedDatabaseIt.reset(childNode.projectedNFADatabase);
 				currentInputId = -1;
 				currentNode = childNode;
 
-				do {
-					// process next input sequence
-					currentInputId += projectedDatabaseIt.nextNonNegativeInt();
-					currentInputSequence = inputSequences.get(currentInputId);
-
-					// iterate over state@pos snapshots for this input sequence
-					boolean reachedFinalStateWithoutOutput = false;
+				if(projectedDatabaseIt.hasNext()) {
 					do {
-						final int pos = projectedDatabaseIt.nextNonNegativeInt(); // position of next input item
-						reachedFinalStateWithoutOutput |= incStepOnNFA(pos, expand);
-					} while (projectedDatabaseIt.hasNext());
+						// process next NFA
+						currentInputId += projectedDatabaseIt.nextNonNegativeInt();
+						currentNFA = inputNFAs.get(currentInputId);
 
-					// if we reached a final state without output, increment the support of this child node
-					if (reachedFinalStateWithoutOutput) {
-						support += currentInputSequence.weight;
+						// iterate over state snapshots for this NFA
+						boolean reachedFinalStateWithoutOutput = false;
+						do {
+							final int pos = projectedDatabaseIt.nextNonNegativeInt(); // position of next input item
+							reachedFinalStateWithoutOutput |= incStepOnNFA(pos, expand);
+						} while (projectedDatabaseIt.hasNext());
+
+						// if we reached a final state without output, increment the support of this child node
+						if (reachedFinalStateWithoutOutput) {
+							support += currentNFA.weight;
+						}
+
+						// now go to next posting (next NFA)
+					} while (projectedDatabaseIt.nextPosting());
+				}
+
+				/** If we are using hybrid mode, also iterate over input sequence snapshots for this node */
+				if(useHybrid) {
+					projectedDatabaseIt.reset(childNode.projectedDatabase);
+					currentInputId = -1;
+					currentNode = childNode;
+
+					if(projectedDatabaseIt.hasNext()) {
+						do {
+							// process next input sequence
+							currentInputId += projectedDatabaseIt.nextNonNegativeInt();
+							currentInputSequence = inputSequences.get(currentInputId);
+							if (useTwoPass) {
+								currentDfaStateSequence = dfaStateSequences.get(currentInputId);
+							}
+							currentSpReachedWithoutOutput.clear();
+
+							// iterate over state snapshots for this input sequence
+							boolean reachedFinalStateWithoutOutput = false;
+							do {
+								final int stateId = projectedDatabaseIt.nextNonNegativeInt();
+								final int pos = projectedDatabaseIt.nextNonNegativeInt(); // position of next input item
+								reachedFinalStateWithoutOutput |= incStep(pos, fst.getState(stateId), 0, expand);
+							} while (projectedDatabaseIt.hasNext());
+
+							// if we reached a final state without output, increment the support of this child node
+							if (reachedFinalStateWithoutOutput) {
+								support += currentInputSequence.weight;
+							}
+
+							// now go to next posting (next input sequence)
+						} while (projectedDatabaseIt.nextPosting());
 					}
-
-					// now go to next posting (next input sequence)
-				} while (projectedDatabaseIt.nextPosting());
+				}
 			}
 
 			// output the patterns for the current child node if it turns out to be frequent
@@ -930,6 +996,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			// expandOnNFA the child node
 			childNode.pruneInfrequentChildren(sigma);
 			childNode.projectedDatabase = null; // not needed anymore
+			childNode.projectedNFADatabase = null; // not needed anymore
 			expandOnNFA(prefix, childNode);
 			childNode.invalidate(); // not needed anymore
 		}
@@ -949,7 +1016,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	private boolean incStepOnNFA(int pos, final boolean expand) {
 	    // "pos" points to a state in the shuffled OutputNFA. This state has 0-n outgoing transitions.
 		// Each transition carries a toState and a list of output items
-		int nextInt = currentInputSequence.getInt(pos);
+		int nextInt = currentNFA.getInt(pos);
 		int currentToStatePos = -1;
 		while(nextInt != OutputNFA.END_FINAL && nextInt != OutputNFA.END) {
 
@@ -959,11 +1026,11 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				// we checked that these output items are relevant for the partition when we converted the NFA to a by-state representation
 				if(expand) {
 					assert currentToStatePos != -1;
-					currentNode.expandWithTransition(nextInt, currentInputId, currentInputSequence.weight, currentToStatePos);
+					currentNode.expandWithTransition(nextInt, currentInputId, currentNFA.weight, currentToStatePos);
 				}
 			}
 			pos++;
-			nextInt = currentInputSequence.getInt(pos);
+			nextInt = currentNFA.getInt(pos);
 		}
 
 		return nextInt == OutputNFA.END_FINAL; // is true if this state is final

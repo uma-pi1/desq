@@ -35,7 +35,7 @@ public class MergeTesting {
         OutputLabel lg = new OutputLabel(null, 1, g);
         OutputLabel lh = new OutputLabel(null, 1, h);
 
-        OutputNFA nfa = new OutputNFA(50, null);
+        OutputNFA nfa = new OutputNFA(50, null, false);
 
 
         OutputLabel[] path1 = {la, ld, le, lh};
@@ -43,10 +43,10 @@ public class MergeTesting {
         OutputLabel[] path3 = {lb, lc, ld, le, lh};
         OutputLabel[] path4 = {lb, lc, ld, lf, lg, lh};
 
-        nfa.addPathAndReturnNextPivot(path1);
-        nfa.addPathAndReturnNextPivot(path2);
-        nfa.addPathAndReturnNextPivot(path3);
-        nfa.addPathAndReturnNextPivot(path4);
+        nfa.addPathAndReturnNextPivot(path1, 0, 0);
+        nfa.addPathAndReturnNextPivot(path2, 0, 0);
+        nfa.addPathAndReturnNextPivot(path3, 0, 0);
+        nfa.addPathAndReturnNextPivot(path4, 0, 0);
 
         nfa.exportGraphViz("nfa-tree.pdf");
         nfa.mergeSuffixes();

@@ -131,6 +131,7 @@ object DesqRunner {
         minerConf.setProperty("desq.mining.aggregate.shuffle.sequences", aggregateShuffleSequences)
         minerConf.setProperty("desq.mining.map.repartition", runConf.get("map.repartition").get)
         minerConf.setProperty("desq.mining.trim.input.sequences", trimInputSequences)
+        minerConf.setProperty("desq.mining.use.hybrid", useHybrid)
 
         // Construct miner
         val ctx = new DesqMinerContext(minerConf)
@@ -374,6 +375,7 @@ object DesqRunner {
         useDesqCount = false
         aggregateShuffleSequences = false
         trimInputSequences = false
+        useHybrid = false
         algorithm match {
             case "DDCount" =>
                 useDesqCount = true
@@ -394,6 +396,11 @@ object DesqRunner {
                 sendNFAs = true
                 mergeSuffixes = true
                 aggregateShuffleSequences = false
+            case "DDIH" =>
+                sendNFAs = true
+                mergeSuffixes = true
+                aggregateShuffleSequences = true
+                useHybrid = true
             case _ =>
                 System.out.println("Unknown algorithm variant")
                 System.exit(0)

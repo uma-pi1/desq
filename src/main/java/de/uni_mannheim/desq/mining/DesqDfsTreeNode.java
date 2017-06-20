@@ -62,12 +62,27 @@ final class DesqDfsTreeNode {
 	 * snapshots. Index of a snapshot is <code>position*fst.numStates() + stateId</code>. */
 	BitSet currentSnapshots;
 
+	/** Equivalents to projectedDatabase, currentSnapshots and projectedDatabaseCurrentInputID for hybrid mode
+	 * In hybrid mode, we mine on NFAs and (trimmed) input sequences at the same time. So we have one posting list
+	 * for the input sequences, which stores snapshots `pos@state`, and one for NFAs, which stores snapshots `state`.
+	 */
+	PostingList projectedNFADatabase;
+	BitSet currentNFASnapshots;
+	int projectedNFADatabaseCurrentInputId;
+
 
 	// -- construction and clearing -----------------------------------------------------------------------------------
 
 	DesqDfsTreeNode(int numStates) {
+		this(numStates, true, false);
+	}
+
+	DesqDfsTreeNode(int numStates, boolean useInputSequences, boolean useNFAs) {
 		this.numStates = numStates;
-		currentSnapshots = new BitSet(numStates*16);
+		if(useInputSequences)
+            currentSnapshots = new BitSet(numStates*16);
+		if(useNFAs)
+            currentNFASnapshots = new BitSet(16);
 		clear();
 	}
 
@@ -77,11 +92,14 @@ final class DesqDfsTreeNode {
 		prefixSupport = 0;
 		partialSupport = 0;
 		projectedDatabaseCurrentInputId = -1;
+		projectedNFADatabaseCurrentInputId = -1;
 		currentInputId = -1;
 		reachedFinalCompleteState = false;
 		reachedNonFinalCompleteState = false;
 		projectedDatabase = new PostingList();
-		currentSnapshots.clear();
+		projectedNFADatabase = new PostingList();
+		if(currentSnapshots != null) currentSnapshots.clear();
+		if(currentNFASnapshots != null) currentNFASnapshots.clear();
 
 		// clear the children
 		if (childrenByFid == null) {
@@ -94,6 +112,7 @@ final class DesqDfsTreeNode {
 	/** Call this when node not needed anymore to free up memory. */
 	public void invalidate() {
 		projectedDatabase = null;
+		projectedNFADatabase = null;
 		childrenByFid = null;
 		currentSnapshots = null;
 	}
@@ -113,7 +132,7 @@ final class DesqDfsTreeNode {
 						final int position, final State state) {
 		DesqDfsTreeNode child = childrenByFid.get(itemFid);
 		if (child == null) {
-			child = new DesqDfsTreeNode(numStates);
+			child = new DesqDfsTreeNode(numStates, currentSnapshots != null, currentNFASnapshots != null);
 			child.itemFid = itemFid;
 			childrenByFid.put(itemFid, child);
 		}
@@ -221,7 +240,7 @@ final class DesqDfsTreeNode {
 
 		DesqDfsTreeNode child = childrenByFid.get(itemFid);
 		if (child == null) {
-			child = new DesqDfsTreeNode(this.numStates);
+			child = new DesqDfsTreeNode(this.numStates, currentSnapshots != null, currentNFASnapshots != null);
 			child.itemFid = itemFid;
 			childrenByFid.put(itemFid, child);
 		}
@@ -229,20 +248,20 @@ final class DesqDfsTreeNode {
         // the following code is copied from addToProjectedDatabase. we don't write the stateId for NFAs
 		//   this would be the call: addToProjectedDatabase(child, inputId, inputSupport, position, 0);
 		final int spIndex = position;
-		if (child.projectedDatabaseCurrentInputId != inputId) {
+		if (child.projectedNFADatabaseCurrentInputId != inputId) {
 			// start a new posting
-			child.projectedDatabase.newPosting();
-			child.currentSnapshots.clear();
+			child.projectedNFADatabase.newPosting();
+			child.currentNFASnapshots.clear();
 			child.prefixSupport += inputSupport;
-			child.currentSnapshots.set(spIndex);
-			child.projectedDatabase.addNonNegativeInt(inputId-child.projectedDatabaseCurrentInputId);
-			child.projectedDatabaseCurrentInputId = inputId;
+			child.currentNFASnapshots.set(spIndex);
+			child.projectedNFADatabase.addNonNegativeInt(inputId-child.projectedNFADatabaseCurrentInputId);
+			child.projectedNFADatabaseCurrentInputId = inputId;
 //			child.projectedDatabase.addNonNegativeInt(stateId);
-			child.projectedDatabase.addNonNegativeInt(position);
-		} else if (!child.currentSnapshots.get(spIndex)) {
-			child.currentSnapshots.set(spIndex);
+			child.projectedNFADatabase.addNonNegativeInt(position);
+		} else if (!child.currentNFASnapshots.get(spIndex)) {
+			child.currentNFASnapshots.set(spIndex);
 //			child.projectedDatabase.addNonNegativeInt(stateId);
-			child.projectedDatabase.addNonNegativeInt(position);
+			child.projectedNFADatabase.addNonNegativeInt(position);
 		}
 	}
 }

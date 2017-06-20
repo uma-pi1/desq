@@ -55,6 +55,15 @@ public class Sequence extends IntArrayList implements Externalizable, Writable {
         return c;
     }
 
+    /** Clones a subrange of this sequence as <code>cloneSubList</code>, but adds a leading 0 marker */
+    public Sequence cloneSubListWithLeadingZero(int from, int to) {
+        Sequence c = new Sequence(to-from+2);
+        c.a[0] = 0;
+        System.arraycopy(this.a, from, c.a, 1, to-from+1);
+        c.size = to-from+2;
+        return c;
+    }
+
 
     @Override
     public int hashCode() {

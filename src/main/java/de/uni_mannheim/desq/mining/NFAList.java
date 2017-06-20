@@ -16,7 +16,7 @@ public class NFAList {
         nfasByPivot.clear();
     }
 
-    public OutputNFA getNFAForPivot(int pivot, Fst fst) {
+    public OutputNFA getNFAForPivot(int pivot, Fst fst, boolean useHybrid) {
         if(nfasByPivot.containsKey(pivot)) {
             // we have the NFA already, return it
             return nfas.get(nfasByPivot.get(pivot));
@@ -30,7 +30,7 @@ public class NFAList {
                 return nfa;
             } else {
                 // we have to create a new object
-                OutputNFA nfa = new OutputNFA(pivot, fst);
+                OutputNFA nfa = new OutputNFA(pivot, fst, useHybrid);
                 nfas.add(nfa);
                 nfasByPivot.put(pivot, nfas.size() - 1);
                 return nfa;
