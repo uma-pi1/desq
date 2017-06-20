@@ -416,7 +416,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 							continue pos;
 						}
 					}
-				} else if (expand & largestFrequentFid >= outputItemFid) {
+				} else if (expand && largestFrequentFid >= outputItemFid && (pivotItem == 0 || outputItemFid <= pivotItem)) {
 					// we have an output and its frequent, so update the corresponding projected database
 					currentNode.expandWithItem(outputItemFid, currentInputId, currentInputSequence.weight,
 							pos + 1, toState);
