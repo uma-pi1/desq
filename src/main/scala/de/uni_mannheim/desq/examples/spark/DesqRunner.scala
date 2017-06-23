@@ -1,5 +1,7 @@
 package de.uni_mannheim.desq.examples.spark
 
+import java.util.concurrent.TimeUnit
+import com.google.common.base.Stopwatch
 import de.uni_mannheim.desq.Desq
 import de.uni_mannheim.desq.mining.spark.{DesqCount, DDIN}
 import de.uni_mannheim.desq.mining.spark.{DesqDataset, DesqMiner, DesqMinerContext}
@@ -31,6 +33,7 @@ object DesqRunner {
     var useDesqCount: Boolean = _
     var aggregateShuffleSequences: Boolean = _
     var trimInputSequences: Boolean = _
+    var useHybrid: Boolean = _
 
     val runConf = scala.collection.mutable.Map[String, String]()
 
