@@ -547,10 +547,13 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 
 		if(useOneNFA) {
-		    System.out.println("Use one NFA");
 			constructNFA(inputSequence);
+			// export
+//			oneNFA.exportGraphViz("oneNFA-" + inputSequence.toString() + ".pdf");
+
 			if(oneNFA.numStates() > 0) {
 				oneNFA.determinizeBackwards();
+//				oneNFA.exportBdWithGraphViz("oneNFA-" + inputSequence.toString() + "-BRZ.pdf");
 				IntList pivots = oneNFA.getPivotsBz(inputSequence);
 				pivotItems.addAll(pivots);
 			}

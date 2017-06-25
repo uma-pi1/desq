@@ -74,6 +74,7 @@ public class BrzozowskiDatastructures {
 
     /** Add an edge from state <code>from</code> to state <code>to</code> with label <code>label</code> */
     public void addEdge(int from, OutputLabel label, int to) {
+        assert from!=to: "Can't add self-loop edges: " + from + "->" + to + " with label " + label;
         getOutgoingEdges(from).put(label, to);
     }
 

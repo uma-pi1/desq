@@ -229,15 +229,10 @@ public class OneNFA {
 
         // process each newly created state once until there are no newly created states left
         do {
-            int[] array = new int[bz.getIncludedOriginalStates(currentState).size()];
-                        // there is a weird bug here. if we use the standard iterator (see for-loop below),
-                        //     there is a NullPointerException for some cases
-            array = bz.getIncludedOriginalStates(currentState).toArray(array);
-
+            outgoingEdges.clear();
             // collect the outgoing (backwards) edges of all original states included in this new state
             //    and the states each edge can lead to
-            for (int includedState=0; includedState<array.length; includedState++) { // TODO: find out what the bug here was
-//          for (int includedState : bz.getIncludedOriginalStates(currentState)) {
+            for (int includedState : bz.getIncludedOriginalStates(currentState)) {
                 mergeOutgoingEdges(outgoingEdges, collectBackwardEdges(includedState));
             }
 
@@ -259,6 +254,7 @@ public class OneNFA {
      * not been collected before, it recursively collects them and stores them in <code>collectedBackwardEdges</code>.
      */
     private Object2ObjectOpenHashMap<OutputLabel,IntSet> collectBackwardEdges(int s) {
+        // TODO: prevent that we merge in the same state multiple times
         // if we already did this, return the cached map
         Object2ObjectOpenHashMap<OutputLabel, IntSet> allOutgoingEdges = collectedBackwardEdges.get(s);
         if(allOutgoingEdges != null) {
@@ -304,7 +300,7 @@ public class OneNFA {
         for(Object2ObjectMap.Entry<OutputLabel,IntSet> edge : from.object2ObjectEntrySet()) {
             IntSet intoSet = into.getOrDefault(edge.getKey(), null);
             if(intoSet == null) { // target does not contain this tr yet
-                into.put(edge.getKey(), edge.getValue());
+                into.put(edge.getKey(), new IntOpenHashSet(edge.getValue())); // TODO: use clone() instead
             } else { // target already has a transition with this label, so we add the to-states set
                 intoSet.addAll(edge.getValue());
             }
@@ -360,7 +356,7 @@ public class OneNFA {
                 if(ol == null) {
                     label = "eps";
                 } else {
-                    label = ol.outputItems.toString();
+                    label = ol.outputItems.toString() + "(" + ol.inputItem + ")";
                 }
                 for(int sTo : trEntry.getValue()) {
                     fstVisualizer.add(String.valueOf(s), label, String.valueOf(sTo));
@@ -380,7 +376,7 @@ public class OneNFA {
             for (Object2IntMap.Entry<OutputLabel> trEntry : bz.getOutgoingEdges(s).object2IntEntrySet()) {
                 OutputLabel ol = trEntry.getKey();
                 String label;
-                label = (ol == null ? " " : ol.outputItems.toString());
+                label = (ol == null ? " " : ol.outputItems.toString() + "(" + ol.inputItem + ")");
                 if(ol.isEmpty())
                     fstVisualizer.add(String.valueOf(s), label, String.valueOf(trEntry.getIntValue()));
             }
