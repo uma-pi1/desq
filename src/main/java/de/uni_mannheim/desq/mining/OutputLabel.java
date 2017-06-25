@@ -11,6 +11,7 @@ public class OutputLabel implements Cloneable, Comparable<OutputLabel> {
     Transition tr;
     int inputItem = -1;
     IntArrayList outputItems;
+    int justDroppedPivot = -1;
 
     public OutputLabel(Transition tr, int inputItemFid, IntArrayList outputItems) {
         this.outputItems = outputItems;
@@ -44,6 +45,29 @@ public class OutputLabel implements Cloneable, Comparable<OutputLabel> {
 
     public int compareTo(OutputLabel other) {
         return this.outputItems.compareTo(other.outputItems);
+    }
+
+    public int getMaxOutputItem() {
+        if(outputItems.size() == 0)
+            return -1;
+        else
+            return outputItems.getInt(outputItems.size()-1);
+    }
+
+    public void dropMaxOutputItem() {
+        justDroppedPivot = outputItems.getInt(outputItems.size()-1);
+        outputItems.size(outputItems.size()-1);
+    }
+
+    /** Returns the pivot that was last dropped. We use this because we reuse OutputLabel objects in an NFA and
+     * it can happen that we drop a pivot item from a label that we visit again later on in the NFA. */
+    public int getJustDroppedPivot() {
+        return justDroppedPivot;
+    }
+
+    /** Returns true if there is no output item in <code>outputItems</code> left */
+    public boolean isEmpty() {
+        return outputItems.size() == 0;
     }
 
     public String toString() {

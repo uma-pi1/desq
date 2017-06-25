@@ -34,6 +34,7 @@ object DesqRunner {
     var aggregateShuffleSequences: Boolean = _
     var trimInputSequences: Boolean = _
     var useHybrid: Boolean = _
+    var useOneNFA: Boolean = _
 
     val runConf = scala.collection.mutable.Map[String, String]()
 
@@ -135,6 +136,7 @@ object DesqRunner {
         minerConf.setProperty("desq.mining.map.repartition", runConf.get("map.repartition").get)
         minerConf.setProperty("desq.mining.trim.input.sequences", trimInputSequences)
         minerConf.setProperty("desq.mining.use.hybrid", useHybrid)
+        minerConf.setProperty("desq.mining.use.one.nfa", useOneNFA)
 
         // Construct miner
         val ctx = new DesqMinerContext(minerConf)
@@ -379,6 +381,7 @@ object DesqRunner {
         aggregateShuffleSequences = false
         trimInputSequences = false
         useHybrid = false
+        useOneNFA = false
         algorithm match {
             case "DDCount" =>
                 useDesqCount = true
@@ -387,6 +390,9 @@ object DesqRunner {
             case "DDIS.tr" =>
                 aggregateShuffleSequences = false
                 trimInputSequences = true
+            case "DDIS.oneNFA" =>
+                aggregateShuffleSequences = false
+                useOneNFA = true
             case "DDIN" =>
                 sendNFAs = true
                 mergeSuffixes = true
