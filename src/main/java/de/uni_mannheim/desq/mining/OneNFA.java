@@ -271,6 +271,12 @@ public class OneNFA {
             // collect all outgoing edges with output. if there are eps-transitions, we need to follow those
             for(Object2ObjectMap.Entry<OutputLabel, IntSet> edge : backwardEdges.get(s).object2ObjectEntrySet()) {
                 if(edge.getKey() == null) {
+                    // if this state has only one outgoing transition to one state and that is an eps-transition,
+                    //      then we can just reuse that to-states collected backward edges
+                    if(backwardEdges.get(s).size() == 1 && edge.getValue().size() == 1) {
+                        allOutgoingEdges = collectBackwardEdges(edge.getValue().iterator().nextInt());
+                        return allOutgoingEdges;
+                    }
                     // this is an eps-transition. instead, we follow it.
                     for(int sTo : edge.getValue()) {
                         mergeOutgoingEdges(allOutgoingEdges, collectBackwardEdges(sTo));
