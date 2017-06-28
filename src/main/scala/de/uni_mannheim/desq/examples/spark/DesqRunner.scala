@@ -121,6 +121,7 @@ object DesqRunner {
         println("Loading dataset from " + runConf.get("input").get)
         val data = DesqDataset.load(runConf.get("input").get)
 
+        val sw = new Stopwatch().start()
         // Build miner conf
         patternExp = PatExUtils.toFidPatEx(data.dict, patternExp)
         // translate pattern expression to fids
@@ -150,6 +151,11 @@ object DesqRunner {
         if (runConf.contains("count.patterns")) {
             // if count.patterns is set to true, we only count patterns, with no output
             val (count, freq) = result.sequences.map(ws => (1, ws.weight)).fold((0, 0L))((a, b) => (a._1 + b._1, a._2 + b._2))
+            println("-------------------")
+            println("count, freq")
+            println("-------------------")
+            println("(" + count + ", " + freq + ")")
+            println("Took " + sw.stop().elapsed(TimeUnit.MILLISECONDS))
             (count, freq)
         } else {
             // otherwise, we store the patterns
