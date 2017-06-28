@@ -383,7 +383,7 @@ public class OneNFA {
                 OutputLabel ol = trEntry.getKey();
                 String label;
                 label = (ol == null ? " " : ol.outputItems.toString() + "(" + ol.inputItem + ")");
-                if(ol.isEmpty())
+                if(!ol.isEmpty())
                     fstVisualizer.add(String.valueOf(s), label, String.valueOf(trEntry.getIntValue()));
             }
 
