@@ -14,6 +14,8 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.apache.commons.io.FilenameUtils;
 
+import java.util.BitSet;
+
 
 /**
  * One large NFA which holds all accepting paths through the FST for one input sequence
@@ -53,13 +55,13 @@ public class OneNFA {
     /** Data structures for determinizing the NFA */
     BrzozowskiDatastructures bz = new BrzozowskiDatastructures(this);
 
-    /** Caches backwards edges that produce output. We use this for merging states later on */
-    ObjectArrayList<Object2ObjectOpenHashMap<OutputLabel, IntSet>> collectedBackwardEdges = new ObjectArrayList<>();
+    /** Processed and to-process states for finding outgoing edges of a set of states */
+    BitSet alreadyProcessed;
+    BitSet toProcess;
 
     public void clear() {
         forwardEdges.clear();
         backwardEdges.clear();
-        collectedBackwardEdges.clear();
         maxPivot.clear();
         isDeadEnd.clear();
         isFinal.clear();
@@ -158,7 +160,6 @@ public class OneNFA {
 
             forwardEdges.add(new Object2ObjectOpenHashMap<>());
             backwardEdges.add(new Object2ObjectOpenHashMap<>());
-            collectedBackwardEdges.add(null); // null indicates that we did not collect backward edges yet for this state
 
             maxPivot.add(-1);
             maxPos = Math.max(maxPos, pos);
@@ -226,15 +227,17 @@ public class OneNFA {
 
         // outgoing edges of the current state
         Object2ObjectOpenHashMap<OutputLabel, IntSet> outgoingEdges = new Object2ObjectOpenHashMap<>();
+        alreadyProcessed = new BitSet(numStates());
+        toProcess = new BitSet(numStates());
 
         // process each newly created state once until there are no newly created states left
         do {
             outgoingEdges.clear();
             // collect the outgoing (backwards) edges of all original states included in this new state
             //    and the states each edge can lead to
-            for (int includedState : bz.getIncludedOriginalStates(currentState)) {
-                mergeOutgoingEdges(outgoingEdges, collectBackwardEdges(includedState));
-            }
+
+            // the outgoing edges of which states are relevant for this new state?
+            outgoingEdges = collectOutgoingEdges(bz.getIncludedOriginalStates(currentState));
 
             // add outgoing edges to the current state
             for(Object2ObjectMap.Entry<OutputLabel, IntSet> outgoingEdge : outgoingEdges.object2ObjectEntrySet()) {
@@ -246,72 +249,47 @@ public class OneNFA {
     }
 
 
+    /** Collects the outgoing edges for a given set of states */
+    private Object2ObjectOpenHashMap<OutputLabel, IntSet> collectOutgoingEdges(IntSet includedStates) {
+        Object2ObjectOpenHashMap<OutputLabel, IntSet> outgoingEdges = new Object2ObjectOpenHashMap<>();
 
-    // if they haven't been collected already, this collects the backward outgoing edges of state s
+        alreadyProcessed.clear();
+        toProcess.clear();
+        for(int s : includedStates)
+            toProcess.set(s);
 
-    /**
-     * Returns a map of all outgoing edges that produce output and and their to-states. If these edges have
-     * not been collected before, it recursively collects them and stores them in <code>collectedBackwardEdges</code>.
-     */
-    private Object2ObjectOpenHashMap<OutputLabel,IntSet> collectBackwardEdges(int s) {
-        // TODO: prevent that we merge in the same state multiple times
-        // if we already did this, return the cached map
-        Object2ObjectOpenHashMap<OutputLabel, IntSet> allOutgoingEdges = collectedBackwardEdges.get(s);
-        if(allOutgoingEdges != null) {
-            return allOutgoingEdges;
-        }
+        while(toProcess.cardinality() != 0) {
+            int state = toProcess.nextSetBit(0);
+            toProcess.clear(state);
+            if(alreadyProcessed.get(state)) {
+                continue;
+            }
+            alreadyProcessed.set(state);
 
-        // otherwise, we need to collect the states
-        allOutgoingEdges = new Object2ObjectOpenHashMap<>();
-        collectedBackwardEdges.set(s, allOutgoingEdges);
-
-
-        // if this state has outgoing edges, follow them. otherwise, we are done
-        if (backwardEdges.get(s).size() > 0) {
-            // collect all outgoing edges with output. if there are eps-transitions, we need to follow those
-            for(Object2ObjectMap.Entry<OutputLabel, IntSet> edge : backwardEdges.get(s).object2ObjectEntrySet()) {
-                if(edge.getKey() == null) {
-                    // if this state has only one outgoing transition to one state and that is an eps-transition,
-                    //      then we can just reuse that to-states collected backward edges
-                    if(backwardEdges.get(s).size() == 1 && edge.getValue().size() == 1) {
-                        allOutgoingEdges = collectBackwardEdges(edge.getValue().iterator().nextInt());
-                        return allOutgoingEdges;
-                    }
-                    // this is an eps-transition. instead, we follow it.
-                    for(int sTo : edge.getValue()) {
-                        mergeOutgoingEdges(allOutgoingEdges, collectBackwardEdges(sTo));
-                    }
-                } else {
+            for(Object2ObjectMap.Entry<OutputLabel, IntSet> edge : backwardEdges.get(state).object2ObjectEntrySet()) {
+                if (edge.getKey() != null) {
                     // this edge produces output, so we merge it into the existing map
-                    IntSet toStates = allOutgoingEdges.getOrDefault(edge.getKey(), null);
+                    IntSet toStates = outgoingEdges.getOrDefault(edge.getKey(), null);
                     if (toStates == null) {
                         // an edge with this label does not exist yet, so we add it
                         toStates = new IntOpenHashSet(edge.getValue());
-                        allOutgoingEdges.put(edge.getKey(), toStates);
+                        outgoingEdges.put(edge.getKey(), toStates);
                     } else {
                         // if an edge with this label does already exist, we just add the new to-states
                         toStates.addAll(edge.getValue());
                     }
+                } else {
+                    // this edge does not produce output, so we follow the transitions to the following states
+                    for(int sTo : edge.getValue()) {
+                        if(!alreadyProcessed.get(sTo)) {
+                            toProcess.set(sTo);
+                        } else {
+                        }
+                    }
                 }
             }
         }
-        return allOutgoingEdges;
-    }
-
-    /**
-     * Merges all entries of map `from` into map `into`.
-     * We can't use <code>putAll</code> because we need to merge the integer sets.
-     */
-    private void mergeOutgoingEdges(Object2ObjectOpenHashMap<OutputLabel,IntSet> into, Object2ObjectOpenHashMap<OutputLabel,IntSet> from) {
-        for(Object2ObjectMap.Entry<OutputLabel,IntSet> edge : from.object2ObjectEntrySet()) {
-            IntSet intoSet = into.getOrDefault(edge.getKey(), null);
-            if(intoSet == null) { // target does not contain this tr yet
-                into.put(edge.getKey(), new IntOpenHashSet(edge.getValue())); // TODO: use clone() instead
-            } else { // target already has a transition with this label, so we add the to-states set
-                intoSet.addAll(edge.getValue());
-            }
-        }
-
+        return outgoingEdges;
     }
 
     /** Finds the pivots in the backwards-determinized NFA */
