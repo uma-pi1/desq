@@ -35,6 +35,7 @@ object DesqRunner {
     var trimInputSequences: Boolean = _
     var useHybrid: Boolean = _
     var useOneNFA: Boolean = _
+    var sendToAllFrequentItems: Boolean = _
 
     val runConf = scala.collection.mutable.Map[String, String]()
 
@@ -138,6 +139,7 @@ object DesqRunner {
         minerConf.setProperty("desq.mining.trim.input.sequences", trimInputSequences)
         minerConf.setProperty("desq.mining.use.hybrid", useHybrid)
         minerConf.setProperty("desq.mining.use.one.nfa", useOneNFA)
+        minerConf.setProperty("desq.mining.send.to.all.frequent.items", sendToAllFrequentItems)
 
         // Construct miner
         val ctx = new DesqMinerContext(minerConf)
@@ -388,6 +390,7 @@ object DesqRunner {
         trimInputSequences = false
         useHybrid = false
         useOneNFA = false
+        sendToAllFrequentItems = false
         algorithm match {
             case "DDCount" =>
                 useDesqCount = true
@@ -399,6 +402,9 @@ object DesqRunner {
             case "DDIS.oneNFA" =>
                 aggregateShuffleSequences = false
                 useOneNFA = true
+            case "DDIS.freq" =>
+                sendToAllFrequentItems = true
+                aggregateShuffleSequences = false
             case "DDIN" =>
                 sendNFAs = true
                 mergeSuffixes = true

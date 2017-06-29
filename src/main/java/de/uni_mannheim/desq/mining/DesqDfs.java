@@ -215,7 +215,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		trimInputSequences = ctx.conf.getBoolean("desq.mining.trim.input.sequences", false);
 		useHybrid = ctx.conf.getBoolean("desq.mining.use.hybrid", false);
 		useOneNFA = ctx.conf.getBoolean("desq.mining.use.one.nfa", false);
-
+		sendToAllFrequentItems = ctx.conf.getBoolean("desq.mining.send.to.all.frequent.items", false);
 
 		// create FST once per JVM
 		Stopwatch swFst = new Stopwatch().start();
@@ -616,8 +616,23 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		pivotItems.clear();
 		this.inputSequence = inputSequence;
 
+		// naive method: every frequent item is a pivot item
+		if(sendToAllFrequentItems) {
+			IntSet ascendants = new IntOpenHashSet();
+			for (int item : inputSequence) {
+				if (item <= largestFrequentFid) {
+					pivotItems.add(item);
+				}
 
-		if(useOneNFA) {
+//				ascendants.clear();
+//				ctx.dict.addascendantfids(item, ascendants);
+//				for (int ascendant : ascendants) {
+//					if(ascendant <= largestfrequentfid) {
+//						pivotitems.add(ascendant);
+//					}
+//				}
+			}
+		} else if(useOneNFA) {
 			constructNFA(inputSequence);
 			// export
 //			oneNFA.exportGraphViz("oneNFA-" + inputSequence.toString() + ".pdf");
