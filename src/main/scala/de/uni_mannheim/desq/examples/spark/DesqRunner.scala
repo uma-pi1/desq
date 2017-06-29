@@ -207,7 +207,12 @@ object DesqRunner {
         val data = desqData.sequences.map(_.toArray.map(item => Array(item)))
         val numSeqs = data.count()
 
-        val minSupport = 1.0 * sigma / numSeqs
+        // MLLIB PrefixSpan takes sinSupport as fraction of the number of input sequences
+        var minSupport = 1.0 * sigma / numSeqs
+        // MLLIB ceil's the product minSupport*numSeqs, so let's prevent sigmas that are ceiled upwards due to rounding
+        while(Math.ceil(minSupport * numSeqs) > sigma) {
+            minSupport = 0.9999999999999999 * minSupport
+        }
         println("sigma=" + sigma + ", numSeqs=" + numSeqs + " -> minSup=" + minSupport + ". maxLength=" + maxLength)
 
         // cache the sequences as soon as we read them the first time
