@@ -133,6 +133,18 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** If true, we construct one NFA to find pivots */
 	final boolean useOneNFA;
 
+	/** If true, we take all frequent items of the sequence as pivot items*/
+	final boolean sendToAllFrequentItems;
+
+	/** Stores the input items of which we know that they cannot create the pivot item with any of the FST's transitions */
+	BitSet cannotProducePivotItem = new BitSet();
+
+	/** A list of input items of which we know that they can create the current pivot item */
+	BitSet canProducePivotItem = new BitSet();
+
+	/** For each input sequence, stores the position of the last item that can generate the pivot item */
+	IntArrayList lastPivotPos = new IntArrayList();
+
 	/** Stores the one NFA from which we extract pivot NFAs later on */
 	OneNFA oneNFA = new OneNFA();
 
@@ -328,10 +340,17 @@ public final class DesqDfs extends MemoryDesqMiner {
 				currentInputId = inputSequences.size()-1;
 				currentInputSequence = inputSequences.get(currentInputId);
 				currentDfaStateSequence = dfaStateSequences.get(currentInputId);
+
+				// if we mine a partition, we find the last position of the input sequence that can create a pivot item
+				if(pivotItem != 0) {
+					findLastPivotPositionForCurrentInputSequence();
+				}
+
+
 				currentSpReachedWithoutOutput.clear();
 				for (int i = 0; i< dfaInitialPos.size(); i++) {
 					// for those positions, start with the initial state
-					incStep(dfaInitialPos.getInt(i), fst.getInitialState(), 0, true);
+					incStep(dfaInitialPos.getInt(i), fst.getInitialState(), 0, true, false);
 				}
 
                 // clean up
@@ -354,16 +373,62 @@ public final class DesqDfs extends MemoryDesqMiner {
 			currentInputId = inputSequences.size()-1;
 			currentInputSequence = inputSequences.get(currentInputId);
 			currentSpReachedWithoutOutput.clear();
-			incStep(0, fst.getInitialState(), 0, true);
+			incStep(0, fst.getInitialState(), 0, true, false);
 		}
 
 
 		sumInputSupports += inputSupport;
 	}
 
+	/** Finds the last position of the current input sequence that can produce the current pivot item */
+    private void findLastPivotPositionForCurrentInputSequence() {
+		boolean found = false;
+		Iterator<ItemState> outIt;
+
+		// make sure lastPivotPos array is large enough
+		if (lastPivotPos.size() <= currentInputId) lastPivotPos.add(Integer.MAX_VALUE);
+
+		// we check each input item, starting from the end of the input sequence
+		for (int pos = currentInputSequence.size() - 1; pos >= 0; pos--) {
+			int item = currentInputSequence.getInt(pos);
+
+			// if we know that this item _cannot_ create a pivot item, we can move to the next input item
+			if (cannotProducePivotItem.get(item)) {
+				// move on
+			} else if (canProducePivotItem.get(item)) { // if we know that the item can create the current pivot item, we mark the position
+				found = true;
+				lastPivotPos.set(currentInputId, pos);
+				break; // stop going through input items
+			} else { // otherwise, we need to find out whether this item can create the pivot item
+				// we fire all distinct output-generating transitions of the FST on this input item
+				for (int i = 1; i <= fst.numberDistinctItemEx(); i++) {
+					tr = fst.getPrototypeTransitionByItemExId(i);
+					if (tr.matches(item)) {
+						// get all output items and check whether the pivot is among it
+						outIt = tr.consume(item, itCaches.get(0));
+						while (outIt.hasNext()) {
+							if (outIt.next().itemFid == pivotItem) {
+								found = true;
+								// set last pivot pos
+								lastPivotPos.set(currentInputId, pos);
+								canProducePivotItem.set(item);
+								break; // stop going through the outgoing items
+							}
+						}
+					}
+					if (found)
+						break; // stop going through the transitions
+				}
+				// set cannot create
+				if (!found)
+					cannotProducePivotItem.set(item);
+			}
+			if (found)
+				break; // stop going through the items of the input sequence
+		}
+	}
+
 	// -- mining ------------------------------------------------------------------------------------------------------
-
-
 
 	@Override
 	public void mine() {
@@ -384,13 +449,19 @@ public final class DesqDfs extends MemoryDesqMiner {
      *
      * @return true if the FST can accept without further output
      */
-	private boolean incStep(int pos, State state, final int level, final boolean expand) {
+	private boolean incStep(int pos, State state, final int level, final boolean expand, boolean seenPivot) {
 		boolean reachedFinalStateWithoutOutput = false;
 
 pos: 	do { // loop over positions; used for tail recursion optimization
 			// check if we reached a final complete state or consumed entire input and reached a final state
-			if (state.isFinalComplete() | pos == currentInputSequence.size())
+			if (state.isFinalComplete() || pos == currentInputSequence.size())
 				return state.isFinal();
+
+			// if we are mining a partition, we don't run the FST further on an input sequence if we have not seen
+	 		// 		the pivot item and there is no chance to see it further down the input seq.
+			if(pivotItem != 0 && (!seenPivot && pos > lastPivotPos.getInt(currentInputId))) {
+				return state.isFinal();
+			}
 
 			// get iterator over next output item/state pairs; reuse existing ones if possible
 			// in two-pass, only iterates over states that we saw in the first pass (the other ones can safely be skipped)
@@ -425,7 +496,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 						currentSpReachedWithoutOutput.set(spIndex);
 						if (itemStateIt.hasNext()) {
 							// recurse
-							reachedFinalStateWithoutOutput |= incStep(pos + 1, toState, level + 1, expand);
+							reachedFinalStateWithoutOutput |= incStep(pos + 1, toState, level + 1, expand, seenPivot);
 							continue itemState;
 						} else {
 							// tail recurse
@@ -437,7 +508,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				} else if (expand && largestFrequentFid >= outputItemFid && (pivotItem == 0 || outputItemFid <= pivotItem)) {
 					// we have an output and its frequent, so update the corresponding projected database
 					currentNode.expandWithItem(outputItemFid, currentInputId, currentInputSequence.weight,
-							pos + 1, toState);
+							pos + 1, toState, outputItemFid == pivotItem);
 				}
 				continue itemState;
 			}
@@ -498,7 +569,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					do {
 						final int stateId = projectedDatabaseIt.nextNonNegativeInt();
 						final int pos = projectedDatabaseIt.nextNonNegativeInt(); // position of next input item
-						reachedFinalStateWithoutOutput |= incStep(pos, fst.getState(stateId), 0, expand);
+						reachedFinalStateWithoutOutput |= incStep(pos, fst.getState(stateId), 0, expand, currentNode.seenPivot);
 					} while (projectedDatabaseIt.hasNext());
 
 					// if we reached a final state without output, increment the support of this child node
@@ -1054,13 +1125,20 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 
 
+	/** Prepare DesqDfs object to mine a partition */
+	public void preparePartition(int pivot) {
+		this.pivotItem = pivot;
+		cannotProducePivotItem.clear();
+		canProducePivotItem.clear();
+	}
+
 	/**
 	 * Mine with respect to a specific pivot item. e.g, filter out all non-pivot sequences
 	 *   (e.g. filter out all sequences where pivotItem is not the max item)
-	 * @param pivotItem
+     *   Requires that the pivot item has been set using preparePartition(pivotItem)
 	 */
-	public void minePivot(int pivotItem) {
-		this.pivotItem = pivotItem;
+	public void minePartition() {
+		assert pivotItem != 0: "Pivot item has not been set. Use preparePartition(pivotItem).";
 
 		mine();
 
@@ -1164,7 +1242,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 							do {
 								final int stateId = projectedDatabaseIt.nextNonNegativeInt();
 								final int pos = projectedDatabaseIt.nextNonNegativeInt(); // position of next input item
-								reachedFinalStateWithoutOutput |= incStep(pos, fst.getState(stateId), 0, expand);
+								reachedFinalStateWithoutOutput |= incStep(pos, fst.getState(stateId), 0, expand, currentNode.seenPivot);
 							} while (projectedDatabaseIt.hasNext());
 
 							// if we reached a final state without output, increment the support of this child node

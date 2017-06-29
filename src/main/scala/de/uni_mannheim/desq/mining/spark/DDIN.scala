@@ -194,12 +194,13 @@ class DDIN(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 
                             if (!sendNFAs) { // we sent input sequences to the partitions
                                 val sequencesIt = currentPartition._2.object2LongEntrySet()
+                                baseMiner.preparePartition(partitionItem)
                                 for (row: Object2LongMap.Entry[Sequence] <- sequencesIt) {
                                     baseMiner.addInputSequence(row.getKey, row.getLongValue, true)
                                 }
 
                                 // mine the added input sequences
-                                baseMiner.minePivot(partitionItem);
+                                baseMiner.minePartition()
                             } else {
                                 // mine the passed NFAs
                                 baseMiner.mineNFAs(partitionItem, currentPartition._2)
@@ -252,13 +253,14 @@ class DDIN(ctx: DesqMinerContext) extends DesqMiner(ctx) {
                             result.clear()
 
                             if (!sendNFAs) { // we sent input sequences to the partitions
+                                baseMiner.preparePartition(partitionItem)
                                 val sequencesIt = currentPartition._2.iterator
                                 for (seq <- sequencesIt) {
                                     baseMiner.addInputSequence(seq, 1, true)
                                 }
 
                                 // mine the added input sequences
-                                baseMiner.minePivot(partitionItem);
+                                baseMiner.minePartition();
                             } else {
                                 // mine the passed NFAs
                                 baseMiner.mineNFAs(partitionItem, currentPartition._2.asJava)

@@ -70,6 +70,8 @@ final class DesqDfsTreeNode {
 	BitSet currentNFASnapshots;
 	int projectedNFADatabaseCurrentInputId;
 
+	boolean seenPivot = false;
+
 
 	// -- construction and clearing -----------------------------------------------------------------------------------
 
@@ -129,11 +131,12 @@ final class DesqDfsTreeNode {
 	 * @param state state of the FST
 	 */
 	void expandWithItem(final int itemFid, final int inputId, final long inputSupport,
-						final int position, final State state) {
+						final int position, final State state, boolean isPivot) {
 		DesqDfsTreeNode child = childrenByFid.get(itemFid);
 		if (child == null) {
 			child = new DesqDfsTreeNode(numStates, currentSnapshots != null, currentNFASnapshots != null);
 			child.itemFid = itemFid;
+			child.seenPivot = this.seenPivot || isPivot;
 			childrenByFid.put(itemFid, child);
 		}
 
