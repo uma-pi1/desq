@@ -113,6 +113,52 @@ public class BitwisePostingList implements IPostingList{
         }
     }
 
+    public void addInt2(){
+        int returnValue = 0;
+        
+        boolean gotData = false;
+        boolean partialData = false;
+        
+        int partialOutput = 0;
+        
+        do{
+            byte offsetBefore = internalOffset;
+
+            int currentData = controlData.getInt(offset);
+            
+            if(offsetBefore != 0){
+                currentData |= (0x80000000) >> (offsetBefore - 1);
+            }
+            
+            internalOffset = (byte) (Integer.numberOfLeadingZeros(~currentData) + 1);
+            
+            if(internalOffset > 32){
+                int mask = ((1 << (--internalOffset - offsetBefore)) - 1);
+                
+                partialOutput = (data.getInt(offset) >>> (32 - internalOffset)) & mask;
+                partialData = true;
+                
+                internalOffset = 0;
+                offset++;
+            } else {
+                int mask = ((1 << (internalOffset - offsetBefore)) - 1);
+                
+                if(partialData){
+                    returnValue = (partialOutput << internalOffset) | ((data.getInt(offset) >>> (32 - internalOffset)) & mask);
+                } else {
+                    returnValue = (data.getInt(offset) >>> (32 - internalOffset)) & mask;
+                }
+                                
+                if(internalOffset == 32){
+                    internalOffset = 0;
+                    offset++;
+                }
+                
+                gotData = true;
+            } 
+        } while(!gotData);
+    }
+    
     @Override
     public void newPosting() {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
