@@ -8,7 +8,7 @@ import de.uni_mannheim.desq.Desq.initDesq
 import de.uni_mannheim.desq.comparing.DesqCompareNaive
 import de.uni_mannheim.desq.converters.nyt.NytUtil
 import de.uni_mannheim.desq.elastic.NYTElasticSearchUtils
-import de.uni_mannheim.desq.mining.spark.DesqDataset
+import de.uni_mannheim.desq.mining.spark.IdentifiableDesqDataset
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.JavaConversions._
@@ -30,7 +30,7 @@ object DesqCompareExample {
 
     print("Loading left collection desq dataset from disk... ")
     val loadLeftTime = Stopwatch.createStarted
-    val data_left = DesqDataset.load("data-local/processed/sparkconvert/left")
+    val data_left = IdentifiableDesqDataset.load("data-local/processed/sparkconvert/left")
     //    val dict_left: Dictionary = Dictionary.loadFrom("data-local/nyt-1991-dict.avro.gz")
     //    val delFilename_left = "data-local/nyt-1991-data.del"
     //    val delFile_left = sc.textFile(delFilename_left)
@@ -40,7 +40,7 @@ object DesqCompareExample {
 
     print("Loading right collection desq dataset from disk... ")
     val loadRightTime = Stopwatch.createStarted
-    val data_right = DesqDataset.load("data-local/processed/sparkconvert/right")
+    val data_right = IdentifiableDesqDataset.load("data-local/processed/sparkconvert/right")
     //    val dict_right: Dictionary = Dictionary.loadFrom("data-local/nyt-1991-dict.avro.gz")
     //    val delFilename_right = "data-local/nyt-1991-data.del"
     //    val delFile_right = sc.textFile(delFilename_right)
@@ -50,7 +50,7 @@ object DesqCompareExample {
 
     print("Comparing the two collections... ")
     val compareTime = Stopwatch.createStarted
-    compare.compare(data_left, data_right, patternExpression, sigma, k)
+    compare.compare(data_left.toDefaultDesqDataset(), data_right.toDefaultDesqDataset(), patternExpression, sigma, k)
     compareTime.stop
     println(compareTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
   }
@@ -94,7 +94,7 @@ object DesqCompareExample {
     val prepTime = Stopwatch.createStarted
     val es = new NYTElasticSearchUtils
     val compare = new DesqCompareNaive
-    val dataset = DesqDataset.load(path_source)
+    val dataset = IdentifiableDesqDataset.load(path_source)
     //    dataset.sequences.cache()
     prepTime.stop()
     println(prepTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
@@ -109,7 +109,7 @@ object DesqCompareExample {
     val leftPrepTime = Stopwatch.createStarted
     val ids_left = sc.broadcast(ids_query_l)
     println(s"only left ${ids_left.value.size()}")
-    val dataset_left = new DesqDataset(dataset.sequences.filter(f => ids_left.value.contains(f.id)).repartition(18), dataset.dict.deepCopy(), true)
+    val dataset_left = new IdentifiableDesqDataset(dataset.sequences.filter(f => ids_left.value.contains(f.id)).repartition(18), dataset.dict.deepCopy(), true)
     //    val dataset_left = new DesqDataset(dataset.sequences.filter{case (seq) => ids_left.value.contains(seq.id)}, dataset.dict.deepCopy())
     //    val dataset_left = dataset_left_.copyWithRecomputedCountsAndFids()
 
@@ -120,7 +120,7 @@ object DesqCompareExample {
     val rightPrepTime = Stopwatch.createStarted
     val ids_right = sc.broadcast(ids_query_r)
     println(s"only right ${ids_right.value.size}")
-    val dataset_right = new DesqDataset(dataset.sequences.filter(f => ids_right.value.contains(f.id)).repartition(18), dataset.dict.deepCopy(), true)
+    val dataset_right = new IdentifiableDesqDataset(dataset.sequences.filter(f => ids_right.value.contains(f.id)).repartition(18), dataset.dict.deepCopy(), true)
     //    val dataset_right = new DesqDataset(dataset.sequences.filter{case (seq) => ids_right.value.contains(seq.id)}, dataset.dict.deepCopy())
     //    val dataset_right = dataset_right_.copyWithRecomputedCountsAndFids()
     rightPrepTime.stop()
@@ -128,7 +128,7 @@ object DesqCompareExample {
 
     println("Comparing the two collections... ")
     val compareTime = Stopwatch.createStarted
-    compare.compare(dataset_left, dataset_right, patternExpression, sigma, k)
+    compare.compare(dataset_left.toDefaultDesqDataset(), dataset_right.toDefaultDesqDataset(), patternExpression, sigma, k)
     compareTime.stop
     println(compareTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
@@ -139,7 +139,7 @@ object DesqCompareExample {
     val prepTime = Stopwatch.createStarted
     val es = new NYTElasticSearchUtils
     val compare = new DesqCompareNaive
-    val dataset = DesqDataset.load(path_source)
+    val dataset = IdentifiableDesqDataset.load(path_source)
     //    dataset.sequences.cache()
     prepTime.stop()
     println(prepTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
@@ -153,14 +153,14 @@ object DesqCompareExample {
     val leftPrepTime = Stopwatch.createStarted
     val ids = sc.broadcast(docIDMap)
 
-    val dataset_left = new DesqDataset(dataset.sequences.filter(f => ids.value.contains(f.id)).repartition(18), dataset.dict.deepCopy(), true)
+    val dataset_left = new IdentifiableDesqDataset(dataset.sequences.filter(f => ids.value.contains(f.id)).repartition(18), dataset.dict.deepCopy(), true)
 
     leftPrepTime.stop()
     println(leftPrepTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
     println("Comparing the two collections... ")
     val compareTime = Stopwatch.createStarted
-    //    compare.compare(dataset, patternExpression, sigma, k)
+//    compare.compare(dataset.toDefaultDesqDataset(), patternExpression, sigma, k)
     compareTime.stop
     println(compareTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
@@ -210,7 +210,7 @@ object DesqCompareExample {
     val patternExpressionOpinion2 = "(ENTITY).^{1,3} [(JJ NN .)| (RB JJ ^NN)| (JJ JJ ^NN) | (NN JJ ^NN) | (RB VB .)]"
     val sigma = 1
     val k = 40
-    searchAndCompare(path_out, query_left, query_right, patternExpressionO1, sigma, k, index)
+    searchAndCompareNaive(path_out, query_left, query_right, patternExpressionO1, sigma, k, index)
     //    searchAndCompare(path_out, query_left, query_right, patternExpressionO2, sigma, k, index)
     //    searchAndCompare(path_out, query_left, query_right, patternExpressionO3, sigma, k, index)
     //    searchAndCompare(path_out, query_left, query_right, patternExpressionO4, sigma, k, index)

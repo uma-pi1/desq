@@ -10,7 +10,9 @@ import org.apache.hadoop.io.WritableUtils;
 
 import java.io.*;
 
-/** A sequence of integers. */
+/**
+ * A sequence of integers.
+ */
 public class Sequence extends IntArrayList implements Externalizable, Writable {
     public Sequence() {
         super();
@@ -20,29 +22,53 @@ public class Sequence extends IntArrayList implements Externalizable, Writable {
         super(capacity);
     }
 
-    /** copies */
+    /**
+     * copies
+     */
     public Sequence(final IntList l) {
         super(l);
     }
 
-    /** does not copy */
+    /**
+     * does not copy
+     */
     public Sequence(final int[] a, boolean dummy) {
         super(a, dummy);
     }
 
-    /** Wraps this sequence into a WeightedSequence with the specified support. No data is copied, i.e., this
-     * sequence and the returned sequence share the same backing array. */
+    /**
+     * Wraps this sequence into a WeightedSequence with the specified support. No data is copied, i.e., this
+     * sequence and the returned sequence share the same backing array.
+     */
     public WeightedSequence withSupport(long support) {
         WeightedSequence result = new WeightedSequence(a, support);
         result.size = this.size;
         return result;
     }
-    /** Wraps this sequence into a WeightedSequence with the specified support. No data is copied, i.e., this
-     * sequence and the returned sequence share the same backing array. */
+
+    /**
+     * Wraps this sequence into a WeightedSequence with the specified support. No data is copied, i.e., this
+     * sequence and the returned sequence share the same backing array.
+     */
     public IdentifiableWeightedSequence withSupport(long id, long support) {
         IdentifiableWeightedSequence result = new IdentifiableWeightedSequence(id, a, support);
         result.size = this.size;
         return result;
+    }
+
+
+    public String getUniqueIdentifier() {
+        String uid = "";
+        for (int i = 0; i < this.a.length; i++) {
+            if (this.a[i] > 99) {
+                uid += String.valueOf(this.a[i]);
+            } else if (this.a[i] > 9) {
+                uid += "0" + String.valueOf(this.a[i]);
+            } else {
+                uid += "00" + String.valueOf(this.a[i]);
+            }
+        }
+        return uid;
     }
 
     @Override
@@ -60,7 +86,7 @@ public class Sequence extends IntArrayList implements Externalizable, Writable {
 
     public boolean equals(Object o) {
         if (o instanceof IntArrayList) {
-            return super.equals((IntArrayList)o);
+            return super.equals((IntArrayList) o);
         } else {
             return super.equals(o);
         }
@@ -69,7 +95,7 @@ public class Sequence extends IntArrayList implements Externalizable, Writable {
     @Override
     public void write(DataOutput out) throws IOException {
         WritableUtils.writeVInt(out, size);
-        for (int i=0; i<size; i++) {
+        for (int i = 0; i < size; i++) {
             WritableUtils.writeVInt(out, a[i]);
         }
     }
@@ -81,7 +107,7 @@ public class Sequence extends IntArrayList implements Externalizable, Writable {
             a = new int[size];
         }
         this.size = size;
-        for (int i=0; i<size; i++) {
+        for (int i = 0; i < size; i++) {
             a[i] = WritableUtils.readVInt(in);
         }
     }

@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 
 import com.google.common.base.Stopwatch
 import de.uni_mannheim.desq.dictionary.Dictionary
-import de.uni_mannheim.desq.mining.spark.{DesqDataset, DesqMiner, DesqMinerContext}
+import de.uni_mannheim.desq.mining.spark.{DefaultDesqDataset, DesqMiner, DesqMinerContext}
 import de.uni_mannheim.desq.util.DesqProperties
 import org.apache.spark.SparkContext
 
@@ -19,7 +19,7 @@ object ExampleUtils {
     * Creates a miner, runs it on the given data, and prints running times as well as pattern statistics.
     * Result sequences are cached in memory.
     */
-  def runMiner(data: DesqDataset, ctx: DesqMinerContext): (DesqMiner, DesqDataset) = {
+  def runMiner(data: DefaultDesqDataset, ctx: DesqMinerContext): (DesqMiner, DefaultDesqDataset) = {
     println("Miner properties: ")
     ctx.conf.prettyPrint()
 
@@ -56,7 +56,7 @@ object ExampleUtils {
     * Result sequences are cached in memory.
     */
   @throws[IOException]
-  def runMiner(data: DesqDataset, minerConf: DesqProperties): (DesqMiner, DesqDataset) = {
+  def runMiner(data: DefaultDesqDataset, minerConf: DesqProperties): (DesqMiner, DefaultDesqDataset) = {
     val ctx = new DesqMinerContext(minerConf)
     runMiner(data, ctx)
   }
@@ -64,7 +64,7 @@ object ExampleUtils {
   /**
     * Creates a miner, runs it on the given data, and prints running times as well as all mined patterns.
     */
-  def runVerbose(data: DesqDataset, minerConf: DesqProperties): (DesqMiner, DesqDataset) = {
+  def runVerbose(data: DefaultDesqDataset, minerConf: DesqProperties): (DesqMiner, DefaultDesqDataset) = {
     val (miner, result) = runMiner(data, minerConf)
 
     System.out.println("\nPatterns:")
@@ -75,14 +75,14 @@ object ExampleUtils {
 
   /** Runs a miner on ICDM16 example data. */
   @throws[IOException]
-  def runIcdm16(minerConf: DesqProperties)(implicit sc: SparkContext): (DesqMiner, DesqDataset) = {
+  def runIcdm16(minerConf: DesqProperties)(implicit sc: SparkContext): (DesqMiner,DefaultDesqDataset) = {
     val dictFile = this.getClass.getResource("/icdm16-example/dict.json")
     val dataFile = this.getClass.getResource("/icdm16-example/data.del")
 
     // load the dictionary & update hierarchy
     val dict = Dictionary.loadFrom(dictFile)
     val delFile = sc.parallelize(Source.fromURL(dataFile).getLines.toSeq)
-    val data = DesqDataset.loadFromDelFile(delFile, dict, usesFids = false).copyWithRecomputedCountsAndFids()
+    val data = DefaultDesqDataset.loadFromDelFilea(delFile, dict, false).copyWithRecomputedCountsAndFids()
     println("\nDictionary with frequencies:")
     dict.writeJson(System.out)
     println()
@@ -99,11 +99,11 @@ object ExampleUtils {
 
   /** Runs a miner on NYT example data. */
   @throws[IOException]
-  def runNyt(minerConf: DesqProperties, verbose: Boolean = false)(implicit sc: SparkContext): (DesqMiner, DesqDataset) = {
+  def runNyt(minerConf: DesqProperties, verbose: Boolean = false)(implicit sc: SparkContext): (DesqMiner, DefaultDesqDataset) = {
     val dict: Dictionary = Dictionary.loadFrom("data-local/nyt-1991-dict.avro.gz")
     val delFilename = "data-local/nyt-1991-data.del"
     val delFile = sc.textFile(delFilename)
-    val data = DesqDataset.loadFromDelFile(delFile, dict, usesFids = true)
+    val data = DefaultDesqDataset.loadFromDelFilea(delFile, dict, usesFids = true)
     if (verbose)
       runMiner(data, minerConf)
     else

@@ -2,7 +2,7 @@ package de.uni_mannheim.desq.examples.spark
 
 import de.uni_mannheim.desq.Desq._
 import de.uni_mannheim.desq.dictionary.Dictionary
-import de.uni_mannheim.desq.mining.spark.DesqDataset
+import de.uni_mannheim.desq.mining.spark.DefaultDesqDataset
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.io.Source
@@ -25,7 +25,7 @@ object DictionaryExample extends App {
 
   println("\nData:")
   val delFile = sc.parallelize(Source.fromURL(dataFile).getLines.toSeq)
-  val data = DesqDataset.loadFromDelFile(delFile, dict, usesFids = false)
+  val data = DefaultDesqDataset.loadFromDelFilea(delFile, dict, usesFids = false)
   data.sequences.collect().foreach(println)
   println()
   data.print()

@@ -41,6 +41,21 @@ public class WeightedSequence extends Sequence implements Externalizable, Writab
         this.weight = support;
     }
 
+    public WeightedSequence toWeightedSequence(){
+        return this.clone();
+    }
+
+    public void setWeight(long support){
+        this.weight = support;
+    }
+    public void setElements(final int[] a){
+        this.a = a;
+    }
+    public void setSize(int size){
+        this.size = size;
+    }
+
+
     @Override
     public WeightedSequence clone() {
         WeightedSequence c = new WeightedSequence(size);

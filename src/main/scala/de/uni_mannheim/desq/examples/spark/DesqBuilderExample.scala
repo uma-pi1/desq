@@ -6,7 +6,7 @@ import com.google.common.base.Stopwatch
 import de.uni_mannheim.desq.Desq._
 import de.uni_mannheim.desq.converters.nyt.{ConvertNyt, NytUtil}
 import de.uni_mannheim.desq.dictionary.Dictionary
-import de.uni_mannheim.desq.mining.spark.DesqDataset
+import de.uni_mannheim.desq.mining.spark.{DefaultDesqDataset, IdentifiableDesqDataset}
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.JavaConversions._
@@ -19,7 +19,7 @@ object DesqBuilderExample {
   def nyt()(implicit sc: SparkContext) {
     // create the dataset
     val lines = sc.textFile("data-local/nyt-1991-data.del")
-    val data = DesqDataset.buildFromStrings(lines.map(s => s.split(" ")))
+    val data = DefaultDesqDataset.buildFromStrings(lines.map(s => s.split(" ")))
 
     // save it
     val savedData = data.save("data-local/nyt-1991-data")
@@ -27,7 +27,7 @@ object DesqBuilderExample {
     println("--")
 
     // load it
-    val loadedData = DesqDataset.load("data-local/nyt-1991-data")
+    val loadedData = DefaultDesqDataset.load("data-local/nyt-1991-data")
     loadedData.print(5)
     println("--")
 
@@ -63,7 +63,7 @@ object DesqBuilderExample {
     print("Converting the raw data using the Scala NYT Converter... ")
     val scalaTime = Stopwatch.createStarted()
     val articles_raw = NytUtil.loadArticlesFromFile(nyt_avro).map(r => (42L, r)).flatMapValues(f => f.getSentences)
-    val data = DesqDataset.buildFromSentencesWithID(articles_raw)
+    val data = IdentifiableDesqDataset.buildFromSentencesWithID(articles_raw)
     scalaTime.stop()
     println(scalaTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
@@ -71,7 +71,7 @@ object DesqBuilderExample {
     dataSaved.print(5)
     println("--")
 
-    val loadedData = DesqDataset.load("data-local/processed/sparkconvert/2007_scala")
+    val loadedData = IdentifiableDesqDataset.load("data-local/processed/sparkconvert/2007_scala")
     loadedData.print(5)
     println("--")
 
@@ -93,7 +93,7 @@ object DesqBuilderExample {
 
   def convertDesqDict()(implicit sc: SparkContext): Unit = {
     print("Loading DesqDataset from Disk\n")
-    val loadedData = DesqDataset.load("data-local/processed/sparkconvert/2007_scala")
+    val loadedData = IdentifiableDesqDataset.load("data-local/processed/sparkconvert/2007_scala")
     print("Writing Dict of DesqDataset to Disk\n")
     val scalaDict = loadedData.dict
     print("Writing dict.json\n")

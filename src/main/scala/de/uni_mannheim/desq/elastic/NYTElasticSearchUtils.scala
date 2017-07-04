@@ -5,14 +5,13 @@ import com.sksamuel.elastic4s.{ElasticsearchClientUri, TcpClient}
 import de.uni_mannheim.desq.Desq.initDesq
 import de.uni_mannheim.desq.avro.AvroArticle
 import de.uni_mannheim.desq.converters.nyt.NytUtil
-import de.uni_mannheim.desq.mining.spark.DesqDataset
+import de.uni_mannheim.desq.mining.spark.IdentifiableDesqDataset
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.spark._
 
 import scala.collection.JavaConversions._
-import scala.collection.immutable.BitSet
 import scala.collection.mutable
 
 /**
@@ -39,7 +38,7 @@ class NYTElasticSearchUtils extends Serializable {
     val articlesWithId = articles.zipWithUniqueId()
     this.writeArticlesToEs(articlesWithId, index: String)
     val sentences = articlesWithId.map(f => (f._2, f._1)).flatMapValues(f => f.getSentences)
-    val dataset = DesqDataset.buildFromSentencesWithID(sentences)
+    val dataset = IdentifiableDesqDataset.buildFromSentencesWithID(sentences)
     dataset.save(path_out)
 
   }
@@ -102,15 +101,15 @@ object NYTElasticSearchUtils extends App {
   val nytEs = new NYTElasticSearchUtils
   nytEs.createIndexAndDataset(path_in, path_out, "nyt200701/article")
 
-  val dataset = DesqDataset.load(path_out)
+  val dataset = IdentifiableDesqDataset.load(path_out)
   val ids_1 = nytEs.searchES("usa", "nyt/article")
 
   val ids_2 = nytEs.searchES("germany", "nyt/article")
 
   println(s"count of ids: ${ids_1.size}")
   println(s"count before filter: ${dataset.sequences.count()}")
-  val usa = new DesqDataset(dataset.sequences.filter(f => ids_1.contains(String.valueOf(f.id))), dataset.dict, true)
-  val germany = new DesqDataset(dataset.sequences.filter(f => ids_2.contains(String.valueOf(f.id))), dataset.dict, true)
+  val usa = new IdentifiableDesqDataset(dataset.sequences.filter(f => ids_1.contains(String.valueOf(f.id))), dataset.dict, true)
+  val germany = new IdentifiableDesqDataset(dataset.sequences.filter(f => ids_2.contains(String.valueOf(f.id))), dataset.dict, true)
 
   val germany_updated = germany.copyWithRecomputedCountsAndFids()
   val usa_updated = usa.copyWithRecomputedCountsAndFids()

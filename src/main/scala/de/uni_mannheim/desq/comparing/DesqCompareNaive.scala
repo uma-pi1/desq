@@ -2,8 +2,8 @@ package de.uni_mannheim.desq.comparing
 
 import de.uni_mannheim.desq.avro.Sentence
 import de.uni_mannheim.desq.dictionary.Dictionary
-import de.uni_mannheim.desq.mining.{IdentifiableWeightedSequence, Sequence}
-import de.uni_mannheim.desq.mining.spark.{DesqCount, DesqDataset, DesqMiner, DesqMinerContext}
+import de.uni_mannheim.desq.mining.spark._
+import de.uni_mannheim.desq.mining.{IdentifiableWeightedSequence, Sequence, WeightedSequence}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 
@@ -23,7 +23,7 @@ class DesqCompareNaive {
     * @param k                 Number of Sequences to be returned
     * @param sc                Spark Context
     */
-  def compare(left: DesqDataset, right: DesqDataset, patternExpression: String, sigma: Long, k: Int = 20)(implicit sc: SparkContext): Unit = {
+  def compare(left: DefaultDesqDataset, right: DefaultDesqDataset, patternExpression: String, sigma: Long, k: Int = 20)(implicit sc: SparkContext): Unit = {
     val conf = DesqCount.createConf(patternExpression, sigma)
     conf.setProperty("desq.mining.prune.irrelevant.inputs", true)
     conf.setProperty("desq.mining.use.two.pass", true)
@@ -35,10 +35,9 @@ class DesqCompareNaive {
       val results = mine(left, right, patternExpression, sigma, k)
       results
     } else {
-
       //    Mine the two datasets
-      val left_result = miner.mine(left)
-      val right_result = miner.mine(right)
+      val left_result = miner.mine(left.toDefaultDesqDataset())
+      val right_result = miner.mine(right.toDefaultDesqDataset())
 
       //    Compare the two results based on interestingness and return the top-K from both datasets
       val results = findTopKPattern(left_result, right_result, k, sigma = sigma)
@@ -58,16 +57,16 @@ class DesqCompareNaive {
     * @param sc                Spark Context
     */
   def buildCompare(leftRaw: RDD[Sentence], rightRaw: RDD[Sentence], patternExpression: String, sigma: Long, k: Int = 20)(implicit sc: SparkContext): Unit = {
-    val left = DesqDataset.buildFromSentences(leftRaw)
+    val left = DefaultDesqDataset.buildFromSentences(leftRaw)
     val savedLeft = left.save("data-local/processed/sparkconvert/left")
 
-    val right = DesqDataset.buildFromSentences(rightRaw)
+    val right = DefaultDesqDataset.buildFromSentences(rightRaw)
     val savedRight = right.save("data-local/processed/sparkconvert/right")
 
     compare(left, right, patternExpression, sigma, k)
   }
 
-  def mine(left: DesqDataset, right: DesqDataset, patternExpression: String, sigma: Long, k: Int = 20)(implicit sc: SparkContext): Array[((IdentifiableWeightedSequence, Float), (IdentifiableWeightedSequence, Float))] = {
+  def mine(left: DefaultDesqDataset, right: DefaultDesqDataset, patternExpression: String, sigma: Long, k: Int = 20)(implicit sc: SparkContext): Array[((WeightedSequence, Float), (WeightedSequence, Float))] = {
     val conf = DesqCount.createConf(patternExpression, sigma)
     conf.setProperty("desq.mining.prune.irrelevant.inputs", true)
     conf.setProperty("desq.mining.use.two.pass", true)
@@ -78,7 +77,7 @@ class DesqCompareNaive {
     val result_l = miner.mine(left).sequences.map(ws => (ws.getUniqueIdentifier, ws))
     val result_r = miner.mine(right).sequences.map(ws => (ws.getUniqueIdentifier, ws))
 
-    val seq_weight = result_l.fullOuterJoin(result_r).map[(IdentifiableWeightedSequence, Long, Long)] {
+    val seq_weight = result_l.fullOuterJoin(result_r).map[(WeightedSequence, Long, Long)] {
       case (k, (lv, None)) => (lv.get, lv.get.weight, 0)
       case (k, (None, rv)) => (rv.get, 0, rv.get.weight)
       case (k, (lv, rv)) => (lv.get, lv.get.weight, rv.get.weight)
@@ -114,13 +113,13 @@ class DesqCompareNaive {
 
     //   Join the original results with the additional sequences
 
-    val full_l = result_l.fullOuterJoin(additional_l).map[(String, IdentifiableWeightedSequence)] {
+    val full_l = result_l.fullOuterJoin(additional_l).map[(String, WeightedSequence)] {
       case (k, (lv, None)) => (lv.get.getUniqueIdentifier, lv.get)
       case (k, (None, rv)) => (rv.get.getUniqueIdentifier, rv.get)
       case (k, (lv, rv)) => (lv.get.getUniqueIdentifier, lv.get.withSupport(lv.get.weight + rv.get.weight))
     }
 
-    val full_r = result_r.fullOuterJoin(additional_r).map[(String, IdentifiableWeightedSequence)] {
+    val full_r = result_r.fullOuterJoin(additional_r).map[(String, WeightedSequence)] {
       case (k, (lv, None)) => (lv.get.getUniqueIdentifier, lv.get)
       case (k, (None, rv)) => (rv.get.getUniqueIdentifier, rv.get)
       case (k, (lv, rv)) => (lv.get.getUniqueIdentifier, lv.get.withSupport(lv.get.weight + rv.get.weight))
@@ -128,7 +127,7 @@ class DesqCompareNaive {
 
 
     //    Join the sequences of both sides and compute the interestingness values
-    val global = full_l.fullOuterJoin(full_r).map[(IdentifiableWeightedSequence, Float, Long, Float, Long)] {
+    val global = full_l.fullOuterJoin(full_r).map[(WeightedSequence, Float, Long, Float, Long)] {
       case (k, (lv, None)) => (lv.get, (1 + lv.get.weight) / 1.toFloat, lv.get.weight, 1 / (1 + lv.get.weight).toFloat, 0)
       case (k, (None, rv)) => (rv.get, 1 / (1 + rv.get.weight).toFloat, 0, (1 + rv.get.weight) / 1.toFloat, rv.get.weight)
       case (k, (lv, rv)) => (lv.get, (1 + lv.get.weight) / (1 + rv.get.weight).toFloat, lv.get.weight, (1 + rv.get.weight) / (1 + lv.get.weight).toFloat, rv.get.weight)
@@ -177,7 +176,7 @@ class DesqCompareNaive {
     * @param k     Number of Interesting Phrases to return
     * @return (Top-K sequences of left, Top-K sequences of right)
     */
-  def findTopKPattern(left: DesqDataset, right: DesqDataset, k: Int = 20, measure: Int = 1, sigma: Long)(implicit sc: SparkContext): (Array[((IdentifiableWeightedSequence, Float), (IdentifiableWeightedSequence, Float))]) = {
+  def findTopKPattern(left: DefaultDesqDataset, right: DefaultDesqDataset, k: Int = 20, measure: Int = 1, sigma: Long)(implicit sc: SparkContext): (Array[((WeightedSequence, Float), (WeightedSequence, Float))]) = {
 
     //  The Miner delivers the sequences in the form of fids which need to be converted to gids for comparability
     val temp1 = left.toGids().sequences.map(ws => (ws.getUniqueIdentifier, ws))
@@ -186,7 +185,7 @@ class DesqCompareNaive {
 
     //    case class SequenceWithScores(sequence: IdentifiableWeightedSequence, leftScore: Float, leftSupport: Long, rightScore: Float, rightSupport: Long)
     //    Join the sequences of both sides and compute the interestigness values
-    val global = temp1.fullOuterJoin(temp2).map[(IdentifiableWeightedSequence, Float, Long, Float, Long)] {
+    val global = temp1.fullOuterJoin(temp2).map[(WeightedSequence, Float, Long, Float, Long)] {
       case (k, (lv, None)) => (lv.get, (1 + lv.get.weight) / 1.toFloat, lv.get.weight, 1 / (1 + lv.get.weight).toFloat, 0)
       case (k, (None, rv)) => (rv.get, 1 / (1 + rv.get.weight).toFloat, 0, (1 + rv.get.weight) / 1.toFloat, rv.get.weight)
       case (k, (lv, rv)) => (lv.get, (1 + lv.get.weight) / (1 + rv.get.weight).toFloat, lv.get.weight, (1 + rv.get.weight) / (1 + lv.get.weight).toFloat, rv.get.weight)
@@ -197,7 +196,7 @@ class DesqCompareNaive {
   }
 
   //  Merge two RDDs of WeightedSequences
-  def mergeSequences(left: RDD[IdentifiableWeightedSequence], right: RDD[IdentifiableWeightedSequence]): RDD[IdentifiableWeightedSequence] = {
+  def mergeSequences(left: RDD[WeightedSequence], right: RDD[WeightedSequence]): RDD[WeightedSequence] = {
     val temp1 = left.map(ws => (ws, ws.weight))
     val temp2 = right.map(ws => (ws, ws.weight))
     val global = temp1.join(temp2).map(ws => ws._1.withSupport(ws._2._1 + ws._2._2))
@@ -239,13 +238,13 @@ class DesqCompareNaive {
     }
   }
 
-  def printTable(topKSequences: Array[((IdentifiableWeightedSequence, Float), (IdentifiableWeightedSequence, Float))], dict: Dictionary, usesFids: Boolean = false, k: Int = 10): Unit = {
+  def printTable(topKSequences: Array[((WeightedSequence, Float), (WeightedSequence, Float))], dict: Dictionary, usesFids: Boolean = false, k: Int = 10): Unit = {
 
     println(s"| Top ${k.toString} Interesting Sequences | | |")
     println("|--------|--------|--------|")
     print(topKSequences)
 
-    def print(sequences: Array[((IdentifiableWeightedSequence, Float), (IdentifiableWeightedSequence, Float))]) {
+    def print(sequences: Array[((WeightedSequence, Float), (WeightedSequence, Float))]) {
 
       for (s <- sequences) s match {
         case ((s._1._1, s._1._2), (s._2._1, s._2._2)) => {
@@ -258,7 +257,7 @@ class DesqCompareNaive {
     }
   }
 
-  def runMiner(data: DesqDataset, ctx: DesqMinerContext): (DesqMiner, DesqDataset) = {
+  def runMiner(data: DefaultDesqDataset, ctx: DesqMinerContext): (DesqMiner, DefaultDesqDataset) = {
     val miner = DesqMiner.create(ctx)
     val result = miner.mine(data)
     (miner, result)

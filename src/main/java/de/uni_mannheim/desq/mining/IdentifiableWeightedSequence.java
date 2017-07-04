@@ -2,7 +2,6 @@ package de.uni_mannheim.desq.mining;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
-import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.util.Writable2Serializer;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
@@ -14,8 +13,11 @@ import java.util.List;
 
 /**
  * Created by ivo on 16.05.17.
+ *
+ * Extends the WeightedSequence by an ID
+ *
  */
-public final class IdentifiableWeightedSequence extends WeightedSequence implements Externalizable, Writable {
+public class IdentifiableWeightedSequence extends WeightedSequence implements Externalizable, Writable {
 
     public long id;
 
@@ -44,18 +46,13 @@ public final class IdentifiableWeightedSequence extends WeightedSequence impleme
         this.id = id;
     }
 
-    public String getUniqueIdentifier() {
-        String uid = "";
-        for (int i = 0; i < this.a.length; i++) {
-            if (this.a[i] > 99) {
-                uid += String.valueOf(this.a[i]);
-            } else if (this.a[i] > 9) {
-                uid += "0" + String.valueOf(this.a[i]);
-            } else {
-                uid += "00" + String.valueOf(this.a[i]);
-            }
-        }
-        return uid;
+    @Override
+    public WeightedSequence toWeightedSequence(){
+       WeightedSequence  s = new WeightedSequence(size);
+       System.arraycopy(this.a,0, s.elements(),0, this.size);
+       s.setSize(this.size);
+       s.setWeight(this.weight);
+       return s;
     }
 
         @Override

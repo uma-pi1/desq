@@ -4,11 +4,9 @@ import java.net.URI
 import java.util.Calendar
 import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
-import de.uni_mannheim.desq.avro.{AvroDesqDatasetDescriptor, Sentence}
-import de.uni_mannheim.desq.converters.nyt.NytUtils
+import de.uni_mannheim.desq.avro.AvroDesqDatasetDescriptor
 import de.uni_mannheim.desq.dictionary._
-import de.uni_mannheim.desq.io.DelSequenceReader
-import de.uni_mannheim.desq.mining.IdentifiableWeightedSequence
+import de.uni_mannheim.desq.mining.{IdentifiableWeightedSequence, WeightedSequence}
 import de.uni_mannheim.desq.util.DesqProperties
 import it.unimi.dsi.fastutil.ints._
 import org.apache.avro.io.{DecoderFactory, EncoderFactory}
@@ -20,28 +18,34 @@ import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 
+import scala.reflect.{ClassTag, _}
+
 /**
   * Created by rgemulla on 12.09.2016.
   */
-class DesqDataset(val sequences: RDD[IdentifiableWeightedSequence], val dict: Dictionary, val usesFids: Boolean = false) {
+class DesqDataset[T <: WeightedSequence : ClassTag](val sequences: RDD[T], val dict: Dictionary, val usesFids: Boolean = false) {
   private var dictBroadcast: Broadcast[Dictionary] = _
 
   // -- building ------------------------------------------------------------------------------------------------------
 
-  def this(sequences: RDD[IdentifiableWeightedSequence], source: DesqDataset, usesFids: Boolean) {
+  def this(sequences: RDD[T], source: DesqDataset[T], usesFids: Boolean) {
     this(sequences, source.dict, usesFids)
     dictBroadcast = source.dictBroadcast
   }
 
+  def setBroadcastDict(dict: Broadcast[Dictionary]) {
+    this.dictBroadcast = dict;
+  }
+
   /** Creates a copy of this DesqDataset with a deep copy of its dictionary. Useful when changes should be
     * performed to a dictionary that has been broadcasted before (and hence cannot/should not be changed). */
-  def copy(): DesqDataset = {
+  def copy(): DesqDataset[T] = {
     new DesqDataset(sequences, dict.deepCopy(), usesFids)
   }
 
   /** Returns a copy of this dataset with a new dictionary, containing updated counts and fid identifiers. The
     * original input sequences are "translated" to the new dictionary if needed. */
-  def copyWithRecomputedCountsAndFids(): DesqDataset = {
+  def copyWithRecomputedCountsAndFids(): DesqDataset[T] = {
     // compute counts
     val usesFids = this.usesFids
     val dictBroadcast = broadcastDictionary()
@@ -86,23 +90,23 @@ class DesqDataset(val sequences: RDD[IdentifiableWeightedSequence], val dict: Di
 
     // otherwise we need to relabel the fids
     val newDictBroadcast = sequences.context.broadcast(newDict)
-    val newSequences = sequences.mapPartitions(rows => {
-      new Iterator[IdentifiableWeightedSequence] {
+    val newSequences = sequences.mapPartitions[T](rows => {
+      new Iterator[T] {
         val dict = dictBroadcast.value
         val newDict = newDictBroadcast.value
 
         override def hasNext: Boolean = rows.hasNext
 
-        override def next(): IdentifiableWeightedSequence = {
+        override def next(): T = {
           val oldSeq = rows.next()
           val newSeq = oldSeq.clone()
           dict.fidsToGids(newSeq)
           newDict.gidsToFids(newSeq)
-          newSeq
+          newSeq.asInstanceOf[T]
         }
       }
     })
-    val newData = new DesqDataset(newSequences, newDict, true)
+    val newData = new DesqDataset[T](newSequences, newDict, true)
     newData.dictBroadcast = newDictBroadcast
     newData
   }
@@ -113,29 +117,29 @@ class DesqDataset(val sequences: RDD[IdentifiableWeightedSequence], val dict: Di
     * If sequences are encoded as gids, they are converted to fids. Otherwise, nothing is done.
     */
   //noinspection AccessorLikeMethodIsEmptyParen
-  def toFids(): DesqDataset = {
+  def toFids(): DesqDataset[T] = {
     val usesFids = this.usesFids
     val dictBroadcast = broadcastDictionary()
 
     if (usesFids) {
       this
     } else {
-      val newSequences = sequences.mapPartitions(rows => {
-        new Iterator[IdentifiableWeightedSequence] {
+      val newSequences = sequences.mapPartitions[T](rows => {
+        new Iterator[T] {
           val dict = dictBroadcast.value
 
           override def hasNext: Boolean = rows.hasNext
 
-          override def next(): IdentifiableWeightedSequence = {
+          override def next(): T = {
             val oldSeq = rows.next()
             val newSeq = oldSeq.clone()
             dict.gidsToFids(newSeq)
-            newSeq
+            newSeq.asInstanceOf[T]
           }
         }
       })
 
-      new DesqDataset(newSequences, this, true)
+      new DesqDataset[T](newSequences, this, true)
     }
   }
 
@@ -143,7 +147,7 @@ class DesqDataset(val sequences: RDD[IdentifiableWeightedSequence], val dict: Di
     * If sequences are encoded as fids, they are converted to gids. Otherwise, nothing is done.
     */
   //noinspection AccessorLikeMethodIsEmptyParen
-  def toGids(): DesqDataset = {
+  def toGids(): DesqDataset[T] = {
     val usesFids = this.usesFids
     val dictBroadcast = broadcastDictionary()
 
@@ -151,23 +155,48 @@ class DesqDataset(val sequences: RDD[IdentifiableWeightedSequence], val dict: Di
       this
     } else {
       val newSequences = sequences.mapPartitions(rows => {
-        new Iterator[IdentifiableWeightedSequence] {
+        new Iterator[T] {
           val dict = dictBroadcast.value
 
           override def hasNext: Boolean = rows.hasNext
 
-          override def next(): IdentifiableWeightedSequence = {
+          override def next(): T = {
             val oldSeq = rows.next()
             val newSeq = oldSeq.clone()
             dict.fidsToGids(newSeq)
-            newSeq
+            newSeq.asInstanceOf[T]
           }
         }
       })
 
-      new DesqDataset(newSequences, this, false)
+      new DesqDataset[T](newSequences, this, false)
     }
   }
+
+  /**
+    * Convert any variant of a DesqDataset to a DefaultDesqDataset
+    *
+    * @return DefaultDesqDataset
+    */
+  def toDefaultDesqDataset(): DefaultDesqDataset = {
+    val dict = this.dict
+
+    val defaultSequences = sequences.mapPartitions(rows => {
+      new Iterator[WeightedSequence] {
+
+        override def hasNext: Boolean = rows.hasNext
+
+        override def next(): WeightedSequence = {
+          val oldSeq = rows.next()
+          val newSeq = oldSeq.toWeightedSequence()
+          newSeq
+        }
+      }
+    })
+
+    return new DefaultDesqDataset(defaultSequences, dict, usesFids)
+  }
+
 
   /** Returns an RDD that contains for each sequence an array of its string identifiers and its weight. */
   //noinspection AccessorLikeMethodIsEmptyParen
@@ -199,7 +228,7 @@ class DesqDataset(val sequences: RDD[IdentifiableWeightedSequence], val dict: Di
 
   // -- I/O -----------------------------------------------------------------------------------------------------------
 
-  def save(outputPath: String): DesqDataset = {
+  def save(outputPath: String): DesqDataset[T] = {
     val fileSystem = FileSystem.get(new URI(outputPath), sequences.context.hadoopConfiguration)
 
     // write sequences
@@ -226,27 +255,25 @@ class DesqDataset(val sequences: RDD[IdentifiableWeightedSequence], val dict: Di
 
     // return a new dataset for the just saved data
     new DesqDataset(
-      sequences.context.sequenceFile(sequencePath, classOf[NullWritable], classOf[IdentifiableWeightedSequence]).map(kv => kv._2),
+      sequences.context.sequenceFile(sequencePath, classOf[NullWritable], classTag[T].runtimeClass).map(kv => kv._2.asInstanceOf[T]),
       dict, usesFids)
   }
 
-
   // -- mining --------------------------------------------------------------------------------------------------------
 
-  def mine(minerConf: DesqProperties): DesqDataset = {
+  def mine(minerConf: DesqProperties): DefaultDesqDataset = {
     val ctx = new DesqMinerContext(minerConf)
     mine(ctx)
   }
 
-  def mine(ctx: DesqMinerContext): DesqDataset = {
+  def mine(ctx: DesqMinerContext): DefaultDesqDataset = {
     val miner = DesqMiner.create(ctx)
     mine(miner)
   }
 
-  def mine(miner: DesqMiner): DesqDataset = {
-    miner.mine(this)
+  def mine(miner: DesqMiner): DefaultDesqDataset = {
+    miner.mine(this.toDefaultDesqDataset())
   }
-
 
   // -- helpers -------------------------------------------------------------------------------------------------------
 
@@ -279,12 +306,11 @@ class DesqDataset(val sequences: RDD[IdentifiableWeightedSequence], val dict: Di
   }
 }
 
-object DesqDataset {
+trait DesqDatasetCore[+T <: WeightedSequence] {
   // -- I/O -----------------------------------------------------------------------------------------------------------
 
-  def load(inputPath: String)(implicit sc: SparkContext): DesqDataset = {
+  def load[T <: WeightedSequence](inputPath: String)(implicit sc: SparkContext, ct: ClassTag[T]): DesqDataset[T] = {
     val fileSystem = FileSystem.get(new URI(inputPath), sc.hadoopConfiguration)
-
     // read descriptor
     var descriptor = new AvroDesqDatasetDescriptor()
     val descriptorPath = s"$inputPath/descriptor.json"
@@ -303,33 +329,23 @@ object DesqDataset {
 
     // read sequences
     val sequencePath = s"$inputPath/sequences"
-    val sequences = sc.sequenceFile(sequencePath, classOf[NullWritable], classOf[IdentifiableWeightedSequence]).map(kv => kv._2)
+    val sequences = sc.sequenceFile(sequencePath, classOf[NullWritable], ct.runtimeClass).map(kv => kv._2.asInstanceOf[T])
 
     // return the dataset
     new DesqDataset(sequences, dict, descriptor.getUsesFids)
   }
 
   /** Loads data from the specified del file */
-  def loadFromDelFile(delFile: RDD[String], dict: Dictionary, usesFids: Boolean): DesqDataset = {
-    val sequences = delFile.map(line => {
-      val s = new IdentifiableWeightedSequence(-1, Array.empty[Int], 1L)
-      DelSequenceReader.parseLine(line, s)
-      s
-    })
-
-    new DesqDataset(sequences, dict, usesFids)
-  }
+  def loadFromDelFile[T <: WeightedSequence : ClassTag](delFile: RDD[String], dict: Dictionary, usesFids: Boolean): DesqDataset[T]
 
   /** Loads data from the specified del file */
-  def loadFromDelFile(delFile: String, dict: Dictionary, usesFids: Boolean = false)(implicit sc: SparkContext): DesqDataset = {
-    loadFromDelFile(sc.textFile(delFile), dict, usesFids)
-  }
+  def loadFromDelFile[T <: WeightedSequence : ClassTag](delFile: String, dict: Dictionary, usesFids: Boolean = false)(implicit sc: SparkContext): DesqDataset[T]
 
   // -- building ------------------------------------------------------------------------------------------------------
 
   /** Builds a DesqDataset from an RDD of string arrays. Every array corresponds to one sequence, every element to
     * one item. The generated hierarchy is flat. */
-  def buildFromStrings(rawData: RDD[Array[String]]): DesqDataset = {
+  def buildFromStrings[T <: WeightedSequence : ClassTag](rawData: RDD[Array[String]]): DesqDataset[T] = {
     val parse = (strings: Array[String], seqBuilder: DictionaryBuilder) => {
       seqBuilder.newSequence(1)
       for (string <- strings) {
@@ -337,30 +353,16 @@ object DesqDataset {
       }
     }
 
-    build[Array[String]](rawData, parse)
+    build[Array[String], T](rawData, parse)
   }
 
-  /**
-    * Builds a DesqDataset from an RDD of rows. Every row corresponds to one article, which may contain many sentences.
-    * Every sentence contains tokens. The generated hierarchy is deep.
-    */
 
-  def buildFromSentences(rawData: RDD[Sentence]): DesqDataset = {
-    //    val parse = NytUtil.parse
-    val parse = (sentence: Sentence, dictionaryBuilder: DictionaryBuilder) => NytUtils.processSentence(-1L, sentence, dictionaryBuilder)
-    build[Sentence](rawData, parse)
-  }
-
-  /**
-    * Builds a DesqDataset from an RDD of rows. Every row corresponds to one article, which may contain many sentences.
-    * Every sentence contains tokens. The generated hierarchy is deep.
-    */
-
-  def buildFromSentencesWithID(rawData: RDD[(Long, Sentence)]): DesqDataset = {
-    val parse = (id: Long, sentence: Sentence, dictionaryBuilder: DictionaryBuilder) => NytUtils.processSentence(id, sentence, dictionaryBuilder)
-    buildWithId[Sentence](rawData, parse)
-  }
-
+  //  /**
+  //    * Builds a DesqDataset from an RDD of rows. Every row corresponds to one article, which may contain many sentences.
+  //    * Every sentence contains tokens. The generated hierarchy is deep.
+  //    */
+  //
+  //  def buildFromSentencesWithID[T <: IdentifiableWeightedSequence](rawData: RDD[(Long, Sentence)]): DesqDataset[T]
 
   /** Builds a DesqDataset from arbitrary input data. The dataset is linked to the original data and parses it again
     * when used. For improved performance, save the dataset once created.
@@ -371,7 +373,8 @@ object DesqDataset {
     * @tparam T type of input data elements
     * @return the created DesqDataset
     */
-  def build[T](rawData: RDD[T], parse: (T, DictionaryBuilder) => _): DesqDataset = {
+
+  def build[T, F <: WeightedSequence : ClassTag](rawData: RDD[T], parse: (T, DictionaryBuilder) => _): DesqDataset[F] = {
     // construct the dictionary
     val dict = rawData.mapPartitions(rows => {
       val dictBuilder = new DefaultDictionaryBuilder()
@@ -388,23 +391,26 @@ object DesqDataset {
 
     // now convert the sequences (lazily)
     val dictBroadcast = rawData.context.broadcast(dict)
-    val sequences = rawData.mapPartitions(rows => new Iterator[IdentifiableWeightedSequence] {
+    val sequences = rawData.mapPartitions[F](rows => new Iterator[F] {
       val dict = dictBroadcast.value
       val seqBuilder = new DefaultSequenceBuilder(dict)
 
       override def hasNext: Boolean = rows.hasNext
 
-      override def next(): IdentifiableWeightedSequence = {
+      override def next(): F = {
+
         parse.apply(rows.next(), seqBuilder)
-        val s = new IdentifiableWeightedSequence(seqBuilder.getCurrentId, seqBuilder.getCurrentGids, seqBuilder.getCurrentWeight)
+        //        import SequenceConstructor._
+        //        val s = SequenceConstructor.constructSequence(seqBuilder.getCurrentGids, seqBuilder.getCurrentWeight)
+        val s = new WeightedSequence(seqBuilder.getCurrentGids, seqBuilder.getCurrentWeight)
         dict.gidsToFids(s)
-        s
+        s.asInstanceOf[F]
       }
     })
 
     // return the dataset
     val result = new DesqDataset(sequences, dict, true)
-    result.dictBroadcast = dictBroadcast
+    result.setBroadcastDict(dictBroadcast)
     result
   }
 
@@ -417,7 +423,8 @@ object DesqDataset {
     * @tparam T type of input data elements
     * @return the created DesqDataset
     */
-  def buildWithId[T](rawData: RDD[(Long, T)], parse: (Long, T, DictionaryBuilder) => _): DesqDataset = {
+
+  def buildWithId[T, F <: IdentifiableWeightedSequence : ClassTag](rawData: RDD[(Long, T)], parse: (Long, T, DictionaryBuilder) => _): DesqDataset[F] = {
     // construct the dictionary
     val dict = rawData.mapPartitions(rows => {
       val dictBuilder = new DefaultDictionaryBuilder()
@@ -435,24 +442,25 @@ object DesqDataset {
 
     // now convert the sequences (lazily)
     val dictBroadcast = rawData.context.broadcast(dict)
-    val sequences = rawData.mapPartitions(rows => new Iterator[IdentifiableWeightedSequence] {
+    val sequences = rawData.mapPartitions[F](rows => new Iterator[F] {
       val dict = dictBroadcast.value
       val seqBuilder = new DefaultSequenceBuilder(dict)
 
       override def hasNext: Boolean = rows.hasNext
 
-      override def next(): IdentifiableWeightedSequence = {
+      override def next(): F = {
         val row = rows.next()
         parse.apply(row._1, row._2, seqBuilder)
-        val s = new IdentifiableWeightedSequence(seqBuilder.getCurrentId(), seqBuilder.getCurrentGids, seqBuilder.getCurrentWeight)
+        import SequenceConstructor._
+        val s = SequenceConstructor.constructSequence(seqBuilder.getCurrentId, seqBuilder.getCurrentGids, seqBuilder.getCurrentWeight)
         dict.gidsToFids(s)
-        s
+        s.asInstanceOf[F]
       }
     })
 
     // return the dataset
-    val result = new DesqDataset(sequences, dict, true)
-    result.dictBroadcast = dictBroadcast
+    val result = new DesqDataset[F](sequences, dict, true)
+    result.setBroadcastDict(dictBroadcast)
     result
   }
 }

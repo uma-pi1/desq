@@ -21,7 +21,7 @@ import org.scalatest.junit.AssertionsForJUnit
 abstract class TraditionalMiningTest(sigma: Long, gamma: Int, lambda: Int, generalize: Boolean,
                                      minerName: String, conf: DesqProperties) extends AssertionsForJUnit {
     /** The data */
-    def getDataset()(implicit sc: SparkContext): DesqDataset
+    def getDataset()(implicit sc: SparkContext): DefaultDesqDataset
 
     def goldFileBaseName: String
 
@@ -45,7 +45,7 @@ abstract class TraditionalMiningTest(sigma: Long, gamma: Int, lambda: Int, gener
 
     def mine(outputDelFile: File) {
         implicit val sc = de.uni_mannheim.desq.util.spark.TestUtils.sc
-        var data: DesqDataset = getDataset()
+        var data: DefaultDesqDataset = getDataset()
 
         // Perform pattern mining into del file
         val resultRDD = data.mine(conf)
