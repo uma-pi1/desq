@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 
 import com.google.common.base.Stopwatch
 import de.uni_mannheim.desq.Desq.initDesq
-import de.uni_mannheim.desq.comparing.DesqCompareNaive
+import de.uni_mannheim.desq.comparing.{DesqCompare, DesqCompareNaive}
 import de.uni_mannheim.desq.converters.nyt.NytUtil
 import de.uni_mannheim.desq.elastic.NYTElasticSearchUtils
 import de.uni_mannheim.desq.mining.spark.IdentifiableDesqDataset
@@ -102,6 +102,7 @@ object DesqCompareExample {
     val queryTime = Stopwatch.createStarted
     val ids_query_l = es.searchES(query_left, index)
     val ids_query_r = es.searchES(query_right, index)
+    println(ids_query_l.size + ids_query_r.size)
     queryTime.stop()
     println(queryTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
@@ -110,8 +111,8 @@ object DesqCompareExample {
     val ids_left = sc.broadcast(ids_query_l)
     println(s"only left ${ids_left.value.size()}")
     val dataset_left = new IdentifiableDesqDataset(dataset.sequences.filter(f => ids_left.value.contains(f.id)).repartition(18), dataset.dict.deepCopy(), true)
-    //    val dataset_left = new DesqDataset(dataset.sequences.filter{case (seq) => ids_left.value.contains(seq.id)}, dataset.dict.deepCopy())
-    //    val dataset_left = dataset_left_.copyWithRecomputedCountsAndFids()
+//        val dataset_left_ = new IdentifiableDesqDataset(dataset.sequences.filter{case (seq) => ids_left.value.contains(seq.id)}, dataset.dict.deepCopy())
+//        val dataset_left = dataset_left_.copyWithRecomputedCountsAndFids()
 
     leftPrepTime.stop()
     println(leftPrepTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
@@ -121,8 +122,8 @@ object DesqCompareExample {
     val ids_right = sc.broadcast(ids_query_r)
     println(s"only right ${ids_right.value.size}")
     val dataset_right = new IdentifiableDesqDataset(dataset.sequences.filter(f => ids_right.value.contains(f.id)).repartition(18), dataset.dict.deepCopy(), true)
-    //    val dataset_right = new DesqDataset(dataset.sequences.filter{case (seq) => ids_right.value.contains(seq.id)}, dataset.dict.deepCopy())
-    //    val dataset_right = dataset_right_.copyWithRecomputedCountsAndFids()
+//        val dataset_right_ = new IdentifiableDesqDataset(dataset.sequences.filter{case (seq) => ids_right.value.contains(seq.id)}, dataset.dict.deepCopy())
+//        val dataset_right = dataset_right_.copyWithRecomputedCountsAndFids()
     rightPrepTime.stop()
     println(rightPrepTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
@@ -138,7 +139,7 @@ object DesqCompareExample {
     print("Initializing Compare... ")
     val prepTime = Stopwatch.createStarted
     val es = new NYTElasticSearchUtils
-    val compare = new DesqCompareNaive
+    val compare = new DesqCompare
     val dataset = IdentifiableDesqDataset.load(path_source)
     //    dataset.sequences.cache()
     prepTime.stop()
@@ -153,14 +154,14 @@ object DesqCompareExample {
     val leftPrepTime = Stopwatch.createStarted
     val ids = sc.broadcast(docIDMap)
 
-    val dataset_left = new IdentifiableDesqDataset(dataset.sequences.filter(f => ids.value.contains(f.id)).repartition(18), dataset.dict.deepCopy(), true)
+    val dataset_filtered = new IdentifiableDesqDataset(dataset.sequences.filter(f => ids.value.contains(f.id)).repartition(18), dataset.dict.deepCopy(), true)
 
     leftPrepTime.stop()
     println(leftPrepTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
     println("Comparing the two collections... ")
     val compareTime = Stopwatch.createStarted
-//    compare.compare(dataset.toDefaultDesqDataset(), patternExpression, sigma, k)
+    compare.compare(dataset_filtered, docIDMap, patternExpression, sigma, k)
     compareTime.stop
     println(compareTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 

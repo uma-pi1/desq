@@ -4,7 +4,6 @@ import de.uni_mannheim.desq.mining.Sequence
 import de.uni_mannheim.desq.util.DesqProperties
 import it.unimi.dsi.fastutil.ints.IntArrayList
 import it.unimi.dsi.fastutil.objects.{ObjectIterator, ObjectLists}
-import org.apache.spark.rdd.RDD
 
 import scala.collection.mutable
 
@@ -12,13 +11,14 @@ import scala.collection.mutable
   * Created by rgemulla on 14.09.2016.
   */
 class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
-  override def mine(data: DesqDataset): DesqDataset = {
+
+  override def mine(data: DefaultDesqDataset): DefaultDesqDataset= {
     val minSupport = ctx.conf.getLong("desq.mining.min.support")
     val filterFunction = (x: (Sequence, Long)) => x._2 >= minSupport
     mine(data, filterFunction)
   }
 
-  override def mine(data: DesqDataset, filter: ((Sequence, Long)) => Boolean): DesqDataset = {
+  override def mine(data: DefaultDesqDataset, filter: ((Sequence, Long)) => Boolean): DefaultDesqDataset= {
     // localize the variables we need in the RDD
     val dictBroadcast = data.broadcastDictionary()
     val conf = ctx.conf
@@ -66,13 +66,13 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     }).reduceByKey(_ + _) // now sum up counts
       .filter(filter)
       //      .filter(_._2 >= minSupport) // and drop infrequent output sequences
-      .map(s => s._1.withSupport(-1, s._2)) // and pack the remaining sequences into a IdentifiableWeightedSequence
+      .map(s => s._1.withSupport(s._2)) // and pack the remaining sequences into a IdentifiableWeightedSequence
     // all done, return result (last parameter is true because mining.DesqCount always produces fids)
-    new DesqDataset(patterns, data, true)
+    new DefaultDesqDataset(patterns, data, true)
   }
 
 
-  override def mine(data: DesqDataset, docIDs : mutable.Map[Long, mutable.BitSet], filter: ((Sequence, (Long, Long))) => Boolean): DesqDataset = {
+  override def mine(data: IdentifiableDesqDataset, docIDs : mutable.Map[Long, mutable.BitSet], filter: ((Sequence, (Long, Long))) => Boolean): DefaultDesqDatasetWithAggregates = {
     // localize the variables we need in the RDD
     val dictBroadcast = data.broadcastDictionary()
     val docIDsBroadcast = data.sequences.context.broadcast[mutable.Map[Long, mutable.BitSet]](docIDs)
@@ -103,8 +103,8 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
             val s = rows.next()
             currentSupportGlobal = s.weight
 //            check which queries the sequence fulfills
-            val bits = docIDs.get(s.id)
-            if(bits.exists(_ == 0)) currentSupportLocal = s.weight else currentSupportLocal = 0L
+            val bits = docIDs.get(s.id).get
+            if(bits.contains(1)) currentSupportLocal = s.weight else currentSupportLocal = 0L
 
             // and run sequential DesqCount to get all output sequences produced by that input
             if (usesFids) {
@@ -123,14 +123,16 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
           (pattern, (currentSupportGlobal, currentSupportLocal))
         }
       }
-    }).reduceByKey((x, y)=>(x._1+y._1, x._2 + y._2)) // now sum up counts
-//      TODO: Filter that throws out those sequences where Global - Local < Sigma
-      .filter(filter)
+    }).reduceByKey((x, y)=>(x._1 + y._1, x._2 + y._2)) // now sum up counts
+//      TODO: Filter that throws out those sequences where Global - Local < Sigma || Local < Sigma
+//      .filter(filter)
+          .filter(filter)
       //      .filter(_._2 >= minSupport) // and drop infrequent output sequences
 //      TODO: Change from Global Support to Aggregate Function
-      .map(s => s._1.withSupport(-1, s._2._1)) // and pack the remaining sequences into a IdentifiableWeightedSequence
+//      TODO: Create Sequence and DesqDataset that can hold aggregate as value
+      .map(s => s._1.withSupport(-1, s._2._1 - s._2._2, s._2._2)) // and pack the remaining sequences into a IdentifiableWeightedSequence
     // all done, return result (last parameter is true because mining.DesqCount always produces fids)
-    new DesqDataset(patterns, data, true)
+    new DefaultDesqDatasetWithAggregates(patterns, data.dict, true)
   }
 }
 

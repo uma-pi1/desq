@@ -74,8 +74,8 @@ class DesqCompareNaive {
     val miner = DesqMiner.create(ctx)
 
     //  The Miner delivers the sequences in the form of fids which need to be converted to gids for comparability
-    val result_l = miner.mine(left).sequences.map(ws => (ws.getUniqueIdentifier, ws))
-    val result_r = miner.mine(right).sequences.map(ws => (ws.getUniqueIdentifier, ws))
+    val result_l = miner.mine(left).toGids().sequences.map(ws => (ws.getUniqueIdentifier, ws))
+    val result_r = miner.mine(right).toGids().sequences.map(ws => (ws.getUniqueIdentifier, ws))
 
     val seq_weight = result_l.fullOuterJoin(result_r).map[(WeightedSequence, Long, Long)] {
       case (k, (lv, None)) => (lv.get, lv.get.weight, 0)
@@ -88,11 +88,11 @@ class DesqCompareNaive {
 
     //    Finding those sequences where one side is less than 2x of support and the other not present
     val rddSecondRun_left = seq_weight.filter(f => f._2 == 0 & f._3 <= 2 * sigma).map(f => {
-      left_dict.gidsToFids(f._1);
+      left_dict.gidsToFids(f._1)
       new Sequence(f._1).hashCode()
     }).collect.toSeq
     val rddSecondRun_right = seq_weight.filter(f => f._3 == 0 & f._2 <= 2 * sigma).map(f => {
-      right_dict.gidsToFids(f._1);
+      right_dict.gidsToFids(f._1)
       new Sequence(f._1).hashCode()
     }).collect.toSeq
 
@@ -108,8 +108,8 @@ class DesqCompareNaive {
     val miner2 = DesqMiner.create(ctx2)
 
     //  Mine those sequences
-    val additional_l = miner2.mine(left, filter_left).toGids().sequences.map(ws => (ws.getUniqueIdentifier, ws))
-    val additional_r = miner2.mine(right, filter_right).toGids().sequences.map(ws => (ws.getUniqueIdentifier, ws))
+    val additional_l = miner2.mine(left, filter_left).sequences.map(ws => (ws.getUniqueIdentifier, ws))
+    val additional_r = miner2.mine(right, filter_right).sequences.map(ws => (ws.getUniqueIdentifier, ws))
 
     //   Join the original results with the additional sequences
 

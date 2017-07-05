@@ -56,6 +56,12 @@ public class Sequence extends IntArrayList implements Externalizable, Writable {
         return result;
     }
 
+    public AggregatedWeightedSequence withSupport(long id, long support_l, long support_r){
+        AggregatedWeightedSequence result = new AggregatedWeightedSequence(a, support_l, support_r);
+        result.size = this.size;
+        return result;
+    }
+
 
     public String getUniqueIdentifier() {
         String uid = "";

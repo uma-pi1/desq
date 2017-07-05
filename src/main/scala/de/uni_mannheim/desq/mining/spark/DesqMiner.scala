@@ -26,7 +26,7 @@ abstract class DesqMiner(val ctx: DesqMinerContext) {
 
 //  def mine(data: DesqDataset[WeightedSequence], docIDs: mutable.Map[Long, mutable.BitSet], filter: ((Sequence, (Long, Long))) => Boolean): DesqDataset[WeightedSequence]
 
-  def mine(data: IdentifiableDesqDataset, docIDs: mutable.Map[Long, mutable.BitSet], filter: ((Sequence, (Long, Long))) => Boolean): IdentifiableDesqDataset
+  def mine(data: IdentifiableDesqDataset, docIDs: mutable.Map[Long, mutable.BitSet], filter: ((Sequence, (Long, Long))) => Boolean): DefaultDesqDatasetWithAggregates
 }
 
 object DesqMiner {
