@@ -82,11 +82,11 @@
 		</dependency>
 
 		<!-- used for shortest-path computation -->
-		<dependency>
+<!--		<dependency>
 			<groupId>net.sf.jung</groupId>
 			<artifactId>jung2</artifactId>
 			<version>2.0.1</version>
-		</dependency>
+		</dependency> -->
 		<dependency>
 			<groupId>net.sf.jung</groupId>
 			<artifactId>jung-graph-impl</artifactId>
