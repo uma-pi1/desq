@@ -45,118 +45,58 @@ public class BitwisePostingList implements IPostingList{
     }
     
     @Override
-    public void addInt(int value) {
+    public void addInt(int value){
+        
         assert value >= 0;
         //assert size() > 0;
-        value += 1; // we add the integer increased by one to distinguish it from separators
+        value += 1; // we add the integer increased by one to distinguish it from separators;
         
-        //System.out.println("Input value: " + Integer.toBinaryString(value));
-        //input[countInput] = value;
-        //countInput++;
-        
-        while (true) {
-            final int b = value;
-            if (value == b) {
-                //System.out.println(Integer.toBinaryString(b));
-                byte lengthB = (byte) (32 - Integer.numberOfLeadingZeros(b));
-                //byte lengthB = (byte) (Math.log(value)/Math.log(2) + 1);
-                
-                if(lengthB <= freeBits){
-                    int tmp = b << (freeBits - lengthB);
-                    currentDataByte |= tmp;
-                    
-                    int control = (1 << lengthB) - 2;
-                    control <<= (freeBits - lengthB);
-                    currentControlDataByte |= control;
-                    
-                    if((freeBits -= lengthB) == 0){
-                        freeBits = 32;
-                        data.add(currentDataByte); 
-                        controlData.add(currentControlDataByte);
-                        currentDataByte = 0;
-                        currentControlDataByte = 0;
-                    }
-                } else {
-                    byte partialCopy = freeBits;
-                    
-                    int tmp = b >> (lengthB - freeBits);
-                    currentDataByte |= tmp;
-                    
-                    int control = (1 << lengthB) - 2;
-                    int tmpControl = control >> (lengthB - freeBits);
-                    currentControlDataByte |= tmpControl;
-                    
-                    data.add(currentDataByte);
-                    controlData.add(currentControlDataByte);
-                    
-                    currentDataByte = 0;
-                    currentControlDataByte = 0;
-                    freeBits = 32;
-                    
-                    int tmp2 = b << (freeBits - (lengthB - partialCopy));
-                    currentDataByte |= tmp2;
-                    
-                    int control2 = (1 << lengthB) - 2;
-                    control2 <<= (freeBits - (lengthB - partialCopy));
-                    currentControlDataByte |= control2;
-                    
-                    freeBits -= (lengthB - partialCopy);
-                }
+        final int b = value;
 
-                
-                //data.add((byte)b);
-                return;
-            } else {
-                data.add((byte)(b | 0x80));
-                value >>>= 7;
+        // Get number of data bits from the current value
+        byte lengthB = (byte) (32 - Integer.numberOfLeadingZeros(b));
+        
+        int currentSize = data.size() - 1;
+        
+        // Check if data bits fit into the last int
+        if(lengthB <= freeBits){
+            
+            freeBits -= lengthB;
+            
+            // Get last int and add data bits
+            int currentDataByte2 = data.getInt(currentSize);
+            data.set(currentSize, (currentDataByte2 | b << freeBits));
+            
+            // Get last control int and add control bits
+            int currentControlDataByte2 = controlData.getInt(currentSize);
+            controlData.set(currentSize, (currentControlDataByte2 | (((1 << lengthB) - 2) << freeBits)));
+            
+            // Reset variables if all 32 bits of the int are set with data bits
+            if(freeBits == 0){
+                freeBits = 32;
+                data.add(0);
+                controlData.add(0);
             }
-        }
-    }
+        } else {
+            
+            // Number of bits that fit in the first int
+            byte partialCopy = freeBits;
+            
+            // Add part of data bits to fill the first int
+            int currentDataByte2 = data.getInt(currentSize);
+            data.set(currentSize, currentDataByte2 | (b >> (lengthB - freeBits)));
+            
+            // Add part of control data bits to fill the first int
+            int currentControlDataByte2 = controlData.getInt(currentSize);
+            controlData.set(currentSize, (currentControlDataByte2 | (((1 << lengthB) - 2) >> (lengthB - freeBits))));
 
-    public void addInt2(){
-        int returnValue = 0;
-        
-        boolean gotData = false;
-        boolean partialData = false;
-        
-        int partialOutput = 0;
-        
-        do{
-            byte offsetBefore = internalOffset;
-
-            int currentData = controlData.getInt(offset);
-            
-            if(offsetBefore != 0){
-                currentData |= (0x80000000) >> (offsetBefore - 1);
-            }
-            
-            internalOffset = (byte) (Integer.numberOfLeadingZeros(~currentData) + 1);
-            
-            if(internalOffset > 32){
-                int mask = ((1 << (--internalOffset - offsetBefore)) - 1);
-                
-                partialOutput = (data.getInt(offset) >>> (32 - internalOffset)) & mask;
-                partialData = true;
-                
-                internalOffset = 0;
-                offset++;
-            } else {
-                int mask = ((1 << (internalOffset - offsetBefore)) - 1);
-                
-                if(partialData){
-                    returnValue = (partialOutput << internalOffset) | ((data.getInt(offset) >>> (32 - internalOffset)) & mask);
-                } else {
-                    returnValue = (data.getInt(offset) >>> (32 - internalOffset)) & mask;
-                }
-                                
-                if(internalOffset == 32){
-                    internalOffset = 0;
-                    offset++;
-                }
-                
-                gotData = true;
-            } 
-        } while(!gotData);
+            // Reset variables and shift the rest of the data bits to the left and add it to a new int, same for control data
+            freeBits = 32;
+            data.add(b << (freeBits - (lengthB - partialCopy)));
+            controlData.add(((1 << lengthB) - 2) << (freeBits - (lengthB - partialCopy)));
+                    
+            freeBits -= (lengthB - partialCopy);
+        }     
     }
     
     @Override
@@ -185,6 +125,7 @@ public class BitwisePostingList implements IPostingList{
 
     @Override
     public int nextInt() {
+        // Get current control data integer
         int currentData = controlData.getInt(offset);
         
         int gainedData = 0;
@@ -194,13 +135,19 @@ public class BitwisePostingList implements IPostingList{
         int getMask = 0;
         byte count = 0;
         
+        // Set 1 bit mask to the current position
         int i = 0x80000000 >>> internalOffset;
         do {
+            // Check if bit in control data is set or not.
             if(0 != (currentData & i)){
                 internalOffset++;
+                
+                // Add current position to get mask
                 getMask |= i;
+                
                 i >>>= 1;
                 
+                // If the end of the control data is reached without a 0, the data bits are stored in partial data
                 if(internalOffset != 0 && internalOffset % 32 == 0){
                     partialData = (data.getInt(offset) & getMask) >>> (32 - internalOffset);
                     offset++;
@@ -211,11 +158,16 @@ public class BitwisePostingList implements IPostingList{
                 }
             } else {
                 internalOffset++;
+                
+                // Add current position to get mask
                 getMask |= i;
+                
                 i >>>= 1;
-
+                
+                // Get data bits from the data integer
                 gainedData = (data.getInt(offset) & getMask) >>> (32 - internalOffset);
                 
+                // If there is partial data from the previous integer it is shifted to the correct position and unified with the current data
                 if(partialData != 0){
                     partialData <<= internalOffset;
                     gainedData |= partialData;
@@ -231,6 +183,61 @@ public class BitwisePostingList implements IPostingList{
         } while (i != 0 && !gotData);
         
         return gainedData;
+    }
+    
+    public void nextInt2(){
+        int returnValue = 0;
+        
+        boolean gotData = false;
+        boolean partialData = false;
+        
+        int partialOutput = 0;
+        
+        do{
+            // Set offset before to the current position inside the int
+            byte offsetBefore = internalOffset;
+
+            // Get the int with the current control data
+            int currentData = controlData.getInt(offset);
+            
+            /* Shift the mask to the last positon to cover zeros in the control string
+               11011101 : control data
+               11100000 : mask
+               11111101 : new control data */
+            if(offsetBefore != 0){
+                currentData |= (0x80000000) >> (offsetBefore - 1);
+            }
+            
+            // Invert control string and read number of leading zeros
+            internalOffset = (byte) (Integer.numberOfLeadingZeros(~currentData) + 1);
+            
+            // Check if the current read int is split to two ints, by checking if the internal offset is the int length
+            if(internalOffset > 32){
+                
+                int mask = ((1 << (32 - offsetBefore)) - 1);
+                
+                partialOutput = data.getInt(offset) & mask;
+                partialData = true;
+                
+                internalOffset = 0;
+                offset++;
+            } else {
+                int mask = ((1 << (internalOffset - offsetBefore)) - 1);
+                
+                returnValue = ((data.getInt(offset) >>> (32 - internalOffset)) & mask);
+                
+                if(partialData){
+                    returnValue |= (partialOutput << internalOffset);
+                } 
+                                
+                if(internalOffset == 32){
+                    internalOffset = 0;
+                    offset++;
+                }
+                
+                gotData = true;
+            } 
+        } while(!gotData);
     }
     
 }
