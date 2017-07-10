@@ -8,6 +8,7 @@ import de.uni_mannheim.desq.util.PrimitiveUtils;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
@@ -104,6 +105,10 @@ public class OneNFA {
     public int checkForState(int q, int pos) {
         long sp = PrimitiveUtils.combine(q, pos);
         return sByQp.getOrDefault(sp, -1);
+    }
+
+    public int checkForState(long qp) {
+        return sByQp.getOrDefault(qp, -1);
     }
 
     /** Adds an edge (qFrom,pos) --> (qTo,pos+1) with output label `label`. */
@@ -246,7 +251,14 @@ public class OneNFA {
     /** Determinizes the NFA backwards into <code>this.bz</code> */
     public void determinizeBackwards() {
         bz.clear();
-        int currentState = bz.addNewState(isFinal);
+
+        IntSet finalStates = new IntOpenHashSet();
+        for(long l : isFinal) {
+            int s = checkForState(l);
+            if(s != -1)
+                finalStates.add(s);
+        }
+        int currentState = bz.addNewState(finalStates);
 
         // outgoing edges of the current state
         Object2ObjectOpenHashMap<OutputLabel, IntSet> outgoingEdges = new Object2ObjectOpenHashMap<>();
