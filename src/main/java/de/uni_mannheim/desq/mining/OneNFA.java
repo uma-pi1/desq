@@ -40,7 +40,10 @@ public class OneNFA {
     IntArrayList maxPivot = new IntArrayList();
 
     /** A set of all final states */
-    IntSet isFinal = new IntOpenHashSet();
+    LongSet isFinal = new LongOpenHashSet();
+
+    /** A set of states that have no following output (used to prevent unnecessary trailing eps-edges) */
+    LongSet noFollowingOutput = new LongOpenHashSet();
 
     /** A set of all (pos,q) pairs that we have found to be a dead end. Is indexed by a long[q,pos], so we don't need to create a state for every dead end*/
     LongOpenHashSet isDeadEnd = new LongOpenHashSet();
@@ -69,6 +72,7 @@ public class OneNFA {
         maxPos = 0;
         maxQ = 0;
         outputLabelCache.clear();
+        noFollowingOutput.clear();
     }
 
     /** Checks whether edge (qFrom,pos) --> (qTo,pos+1) with OutputLabel `label` exists. */
@@ -104,14 +108,23 @@ public class OneNFA {
 
     /** Adds an edge (qFrom,pos) --> (qTo,pos+1) with output label `label`. */
     public void addEdge(int qFrom, int pos, int qTo, OutputLabel label) {
+        // if we know that the to-state does not produce any output and we have an eps output label, we don't add this edge
+        if(label == null && hasNoFollowingOutput(qTo, pos+1)) {
+            if(isFinal(qTo, pos+1)) { // TODO: can probably drop this
+                // if that state is final though, we need to mark the current state as final
+                markFinal(qFrom, pos);
+            }
+            return;
+        }
+
         // creates the states if they do not exist yet
         int sFrom = getOrCreateState(qFrom, pos); // if this state doesn't exist yet, it will be created
-        assert(checkForState(qTo, pos+1) != -1): "State " + qTo + "," + (pos+1) + " does not exist yet. But it should.";
+//        assert(checkForState(qTo, pos+1) != -1): "State " + qTo + "," + (pos+1) + " does not exist yet. But it should.";
         int sTo = getOrCreateState(qTo, pos+1); // the to-state already exists, as we build back->front
 
         // add forward edge sFrom->sTo
         IntSet toStates = forwardEdges.get(sFrom).getOrDefault(label, null);
-        if(toStates == null) {
+        if (toStates == null) {
             toStates = new IntOpenHashSet();
             forwardEdges.get(sFrom).put(label, toStates);
         }
@@ -120,7 +133,7 @@ public class OneNFA {
 
         // add backwards edge sTo->sFrom
         toStates = backwardEdges.get(sTo).getOrDefault(label, null);
-        if(toStates == null) {
+        if (toStates == null) {
             toStates = new IntOpenHashSet();
             backwardEdges.get(sTo).put(label, toStates);
         }
@@ -155,7 +168,7 @@ public class OneNFA {
 
         // state does not exist yet, so we create it
         if(s == -1) {
-            s = forwardEdges.size();
+            s = sByQp.size();
             sByQp.put(qp, s);
 
             forwardEdges.add(new Object2ObjectOpenHashMap<>());
@@ -185,15 +198,25 @@ public class OneNFA {
 
     /** Mark the state (q,pos) as final. Creates a state for (q,pos) if it doesn't exist yet. */
     public void markFinal(int q, int pos) {
-        int s = getOrCreateState(q, pos);
-        isFinal.add(s);
+        long l = PrimitiveUtils.combine(q, pos);
+        isFinal.add(l);
     }
 
     /** Check whether state (q,pos) is marked as final */
     public boolean isFinal(int q, int pos) {
-        int s = getOrCreateState(q, pos);
-        return isFinal.contains(s);
+        long l = PrimitiveUtils.combine(q, pos);
+        return isFinal.contains(l);
     }
+
+    public boolean hasNoFollowingOutput(int q, int pos) {
+        long l = PrimitiveUtils.combine(q, pos);
+        return noFollowingOutput.contains(l);
+    }
+    public boolean markNoFollowingOutput(int q, int pos) {
+        long l = PrimitiveUtils.combine(q, pos);
+        return noFollowingOutput.add(l);
+    }
+
 
     /** Check whether state s is an initial state */
     public boolean isInitial(int s) {
@@ -217,7 +240,7 @@ public class OneNFA {
 
     /** Returns the number of states in this NFA */
     public int numStates() {
-        return forwardEdges.size();
+        return sByQp.size();
     }
 
     /** Determinizes the NFA backwards into <code>this.bz</code> */
@@ -346,7 +369,7 @@ public class OneNFA {
                     fstVisualizer.add(String.valueOf(s), label, String.valueOf(sTo));
                 }
             }
-            if (isFinal.contains(s))
+            if (isFinal(q,pos))
                 fstVisualizer.addFinalState(String.valueOf(getOrCreateState(q,pos)));
         }
         fstVisualizer.endGraph();

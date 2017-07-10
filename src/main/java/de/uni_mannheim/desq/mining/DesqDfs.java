@@ -943,6 +943,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 		// check if we already read the entire input
 		if (state.isFinalComplete() || pos == inputSequence.size()) {
+			oneNFA.markNoFollowingOutput(qCurrent,pos);
 			// mark this state as final
 			return true;
 		}
@@ -978,6 +979,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		int lastOutputItem;
 		int qTo;
 		boolean foundAcceptingPath = false;
+		boolean hasFollowingOutput = false;
 
 		// follow each relevant transition
 		while(transitionIt.hasNext()) {
@@ -1050,6 +1052,8 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			else if(oneNFA.checkForState(qTo, pos+1) != -1) {
                 foundAcceptingPath = true;
                 oneNFA.addEdge(qCurrent, pos, qTo, ol); // add edge to NFA and maintain maxPivot entries
+					if(!oneNFA.hasNoFollowingOutput(qTo, pos+1) || (ol != null && !ol.outputItems.isEmpty()))
+						hasFollowingOutput = true;
 			}
 
 			// otherwise, we need to recurse down this path and update our information when we come back up
@@ -1060,6 +1064,8 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				// if we found and accpeting path with this transition, add an edge
                 if(isAccepting) {
 					oneNFA.addEdge(qCurrent, pos, qTo, ol); // this creates the current state if it doesn't exist yet
+						if(!oneNFA.hasNoFollowingOutput(qTo, pos+1) || (ol != null && !ol.outputItems.isEmpty()))
+							hasFollowingOutput = true;
 				}
 			}
 		}
@@ -1068,6 +1074,8 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		if(!foundAcceptingPath) {
 			oneNFA.markDeadEnd(qCurrent, pos);
 		}
+		if(!hasFollowingOutput)
+			oneNFA.markNoFollowingOutput(qCurrent, pos);
 		return foundAcceptingPath;
 	}
 
