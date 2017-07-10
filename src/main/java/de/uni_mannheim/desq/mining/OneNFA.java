@@ -175,13 +175,13 @@ public class OneNFA {
         if(s == -1) {
             s = sByQp.size();
             sByQp.put(qp, s);
+            maxPos = Math.max(maxPos, pos);
+            maxQ = Math.max(maxQ, q);
 
             forwardEdges.add(new Object2ObjectOpenHashMap<>());
             backwardEdges.add(new Object2ObjectOpenHashMap<>());
 
             maxPivot.add(-1);
-            maxPos = Math.max(maxPos, pos);
-            maxQ = Math.max(maxQ, q);
         }
         return s;
     }
@@ -247,6 +247,164 @@ public class OneNFA {
     public int numStates() {
         return sByQp.size();
     }
+
+    public IntSet getPivotsForward() {
+        IntOpenHashSet pivots = new IntOpenHashSet();
+
+        ObjectArrayList<IntAVLTreeSet> potentialPivots = new ObjectArrayList<>();
+
+        boolean output = false;
+
+        for(int s=0; s<=numStates(); s++) {
+            potentialPivots.add(new IntAVLTreeSet());
+        }
+
+        for(int pos = 0; pos<=maxPos; pos++) {
+            for(int q = 0; q<=maxQ; q++) {
+                int s = checkForState(q, pos);
+                if(output) System.out.println(q + "," + pos + ": s=" + s);
+
+
+                if(s != -1) {
+                    if(isFinal(q,pos)) {
+                        if(output) System.out.println("is final. adding " + potentialPivots.get(s));
+                        pivots.addAll(potentialPivots.get(s));
+                    }
+                    if(output) System.out.println("Has potential pivots: " + potentialPivots.get(s));
+                    for(Object2ObjectMap.Entry<OutputLabel, IntSet> edge : forwardEdges.get(s).object2ObjectEntrySet()) {
+                        OutputLabel ol = edge.getKey();
+                        int trimMin = Math.max(ol == null ? 0 : ol.outputItems.getInt(0), potentialPivots.get(s).size() > 0 ? potentialPivots.get(s).firstInt() : 0);
+                        for(int sTo : edge.getValue()) {
+                            if(output) System.out.println("has outgoing edge " + ol + " (trim=" + trimMin +") to state " + sTo);
+                            if(ol != null)
+                                for(int item : ol.outputItems)
+                                    if(item >= trimMin) {
+                                        potentialPivots.get(sTo).add(item);
+                                        if(output) System.out.println("Adding " + item);
+                                    }
+                            if(potentialPivots.get(s).size() > 0)
+                                for(int item : potentialPivots.get(s))
+                                    if(item >= trimMin) {
+                                        potentialPivots.get(sTo).add(item);
+                                        if(output) System.out.println("Adding " + item);
+                                    }
+                        }
+                    }
+                }
+            }
+        }
+        return pivots;
+    }
+
+//    IntArrayList outputItems = new IntArrayList();
+//    public IntSet getPivotsForwardSlim() {
+//        IntOpenHashSet pivots = new IntOpenHashSet();
+//
+//        ObjectArrayList<IntAVLTreeSet> potentialPivots = new ObjectArrayList<>();
+//
+//
+//        boolean output = false;
+//        outputItems.clear();
+//
+//        for(int s=0; s<=numStates(); s++) {
+//            potentialPivots.add(new IntAVLTreeSet()); // reuse this
+//        }
+//
+//        for(int pos = 0; pos<=maxPos; pos++) {
+//            for(int q = 0; q<=maxQ; q++) {
+//                int s = checkForState(q, pos);
+//                if(output) System.out.println(q + "," + pos + ": s=" + s);
+//
+//
+//                if(s != -1) {
+//                    if(isFinal(q,pos)) {
+//                        if(output) System.out.println("is final. adding " + potentialPivots.get(s));
+//                        pivots.addAll(potentialPivots.get(s));
+//                    }
+//                    if(output) System.out.println("Has potential pivots: " + potentialPivots.get(s));
+//                    for(Long2ObjectMap.Entry<IntSet> edge : pivotForwardEdges.get(s).long2ObjectEntrySet()) {
+//                        long label = edge.getLongKey();
+//                        int trId = PrimitiveUtils.getLeft(label);
+//                        int itemFid = PrimitiveUtils.getRight(label);
+//                        outputItems = getOutputItems(trId, itemFid, outputItems);
+//                        int trimMin = Math.max(outputItems.size() == 0 ? 0 : outputItems.getInt(0), potentialPivots.get(s).size() > 0 ? potentialPivots.get(s).firstInt() : 0);
+//                        for(int sTo : edge.getValue()) {
+//                            if(output) System.out.println("has outgoing edge " + outputItems + " (trim=" + trimMin +") to state " + sTo);
+//                            if(outputItems.size() != 0)
+//                                for(int item : outputItems)
+//                                    if(item >= trimMin) {
+//                                        potentialPivots.get(sTo).add(item);
+//                                        if(output) System.out.println("Adding " + item);
+//                                    }
+//                            if(potentialPivots.get(s).size() > 0)
+//                                for(int item : potentialPivots.get(s))
+//                                    if(item >= trimMin) {
+//                                        potentialPivots.get(sTo).add(item);
+//                                        if(output) System.out.println("Adding " + item);
+//                                    }
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//        return pivots;
+//    }
+
+//    Transition.ItemStateIteratorCache itCache = null;
+//
+//    public IntArrayList getOutputItems(int trId, int itemFid, IntArrayList outputItems) {
+//
+//        if(itCache == null)
+//            itCache = new Transition.ItemStateIteratorCache(miner.ctx.dict.isForest());
+//
+//        if(outputItems == null) {
+//            outputItems = new IntArrayList();
+//        } else {
+//            outputItems.clear();
+//        }
+//
+//        // eps-transition
+//        if(trId == -1)
+//            return outputItems;
+//
+//        Transition tr = miner.getTrByTrId(trId);
+//
+//        if (tr.hasOutput()) { // this transition doesn't produce output
+//            // collect all output elements into the outputItems set
+//            Iterator<ItemState> outIt = tr.consume(itemFid, itCache);
+//
+//            // we assume that we get the items sorted, in decreasing order
+//            // if that is not the case, we need to sort
+//            boolean needToSort = false;
+//            int lastOutputItem = Integer.MAX_VALUE;
+//            int outputItem;
+//
+//            while (outIt.hasNext()) {
+//                outputItem = outIt.next().itemFid;
+//
+//                assert outputItem != lastOutputItem; // We assume we get each item only once
+//                if (outputItem > lastOutputItem)
+//                    needToSort = true;
+//                lastOutputItem = outputItem;
+//
+//                // we are only interested in frequent output items
+//                if (miner.getLargestFrequentFid() >= outputItem) {
+//                    outputItems.add(outputItem);
+//                }
+//            }
+//
+//            // if we have frequent output items, build the output label for this transition and follow it
+//            if (outputItems.size() > 0) {
+//
+//                // if we need to sort, we sort. Otherwise we just reverse the elements to have them in increasing order
+//                if (needToSort)
+//                    IntArrays.quickSort(outputItems.elements(), 0, outputItems.size());
+//                else
+//                    IntArrays.reverse(outputItems.elements(), 0, outputItems.size());
+//            }
+//        }
+//        return outputItems;
+//    }
 
     /** Determinizes the NFA backwards into <code>this.bz</code> */
     public void determinizeBackwards() {

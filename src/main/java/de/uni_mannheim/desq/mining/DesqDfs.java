@@ -1049,11 +1049,11 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			}
 
 			// next: the to-state (qTo, pos+1) already exists. then we don't have to recurse, we just add a link
-			else if(oneNFA.checkForState(qTo, pos+1) != -1) {
+			else if(oneNFA.checkForState(qTo, pos+1) != -1 || oneNFA.hasNoFollowingOutput(qTo, pos+1)) {
                 foundAcceptingPath = true;
                 oneNFA.addEdge(qCurrent, pos, qTo, ol); // add edge to NFA and maintain maxPivot entries
-					if(!oneNFA.hasNoFollowingOutput(qTo, pos+1) || (ol != null && !ol.outputItems.isEmpty()))
-						hasFollowingOutput = true;
+                if(!oneNFA.hasNoFollowingOutput(qTo, pos+1) || (ol != null && !ol.outputItems.isEmpty()))
+                    hasFollowingOutput = true;
 			}
 
 			// otherwise, we need to recurse down this path and update our information when we come back up
@@ -1063,9 +1063,9 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 				// if we found and accpeting path with this transition, add an edge
                 if(isAccepting) {
-					oneNFA.addEdge(qCurrent, pos, qTo, ol); // this creates the current state if it doesn't exist yet
-						if(!oneNFA.hasNoFollowingOutput(qTo, pos+1) || (ol != null && !ol.outputItems.isEmpty()))
-							hasFollowingOutput = true;
+                    oneNFA.addEdge(qCurrent, pos, qTo, ol); // this creates the current state if it doesn't exist yet
+                    if(!oneNFA.hasNoFollowingOutput(qTo, pos+1) || (ol != null && !ol.outputItems.isEmpty()))
+                        hasFollowingOutput = true;
 				}
 			}
 		}
