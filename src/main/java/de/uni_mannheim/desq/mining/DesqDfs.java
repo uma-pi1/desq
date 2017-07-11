@@ -2,7 +2,6 @@ package de.uni_mannheim.desq.mining;
 
 import com.google.common.base.Stopwatch;
 import de.uni_mannheim.desq.dictionary.MiningDictionary;
-import de.uni_mannheim.desq.examples.DesqDfsRunDistributedMiningLocally;
 import de.uni_mannheim.desq.fst.*;
 import de.uni_mannheim.desq.util.CloneableIntHeapPriorityQueue;
 import de.uni_mannheim.desq.patex.PatExUtils;
@@ -146,7 +145,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	IntArrayList lastPivotPos = new IntArrayList();
 
 	/** Stores the one NFA from which we extract pivot NFAs later on */
-	OneNFA oneNFA = new OneNFA();
+	QPGrid grid = new QPGrid();
 
 	/** Stores one Transition iterator per recursion level for reuse */
 	final ArrayList<Iterator<Transition>> transitionIterators = new ArrayList<>();
@@ -178,6 +177,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** For each pivot item (and input sequence), we store one NFA producing the output sequences for that pivot item from the current input sequence */
 	private NFAList nfas = new NFAList();
 
+	/** A list of serialized NFAs for the current input sequence */
+	ObjectArrayList<Sequence> serializedNFAs = new ObjectArrayList<>();
+
 	/** An nfaDecoder to decode nfas from a representation by path to one by state. Reuses internal data structures for all input nfas */
 	private NFADecoder nfaDecoder = null;
 
@@ -187,7 +189,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** Stats about pivot element search */
 	public long counterTotalRecursions = 0;
 	private boolean verbose;
-	private boolean drawGraphs = DesqDfsRunDistributedMiningLocally.drawGraphs;
+	private boolean drawGraphs = false;
 
 
 
@@ -214,7 +216,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		mergeSuffixes = ctx.conf.getBoolean("desq.mining.merge.suffixes", false);
 		trimInputSequences = ctx.conf.getBoolean("desq.mining.trim.input.sequences", false);
 		useHybrid = ctx.conf.getBoolean("desq.mining.use.hybrid", false);
-		useOneNFA = ctx.conf.getBoolean("desq.mining.use.one.nfa", false);
+		useOneNFA = ctx.conf.getBoolean("desq.mining.use.grid", false);
 		sendToAllFrequentItems = ctx.conf.getBoolean("desq.mining.send.to.all.frequent.items", false);
 
 		// create FST once per JVM
@@ -266,12 +268,12 @@ public final class DesqDfs extends MemoryDesqMiner {
 			}
 		}
 
-		if(drawGraphs) fst.exportGraphViz(DesqDfsRunDistributedMiningLocally.useCase + "-fst.pdf");
+		if(drawGraphs) fst.exportGraphViz("fst.pdf");
 
 		// other auxiliary variables
 		root = new DesqDfsTreeNode(fst.numStates(), !sendNFAs || useHybrid, sendNFAs); // if we use NFAs, we need only one BitSet per node
 		currentNode = root;
-		verbose = DesqDfsRunDistributedMiningLocally.verbose;
+		verbose = false;
 
 
 		synchronized (fstNumberedFor) {
@@ -633,15 +635,12 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 //				}
 			}
 		} else if(useOneNFA) {
-			constructNFA(inputSequence);
-			// export
-//			oneNFA.exportGraphViz("oneNFA-" + inputSequence.toString() + ".pdf");
+		    // construct the grid
+			buildGrid(inputSequence);
 
-			if(oneNFA.numStates() > 0) {
-				oneNFA.determinizeBackwards();
-//				oneNFA.exportBdWithGraphViz("oneNFA-" + inputSequence.toString() + "-BRZ.pdf");
-				IntList pivots = oneNFA.getPivotsBz(inputSequence);
-				pivotItems.addAll(pivots);
+			// if the there is at least one accepting path, we retrieve the pivot items for these paths
+			if(grid.hasAcceptingPaths()) {
+			    pivotItems.addAll(grid.getPivotsForward());
 			}
 		} else {
   			// check whether sequence produces output at all. if yes, produce output items
@@ -673,11 +672,11 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	}
 
 
-	public OneNFA constructNFA(IntList inputSequence) {
+	public QPGrid buildGrid(IntList inputSequence) {
 
 		// get the pivot elements with the corresponding paths through the FST
 		this.inputSequence = inputSequence;
-		oneNFA.clear();
+		grid.clear();
 
 		// we always use two-pass
 		dfaStateSequence.clear();
@@ -692,7 +691,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			dfaInitialPos.clear();
 		}
 
-		return oneNFA;
+		return grid;
 	}
 
 
@@ -701,30 +700,55 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	 * @param inputSequence
 	 * @return pivotItems set of frequent output items of input sequence inputSequence
 	 */
-	public NFAList generateOutputNFAs(IntList inputSequence) {
+	public ObjectArrayList<Sequence> generateNFAs(IntList inputSequence) {
 
 		// get the pivot elements with the corresponding paths through the FST
 		this.inputSequence = inputSequence;
 		path.clear();
-		nfas.clear();
 
-		if(useTwoPass) {
-			dfaStateSequence.clear();
-			if (dfa.acceptsReverse(inputSequence, dfaStateSequence, dfaInitialPos)) {
+		serializedNFAs.clear();
 
-				// run the first incStep; start at all positions from which a final FST state can be reached
-				for (int i = 0; i < dfaInitialPos.size(); i++) {
-					piStep(-1, dfaInitialPos.getInt(i), fst.getInitialState(), 0, null, -1);
+		if (useOneNFA) {
+				buildGrid(inputSequence);
+				if (grid.numStates() > 0) {
+					grid.constructPivotNFAs(serializedNFAs, fst);
 				}
-
-				// clean up
-				dfaInitialPos.clear();
-			}
 		} else {
-			piStep(-1, 0, fst.getInitialState(), 0, null, -1);
-		}
 
-		return nfas;
+			nfas.clear();
+			if (useTwoPass) {
+				dfaStateSequence.clear();
+				if (dfa.acceptsReverse(inputSequence, dfaStateSequence, dfaInitialPos)) {
+
+					// run the first incStep; start at all positions from which a final FST state can be reached
+					for (int i = 0; i < dfaInitialPos.size(); i++) {
+						piStep(-1, dfaInitialPos.getInt(i), fst.getInitialState(), 0, null, -1);
+					}
+
+					// clean up
+					dfaInitialPos.clear();
+				}
+			} else {
+				piStep(-1, 0, fst.getInitialState(), 0, null, -1);
+			}
+			for(OutputNFA nfa : nfas.getNFAs()) {
+			    Sequence send;
+                if(nfa.hasStoppedNFAconstruction()) { // stoppedNFAconstruction will not be true unless useHybrid=true
+                    // if we stopped NFA construction at some point, we send the relevant part of the input sequence
+                    send = nfa.prepInputSequence(currentInputSequence);
+                } else {
+                    // otherwise, we send serialize the NFA we constructed
+					if(mergeSuffixes)
+						send = nfa.mergeAndSerialize(true);
+					else
+						send = nfa.serialize();
+                }
+
+				send.add(nfa.pivot);
+                serializedNFAs.add(send);
+			}
+		}
+		return serializedNFAs;
 	}
 
 
@@ -938,12 +962,12 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 		// mark this state as final in the NFA. will be done only once, as we visit this state only once
 		if(state.isFinal()) {
-			oneNFA.markFinal(qCurrent, pos); // creates the state if it doesn't exist yet
+			grid.markFinal(qCurrent, pos); // creates the state if it doesn't exist yet
 		}
 
 		// check if we already read the entire input
 		if (state.isFinalComplete() || pos == inputSequence.size()) {
-			oneNFA.markNoFollowingOutput(qCurrent,pos);
+			grid.markNoFollowingOutput(qCurrent,pos);
 			// mark this state as final
 			return true;
 		}
@@ -1023,7 +1047,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					else
 						IntArrays.reverse(outputItems.elements(), 0, outputItems.size());
 
-					ol = oneNFA.getOrCreateLabel(tr, itemFid, outputItems);
+					ol = grid.getOrCreateLabel(tr, itemFid, outputItems);
 
 					// if we are using this output items object in the new ol (and not reusing an old object), we create a new one
                     // otherwise, we can reuse the object
@@ -1032,6 +1056,9 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					} else {
 						outputItems.clear();
 					}
+				} else {
+					// we have no frequent items on this transition, so we don't follow it
+					continue;
 				}
 			}
 
@@ -1039,20 +1066,20 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			// so we have a new connection from (qCurrent, pos) to (qTo, pos+1) with label ol. what to do now?
 
 			// easiest option: we know the to-state (qTo, pos+1) is a dead end. then we do nothing
-			if(oneNFA.isDeadEnd(qTo, pos+1)) {
+			if(grid.isDeadEnd(qTo, pos+1)) {
 				// do nothing
 			}
 
 			// next: qCurrent already has such an forwardEdges edge. then we have to do basically nothing
-			else if(oneNFA.checkForEdge(qCurrent, pos, qTo, ol)) {
+			else if(grid.checkForEdge(qCurrent, pos, qTo, ol)) {
 				// do nothing
 			}
 
 			// next: the to-state (qTo, pos+1) already exists. then we don't have to recurse, we just add a link
-			else if(oneNFA.checkForState(qTo, pos+1) != -1 || oneNFA.hasNoFollowingOutput(qTo, pos+1)) {
+			else if(grid.checkForState(qTo, pos+1) != -1 || grid.hasNoFollowingOutput(qTo, pos+1)) {
                 foundAcceptingPath = true;
-                oneNFA.addEdge(qCurrent, pos, qTo, ol); // add edge to NFA and maintain maxPivot entries
-                if(!oneNFA.hasNoFollowingOutput(qTo, pos+1) || (ol != null && !ol.outputItems.isEmpty()))
+                grid.addEdge(qCurrent, pos, qTo, ol); // add edge to NFA and maintain maxPivot entries
+                if(!grid.hasNoFollowingOutput(qTo, pos+1) || (ol != null && !ol.outputItems.isEmpty()))
                     hasFollowingOutput = true;
 			}
 
@@ -1063,8 +1090,8 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 				// if we found and accpeting path with this transition, add an edge
                 if(isAccepting) {
-                    oneNFA.addEdge(qCurrent, pos, qTo, ol); // this creates the current state if it doesn't exist yet
-                    if(!oneNFA.hasNoFollowingOutput(qTo, pos+1) || (ol != null && !ol.outputItems.isEmpty()))
+                    grid.addEdge(qCurrent, pos, qTo, ol); // this creates the current state if it doesn't exist yet
+                    if(!grid.hasNoFollowingOutput(qTo, pos+1) || (ol != null && !ol.outputItems.isEmpty()))
                         hasFollowingOutput = true;
 				}
 			}
@@ -1072,10 +1099,10 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 		// if we didnt' find any accepting path starting from here, we mark this (q,pos) pair as dead end
 		if(!foundAcceptingPath) {
-			oneNFA.markDeadEnd(qCurrent, pos);
+			grid.markDeadEnd(qCurrent, pos);
 		}
 		if(!hasFollowingOutput)
-			oneNFA.markNoFollowingOutput(qCurrent, pos);
+			grid.markNoFollowingOutput(qCurrent, pos);
 		return foundAcceptingPath;
 	}
 

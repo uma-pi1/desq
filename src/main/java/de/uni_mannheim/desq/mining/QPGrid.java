@@ -3,7 +3,7 @@ package de.uni_mannheim.desq.mining;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.Transition;
 import de.uni_mannheim.desq.fst.graphviz.FstVisualizer;
-import de.uni_mannheim.desq.util.BrzozowskiDatastructures;
+import de.uni_mannheim.desq.util.ReverseDFA;
 import de.uni_mannheim.desq.util.PrimitiveUtils;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
@@ -27,7 +27,7 @@ import java.util.BitSet;
  * Internal indexing: s: s is an internal state id
  * sByQp is a map that translates from external to internal indexing: (q, pos) -> s
  */
-public class OneNFA {
+public class QPGrid {
     /** Maps from external index (q, pos) to internal state id s */
      Long2IntOpenHashMap sByQp = new Long2IntOpenHashMap();
 
@@ -57,7 +57,7 @@ public class OneNFA {
     int maxQ = 0;
 
     /** Data structures for determinizing the NFA */
-    BrzozowskiDatastructures bz = new BrzozowskiDatastructures(this);
+    ReverseDFA reverseDfa = new ReverseDFA(this);
 
     /** Processed and to-process states for finding outgoing edges of a set of states */
     BitSet alreadyProcessed;
@@ -247,6 +247,9 @@ public class OneNFA {
     public int numStates() {
         return sByQp.size();
     }
+    public boolean hasAcceptingPaths() {
+        return sByQp.size() > 0;
+    }
 
     public IntSet getPivotsForward() {
         IntOpenHashSet pivots = new IntOpenHashSet();
@@ -294,6 +297,203 @@ public class OneNFA {
             }
         }
         return pivots;
+    }
+
+    /** Extracts the pivot NFAs from this grid. Assumes that the grid was constructed already. */
+    public void constructPivotNFAs(ObjectArrayList<Sequence> serializedNFAs, Fst fst) {
+        // we first determinize the grid back->front
+        reverseAndDeterminize();
+
+        // PDF exports
+//        exportGraphViz(seq + "-grid.pdf"); // export the grid
+//        exportBdWithGraphViz(seq + "-reverse-determinized.pdf"); // export the reverse determinized NFA
+
+        // then we construct the per-pivot NFAs
+        reverseDfa.constructNFAs(serializedNFAs, fst);
+    }
+
+
+    /** Determinizes the NFA backwards into <code>this.reverseDfa</code> */
+    public void reverseAndDeterminize() {
+        reverseDfa.clear();
+
+        IntSet finalStates = new IntOpenHashSet();
+        for(long l : isFinal) {
+            int s = checkForState(l);
+            if(s != -1)
+                finalStates.add(s);
+        }
+        int currentState = reverseDfa.addNewState(finalStates);
+
+        // outgoing edges of the current state
+        Object2ObjectOpenHashMap<OutputLabel, IntSet> outgoingEdges = new Object2ObjectOpenHashMap<>();
+        alreadyProcessed = new BitSet(numStates());
+        toProcess = new BitSet(numStates());
+
+        // process each newly created state once until there are no newly created states left
+        do {
+            outgoingEdges.clear();
+            // collect the outgoing (backwards) edges of all original states included in this new state
+            //    and the states each edge can lead to
+
+            // the outgoing edges of which states are relevant for this new state?
+            outgoingEdges = collectOutgoingEdges(reverseDfa.getIncludedOriginalStates(currentState));
+
+            // add outgoing edges to the current state
+            for(Object2ObjectMap.Entry<OutputLabel, IntSet> outgoingEdge : outgoingEdges.object2ObjectEntrySet()) {
+                int toState = reverseDfa.getOrCreateState(outgoingEdge.getValue());
+                reverseDfa.addEdge(currentState, outgoingEdge.getKey(), toState);
+            }
+            currentState++;
+        } while (currentState < reverseDfa.numStates());
+    }
+
+
+    /** Collects the outgoing edges for a given set of states */
+    private Object2ObjectOpenHashMap<OutputLabel, IntSet> collectOutgoingEdges(IntSet includedStates) {
+        Object2ObjectOpenHashMap<OutputLabel, IntSet> outgoingEdges = new Object2ObjectOpenHashMap<>();
+
+        alreadyProcessed.clear();
+        toProcess.clear();
+        for(int s : includedStates)
+            toProcess.set(s);
+
+        while(toProcess.cardinality() != 0) {
+            int state = toProcess.nextSetBit(0);
+            toProcess.clear(state);
+            if(alreadyProcessed.get(state)) {
+                continue;
+            }
+            alreadyProcessed.set(state);
+
+            for(Object2ObjectMap.Entry<OutputLabel, IntSet> edge : backwardEdges.get(state).object2ObjectEntrySet()) {
+                if (edge.getKey() != null) {
+                    // this edge produces output, so we merge it into the existing map
+                    IntSet toStates = outgoingEdges.getOrDefault(edge.getKey(), null);
+                    if (toStates == null) {
+                        // an edge with this label does not exist yet, so we add it
+                        toStates = new IntOpenHashSet(edge.getValue());
+                        outgoingEdges.put(edge.getKey(), toStates);
+                    } else {
+                        // if an edge with this label does already exist, we just add the new to-states
+                        toStates.addAll(edge.getValue());
+                    }
+                } else {
+                    // this edge does not produce output, so we follow the transitions to the following states
+                    for(int sTo : edge.getValue()) {
+                        if(!alreadyProcessed.get(sTo)) {
+                            toProcess.set(sTo);
+                        } else {
+                        }
+                    }
+                }
+            }
+        }
+        return outgoingEdges;
+    }
+
+    public void print(Fst fst) {
+
+        for(int q=-1; q<=maxQ; q++) {
+            if(q==-1)
+                System.out.print("    ");
+            else
+                System.out.print(q + (fst.getState(q).isFinal() ? (fst.getState(q).isFinalComplete() ? "c" : "f") : " ") + ": " );
+            for(int pos=0; pos<=maxPos; pos++) {
+                if(q==-1)
+                    System.out.print(pos);
+                else if(isDeadEnd(q, pos))
+                    System.out.print("x");
+                else if(checkForState(q, pos) != -1)
+                    System.out.print("o");
+                else
+                    System.out.print(" ");
+                System.out.print(" ");
+            }
+            System.out.println("");
+        }
+        System.out.println("q, p -> s -- maxPiv");
+        for(Long2IntOpenHashMap.Entry entry : sByQp.long2IntEntrySet()) {
+            System.out.println(PrimitiveUtils.getLeft(entry.getLongKey()) + ", " + PrimitiveUtils.getRight(entry.getLongKey()) + " -> " + entry.getIntValue() + " -- " + maxPivot.getInt(entry.getIntValue()));
+        }
+
+        System.out.println("");
+    }
+
+    /** Export this NFA to PDF */
+    public void exportGraphViz(String file) {
+        FstVisualizer fstVisualizer = new FstVisualizer(FilenameUtils.getExtension(file), FilenameUtils.getBaseName(file));
+        fstVisualizer.beginGraph();
+        for(Long2IntOpenHashMap.Entry state : sByQp.long2IntEntrySet()) {
+            int q = PrimitiveUtils.getLeft(state.getLongKey());
+            int pos = PrimitiveUtils.getRight(state.getLongKey());
+            int s = state.getIntValue();
+
+            for (Object2ObjectMap.Entry<OutputLabel, IntSet> trEntry : forwardEdges.get(s).object2ObjectEntrySet()) {
+                OutputLabel ol = trEntry.getKey();
+                String label;
+                if(ol == null) {
+                    label = "eps";
+                } else {
+                    label = ol.outputItems.toString() + "(" + ol.inputItem + ")";
+                }
+                for(int sTo : trEntry.getValue()) {
+                    fstVisualizer.add(String.valueOf(s), label, String.valueOf(sTo));
+                }
+            }
+            if (isFinal(q,pos))
+                fstVisualizer.addFinalState(String.valueOf(getOrCreateState(q,pos)));
+        }
+        fstVisualizer.endGraph();
+    }
+
+    /** Export all states of the Brzozowski data structure to PDF */
+    public void exportBdWithGraphViz(String file) {
+        FstVisualizer fstVisualizer = new FstVisualizer(FilenameUtils.getExtension(file), FilenameUtils.getBaseName(file));
+        fstVisualizer.beginGraph();
+        for (int s = 0; s < reverseDfa.numStates(); s++) {
+            for (Object2IntMap.Entry<OutputLabel> trEntry : reverseDfa.getOutgoingEdges(s).object2IntEntrySet()) {
+                OutputLabel ol = trEntry.getKey();
+                String label;
+                label = (ol == null ? " " : ol.outputItems.toString() + "(" + ol.inputItem + ")");
+                if(!ol.isEmpty())
+                    fstVisualizer.add(String.valueOf(s), label, String.valueOf(trEntry.getIntValue()));
+            }
+
+            if (reverseDfa.isFinal(s))
+                fstVisualizer.addFinalState(String.valueOf(s));
+        }
+        fstVisualizer.endGraph();
+    }
+
+    /** Export the still-relevant parts of this NFA to PDF */
+    public void exportRelevantBdWithGraphViz(String file) {
+        IntSet processedStates = new IntOpenHashSet();
+        FstVisualizer fstVisualizer = new FstVisualizer(FilenameUtils.getExtension(file), FilenameUtils.getBaseName(file));
+        fstVisualizer.beginGraph();
+
+        graphStep(0, fstVisualizer, processedStates);
+        fstVisualizer.endGraph();
+    }
+
+    /** Export one state, follow relevant paths recursively */
+    private void graphStep(int s, FstVisualizer fstVisualizer, IntSet processedStates) {
+        // export and follow all non-empty transitions
+        processedStates.add(s);
+
+        for (Object2IntMap.Entry<OutputLabel> trEntry : reverseDfa.getOutgoingEdges(s).object2IntEntrySet()) {
+            OutputLabel ol = trEntry.getKey();
+            String label;
+            label = (ol == null ? " " : ol.outputItems.toString());
+            if(!ol.isEmpty()) {
+                fstVisualizer.add(String.valueOf(s), label, String.valueOf(trEntry.getIntValue()));
+                if(!processedStates.contains(trEntry.getIntValue()))
+                    graphStep(trEntry.getIntValue(), fstVisualizer, processedStates);
+            }
+        }
+
+        if (reverseDfa.isFinal(s))
+            fstVisualizer.addFinalState(String.valueOf(s));
     }
 
 //    IntArrayList outputItems = new IntArrayList();
@@ -405,195 +605,6 @@ public class OneNFA {
 //        }
 //        return outputItems;
 //    }
-
-    /** Determinizes the NFA backwards into <code>this.bz</code> */
-    public void determinizeBackwards() {
-        bz.clear();
-
-        IntSet finalStates = new IntOpenHashSet();
-        for(long l : isFinal) {
-            int s = checkForState(l);
-            if(s != -1)
-                finalStates.add(s);
-        }
-        int currentState = bz.addNewState(finalStates);
-
-        // outgoing edges of the current state
-        Object2ObjectOpenHashMap<OutputLabel, IntSet> outgoingEdges = new Object2ObjectOpenHashMap<>();
-        alreadyProcessed = new BitSet(numStates());
-        toProcess = new BitSet(numStates());
-
-        // process each newly created state once until there are no newly created states left
-        do {
-            outgoingEdges.clear();
-            // collect the outgoing (backwards) edges of all original states included in this new state
-            //    and the states each edge can lead to
-
-            // the outgoing edges of which states are relevant for this new state?
-            outgoingEdges = collectOutgoingEdges(bz.getIncludedOriginalStates(currentState));
-
-            // add outgoing edges to the current state
-            for(Object2ObjectMap.Entry<OutputLabel, IntSet> outgoingEdge : outgoingEdges.object2ObjectEntrySet()) {
-                int toState = bz.getOrCreateState(outgoingEdge.getValue());
-                bz.addEdge(currentState, outgoingEdge.getKey(), toState);
-            }
-            currentState++;
-        } while (currentState < bz.numStates());
-    }
-
-
-    /** Collects the outgoing edges for a given set of states */
-    private Object2ObjectOpenHashMap<OutputLabel, IntSet> collectOutgoingEdges(IntSet includedStates) {
-        Object2ObjectOpenHashMap<OutputLabel, IntSet> outgoingEdges = new Object2ObjectOpenHashMap<>();
-
-        alreadyProcessed.clear();
-        toProcess.clear();
-        for(int s : includedStates)
-            toProcess.set(s);
-
-        while(toProcess.cardinality() != 0) {
-            int state = toProcess.nextSetBit(0);
-            toProcess.clear(state);
-            if(alreadyProcessed.get(state)) {
-                continue;
-            }
-            alreadyProcessed.set(state);
-
-            for(Object2ObjectMap.Entry<OutputLabel, IntSet> edge : backwardEdges.get(state).object2ObjectEntrySet()) {
-                if (edge.getKey() != null) {
-                    // this edge produces output, so we merge it into the existing map
-                    IntSet toStates = outgoingEdges.getOrDefault(edge.getKey(), null);
-                    if (toStates == null) {
-                        // an edge with this label does not exist yet, so we add it
-                        toStates = new IntOpenHashSet(edge.getValue());
-                        outgoingEdges.put(edge.getKey(), toStates);
-                    } else {
-                        // if an edge with this label does already exist, we just add the new to-states
-                        toStates.addAll(edge.getValue());
-                    }
-                } else {
-                    // this edge does not produce output, so we follow the transitions to the following states
-                    for(int sTo : edge.getValue()) {
-                        if(!alreadyProcessed.get(sTo)) {
-                            toProcess.set(sTo);
-                        } else {
-                        }
-                    }
-                }
-            }
-        }
-        return outgoingEdges;
-    }
-
-    /** Finds the pivots in the backwards-determinized NFA */
-    public IntArrayList getPivotsBz(IntList seq) {
-        return bz.findPivots(seq);
-    }
-
-    public void print(Fst fst) {
-
-        for(int q=-1; q<=maxQ; q++) {
-            if(q==-1)
-                System.out.print("    ");
-            else
-                System.out.print(q + (fst.getState(q).isFinal() ? (fst.getState(q).isFinalComplete() ? "c" : "f") : " ") + ": " );
-            for(int pos=0; pos<=maxPos; pos++) {
-                if(q==-1)
-                    System.out.print(pos);
-                else if(isDeadEnd(q, pos))
-                    System.out.print("x");
-                else if(checkForState(q, pos) != -1)
-                    System.out.print("o");
-                else
-                    System.out.print(" ");
-                System.out.print(" ");
-            }
-            System.out.println("");
-        }
-//        System.out.println("q, p -> s -- maxPiv");
-//        for(Long2IntOpenHashMap.Entry entry : sByQp.long2IntEntrySet()) {
-//            System.out.println(PrimitiveUtils.getLeft(entry.getLongKey()) + ", " + PrimitiveUtils.getRight(entry.getLongKey()) + " -> " + entry.getIntValue() + " -- " + maxPivot.getInt(entry.getIntValue()));
-//        }
-
-        System.out.println("");
-    }
-
-    /** Export this NFA to PDF */
-    public void exportGraphViz(String file) {
-        FstVisualizer fstVisualizer = new FstVisualizer(FilenameUtils.getExtension(file), FilenameUtils.getBaseName(file));
-        fstVisualizer.beginGraph();
-        for(Long2IntOpenHashMap.Entry state : sByQp.long2IntEntrySet()) {
-            int q = PrimitiveUtils.getLeft(state.getLongKey());
-            int pos = PrimitiveUtils.getRight(state.getLongKey());
-            int s = state.getIntValue();
-
-            for (Object2ObjectMap.Entry<OutputLabel, IntSet> trEntry : forwardEdges.get(s).object2ObjectEntrySet()) {
-                OutputLabel ol = trEntry.getKey();
-                String label;
-                if(ol == null) {
-                    label = "eps";
-                } else {
-                    label = ol.outputItems.toString() + "(" + ol.inputItem + ")";
-                }
-                for(int sTo : trEntry.getValue()) {
-                    fstVisualizer.add(String.valueOf(s), label, String.valueOf(sTo));
-                }
-            }
-            if (isFinal(q,pos))
-                fstVisualizer.addFinalState(String.valueOf(getOrCreateState(q,pos)));
-        }
-        fstVisualizer.endGraph();
-    }
-
-    /** Export all states of the Brzozowski data structure to PDF */
-    public void exportBdWithGraphViz(String file) {
-        FstVisualizer fstVisualizer = new FstVisualizer(FilenameUtils.getExtension(file), FilenameUtils.getBaseName(file));
-        fstVisualizer.beginGraph();
-        for (int s = 0; s < bz.numStates(); s++) {
-            for (Object2IntMap.Entry<OutputLabel> trEntry : bz.getOutgoingEdges(s).object2IntEntrySet()) {
-                OutputLabel ol = trEntry.getKey();
-                String label;
-                label = (ol == null ? " " : ol.outputItems.toString() + "(" + ol.inputItem + ")");
-                if(!ol.isEmpty())
-                    fstVisualizer.add(String.valueOf(s), label, String.valueOf(trEntry.getIntValue()));
-            }
-
-            if (bz.isFinal(s))
-                fstVisualizer.addFinalState(String.valueOf(s));
-        }
-        fstVisualizer.endGraph();
-    }
-
-    /** Export the still-relevant parts of this NFA to PDF */
-    public void exportRelevantBdWithGraphViz(String file) {
-        IntSet processedStates = new IntOpenHashSet();
-        FstVisualizer fstVisualizer = new FstVisualizer(FilenameUtils.getExtension(file), FilenameUtils.getBaseName(file));
-        fstVisualizer.beginGraph();
-
-        graphStep(0, fstVisualizer, processedStates);
-        fstVisualizer.endGraph();
-    }
-
-    /** Export one state, follow relevant paths recursively */
-    private void graphStep(int s, FstVisualizer fstVisualizer, IntSet processedStates) {
-        // export and follow all non-empty transitions
-        processedStates.add(s);
-
-        for (Object2IntMap.Entry<OutputLabel> trEntry : bz.getOutgoingEdges(s).object2IntEntrySet()) {
-            OutputLabel ol = trEntry.getKey();
-            String label;
-            label = (ol == null ? " " : ol.outputItems.toString());
-            if(!ol.isEmpty()) {
-                fstVisualizer.add(String.valueOf(s), label, String.valueOf(trEntry.getIntValue()));
-                if(!processedStates.contains(trEntry.getIntValue()))
-                    graphStep(trEntry.getIntValue(), fstVisualizer, processedStates);
-            }
-        }
-
-        if (bz.isFinal(s))
-            fstVisualizer.addFinalState(String.valueOf(s));
-    }
-
 
     /*
     IntSet allPivots = new IntOpenHashSet();

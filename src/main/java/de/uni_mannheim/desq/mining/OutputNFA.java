@@ -1,7 +1,5 @@
 package de.uni_mannheim.desq.mining;
 
-import de.uni_mannheim.desq.examples.DesqDfsRunDistributedMiningLocally;
-import de.uni_mannheim.desq.examples.spark.DesqRunner;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.graphviz.FstVisualizer;
 import it.unimi.dsi.fastutil.ints.IntArrayList;

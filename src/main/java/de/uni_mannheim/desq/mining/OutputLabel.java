@@ -54,9 +54,29 @@ public class OutputLabel implements Cloneable, Comparable<OutputLabel> {
             return outputItems.getInt(outputItems.size()-1);
     }
 
+    /** Returns the maximum output item other than the given pivot item.
+     * Returns -1 if there is no other such item. */
+    public int getMaxOutputItemAfterPivot(int pivot) {
+        if(outputItems.size() == 0)
+            return -1;
+        else
+            if(outputItems.getInt(outputItems.size()-1) == pivot) {
+                if(outputItems.size() == 1)
+                    return -1;
+                else
+                    return outputItems.getInt(outputItems.size() - 2);
+            }
+            else
+                return outputItems.getInt(outputItems.size()-1);
+    }
+
     public void dropMaxOutputItem() {
         justDroppedPivot = outputItems.getInt(outputItems.size()-1);
         outputItems.size(outputItems.size()-1);
+    }
+
+    public IntArrayList getOutputItems() {
+        return outputItems;
     }
 
     /** Returns the pivot that was last dropped. We use this because we reuse OutputLabel objects in an NFA and

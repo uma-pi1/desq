@@ -34,7 +34,7 @@ object DesqRunner {
     var aggregateShuffleSequences: Boolean = _
     var trimInputSequences: Boolean = _
     var useHybrid: Boolean = _
-    var useOneNFA: Boolean = _
+    var useGrid: Boolean = _
     var sendToAllFrequentItems: Boolean = _
 
     val runConf = scala.collection.mutable.Map[String, String]()
@@ -138,7 +138,7 @@ object DesqRunner {
         minerConf.setProperty("desq.mining.map.repartition", runConf.get("map.repartition").get)
         minerConf.setProperty("desq.mining.trim.input.sequences", trimInputSequences)
         minerConf.setProperty("desq.mining.use.hybrid", useHybrid)
-        minerConf.setProperty("desq.mining.use.one.nfa", useOneNFA)
+        minerConf.setProperty("desq.mining.use.grid", useGrid)
         minerConf.setProperty("desq.mining.send.to.all.frequent.items", sendToAllFrequentItems)
 
         // Construct miner
@@ -394,7 +394,7 @@ object DesqRunner {
         aggregateShuffleSequences = false
         trimInputSequences = false
         useHybrid = false
-        useOneNFA = false
+        useGrid = false
         sendToAllFrequentItems = false
         algorithm match {
             case "DDCount" =>
@@ -404,9 +404,9 @@ object DesqRunner {
             case "DDIS.tr" =>
                 aggregateShuffleSequences = false
                 trimInputSequences = true
-            case "DDIS.oneNFA" =>
+            case "DDIS.grid" =>
                 aggregateShuffleSequences = false
-                useOneNFA = true
+                useGrid = true
             case "DDIS.freq" =>
                 sendToAllFrequentItems = true
                 aggregateShuffleSequences = false
@@ -414,6 +414,11 @@ object DesqRunner {
                 sendNFAs = true
                 mergeSuffixes = true
                 aggregateShuffleSequences = true
+            case "DDIN.grid" =>
+                sendNFAs = true
+                mergeSuffixes = true
+                aggregateShuffleSequences = true
+                useGrid = true
             case "DDIN/NA" =>
                 sendNFAs = true
                 mergeSuffixes = false
