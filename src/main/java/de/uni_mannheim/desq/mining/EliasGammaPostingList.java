@@ -12,7 +12,7 @@ import java.util.BitSet;
  *
  * @author Kai
  */
-public class EliasGammaPostingList implements IPostingList{
+public class EliasGammaPostingList extends AbstractPostingList{
 
     private int currentPosition;
     private BitSet data;
@@ -34,7 +34,7 @@ public class EliasGammaPostingList implements IPostingList{
     }   
     
     @Override
-    public void addInt(int value) {
+    public void addNonNegativeIntIntern(int value) {
         
         int valueToAdd = value++;
         
@@ -114,7 +114,6 @@ public class EliasGammaPostingList implements IPostingList{
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
-    @Override
     public int nextInt() {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }

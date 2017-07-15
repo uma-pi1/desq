@@ -13,7 +13,7 @@ import java.util.BitSet;
  *
  * @author Kai
  */
-public class BitwisePostingList implements IPostingList{
+public class BitwisePostingList extends AbstractPostingList{
 
     private final IntArrayList data;
     private final IntArrayList controlData;
@@ -45,7 +45,7 @@ public class BitwisePostingList implements IPostingList{
     }
     
     @Override
-    public void addInt(int value){
+    public void addNonNegativeIntIntern(int value){
         
         assert value >= 0;
         //assert size() > 0;
@@ -123,7 +123,6 @@ public class BitwisePostingList implements IPostingList{
         data.trim();
     }
 
-    @Override
     public int nextInt() {
         // Get current control data integer
         int currentData = controlData.getInt(offset);
