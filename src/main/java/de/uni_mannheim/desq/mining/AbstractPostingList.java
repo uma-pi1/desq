@@ -13,7 +13,7 @@ import it.unimi.dsi.fastutil.bytes.ByteArrayList;
  */
 public abstract class AbstractPostingList {
         
-    private final ByteArrayList data;
+    protected ByteArrayList data;
     private int noPostings;
 
     /** Constructs a new empty posting list */
