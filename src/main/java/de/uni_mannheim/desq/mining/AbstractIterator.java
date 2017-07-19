@@ -12,7 +12,7 @@ import it.unimi.dsi.fastutil.bytes.ByteArrayList;
  * @author Kai-Arne
  */
 public abstract class AbstractIterator {
-        private ByteArrayList data;
+        protected ByteArrayList data;
 
         /** The offset at which to read. Intentionally public; use with care. */
         public int offset;
@@ -60,24 +60,7 @@ public abstract class AbstractIterator {
         /** Reads a non-negative integer value from the current posting. Throws an exception if the end of the posting
          * has been reached (so be sure to use hasNext()).
          */
-        protected int nextNonNegativeIntIntern() {
-            int result = 0;
-            int shift = 0;
-            do {
-                final int b = data.getByte(offset);
-                offset++;
-                result += (b & 0x7F) << shift;
-                if (b < 0) {
-                    shift += 7;
-                    assert shift<32;
-                } else {
-                    break;
-                }
-            } while (true);
-
-            assert result >= 1;
-            return result - 1; // since we stored ints incremented by 1
-        }
+        abstract int nextNonNegativeIntIntern();
 
         /** Reads an integer value from the current posting. Throws an exception if the end of the posting
          * has been reached (so be sure to use hasNext()).
