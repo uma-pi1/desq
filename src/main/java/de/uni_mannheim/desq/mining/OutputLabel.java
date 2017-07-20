@@ -79,6 +79,10 @@ public class OutputLabel implements Cloneable, Comparable<OutputLabel> {
         return outputItems;
     }
 
+    public int getInputItem() {
+        return inputItem;
+    }
+
     /** Returns the pivot that was last dropped. We use this because we reuse OutputLabel objects in an NFA and
      * it can happen that we drop a pivot item from a label that we visit again later on in the NFA. */
     public int getJustDroppedPivot() {

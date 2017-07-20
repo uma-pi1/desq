@@ -365,7 +365,7 @@ public class OutputNFA {
                 for (Object2IntMap.Entry<OutputLabel> trEntry : outgoingTransitions.get(s).object2IntEntrySet()) {
                     OutputLabel ol = trEntry.getKey();
                     String label;
-                    label = ol.outputItems.toString();
+                    label = (ol == null ? " " : ol.outputItems.toString() + "(" + ol.inputItem + ")");
                     fstVisualizer.add(String.valueOf(s), label, String.valueOf(mergedInto.getInt(trEntry.getIntValue())));
                 }
                 if (isFinal.get(s))

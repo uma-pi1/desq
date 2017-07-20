@@ -1,11 +1,17 @@
 package de.uni_mannheim.desq.util;
 
 import de.uni_mannheim.desq.fst.Fst;
+import de.uni_mannheim.desq.fst.graphviz.FstVisualizer;
 import de.uni_mannheim.desq.mining.*;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.longs.LongAVLTreeSet;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongSortedSet;
 import it.unimi.dsi.fastutil.objects.*;
+import org.apache.commons.io.FilenameUtils;
 
 import java.util.BitSet;
 
@@ -19,7 +25,11 @@ public class ReverseDFA {
     ObjectArrayList<IntSet> includedStates = new ObjectArrayList<>();
 
     /** Stores the outgoing edges of each state */
-    ObjectArrayList<Object2IntAVLTreeMap<OutputLabel>> outgoingEdges = new ObjectArrayList<>();
+    ObjectArrayList<Object2IntOpenHashMap<OutputLabel>> outgoingEdges = new ObjectArrayList<>();
+
+    /** Stores the outgoing edges after we have collected all of them */
+    ObjectArrayList<IntArrayList> outgoingToStates = new ObjectArrayList<>();
+    ObjectArrayList<ObjectArrayList<OutputLabel>> outgoingLabels = new ObjectArrayList<>();
 
     /** A map of all states by their included original states. We use this to check whether we already have a state
      * that includes a given set of original states */
@@ -51,7 +61,10 @@ public class ReverseDFA {
     ExtractedNFA forwardDFA = new ExtractedNFA(false);
 
     /** A list of output labels from which we need to drop the pivot item */
-    ReferenceSet<IntArrayList> outputItemsWithPivotItem = new ReferenceOpenHashSet<>();
+    ObjectList<IntArrayList> outputItemsWithPivotItem = new ObjectArrayList<>();
+
+    /** A list of edges to drop after we have extracted the NFA for the current pivot item */
+    LongSortedSet edgesToDelete = new LongAVLTreeSet();
 
     public ReverseDFA(QPGrid grid) {
         this.grid = grid;
@@ -59,17 +72,26 @@ public class ReverseDFA {
 
     public void clear() {
         includedStates.clear();
-        outgoingEdges.clear();
+//        outgoingEdges.clear(); // we reuse the objects here, so we don't clear
+//        outgoingToStates.clear(); // we reuse the objects
+//        outgoingLabels.clear();
         statesByIncludedOriginalStates.clear();
         maxPivot.clear();
         isFinal.clear();
+        edgesToDelete.clear();
     }
 
     /** Add a new state that includes original states <code>inclStates</code> (original states = states of the original NFA) */
     public int addNewState(IntSet inclStates) {
         int numState = numStates();
         includedStates.add(inclStates);
-        outgoingEdges.add(new Object2IntAVLTreeMap<>()); // TODO: probably better not to use tree maps here
+        if(outgoingEdges.size() > numState)
+            // reuse old object
+            outgoingEdges.get(numState).clear();
+        else
+            outgoingEdges.add(new Object2IntOpenHashMap<>());
+
+
         statesByIncludedOriginalStates.put(inclStates, numState);
 
         // maxPivot of this state is the maxPivot of all included states
@@ -113,7 +135,7 @@ public class ReverseDFA {
     }
 
     /** Returns the outgoing edges of state <code>state</code> */
-    public Object2IntAVLTreeMap<OutputLabel> getOutgoingEdges(int state) {
+    public Object2IntOpenHashMap<OutputLabel> getOutgoingEdges(int state) {
         return outgoingEdges.get(state);
     }
 
@@ -129,10 +151,31 @@ public class ReverseDFA {
 
 
 
+
     /** Finds the pivot items from this DFA and extracts one DFA per pivot item */
     public void constructNFAs(ObjectArrayList<Sequence> serializedNFAs, Fst fst) {
         previousMaxPivots = new int[numStates()];
         int currentPivot = maxPivot.getInt(0);
+
+        // First, we move the outgoing edges into two parallel array lists
+        outgoingLabels.ensureCapacity(numStates());
+        outgoingToStates.ensureCapacity(numStates());
+        for(int s=0; s<numStates(); s++) {
+            if(outgoingLabels.size() > s) {
+                outgoingLabels.get(s).clear();
+                outgoingToStates.get(s).clear();
+            } else {
+                outgoingLabels.add(new ObjectArrayList<>());
+                outgoingToStates.add(new IntArrayList());
+            }
+            outgoingLabels.get(s).ensureCapacity(outgoingEdges.get(s).size());
+            outgoingToStates.get(s).ensureCapacity(outgoingEdges.get(s).size());
+            for(Object2IntMap.Entry<OutputLabel> entry : outgoingEdges.get(s).object2IntEntrySet()) {
+                outgoingLabels.get(s).add(entry.getKey());
+                outgoingToStates.get(s).add(entry.getIntValue());
+            }
+        }
+
 
         // for each found pivot item p, we run through the grid once to do 2 things:
         //   1) determine the next pivot item
@@ -160,8 +203,9 @@ public class ReverseDFA {
             forwardDFA = extractedNFA.reverseAndDeterminize(forwardDFA);
 
             // export PDFs
-//            extractedNFA.exportPDF(seq + "-piv" + lastPivot + "-extracted.pdf");
-//            forwardDFA.exportPDF(seq + "-piv" + lastPivot + "-forward.pdf");
+//            extractedNFA.exportPDF(seq + "-piv" + currentPivot + "-extracted.pdf");
+//            forwardDFA.exportPDF(seq + "-piv" + currentPivot + "-forward.pdf");
+//            exportCurrentToPDF(seq + "-reverse-after-" + currentPivot + ".pdf");
 
             // serialize the reversed and determinized DFA
             WeightedSequence send = forwardDFA.serialize(fst, currentPivot);
@@ -176,11 +220,37 @@ public class ReverseDFA {
             }
             outputItemsWithPivotItem.clear();
 
+
+            // delete edges
+            for(long stateEdge : edgesToDelete) {
+                int e = -PrimitiveUtils.getLeft(stateEdge);
+                int state = PrimitiveUtils.getRight(stateEdge);
+                int numEdges = outgoingLabels.get(state).size();
+
+                // if the edge we want to delete is not the last one, we move the last edge to the one we want to delete
+                if(e != numEdges-1) {
+                    outgoingLabels.get(state).set(e, outgoingLabels.get(state).get(numEdges-1));
+                    outgoingToStates.get(state).set(e, outgoingToStates.get(state).getInt(numEdges-1));
+                }
+
+                // delete the last edge
+                outgoingLabels.get(state).size(numEdges-1);
+                outgoingToStates.get(state).size(numEdges-1);
+            }
+            edgesToDelete.clear();
+
             // the next pivot item is the maxPivot at the starting state
             currentPivot = maxPivot.getInt(0);
+
         }
     }
 
+    private void printMaxPiv() {
+        for(int i=0; i<maxPivot.size(); i++) {
+            System.out.print(i + ":" + maxPivot.getInt(i) + " ");
+        }
+        System.out.println("");
+    }
 
     /**
      * Extracts relevant parts for one state in this DFA. Does multiple things:
@@ -208,13 +278,15 @@ public class ReverseDFA {
         maxPivot.set(state, -1); // TODO: is this necessary?
 
         // process all outgoing edges of this state: follow all paths that are relevant for the current pivot
-        for(Object2IntMap.Entry<OutputLabel> tr : getOutgoingEdges(state).object2IntEntrySet()) {
-            ol = tr.getKey();
-            toState = tr.getIntValue();
+        for(int e = 0; e<outgoingLabels.get(state).size(); e++) { // e ~ edge number
+            ol = outgoingLabels.get(state).get(e);
+            toState = outgoingToStates.get(state).getInt(e);
             boolean pivotInThisTr = false;
-            if(haveSeenPivot || // we have already seen the pivot on this path, so we add all subpaths to the NFA
-                    previousMaxPivots[toState] == currentPivot || // the to-state was labeled with the pivot item last round
-                    ol.getMaxOutputItem() == currentPivot) { // the transition contains (or contained) the pivot
+
+            if((haveSeenPivot || // we have already seen the pivot on this path, so we add all subpaths to the NFA
+               previousMaxPivots[toState] == currentPivot || // the to-state was labeled with the pivot item last round
+               ol.getMaxOutputItem() == currentPivot) // the transition contains the pivot
+               && (previousMaxPivots[toState] >= 0 || isFinal(toState)) ) {  // we don't follow this path if it is marked as a dead end // TODO: is not necessary anymore when we delete edges
 
                 // if the the pivot item occurs in this transition, we delete it
                 // (we first mark it for deletion and delete it after we extracted the DFA for the current pivot)
@@ -238,14 +310,40 @@ public class ReverseDFA {
 
             // determine the maxPivot item coming out of this path
             int maxPivotThisTr = Math.max(ol.getMaxOutputItemAfterPivot(currentPivot), maxPivot.getInt(toState));
-            if(ol.isEmpty() || ol.getMaxOutputItemAfterPivot(currentPivot) == -1)
+
+            // we delete this edge if one of the following is true:
+            // 1) the label of this outgoing transition is empty
+            // 2) the label of this outgoing transition is empty after removing the current pivot item
+            // 3) the to-state has no valid outgoing edges and is not a final state
+            if(ol.isEmpty() || ol.getMaxOutputItemAfterPivot(currentPivot) == -1 || (maxPivot.getInt(toState) < 0 && !isFinal(toState))) {
                 maxPivotThisTr = -2; // ignore the value of this path if the path is irrelevant
-            if(maxPivot.getInt(toState) < 0 && !isFinal(toState))
-                maxPivotThisTr = -2; // ignore the value if the to-state is a dead end for this pivot (except if its final)
+
+                // we further mark this edge for deletion
+                edgesToDelete.add(PrimitiveUtils.combine(-e, state));
+            }
 
             newPivot = Math.max(maxPivotThisTr, newPivot);
         }
         // update the max pivot of the current state
         maxPivot.set(state, newPivot);
+    }
+
+    public void exportCurrentToPDF(String file) {
+        FstVisualizer fstVisualizer = new FstVisualizer(FilenameUtils.getExtension(file), FilenameUtils.getBaseName(file));
+        fstVisualizer.beginGraph();
+        for (int s = 0; s < numStates(); s++) {
+            for(int e = 0; e< outgoingLabels.get(s).size(); e++) { // e ~ edge number
+                OutputLabel ol = outgoingLabels.get(s).get(e);
+                int toState = outgoingToStates.get(s).getInt(e);
+                String label;
+                label = (ol == null ? " " : ol.getOutputItems().toString() + "(" + ol.getInputItem() + ")");
+                if(!ol.isEmpty())
+                    fstVisualizer.add(String.valueOf(s), label, String.valueOf(toState));
+            }
+
+            if (isFinal(s))
+                fstVisualizer.addFinalState(String.valueOf(s));
+        }
+        fstVisualizer.endGraph();
     }
 }

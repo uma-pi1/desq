@@ -130,7 +130,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 	final boolean useHybrid;
 
 	/** If true, we construct one NFA to find pivots */
-	final boolean useOneNFA;
+	final boolean useGrid;
 
 	/** If true, we take all frequent items of the sequence as pivot items*/
 	final boolean sendToAllFrequentItems;
@@ -216,7 +216,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		mergeSuffixes = ctx.conf.getBoolean("desq.mining.merge.suffixes", false);
 		trimInputSequences = ctx.conf.getBoolean("desq.mining.trim.input.sequences", false);
 		useHybrid = ctx.conf.getBoolean("desq.mining.use.hybrid", false);
-		useOneNFA = ctx.conf.getBoolean("desq.mining.use.grid", false);
+		useGrid = ctx.conf.getBoolean("desq.mining.use.grid", false);
 		sendToAllFrequentItems = ctx.conf.getBoolean("desq.mining.send.to.all.frequent.items", false);
 
 		// create FST once per JVM
@@ -634,7 +634,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 //					}
 //				}
 			}
-		} else if(useOneNFA) {
+		} else if(useGrid) {
 		    // construct the grid
 			buildGrid(inputSequence);
 
@@ -708,46 +708,47 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 		serializedNFAs.clear();
 
-		if (useOneNFA) {
-				buildGrid(inputSequence);
-				if (grid.numStates() > 0) {
-					grid.constructPivotNFAs(serializedNFAs, fst);
-				}
-		} else {
+        if (useGrid) {
+            buildGrid(inputSequence);
+            if (grid.numStates() > 0) {
+                grid.constructPivotNFAs(serializedNFAs, fst);
+            }
+        } else {
 
-			nfas.clear();
-			if (useTwoPass) {
-				dfaStateSequence.clear();
-				if (dfa.acceptsReverse(inputSequence, dfaStateSequence, dfaInitialPos)) {
+            nfas.clear();
+            if (useTwoPass) {
+                dfaStateSequence.clear();
+                if (dfa.acceptsReverse(inputSequence, dfaStateSequence, dfaInitialPos)) {
 
-					// run the first incStep; start at all positions from which a final FST state can be reached
-					for (int i = 0; i < dfaInitialPos.size(); i++) {
-						piStep(-1, dfaInitialPos.getInt(i), fst.getInitialState(), 0, null, -1);
-					}
+                    // run the first incStep; start at all positions from which a final FST state can be reached
+                    for (int i = 0; i < dfaInitialPos.size(); i++) {
+                        piStep(-1, dfaInitialPos.getInt(i), fst.getInitialState(), 0, null, -1);
+                    }
 
-					// clean up
-					dfaInitialPos.clear();
-				}
-			} else {
-				piStep(-1, 0, fst.getInitialState(), 0, null, -1);
-			}
-			for(OutputNFA nfa : nfas.getNFAs()) {
-			    Sequence send;
-                if(nfa.hasStoppedNFAconstruction()) { // stoppedNFAconstruction will not be true unless useHybrid=true
+                    // clean up
+                    dfaInitialPos.clear();
+                }
+            } else {
+                piStep(-1, 0, fst.getInitialState(), 0, null, -1);
+            }
+            for (OutputNFA nfa : nfas.getNFAs()) {
+                Sequence send;
+                if (nfa.hasStoppedNFAconstruction()) { // stoppedNFAconstruction will not be true unless useHybrid=true
                     // if we stopped NFA construction at some point, we send the relevant part of the input sequence
                     send = nfa.prepInputSequence(currentInputSequence);
                 } else {
                     // otherwise, we send serialize the NFA we constructed
-					if(mergeSuffixes)
-						send = nfa.mergeAndSerialize(true);
-					else
-						send = nfa.serialize();
+//					nfa.exportGraphViz(inputSequence + "-piv"+nfa.pivot + "-DDIN.pdf");
+                    if (mergeSuffixes)
+                        send = nfa.mergeAndSerialize(true);
+                    else
+                        send = nfa.serialize();
                 }
 
-				send.add(nfa.pivot);
+                send.add(nfa.pivot);
                 serializedNFAs.add(send);
-			}
-		}
+            }
+        }
 		return serializedNFAs;
 	}
 
