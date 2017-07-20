@@ -94,4 +94,14 @@ public class NewPostingList extends AbstractPostingList{
             return result - 1; // since we stored ints incremented by 1
         }    
     }
+
+/*    public static void main(String[] args){
+        NewPostingList postingList = new NewPostingList();
+
+        postingList.addNonNegativeIntIntern(12);
+        
+        AbstractIterator iterator = postingList.iterator();
+        
+        System.out.println(iterator.nextNonNegativeIntIntern());
+    }*/
 }
