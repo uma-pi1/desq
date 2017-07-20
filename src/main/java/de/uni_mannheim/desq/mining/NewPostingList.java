@@ -21,7 +21,7 @@ public class NewPostingList extends AbstractPostingList{
     }
     
     @Override
-    void addNonNegativeIntIntern(int value) {
+    protected void addNonNegativeIntIntern(int value) {
         assert value >= 0;
         assert size() > 0;
         value += 1; // we add the integer increased by one to distinguish it from separators
@@ -39,22 +39,22 @@ public class NewPostingList extends AbstractPostingList{
     }
     
     @Override
-    void clear() {
+    public void clear() {
         data.clear();
         noPostings = 0;
     }
 
     @Override
-    int noBytes() { return data.size(); }
+    public int noBytes() { return data.size(); }
 
     @Override
-    void trim() { data.trim(); }
+    public void trim() { data.trim(); }
 
     @Override
-    Object getData() { return this.data; }
+    public Object getData() { return this.data; }
     
     @Override
-    AbstractIterator iterator() { return new Iterator(this); }
+    public AbstractIterator iterator() { return new Iterator(this); }
     
     public final class Iterator extends AbstractIterator {
         public Iterator() {
@@ -75,7 +75,7 @@ public class NewPostingList extends AbstractPostingList{
         }
         
         @Override
-        int nextNonNegativeIntIntern() {
+        protected int nextNonNegativeIntIntern() {
             int result = 0;
             int shift = 0;
             do {

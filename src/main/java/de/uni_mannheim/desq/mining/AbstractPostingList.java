@@ -15,25 +15,25 @@ public abstract class AbstractPostingList {
 
     /** Appends a non negative integer value to the current posting list. Only use to append 0 to end
      * the current posting. */
-    abstract void addNonNegativeIntIntern(int value);
+    protected abstract void addNonNegativeIntIntern(int value);
     
     /** Clears this posting list. Reset number of postings. */
-    abstract void clear();
+    public abstract void clear();
 
     /** Returns the number of bytes using by this posting list. If an additional element is appended to this posting
      * list, it starts at the offset given by this method. */
-    abstract int noBytes();
+    public abstract int noBytes();
 
     /** Trims this posting list (so that the capacity of the underlying byte array equals the number of bytes
      * in this posting list.
      */
-    abstract void trim();
+    public abstract void trim();
     
     /** Returns a data structure containing the currently stored data. */
-    abstract Object getData();
+    public abstract Object getData();
     
     /** Returns an iterator that can be used to read the postings in this posting list. */
-    abstract AbstractIterator iterator();
+    public abstract AbstractIterator iterator();
     
     /** Returns the number of postings in this posting list. */
     public int size() {

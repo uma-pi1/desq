@@ -21,9 +21,9 @@ public class PostingListTest {
     public int[] inputData;
     
     @Before
-    public void initialize(){
+    public void setUp(){
         postingList = new NewPostingList();
-        numberOfElements = 10;
+        numberOfElements = 100000000;
         inputData = new int[numberOfElements];
                  
         for(int i = 0; i < numberOfElements; i++){
@@ -38,9 +38,10 @@ public class PostingListTest {
             }
         }
         
-        for(int i = 0; i < 10; i++){
-            postingList.addInt(10);
-            //postingList.addNonNegativeInt(10);
+        postingList.newPosting();
+        
+        for(int i = 0; i < numberOfElements; i++){
+            postingList.addNonNegativeInt(inputData[i]);
         }
         
         iterator = postingList.iterator();
@@ -48,8 +49,8 @@ public class PostingListTest {
     
     @Test
     public void postingListTest(){        
-        for(int i = 0; i < 10; i++){
-            assertEquals("Test 1: ", 1 ,1);
+        for(int i = 0; i < numberOfElements; i++){
+            assertEquals(inputData[i], iterator.nextNonNegativeInt());
         }
     }
 }
