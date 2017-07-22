@@ -90,7 +90,7 @@ public class NewPostingList extends AbstractPostingList{
             } while (true);
 
             assert result >= 0;
-            return result; // since we stored ints incremented by 1
+            return result;
         }
         
         /** Moves to the next posting in the posting list and returns true if such a posting exists. Do not use

@@ -25,7 +25,7 @@ public class PostingListTest {
     
     @Before
     public void setUp(){
-        postingList = new NewPostingList();
+        postingList = new VarBytePostingList();
         numberOfElements = 10;
         inputData = new int[numberOfElements];
         inputData2 = new int[numberOfElements];
@@ -33,13 +33,13 @@ public class PostingListTest {
         for(int i = 0; i < numberOfElements; i++){
             int prop = (int) (Math.random() * 100);
              
-            if(i < 5){
+            if(prop < 5){
                 inputData[i] = 0;
                 inputData2[i] = 0;
-            } else if (i >= 5 && i < 10){
+            } else if (prop >= 5 && prop < 10){
                 inputData[i] = (int) (Math.random() * 2000000000);
                 inputData2[i] = (int) (Math.random() * 2000000000);
-            } else if (i >= 20){
+            } else if (prop >= 20){
                 inputData[i] = (int) (Math.random() * 127);
                 inputData2[i] = (int) (Math.random() * 127);
             }

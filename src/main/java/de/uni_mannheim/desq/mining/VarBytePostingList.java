@@ -14,10 +14,27 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
  */
 public class VarBytePostingList extends AbstractPostingList{
 
+    private final ByteArrayList data;
     private final LongArrayList controlData;
-    private int dataCount;
     private int bitsWritten;
     private long controlDataLong;
+    
+    private final static int[] MAPPING;
+    
+    static {
+        MAPPING = new int[33];
+        for(int i = 0; i <= 32; i++){
+            if(i <= 8){
+                MAPPING[i] = 1;
+            } else if(i > 8 && i <= 16){
+                MAPPING[i] = 2;
+            } else if(i > 16 && i <= 24){
+                MAPPING[i] = 3;
+            } else if(i > 24 && i <= 32){
+                MAPPING[i] = 4;
+            }
+        }
+    }
     
     public VarBytePostingList() {
         this.data = new ByteArrayList();
@@ -29,8 +46,7 @@ public class VarBytePostingList extends AbstractPostingList{
 
     }
     
-    
-    
+    @Override
     public void addNonNegativeIntIntern(int value){
         if(bitsWritten == 64){
             this.controlDataLong = 0;
@@ -38,30 +54,31 @@ public class VarBytePostingList extends AbstractPostingList{
             this.bitsWritten = 0;
         }
         
-        System.out.println("value: " + Integer.toBinaryString(value));
-        int length = 32 - Integer.numberOfLeadingZeros(value);
-        
-        this.dataCount = length/8 + 1;
-        
-        System.out.println("datacount: " + (dataCount));
-        
+        int dataCount = MAPPING[32 - Integer.numberOfLeadingZeros(value)];
+                
         for(int i = 0; i < dataCount; i++){
             final int b = value & 0xFF;
             this.data.add((byte)b);
             value >>>= 8;
         }
-                
+        
+        System.out.println("count: " + dataCount);
+        
         switch(dataCount){
-            case 0:
-                break;
             case 1:
-                this.controlDataLong |= (long) 1 << bitsWritten;
+                System.out.println("switch1");
                 break;
             case 2:
-                this.controlDataLong |= (long) 2 << bitsWritten;
+                this.controlDataLong |= (long) 1 << bitsWritten;
+                System.out.println("switch2");
                 break;
             case 3:
+                this.controlDataLong |= (long) 2 << bitsWritten;
+                System.out.println("switch3");
+                break;
+            case 4:
                 this.controlDataLong |= (long) 3 << bitsWritten;
+                System.out.println("switch4");
                 break;
         }
         
@@ -70,28 +87,40 @@ public class VarBytePostingList extends AbstractPostingList{
         this.controlData.set(this.controlData.size() - 1, controlDataLong);
     }
     
-    public void printData(){
-        for(int i = 0; i < data.size(); i++){
-            System.out.println("data: " + Integer.toBinaryString(data.getByte(i)));
-        }
-        
-        for(int i = 0; i < controlData.size(); i++){
-            System.out.println("controlData: " + Long.toBinaryString(controlData.getLong(i)));
-        }
-    }
-    
+    @Override
     public AbstractIterator iterator() {
         return new Iterator(this.data, this.controlData);
+    }
+
+    @Override
+    public void clear() {
+        this.data.clear();
+        this.controlData.clear();
+        this.bitsWritten = 0;
+        this.controlDataLong = 0;
+    }
+
+    @Override
+    public int noBytes() {
+        return data.size();
+    }
+
+    @Override
+    public void trim() {
+        this.data.trim();
+    }
+
+    @Override
+    public Object getData() {
+        return this.data;
     }
     
     public class Iterator extends AbstractIterator{
 
-        private ByteArrayList data;
-        private LongArrayList controlData;
+        private final LongArrayList controlData;
         
         private int internalOffset;
         private int controlOffset;
-        private int offset;
         
         public Iterator(ByteArrayList data, LongArrayList controlData) {
             this.data = data;
@@ -101,15 +130,16 @@ public class VarBytePostingList extends AbstractPostingList{
             this.offset = 0;
         }
         
+        @Override
         public int nextNonNegativeIntIntern(){
             long controlDataLong = this.controlData.getLong(this.controlOffset);
             
-            int noBytes = (int) ((controlDataLong >>> this.internalOffset) & 3);
-            
+            int noBytes = (int) ((controlDataLong >>> this.internalOffset) & 3) + 1;
+                        
             int returnValue = 0;
             
             for(int i = 0; i < noBytes; i++){
-                returnValue |= this.data.getByte(this.offset) << (i * 8);
+                returnValue |= ((this.data.getByte(this.offset) & 0xFF) << (i * 8));
                 this.offset++;
             }
             
@@ -117,27 +147,24 @@ public class VarBytePostingList extends AbstractPostingList{
             
             if(this.internalOffset == 64){
                 this.internalOffset = 0;
+                this.controlOffset++;
             }
             
             return returnValue;
         }
-    }
-    
-    public static void main(String[] args){
-        VarBytePostingList postinglist = new VarBytePostingList();
-        
-        for(int i = 0; i < 10; i++){
-            postinglist.addNonNegativeIntIntern(1848375);
+
+        @Override
+        public boolean nextPosting() {
+            if (offset >= data.size())
+                return false;
+
+            int b;
+            do {
+                b = this.nextNonNegativeIntIntern();
+                if (offset >= data.size())
+                    return false;
+            } while (b!=0);
+            return true;
         }
-        
-        VarBytePostingList.Iterator iterator = (VarBytePostingList.Iterator) postinglist.iterator();
-        
-        for(int i = 0; i < 10; i++){
-            System.out.println("return: " + iterator.nextNonNegativeIntIntern());
-        }
-        
-        //postinglist.printData();
-        
     }
-    
 }
