@@ -6,6 +6,8 @@
 package de.uni_mannheim.desq.mining;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -19,22 +21,27 @@ public class PostingListTest {
     public AbstractIterator iterator;
     public int numberOfElements;
     public int[] inputData;
+    public int[] inputData2;
     
     @Before
     public void setUp(){
         postingList = new NewPostingList();
-        numberOfElements = 100000000;
+        numberOfElements = 10;
         inputData = new int[numberOfElements];
+        inputData2 = new int[numberOfElements];
                  
         for(int i = 0; i < numberOfElements; i++){
             int prop = (int) (Math.random() * 100);
              
             if(i < 5){
                 inputData[i] = 0;
+                inputData2[i] = 0;
             } else if (i >= 5 && i < 10){
                 inputData[i] = (int) (Math.random() * 2000000000);
+                inputData2[i] = (int) (Math.random() * 2000000000);
             } else if (i >= 20){
                 inputData[i] = (int) (Math.random() * 127);
+                inputData2[i] = (int) (Math.random() * 127);
             }
         }
         
@@ -44,13 +51,28 @@ public class PostingListTest {
             postingList.addNonNegativeInt(inputData[i]);
         }
         
+        postingList.newPosting();
+        
+        for(int i = 0; i < numberOfElements; i++){
+            postingList.addNonNegativeInt(inputData2[i]);
+        }
+        
         iterator = postingList.iterator();
     }
     
     @Test
-    public void postingListTest(){        
+    public void postingListNextNonNegativeTest(){
         for(int i = 0; i < numberOfElements; i++){
             assertEquals(inputData[i], iterator.nextNonNegativeInt());
+        }
+    }
+    
+    @Test
+    public void postingListNextPostingTest(){
+        assertTrue(iterator.nextPosting());
+        
+        for(int i = 0; i < numberOfElements; i++){
+            assertEquals(inputData2[i], iterator.nextNonNegativeInt());
         }
     }
 }

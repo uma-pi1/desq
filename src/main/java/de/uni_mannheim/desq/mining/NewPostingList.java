@@ -24,7 +24,6 @@ public class NewPostingList extends AbstractPostingList{
     protected void addNonNegativeIntIntern(int value) {
         assert value >= 0;
         assert size() > 0;
-        value += 1; // we add the integer increased by one to distinguish it from separators
 
         while (true) {
             final int b = value & 0x7F;
@@ -90,18 +89,26 @@ public class NewPostingList extends AbstractPostingList{
                 }
             } while (true);
 
-            assert result >= 1;
-            return result - 1; // since we stored ints incremented by 1
-        }    
+            assert result >= 0;
+            return result; // since we stored ints incremented by 1
+        }
+        
+        /** Moves to the next posting in the posting list and returns true if such a posting exists. Do not use
+         * for the first posting. */
+        
+        @Override
+        public boolean nextPosting() {
+            if (offset >= data.size())
+                return false;
+
+            byte b;
+            do {
+                b = data.getByte(offset);
+                offset++;
+                if (offset >= data.size())
+                    return false;
+            } while (b!=0);
+            return true;
+        }
     }
-
-/*    public static void main(String[] args){
-        NewPostingList postingList = new NewPostingList();
-
-        postingList.addNonNegativeIntIntern(12);
-        
-        AbstractIterator iterator = postingList.iterator();
-        
-        System.out.println(iterator.nextNonNegativeIntIntern());
-    }*/
 }

@@ -17,26 +17,6 @@ public abstract class AbstractIterator {
         /** The offset at which to read. Intentionally public; use with care. */
         public int offset;
 
-        /** Creates an iterator without any data. This iterator must not be used before a posting list is set using
-         * {@link #reset(PostingList)}.
-         */
-        public AbstractIterator() {
-            this.data = null;
-            this.offset = 0;
-        }
-
-        /** Creates an iterator backed by the given data */
-        public AbstractIterator(ByteArrayList data) {
-            this.data = data;
-            this.offset = 0;
-        }
-
-        /** Creates an iterator backed by the given posting list */
-        public AbstractIterator(AbstractPostingList postingList) {
-            this.data = (ByteArrayList) postingList.getData();
-            this.offset = 0;
-        }
-
         /** Resets this iterator to the beginning of the first posting. */
         public void reset() {
             this.offset = 0;
@@ -80,17 +60,5 @@ public abstract class AbstractIterator {
 
         /** Moves to the next posting in the posting list and returns true if such a posting exists. Do not use
          * for the first posting. */
-        public boolean nextPosting() {
-            if (offset >= data.size())
-                return false;
-
-            byte b;
-            do {
-                b = data.getByte(offset);
-                offset++;
-                if (offset >= data.size())
-                    return false;
-            } while (b!=0);
-            return true;
-        }
+        abstract public boolean nextPosting();
 }
