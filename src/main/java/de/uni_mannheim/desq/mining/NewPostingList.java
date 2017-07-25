@@ -101,10 +101,10 @@ public class NewPostingList extends AbstractPostingList{
             if (offset >= data.size())
                 return false;
 
-            byte b;
+            int b;
             do {
-                b = data.getByte(offset);
-                offset++;
+                b = this.nextNonNegativeIntIntern();
+                //offset++;
                 if (offset >= data.size())
                     return false;
             } while (b!=0);

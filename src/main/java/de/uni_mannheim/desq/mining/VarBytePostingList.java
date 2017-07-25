@@ -18,6 +18,7 @@ public class VarBytePostingList extends AbstractPostingList{
     private final LongArrayList controlData;
     private int bitsWritten;
     private long controlDataLong;
+    private int noControlData;
     
     private final static int[] MAPPING;
     
@@ -42,6 +43,7 @@ public class VarBytePostingList extends AbstractPostingList{
         
         this.bitsWritten = 0;
         this.controlDataLong = 0;
+        this.noControlData = 0;
         this.controlData.add(controlDataLong);
 
     }
@@ -51,40 +53,35 @@ public class VarBytePostingList extends AbstractPostingList{
         if(bitsWritten == 64){
             this.controlDataLong = 0;
             this.controlData.add(controlDataLong);
+            this.noControlData++;
             this.bitsWritten = 0;
         }
         
         int dataCount = MAPPING[32 - Integer.numberOfLeadingZeros(value)];
-                
+
         for(int i = 0; i < dataCount; i++){
             final int b = value & 0xFF;
-            this.data.add((byte)b);
+            data.add((byte)b);
             value >>>= 8;
         }
-        
-        System.out.println("count: " + dataCount);
-        
+                
         switch(dataCount){
             case 1:
-                System.out.println("switch1");
                 break;
             case 2:
                 this.controlDataLong |= (long) 1 << bitsWritten;
-                System.out.println("switch2");
                 break;
             case 3:
                 this.controlDataLong |= (long) 2 << bitsWritten;
-                System.out.println("switch3");
                 break;
             case 4:
                 this.controlDataLong |= (long) 3 << bitsWritten;
-                System.out.println("switch4");
                 break;
         }
         
         bitsWritten += 2;
         
-        this.controlData.set(this.controlData.size() - 1, controlDataLong);
+        this.controlData.set(this.noControlData, controlDataLong);
     }
     
     @Override
@@ -122,32 +119,35 @@ public class VarBytePostingList extends AbstractPostingList{
         private int internalOffset;
         private int controlOffset;
         
+        private long controlDataLongLocal;
+        
         public Iterator(ByteArrayList data, LongArrayList controlData) {
             this.data = data;
             this.controlData = controlData;
             this.internalOffset = 0;
             this.controlOffset = 0;
             this.offset = 0;
+            
+            this.controlDataLongLocal = this.controlData.getLong(this.controlOffset);
         }
         
         @Override
         public int nextNonNegativeIntIntern(){
-            long controlDataLong = this.controlData.getLong(this.controlOffset);
-            
-            int noBytes = (int) ((controlDataLong >>> this.internalOffset) & 3) + 1;
                         
             int returnValue = 0;
             
-            for(int i = 0; i < noBytes; i++){
+            for(int i = 0; i < (int) ((controlDataLongLocal) & 3) + 1; i++){
                 returnValue |= ((this.data.getByte(this.offset) & 0xFF) << (i * 8));
                 this.offset++;
             }
             
             this.internalOffset += 2;
+            this.controlDataLongLocal >>= 2;
             
             if(this.internalOffset == 64){
                 this.internalOffset = 0;
                 this.controlOffset++;
+                this.controlDataLongLocal = this.controlData.getLong(this.controlOffset);
             }
             
             return returnValue;
