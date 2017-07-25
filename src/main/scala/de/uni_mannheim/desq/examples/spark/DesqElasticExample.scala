@@ -30,6 +30,7 @@ def main(args: Array[String]) {
   val limit = 10000
   val query_l = "\"Donald Trump\""
   val query_r = "\"Hillary Clinton\""
-  queryHashmap(index, limit, query_l, query_r)
+//  queryHashmap(index, limit, query_l, query_r)
+  es.createNYTIndex("index")
 }
 }
