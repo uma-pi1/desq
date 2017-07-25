@@ -12,13 +12,13 @@ import scala.collection.mutable
   */
 class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 
-  override def mine(data: DefaultDesqDataset): DefaultDesqDataset= {
+  override def mine(data: DefaultDesqDataset): DefaultDesqDataset = {
     val minSupport = ctx.conf.getLong("desq.mining.min.support")
     val filterFunction = (x: (Sequence, Long)) => x._2 >= minSupport
     mine(data, filterFunction)
   }
 
-  override def mine(data: DefaultDesqDataset, filter: ((Sequence, Long)) => Boolean): DefaultDesqDataset= {
+  override def mine(data: DefaultDesqDataset, filter: ((Sequence, Long)) => Boolean): DefaultDesqDataset = {
     // localize the variables we need in the RDD
     val dictBroadcast = data.broadcastDictionary()
     val conf = ctx.conf
@@ -72,7 +72,7 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
   }
 
 
-  override def mine(data: IdentifiableDesqDataset, docIDs : mutable.Map[Long, mutable.BitSet], filter: ((Sequence, (Long, Long))) => Boolean): DefaultDesqDatasetWithAggregates = {
+  override def mine(data: IdentifiableDesqDataset, docIDs: mutable.Map[Long, mutable.BitSet], filter: ((Sequence, (Long, Long))) => Boolean): DefaultDesqDatasetWithAggregates = {
     // localize the variables we need in the RDD
     val dictBroadcast = data.broadcastDictionary()
     val docIDsBroadcast = data.sequences.context.broadcast[mutable.Map[Long, mutable.BitSet]](docIDs)
@@ -101,10 +101,18 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
           while (!outputIterator.hasNext && rows.hasNext) {
             // if not, go to the next input sequence
             val s = rows.next()
+            //          pattern matches at least one query hence support is equal to the sequence weight
             currentSupportGlobal = s.weight
-//            check which queries the sequence fulfills
+            //            check which queries the sequence fulfills
             val bits = docIDs.get(s.id).get
-            if(bits.contains(1)) currentSupportLocal = s.weight else currentSupportLocal = 0L
+            //          If the docID is relevant for the local query then set the local weight
+            if (bits.contains(1)) {
+              currentSupportLocal = s.weight
+//              If the docID is relevant for both queries then increase the global weight
+              if (bits.contains(2)) {
+                currentSupportGlobal += s.weight
+              }
+            } else currentSupportLocal = 0L
 
             // and run sequential DesqCount to get all output sequences produced by that input
             if (usesFids) {
@@ -123,13 +131,10 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
           (pattern, (currentSupportGlobal, currentSupportLocal))
         }
       }
-    }).reduceByKey((x, y)=>(x._1 + y._1, x._2 + y._2)) // now sum up counts
-//      TODO: Filter that throws out those sequences where Global - Local < Sigma || Local < Sigma
-//      .filter(filter)
-          .filter(filter)
-      //      .filter(_._2 >= minSupport) // and drop infrequent output sequences
-//      TODO: Change from Global Support to Aggregate Function
-//      TODO: Create Sequence and DesqDataset that can hold aggregate as value
+    }).reduceByKey((x, y) => (x._1 + y._1, x._2 + y._2)) // now sum up counts
+      .filter(filter)
+      //      TODO: Change from Global Support to Aggregate Function
+      //      TODO: Create Sequence and DesqDataset that can hold aggregate as value
       .map(s => s._1.withSupport(-1, s._2._1 - s._2._2, s._2._2)) // and pack the remaining sequences into a IdentifiableWeightedSequence
     // all done, return result (last parameter is true because mining.DesqCount always produces fids)
     new DefaultDesqDatasetWithAggregates(patterns, data.dict, true)
