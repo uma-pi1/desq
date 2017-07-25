@@ -14,7 +14,7 @@ import scala.reflect.ClassTag
 /**
   * Created by rgemulla on 12.09.2016.
   */
-class IdentifiableDesqDataset(override val sequences: RDD[IdentifiableWeightedSequence], override val dict: Dictionary, override val usesFids: Boolean = false) extends DesqDataset[IdentifiableWeightedSequence](sequences, dict, usesFids) {
+class IdentifiableDesqDataset(sequences: RDD[IdentifiableWeightedSequence], dict: Dictionary, usesFids: Boolean = false) extends DesqDataset(sequences, dict, usesFids) {
   private var dictBroadcast: Broadcast[Dictionary] = _
 
   // -- building ------------------------------------------------------------------------------------------------------
@@ -34,27 +34,23 @@ object IdentifiableDesqDataset extends DesqDatasetCore[IdentifiableWeightedSeque
 
   def buildFromSentencesWithID(rawData: RDD[(Long, Sentence)]): IdentifiableDesqDataset = {
     val parse = (id: Long, sentence: Sentence, dictionaryBuilder: DictionaryBuilder) => NytUtils.processSentence(id, sentence, dictionaryBuilder)
-    val result = buildWithId[Sentence, IdentifiableWeightedSequence](rawData, parse)
-    result.asInstanceOf[IdentifiableDesqDataset]
+    buildWithId[Sentence, IdentifiableWeightedSequence](rawData, parse, classOf[IdentifiableDesqDataset])
+
   }
 
   def buildFromSentences(rawData: RDD[Sentence]): IdentifiableDesqDataset = {
     //    val parse = NytUtil.parse
     val parse = (sentence: Sentence, dictionaryBuilder: DictionaryBuilder) => NytUtils.processSentence(-1L, sentence, dictionaryBuilder)
-    build[Sentence, WeightedSequence](rawData, parse).asInstanceOf[IdentifiableDesqDataset]
+    build[Sentence, IdentifiableWeightedSequence](rawData, parse)
+
   }
 
-  def load(inputPath: String)(implicit sc: SparkContext): DesqDataset[IdentifiableWeightedSequence] = {
+  def load(inputPath: String)(implicit sc: SparkContext): IdentifiableDesqDataset = {
     super.load[IdentifiableWeightedSequence](inputPath)
   }
-//
-//  def loadFromDelFilea(delFile: RDD[String], dict: Dictionary, usesFids: Boolean = false): IdentifiableDesqDataset = {
-//    val dataset = loadFromDelFile[WeightedSequence](delFile, dict, usesFids)
-//    dataset.asInstanceOf[IdentifiableDesqDataset]
-//  }
 
   /** Loads data from the specified del file */
-  def loadFromDelFile[T<:WeightedSequence:ClassTag](delFile: RDD[String], dict: Dictionary, usesFids: Boolean): DesqDataset[T] = {
+  def loadFromDelFile[T <: WeightedSequence : ClassTag](delFile: RDD[String], dict: Dictionary, usesFids: Boolean): DesqDataset[T] = {
     val sequences = delFile.map[IdentifiableWeightedSequence](line => {
       val s = new IdentifiableWeightedSequence(-1L, Array.empty[Int], 1L)
       DelSequenceReader.parseLine(line, s)
@@ -65,7 +61,7 @@ object IdentifiableDesqDataset extends DesqDatasetCore[IdentifiableWeightedSeque
   }
 
   /** Loads data from the specified del file */
-  def loadFromDelFile[T<: WeightedSequence : ClassTag](delFile: String, dict: Dictionary, usesFids: Boolean)(implicit sc: SparkContext): DesqDataset[T] = {
+  def loadFromDelFile[T <: WeightedSequence : ClassTag](delFile: String, dict: Dictionary, usesFids: Boolean)(implicit sc: SparkContext): DesqDataset[T] = {
     loadFromDelFile[T](sc.textFile(delFile), dict, usesFids)
   }
 

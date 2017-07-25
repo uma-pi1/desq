@@ -13,11 +13,11 @@ import org.apache.avro.io.{DecoderFactory, EncoderFactory}
 import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter}
 import org.apache.hadoop.fs.permission.FsPermission
 import org.apache.hadoop.fs.{FileSystem, Path}
-import org.apache.hadoop.io.NullWritable
+import org.apache.hadoop.io.{LongWritable, NullWritable}
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
-
+import scala.language.implicitConversions
 import scala.reflect.{ClassTag, _}
 
 /**
@@ -194,7 +194,7 @@ class DesqDataset[T <: WeightedSequence : ClassTag](val sequences: RDD[T], val d
       }
     })
 
-    return new DefaultDesqDataset(defaultSequences, dict, usesFids)
+    new DefaultDesqDataset(defaultSequences, dict, usesFids)
   }
 
 
@@ -331,8 +331,14 @@ trait DesqDatasetCore[+T <: WeightedSequence] {
     val sequencePath = s"$inputPath/sequences"
     val sequences = sc.sequenceFile(sequencePath, classOf[NullWritable], ct.runtimeClass).map(kv => kv._2.asInstanceOf[T])
 
-    // return the dataset
+    // return the sequences, dict and boolean flag to calling class
     new DesqDataset(sequences, dict, descriptor.getUsesFids)
+  }
+
+
+  /** Loads data from the specified del file */
+  def loadFromDelFile[T <: WeightedSequence : ClassTag](delFile: RDD[String], dict: Dictionary): DesqDataset[T] = {
+    loadFromDelFile[T](delFile, dict, true)
   }
 
   /** Loads data from the specified del file */
@@ -357,12 +363,6 @@ trait DesqDatasetCore[+T <: WeightedSequence] {
   }
 
 
-  //  /**
-  //    * Builds a DesqDataset from an RDD of rows. Every row corresponds to one article, which may contain many sentences.
-  //    * Every sentence contains tokens. The generated hierarchy is deep.
-  //    */
-  //
-  //  def buildFromSentencesWithID[T <: IdentifiableWeightedSequence](rawData: RDD[(Long, Sentence)]): DesqDataset[T]
 
   /** Builds a DesqDataset from arbitrary input data. The dataset is linked to the original data and parses it again
     * when used. For improved performance, save the dataset once created.
@@ -374,7 +374,7 @@ trait DesqDatasetCore[+T <: WeightedSequence] {
     * @return the created DesqDataset
     */
 
-  def build[T, F <: WeightedSequence : ClassTag](rawData: RDD[T], parse: (T, DictionaryBuilder) => _): DesqDataset[F] = {
+  def build[T, F <: WeightedSequence : ClassTag](rawData: RDD[T], parse: (T, DictionaryBuilder) => _):  DesqDataset[F] = {
     // construct the dictionary
     val dict = rawData.mapPartitions(rows => {
       val dictBuilder = new DefaultDictionaryBuilder()
@@ -384,7 +384,7 @@ trait DesqDatasetCore[+T <: WeightedSequence] {
       dictBuilder.newSequence() // flush last sequence
       Iterator.single(dictBuilder.getDictionary)
     }).treeReduce((d1, d2) => {
-      d1.mergeWith(d2);
+      d1.mergeWith(d2)
       d1
     }, 3)
     dict.recomputeFids()
@@ -400,8 +400,6 @@ trait DesqDatasetCore[+T <: WeightedSequence] {
       override def next(): F = {
 
         parse.apply(rows.next(), seqBuilder)
-        //        import SequenceConstructor._
-        //        val s = SequenceConstructor.constructSequence(seqBuilder.getCurrentGids, seqBuilder.getCurrentWeight)
         val s = new WeightedSequence(seqBuilder.getCurrentGids, seqBuilder.getCurrentWeight)
         dict.gidsToFids(s)
         s.asInstanceOf[F]
@@ -412,6 +410,7 @@ trait DesqDatasetCore[+T <: WeightedSequence] {
     val result = new DesqDataset(sequences, dict, true)
     result.setBroadcastDict(dictBroadcast)
     result
+
   }
 
   /** Builds a DesqDataset from arbitrary input data. The dataset is linked to the original data and parses it again
@@ -424,7 +423,7 @@ trait DesqDatasetCore[+T <: WeightedSequence] {
     * @return the created DesqDataset
     */
 
-  def buildWithId[T, F <: IdentifiableWeightedSequence : ClassTag](rawData: RDD[(Long, T)], parse: (Long, T, DictionaryBuilder) => _): DesqDataset[F] = {
+  def buildWithId[T, F <: IdentifiableWeightedSequence : ClassTag](rawData: RDD[(Long, T)], parse: (Long, T, DictionaryBuilder) => _, c:Class[_]): DesqDataset[F] = {
     // construct the dictionary
     val dict = rawData.mapPartitions(rows => {
       val dictBuilder = new DefaultDictionaryBuilder()
@@ -435,7 +434,7 @@ trait DesqDatasetCore[+T <: WeightedSequence] {
       dictBuilder.newSequence() // flush last sequence
       Iterator.single(dictBuilder.getDictionary)
     }).treeReduce((d1, d2) => {
-      d1.mergeWith(d2);
+      d1.mergeWith(d2)
       d1
     }, 3)
     dict.recomputeFids()
@@ -463,4 +462,7 @@ trait DesqDatasetCore[+T <: WeightedSequence] {
     result.setBroadcastDict(dictBroadcast)
     result
   }
+
+  implicit def dToDefaultDesqDataset(d:DesqDataset[WeightedSequence]) : DefaultDesqDataset = new DefaultDesqDataset(d.sequences, d.dict, d.usesFids)
+  implicit def dToIdentifiableDesqDataset(d:DesqDataset[IdentifiableWeightedSequence]) : IdentifiableDesqDataset= new IdentifiableDesqDataset(d.sequences, d.dict, d.usesFids)
 }

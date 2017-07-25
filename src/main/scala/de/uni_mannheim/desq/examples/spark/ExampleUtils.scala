@@ -5,6 +5,7 @@ import java.util.concurrent.TimeUnit
 
 import com.google.common.base.Stopwatch
 import de.uni_mannheim.desq.dictionary.Dictionary
+import de.uni_mannheim.desq.mining.WeightedSequence
 import de.uni_mannheim.desq.mining.spark.{DefaultDesqDataset, DesqMiner, DesqMinerContext}
 import de.uni_mannheim.desq.util.DesqProperties
 import org.apache.spark.SparkContext
@@ -82,7 +83,7 @@ object ExampleUtils {
     // load the dictionary & update hierarchy
     val dict = Dictionary.loadFrom(dictFile)
     val delFile = sc.parallelize(Source.fromURL(dataFile).getLines.toSeq)
-    val data = DefaultDesqDataset.loadFromDelFilea(delFile, dict, false).copyWithRecomputedCountsAndFids()
+    val data = DefaultDesqDataset.loadFromDelFile[WeightedSequence](delFile, dict).copyWithRecomputedCountsAndFids()
     println("\nDictionary with frequencies:")
     dict.writeJson(System.out)
     println()
@@ -103,7 +104,7 @@ object ExampleUtils {
     val dict: Dictionary = Dictionary.loadFrom("data-local/nyt-1991-dict.avro.gz")
     val delFilename = "data-local/nyt-1991-data.del"
     val delFile = sc.textFile(delFilename)
-    val data = DefaultDesqDataset.loadFromDelFilea(delFile, dict, usesFids = true)
+    val data = DefaultDesqDataset.loadFromDelFile[WeightedSequence](delFile, dict, usesFids = true)
     if (verbose)
       runMiner(data, minerConf)
     else

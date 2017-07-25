@@ -4,7 +4,7 @@ import de.uni_mannheim.desq.avro.Sentence
 import de.uni_mannheim.desq.converters.nyt.NytUtils
 import de.uni_mannheim.desq.dictionary._
 import de.uni_mannheim.desq.io.DelSequenceReader
-import de.uni_mannheim.desq.mining.WeightedSequence
+import de.uni_mannheim.desq.mining.{IdentifiableWeightedSequence, WeightedSequence}
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -42,26 +42,13 @@ object DefaultDesqDataset extends DesqDatasetCore[WeightedSequence] {
   def buildFromSentences(rawData: RDD[Sentence]): DefaultDesqDataset = {
     //    val parse = NytUtil.parse
     val parse = (sentence: Sentence, dictionaryBuilder: DictionaryBuilder) => NytUtils.processSentence(-1L, sentence, dictionaryBuilder)
-    build[Sentence, WeightedSequence](rawData, parse).asInstanceOf[DefaultDesqDataset]
+    build[Sentence, WeightedSequence](rawData, parse)
+
   }
 
-//  /** Loads data from the specified del file */
-//  override def loadFromDelFile[T <: WeightedSequence](delFile: String, dict: Dictionary, usesFids: Boolean = false)(implicit sc: SparkContext): DefaultDesqDataset = {
-//    this.loadFromDelFile(sc.textFile(delFile), dict, usesFids)
-//  }
-//
-//  /** Loads data from the specified del file */
-//  override def loadFromDelFile[F <: WeightedSequence : ClassTag](delFile: RDD[String], dict: Dictionary, usesFids: Boolean): DefaultDesqDataset = {
-//    val result = super.loadFromDelFile[F](delFile, dict, usesFids)
-//    result.asInstanceOf[DefaultDesqDataset]
-//  }
-
-  def loadFromDelFilea(delFile: RDD[String], dict: Dictionary, usesFids: Boolean = false): DefaultDesqDataset = {
-    val dataset = loadFromDelFile[WeightedSequence](delFile, dict, usesFids)
-    dataset.asInstanceOf[DefaultDesqDataset]
+  def load(inputPath: String)(implicit sc: SparkContext): DefaultDesqDataset = {
+    super.load[WeightedSequence](inputPath)
   }
-
-
 
   /** Loads data from the specified del file */
   override def loadFromDelFile[T <: WeightedSequence : ClassTag](delFile: RDD[String], dict: Dictionary, usesFids: Boolean): DesqDataset[T] = {
