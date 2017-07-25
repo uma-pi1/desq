@@ -248,8 +248,8 @@ class DesqCompareNaive {
 
       for (s <- sequences) s match {
         case ((s._1._1, s._1._2), (s._2._1, s._2._2)) => {
-          val sids = for (e <- s._1._1.elements) yield {
-            dict.sidOfFid(e)
+          val sids = for (e <- s._1._1.elements) yield {d
+            dict.sidOfGid(e)
           }
           println(s"|${sids.deep.mkString("[", " ", "]")}|${s._1._2}|${s._2._2}|")
         }
