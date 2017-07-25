@@ -28,7 +28,7 @@ class DesqDatasetPartitionedWithID[V <: IdentifiableWeightedSequence](val sequen
 
     // write sequences
     val sequencePath = s"$outputPath/sequences"
-    sequences.map(s => (s._1, s._2)).saveAsSequenceFile(sequencePath)
+    sequences.mapPartitions(iter => iter.map(s=>(s._1, s._2))).saveAsSequenceFile(sequencePath)
 
     // write dictionary
     val dictPath = s"$outputPath/dict.avro.gz"
