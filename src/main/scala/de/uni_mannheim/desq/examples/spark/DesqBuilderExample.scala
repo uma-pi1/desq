@@ -83,7 +83,7 @@ object DesqBuilderExample {
         if (otherFid != -1 && // the created dictionary may not contain some items (those which do not occur in the data)
           (fullDict.cfreqOf(fid) != loadedData.dict.cfreqOf(otherFid) ||
             fullDict.dfreqOf(fid) != loadedData.dict.dfreqOf(otherFid))) {
-          println(s"Incorrect item: ${fullDict.sidOfFid(fid)} ID:${fid}  Other ID: ${otherFid}")
+          println(s"Incorrect item: ${fullDict.sidOfFid(fid)} ID:$fid  Other ID: $otherFid")
         }
       }
     }
@@ -97,7 +97,7 @@ object DesqBuilderExample {
     print("Writing Dict of DesqDataset to Disk\n")
     val scalaDict = loadedData.dict
     print("Writing dict.json\n")
-    scalaDict.write("data-local/processed/sparkconvert/2007_scala/dict.json");
+    scalaDict.write("data-local/processed/sparkconvert/2007_scala/dict.json")
   }
 
   def main(args: Array[String]) {
