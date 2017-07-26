@@ -1,7 +1,7 @@
 package de.uni_mannheim.desq.mining.spark
 
 import de.uni_mannheim.desq.mining.{OutputNFA, RelevantPositions, Sequence, WeightedSequence}
-import de.uni_mannheim.desq.util.DesqProperties
+import de.uni_mannheim.desq.util.{DesqProperties, PrimitiveUtils}
 import it.unimi.dsi.fastutil.ints._
 import de.uni_mannheim.desq.io.MemoryPatternWriter
 import de.uni_mannheim.desq.dictionary.BasicDictionary
@@ -32,6 +32,7 @@ class DDIN(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         val mergeSuffixes = conf.getBoolean("desq.mining.merge.suffixes", false) // if true: merge the suffixes of the NFA
         val aggregateShuffleSequences = conf.getBoolean("desq.mining.aggregate.shuffle.sequences", false)  // if true: aggregate NFA for the shuffle and the local mining
         val trimInputSequences = conf.getBoolean("desq.mining.trim.input.sequences", false)
+        val useGrid = ctx.conf.getBoolean("desq.mining.use.grid", false);
 
         // manual repartition
         var mappedSequences = data.sequences
@@ -110,8 +111,14 @@ class DDIN(ctx: DesqMinerContext) extends DesqMiner(ctx) {
                     } else {
                         val pivot = pivotIterator.nextInt()
                         if(trimInputSequences) {
-                            val sendSeq = currentInputSequence.cloneSubList(relevantPositions.getFirstRelevant(pivot), relevantPositions.getLastRelevant(pivot))
-                            (pivot, sendSeq)
+                            if(useGrid) {
+                                val minMax = baseMiner.minMaxForCurrentInputSeq(pivot)
+                                val sendSeq = currentInputSequence.cloneSubList(PrimitiveUtils.getLeft(minMax), PrimitiveUtils.getRight(minMax)-1)
+                                (pivot, sendSeq)
+                            } else {
+                                val sendSeq = currentInputSequence.cloneSubList(relevantPositions.getFirstRelevant(pivot), relevantPositions.getLastRelevant(pivot))
+                                (pivot, sendSeq)
+                            }
                         } else {
                             (pivot, currentInputSequence.clone())
                         }

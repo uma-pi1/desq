@@ -607,6 +607,10 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 	// ---------------- Distributed ---------------------------------------------------------
 
+    /** Returns the minimum and maximum relevant position (as long) of the current input sequence for the given pivot item */
+	public long minMaxForCurrentInputSeq(int pivot) {
+		return grid.minMaxForPivot(pivot);
+	}
 
 	/**
 	 * Returns the set of pivot items for the given input sequence
@@ -640,7 +644,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 			// if the there is at least one accepting path, we retrieve the pivot items for these paths
 			if(grid.hasAcceptingPaths()) {
-			    pivotItems.addAll(grid.getPivotsForward());
+			    pivotItems.addAll(grid.getPivotsForward(trimInputSequences));
 			}
 		} else {
   			// check whether sequence produces output at all. if yes, produce output items
@@ -1089,7 +1093,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				boolean isAccepting = findPathsStep(toState, pos + 1, level + 1, relevantPositions, currentLastIrrelevant);
 				foundAcceptingPath |= isAccepting;
 
-				// if we found and accpeting path with this transition, add an edge
+				// if we found and accepting path with this transition, add an edge
                 if(isAccepting) {
                     grid.addEdge(qCurrent, pos, qTo, ol); // this creates the current state if it doesn't exist yet
                     if(!grid.hasNoFollowingOutput(qTo, pos+1) || (ol != null && !ol.outputItems.isEmpty()))

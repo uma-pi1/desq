@@ -15,6 +15,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.apache.commons.io.FilenameUtils;
 
+import java.util.Arrays;
 import java.util.BitSet;
 
 
@@ -49,6 +50,15 @@ public class QPGrid {
     /** A set of all (pos,q) pairs that we have found to be a dead end. Is indexed by a long[q,pos], so we don't need to create a state for every dead end*/
     LongOpenHashSet isDeadEnd = new LongOpenHashSet();
 
+    /** Stores the initial states (we use this for trimming input sequences) */
+    IntOpenHashSet initialState = new IntOpenHashSet();
+
+    /** Stores the minimum and maximum relevant position for each pivot item of the input sequence */
+    private Int2LongOpenHashMap pivotMinMax = new Int2LongOpenHashMap();
+
+    /** Stores the minimum relevant position for a state s of the grid */
+    int[] minPos;
+
     /** We cache our output labels, so that we can use identical objects if one OutputLabel occurs multiple times  */
     Object2ObjectOpenHashMap<IntArrayList,OutputLabel> outputLabelCache = new Object2ObjectOpenHashMap<>();
 
@@ -74,6 +84,8 @@ public class QPGrid {
         maxQ = 0;
         outputLabelCache.clear();
         noFollowingOutput.clear();
+        initialState.clear();
+        pivotMinMax.clear();
     }
 
     /** Checks whether edge (qFrom,pos) --> (qTo,pos+1) with OutputLabel `label` exists. */
@@ -113,12 +125,12 @@ public class QPGrid {
 
     /** Adds an edge (qFrom,pos) --> (qTo,pos+1) with output label `label`. */
     public void addEdge(int qFrom, int pos, int qTo, OutputLabel label) {
-        // if we know that the to-state does not produce any output and we have an eps output label, we don't add this edge
-        if(label == null && hasNoFollowingOutput(qTo, pos+1)) {
-            if(isFinal(qTo, pos+1)) { // TODO: can probably drop this
-                // if that state is final though, we need to mark the current state as final
-                markFinal(qFrom, pos);
-            }
+        // we do not add this edge if:
+        // - the edge does not produce output,
+        // - the target state does not produce any further output, and
+        // - the current state is already final
+        // (this prevents unnecessary eps-edges towards the end of the grid)
+        if(label == null && hasNoFollowingOutput(qTo, pos+1) && isFinal(qFrom, pos)) {
             return;
         }
 
@@ -182,6 +194,10 @@ public class QPGrid {
             backwardEdges.add(new Object2ObjectOpenHashMap<>());
 
             maxPivot.add(-1);
+
+            // mark this state as initial
+            if(q == 0)
+                initialState.add(s);
         }
         return s;
     }
@@ -251,10 +267,24 @@ public class QPGrid {
         return sByQp.size() > 0;
     }
 
-    public IntSet getPivotsForward() {
+    /** Returns the minimum and maximum relevant position for a given pivot item */
+    public long minMaxForPivot(int pivot) {
+        return pivotMinMax.get(pivot);
+    }
+
+    /** Returns the set of pivot items for this grid*/
+    public IntSet getPivotsForward(boolean trim) {
         IntOpenHashSet pivots = new IntOpenHashSet();
 
         ObjectArrayList<IntAVLTreeSet> potentialPivots = new ObjectArrayList<>();
+
+        // clear the minimum pivot positions
+        if(trim) {
+            if (minPos == null || minPos.length < numStates()) {
+                minPos = new int[numStates()];
+            }
+            Arrays.fill(minPos, Integer.MAX_VALUE);
+        }
 
         boolean output = false;
 
@@ -272,6 +302,18 @@ public class QPGrid {
                     if(isFinal(q,pos)) {
                         if(output) System.out.println("is final. adding " + potentialPivots.get(s));
                         pivots.addAll(potentialPivots.get(s));
+
+                        // update minimum and maximum relevant positions for these pivot items
+                        if(trim) {
+                            for (int pivot : potentialPivots.get(s)) {
+                                long minMax = pivotMinMax.getOrDefault(pivot, -1L);
+                                if (minMax == -1L) {
+                                    pivotMinMax.put(pivot, PrimitiveUtils.combine(minPos[s], pos));
+                                } else {
+                                    pivotMinMax.put(pivot, PrimitiveUtils.combine(Math.min(PrimitiveUtils.getLeft(minMax), minPos[s]), Math.max(PrimitiveUtils.getRight(minMax), pos)));
+                                }
+                            }
+                        }
                     }
                     if(output) System.out.println("Has potential pivots: " + potentialPivots.get(s));
                     for(Object2ObjectMap.Entry<OutputLabel, IntSet> edge : forwardEdges.get(s).object2ObjectEntrySet()) {
@@ -291,6 +333,23 @@ public class QPGrid {
                                         potentialPivots.get(sTo).add(item);
                                         if(output) System.out.println("Adding " + item);
                                     }
+
+                            // propagate the minimum position to the to-state
+                            if(trim) {
+                                // usually, we propagate the state's minPos forward
+                                int propPos = minPos[s];
+
+                                // if this state has no relevant item before it (minPos = MAX) and this item
+                                // is relevant (i.e., creates output or leaves the initial state), we propagate this pos as min
+                                if (minPos[s] == Integer.MAX_VALUE && ((ol != null && ol.outputItems.size() > 0) || !initialState.contains(sTo))) {
+                                    propPos = pos;
+                                }
+
+                                // propagate: toState.minPos = min(toState.minPos, propPos)
+                                if (propPos < minPos[sTo])
+                                    minPos[sTo] = propPos;
+                            }
+
                         }
                     }
                 }
