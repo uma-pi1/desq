@@ -412,6 +412,10 @@ object DesqRunner {
             case "DDIS.grid" =>
                 aggregateShuffleSequences = false
                 useGrid = true
+            case "DDIS.grid.tr" =>
+                aggregateShuffleSequences = false
+                useGrid = true
+                trimInputSequences = true
             case "DDIS.freq" =>
                 sendToAllFrequentItems = true
                 aggregateShuffleSequences = false
