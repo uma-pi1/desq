@@ -272,27 +272,39 @@ object DesqRunner {
                 patternExp = "ENTITY (VB+ NN+? IN?) ENTITY"
                 sigma = 10
             }
+            case r"N1\((\d+)$o\)" => {
+                patternExp = "ENTITY (VB+ NN+? IN?) ENTITY"
+                sigma = o.toInt
+            }
             case "N2" => {
                 patternExp = "(ENTITY^ VB+ NN+? IN? ENTITY^)"
                 sigma = 100
+            }
+            case r"N2\((\d+)$o\)" => {
+                patternExp = "(ENTITY^ VB+ NN+? IN? ENTITY^)"
+                sigma = o.toInt
             }
             case "N3" => {
                 patternExp = "(ENTITY^ be@VB=^) DT? (RB? JJ? NN)"
                 sigma = 10
             }
+            case r"N3\((\d+)$o\)" => {
+                patternExp = "(ENTITY^ be@VB=^) DT? (RB? JJ? NN)"
+                sigma = o.toInt
+            }
             case "N4" => {
                 patternExp = "(.^){3} NN"
                 sigma = 1000
+            }
+            case r"N4\((\d+)$o\)" => {
+                patternExp = "(.^){3} NN"
+                sigma = o.toInt
             }
             case "N5" => {
                 patternExp = "([.^ . .]|[. .^ .]|[. . .^])"
                 sigma = 1000
             }
-            case r"N4-o(\d+)$o" => {
-                patternExp = "(.^){3} NN"
-                sigma = o.toInt
-            }
-            case r"N5-o(\d+)$o" => {
+            case r"N5\((\d+)$o\)" => {
                 patternExp = "([.^ . .]|[. .^ .]|[. . .^])"
                 sigma = o.toInt
             }
