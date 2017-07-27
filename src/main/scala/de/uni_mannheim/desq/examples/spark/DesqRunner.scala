@@ -36,6 +36,7 @@ object DesqRunner {
     var useHybrid: Boolean = _
     var useGrid: Boolean = _
     var sendToAllFrequentItems: Boolean = _
+    var useFlist: Boolean = _
 
     val runConf = scala.collection.mutable.Map[String, String]()
 
@@ -396,8 +397,12 @@ object DesqRunner {
         useHybrid = false
         useGrid = false
         sendToAllFrequentItems = false
+        useFlist = true
         algorithm match {
-            case "DDCount" =>
+            case "Naive" =>
+                useDesqCount = true
+                useFlist = false
+            case "Semi-naive" =>
                 useDesqCount = true
             case "DDIS" =>
                 aggregateShuffleSequences = false
