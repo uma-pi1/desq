@@ -1,6 +1,5 @@
 package de.uni_mannheim.desq.examples.spark
 
-import java.net.URI
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.TimeUnit
 
@@ -10,14 +9,10 @@ import de.uni_mannheim.desq.comparing.{DesqCompare, DesqCompareNaive}
 import de.uni_mannheim.desq.converters.nyt.NytUtil
 import de.uni_mannheim.desq.elastic.NYTElasticSearchUtils
 import de.uni_mannheim.desq.mining.IdentifiableWeightedSequence
-import de.uni_mannheim.desq.mining.spark.{DesqDataset, DesqDatasetPartitionedWithID, IdentifiableDesqDataset}
-import org.apache.hadoop.fs.FileSystem
-import org.apache.hadoop.io.{LongWritable, NullWritable}
+import de.uni_mannheim.desq.mining.spark.{DesqDatasetPartitionedWithID, IdentifiableDesqDataset}
 import org.apache.spark.{HashPartitioner, SparkConf, SparkContext}
 
 import scala.collection.JavaConversions._
-import org.apache.spark.SparkContext._
-import org.apache.spark.rdd.RDD
 
 /**
   * Created by ivo on 05.05.17.
@@ -159,12 +154,11 @@ object DesqCompareExample {
     val sequences: DesqDatasetPartitionedWithID[IdentifiableWeightedSequence] = if (!Files.exists(Paths.get(outputPath))) {
       val dataset = IdentifiableDesqDataset.load(path_source)
       val sequences = dataset.sequences.keyBy(_.id).partitionBy(new HashPartitioner(24))
-      val fileSystem = FileSystem.get(new URI(outputPath), sequences.context.hadoopConfiguration)
       val datasetWithIDs = new DesqDatasetPartitionedWithID[IdentifiableWeightedSequence](sequences, dataset.dict, true)
-      datasetWithIDs.saveWithId(outputPath)
+      datasetWithIDs.save(outputPath)
       datasetWithIDs
     } else {
-      DesqDatasetPartitionedWithID.loadWithId(outputPath)
+      DesqDatasetPartitionedWithID.load(outputPath)
     }
 
     dataloadTime.stop()
@@ -207,6 +201,13 @@ object DesqCompareExample {
 
   }
 
+  /**
+    * Triggers the Index and DesqDataset Creation as a Preprocessing Step for all further analysis
+    * @param path_in location of the NYT Raw Data
+    * @param path_out location where the DesqDataset should be stored
+    * @param index name of the elasticsearch index to be created
+    * @param sc Implicit SparkContext
+    */
   def createIndexAndDataSet(path_in: String, path_out: String, index: String)(implicit sc: SparkContext): Unit = {
     print("Indexing Articles and Creating DesqDataset... ")
     val dataTime = Stopwatch.createStarted
@@ -223,19 +224,19 @@ object DesqCompareExample {
       .set("spark.rdd.compress", "true")
       .set("spark.worker.instances", "4")
       .set("spark.worker.cores", "2")
-      .set("fs.local.block.size", "128mb");
+      .set("fs.local.block.size", "128mb")
     initDesq(conf)
     implicit val sc = new SparkContext(conf)
     //    buildAndCompare()
     //    compareDatasets()
 
     val path_in = "data-local/NYTimesProcessed/results/"
-    val path_out = "data-local/processed/es_2006/"
-    val index = "nyt2006"
+//    val path_out = "data-local/processed/es_2006/"
+//    val index = "nyt2006"
     //    val path_out = "data-local/processed/es_all"
     //    val index = "nyt/article"
-    //    val path_out = "data-local/processed/es_all_v2/"
-    //    val index = "nyt_v2"
+        val path_out = "data-local/processed/es_all_v3/"
+        val index = "nyt_v3"
     val indexmapping = index + "/article"
     if (!Files.exists(Paths.get(path_out))) {
       Files.createDirectory(Paths.get(path_out))

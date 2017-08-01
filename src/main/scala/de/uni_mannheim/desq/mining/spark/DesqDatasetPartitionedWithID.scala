@@ -12,18 +12,26 @@ import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter}
 import org.apache.hadoop.fs.permission.FsPermission
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.io.{LongWritable, NullWritable}
-import org.apache.spark.SparkContext
-import org.apache.spark.rdd.RDD
+import org.apache.spark.{HashPartitioner, SparkContext}
+import org.apache.spark.SparkContext._
 
+import org.apache.spark.rdd.RDD
 import scala.language.implicitConversions
 import scala.reflect.{ClassTag, _}
+
 
 /**
   * Created by ivo on 25.07.17.
   */
 class DesqDatasetPartitionedWithID[V <: IdentifiableWeightedSequence](val sequences: RDD[(Long, V)], val dict: Dictionary, val usesFids: Boolean) {
 
-  def saveWithId(outputPath: String)(implicit ct:ClassTag[V]): DesqDatasetPartitionedWithID[V] = {
+  /**
+    * Saves the partitioned DesqDataset to disk
+    * @param outputPath Path to save the dataset to
+    * @param ct
+    * @return DesqDatasetPartitioned
+    */
+  def save(outputPath: String)(implicit ct:ClassTag[V]): DesqDatasetPartitionedWithID[V] = {
     val fileSystem = FileSystem.get(new URI(outputPath), sequences.context.hadoopConfiguration)
 
     // write sequences
@@ -54,6 +62,8 @@ class DesqDatasetPartitionedWithID[V <: IdentifiableWeightedSequence](val sequen
       dict, usesFids)
   }
 
+
+
   /**
     * Transforms this DesqDataset which uses a RDD[K,V] in a regular DesqDataset[V]
     *
@@ -74,10 +84,10 @@ object DesqDatasetPartitionedWithID {
     * @param inputPath Path were the Dataset is stored
     * @param sc Implicit SparkContext
     * @param ct Implicit ClassTag of the SequenceType
-    * @tparam V
-    * @return
+    * @tparam V Type Parameter for the Sequences beeing used
+    * @return Partitioned DesqDataset[V]
     */
-  def loadWithId[V <: IdentifiableWeightedSequence](inputPath: String)(implicit sc: SparkContext, ct:ClassTag[V]): DesqDatasetPartitionedWithID[V] = {
+  def load[V <: IdentifiableWeightedSequence](inputPath: String)(implicit sc: SparkContext, ct:ClassTag[V]): DesqDatasetPartitionedWithID[V] = {
     val fileSystem = FileSystem.get(new URI(inputPath), sc.hadoopConfiguration)
     // read descriptor
     var descriptor = new AvroDesqDatasetDescriptor()
@@ -101,5 +111,18 @@ object DesqDatasetPartitionedWithID {
 
     // return the dataset
     new DesqDatasetPartitionedWithID[V](sequences, dict, descriptor.getUsesFids)
+  }
+
+  /**
+    * Partitions an Input Dataset by its sequences ids
+    * @param dataset Dataset that uses IdentifiableWeightedSequences or Sequences extending those
+    * @tparam V Type Parameter for the Sequences beeing used
+    * @return Partitioned DesqDataset[V]
+    */
+  def partitionById[V<:IdentifiableWeightedSequence](dataset: DesqDataset[V]): DesqDatasetPartitionedWithID[V] ={
+
+    val sequences = dataset.sequences.keyBy(_.id).asInstanceOf[RDD[(Long, Class[V])]].partitionBy(new HashPartitioner(24))
+
+    new DesqDatasetPartitionedWithID[V](sequences.asInstanceOf[RDD[(Long,V)]],dataset.dict, dataset.usesFids)
   }
 }

@@ -1,12 +1,17 @@
 package de.uni_mannheim.desq.elastic
 
+import java.util.concurrent.TimeUnit
+
+import com.google.common.base.Stopwatch
 import com.sksamuel.elastic4s.ElasticDsl._
 import com.sksamuel.elastic4s.mappings.FieldType.{IntegerType, StringType}
+import com.sksamuel.elastic4s.xpack.security.XPackElasticClient
 import com.sksamuel.elastic4s.{ElasticsearchClientUri, TcpClient}
 import de.uni_mannheim.desq.Desq.initDesq
 import de.uni_mannheim.desq.avro.AvroArticle
 import de.uni_mannheim.desq.converters.nyt.NytUtil
-import de.uni_mannheim.desq.mining.spark.IdentifiableDesqDataset
+import de.uni_mannheim.desq.mining.IdentifiableWeightedSequence
+import de.uni_mannheim.desq.mining.spark.{DesqDatasetPartitionedWithID, IdentifiableDesqDataset}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import org.elasticsearch.common.settings.Settings
@@ -41,11 +46,21 @@ class NYTElasticSearchUtils extends Serializable {
   def createIndexAndDataset(path_in: String, path_out: String, index: String)(implicit sc: SparkContext) = {
     val articles = NytUtil.loadArticlesFromFile(path_in)
     val articlesWithId = articles.zipWithUniqueId()
+    val indexTime = Stopwatch.createStarted
     this.createNYTIndex(index)
+    indexTime.stop()
+    println(s"Creating the index took ${indexTime.elapsed(TimeUnit.MILLISECONDS)}}")
+    val elasticTime = Stopwatch.createStarted
     this.writeArticlesToEs(articlesWithId, index + "/article")
+    elasticTime.stop
+    println(s"Writing to Elastic took ${elasticTime.elapsed(TimeUnit.MILLISECONDS)}}")
+    val datasetTime = Stopwatch.createStarted
     val sentences = articlesWithId.map(f => (f._2, f._1)).flatMapValues(f => f.getSentences)
     val dataset = IdentifiableDesqDataset.buildFromSentencesWithID(sentences)
-    dataset.save(path_out)
+    val partitionedDataset = DesqDatasetPartitionedWithID.partitionById[IdentifiableWeightedSequence](dataset)
+    partitionedDataset.save(path_out)
+    datasetTime.stop()
+    println(s"Creating the dataset took ${datasetTime.elapsed(TimeUnit.MILLISECONDS)}")
 
   }
 
@@ -58,7 +73,7 @@ class NYTElasticSearchUtils extends Serializable {
 
 
     ESConnection.client.execute {
-      createIndex(index) mappings (
+      createIndex(index) indexSetting("index.store.type", "mmapfs") mappings (
         mapping("article").as(
           textField("abstract$"),
           textField("content"),
@@ -69,6 +84,7 @@ class NYTElasticSearchUtils extends Serializable {
 
         ) dateDetection true dynamicDateFormats ("yyyy/MM/dd")
         )
+
     }
   }
 
@@ -103,7 +119,7 @@ class NYTElasticSearchUtils extends Serializable {
     */
   def searchES(query_s: String, index: String, limit_i: Int = 10000): Seq[Long] = {
     val resp = ESConnection.client.execute {
-      search(index) storedFields "_id" query query_s fetchSource false limit limit_i
+      search(index) query query_s fetchSource false storedFields "_id" limit limit_i
     }.await(Duration(30, "seconds"))
     val ids = resp.ids.map(id => id.toLong)
     ids
@@ -203,5 +219,7 @@ object NYTElasticSearchUtils extends App {
   */
 object ESConnection extends Serializable {
   val settings = Settings.builder().put("cluster.name", "elasticsearch").build()
-  lazy val client = TcpClient.transport(settings, ElasticsearchClientUri("localhost", 9300))
+//  lazy val client = TcpClient.transport(settings, ElasticsearchClientUri("localhost", 9300))
+  lazy val client = XPackElasticClient.apply(settings, ElasticsearchClientUri("localhost", 9300))
+
 }
