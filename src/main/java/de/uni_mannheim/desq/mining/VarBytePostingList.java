@@ -64,7 +64,7 @@ public class VarBytePostingList extends AbstractPostingList{
             data.add((byte)b);
             value >>>= 8;
         }
-                
+        
         switch(dataCount){
             case 1:
                 break;
@@ -106,13 +106,8 @@ public class VarBytePostingList extends AbstractPostingList{
     public void trim() {
         this.data.trim();
     }
-
-    @Override
-    public Object getData() {
-        return this.data;
-    }
     
-    public class Iterator extends AbstractIterator{
+    private class Iterator extends AbstractIterator{
 
         private final LongArrayList controlData;
         

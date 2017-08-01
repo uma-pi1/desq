@@ -40,11 +40,6 @@ public class IntegerPostingList extends AbstractPostingList{
     }
 
     @Override
-    public Object getData() {
-        return this.data;
-    }
-
-    @Override
     public AbstractIterator iterator() {
         return new Iterator(this);
     }

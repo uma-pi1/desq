@@ -29,9 +29,6 @@ public abstract class AbstractPostingList {
      */
     public abstract void trim();
     
-    /** Returns a data structure containing the currently stored data. */
-    public abstract Object getData();
-    
     /** Returns an iterator that can be used to read the postings in this posting list. */
     public abstract AbstractIterator iterator();
     

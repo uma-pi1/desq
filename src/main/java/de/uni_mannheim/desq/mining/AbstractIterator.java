@@ -22,12 +22,6 @@ public abstract class AbstractIterator {
             this.offset = 0;
         }
 
-        /** Resets this iterator to the beginning of the first posting in the given posting list. */
-        public void reset(AbstractPostingList postingList) {
-            this.data = (ByteArrayList) postingList.getData();
-            this.offset = 0;
-        }
-
         /** Is there another value in the current posting? */
         public boolean hasNext() {
             return offset < data.size() && data.getByte(offset) != 0;

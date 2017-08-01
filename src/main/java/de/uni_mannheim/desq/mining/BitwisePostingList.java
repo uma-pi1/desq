@@ -104,10 +104,6 @@ public class BitwisePostingList extends AbstractPostingList{
         data.trim();
     }
 
-    @Override
-    public Object getData() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
 
     @Override
     public AbstractIterator iterator() {
@@ -259,6 +255,5 @@ public class BitwisePostingList extends AbstractPostingList{
             } while (b!=0);
             return true;
         }
-        
     }
 }

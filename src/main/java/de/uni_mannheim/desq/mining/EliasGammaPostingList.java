@@ -33,8 +33,8 @@ public class EliasGammaPostingList extends AbstractPostingList{
         freeBits = 64;
     }   
     
-    @Override
-    public void addNonNegativeIntIntern(int value) {
+    //@Override
+    public void addNonNegativeIntIntern2(int value) {
         
         int valueToAdd = value++;
         
@@ -67,17 +67,17 @@ public class EliasGammaPostingList extends AbstractPostingList{
         currentPosition++;
     }
 
-    public void addInt2(int value){
-        int valueToAdd = ++value;
+    @Override
+    public void addNonNegativeIntIntern(int value){
         
-        byte length = (byte) (32 - Integer.numberOfLeadingZeros(valueToAdd));
+        byte length = (byte) (32 - Integer.numberOfLeadingZeros(value));
         
         int totalLength = 2 * length - 1;
         
         if(freeBits >= totalLength){
             long tmp = dataList.getLong(dataList.size() - 1);
                         
-            dataList.set(offset, tmp |= ((long) valueToAdd) << (freeBits -= totalLength));
+            dataList.set(offset, tmp |= ((long) value) << (freeBits -= totalLength));
             
             if(freeBits == 0){
                 freeBits = 64;
@@ -91,51 +91,94 @@ public class EliasGammaPostingList extends AbstractPostingList{
                 offset++;
                 
                 if(toAdd == 0){
-                    dataList.add(((long) valueToAdd) << (freeBits -= length));
+                    dataList.add(((long) value) << (freeBits -= length));
                 } else {
-                    dataList.add(((long) valueToAdd) << (freeBits -= (length + toAdd)));
+                    dataList.add(((long) value) << (freeBits -= (length + toAdd)));
                 }
             } else {
                 long tmp = dataList.getLong(offset);
                 
                 int toAdd = totalLength - freeBits;
-                dataList.set(offset, tmp |= ((long) valueToAdd) >>> (totalLength - freeBits));
+                dataList.set(offset, tmp |= ((long) value) >>> (totalLength - freeBits));
                 
                 freeBits = 64;
                 offset++;
                 
-                dataList.add(((long) valueToAdd) << (freeBits -= toAdd));
+                dataList.add(((long) value) << (freeBits -= toAdd));
             }
         }  
-    }
-    
-    @Override
-    public void newPosting() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    public int nextInt() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override
     public int noBytes() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return this.dataList.size() * 8;
     }
 
     @Override
     public int size() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return this.dataList.size();
     }
 
     @Override
     public void clear() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        this.dataList.clear();
     }
 
     @Override
     public void trim() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        this.dataList.trim();
+    }
+        
+    @Override
+    public AbstractIterator iterator() {
+        return new Iterator(this);
+    }
+    
+    private class Iterator extends AbstractIterator{
+
+        private LongArrayList data;
+        private long currentData;
+        
+        public Iterator(EliasGammaPostingList postingList){
+            this.data = postingList.dataList;
+            
+            assert this.data.size() > 0;
+            this.currentData = this.data.getLong(offset);
+        }
+        
+        @Override
+        int nextNonNegativeIntIntern() {
+            byte length = (byte) Long.numberOfLeadingZeros(this.currentData);
+            
+            if(length == 64){
+                this.offset++;
+                this.currentData = this.data.getLong(offset);
+            }
+            
+            if(length > 32){
+                
+            } else {
+                
+            }
+            
+            return 0;
+        }
+
+        @Override
+        public boolean nextPosting() {
+            if (offset >= data.size())
+                return false;
+
+            int b;
+            do {
+                b = this.nextNonNegativeIntIntern();
+                //offset++;
+                if (offset >= data.size())
+                    return false;
+            } while (b!=0);
+            return true;
+        }
+        
     }
     
 }

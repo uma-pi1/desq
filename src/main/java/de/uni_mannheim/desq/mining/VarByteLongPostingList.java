@@ -50,6 +50,7 @@ public class VarByteLongPostingList extends AbstractPostingList{
     
     @Override
     protected void addNonNegativeIntIntern(int value) {        
+
         if(bitsWritten == 64){
             this.controlDataLong = 0;
             this.controlData.add(controlDataLong);
@@ -57,29 +58,29 @@ public class VarByteLongPostingList extends AbstractPostingList{
             this.bitsWritten = 0;
         }
         
-        if(internalOffset == 64){
-            this.currentDataLong = 0;
-            this.data.add(currentDataLong);
-            this.internalOffset = 0;
-            this.offset++;
-        }
-        
         int dataCount = this.getNumberOfBytes(value);
 
         byte freeBits = (byte) (64 - this.internalOffset);
         
         if(freeBits < dataCount){
+            assert internalOffset != 64;
+            
             this.data.set(offset, currentDataLong |= ((long)value << this.internalOffset));
             
-            
-            this.currentDataLong = 0;
-            this.data.add(currentDataLong |= ((long)value >>> freeBits));
+            this.data.add(currentDataLong = (long)value >>> freeBits);
             
             this.internalOffset = (dataCount - freeBits);
             this.offset++;
         } else {
             this.data.set(offset, currentDataLong |= ((long)value << this.internalOffset));
             this.internalOffset += dataCount;
+            
+            if(internalOffset == 64){
+                this.currentDataLong = 0;
+                this.data.add(currentDataLong);
+                this.internalOffset = 0;
+                this.offset++;
+            }
         }
                 
         switch(dataCount){
@@ -120,11 +121,6 @@ public class VarByteLongPostingList extends AbstractPostingList{
     }
 
     @Override
-    public Object getData() {
-        return this.data;
-    }
-
-    @Override
     public AbstractIterator iterator() {
         return new Iterator(this);
     }
@@ -145,7 +141,7 @@ public class VarByteLongPostingList extends AbstractPostingList{
         private int controlOffset;
         private int internalOffset;
         private int bitsRead;
-        
+                
         public Iterator(VarByteLongPostingList postingList){
             this.data = postingList.data;
             this.controlData = postingList.controlData;

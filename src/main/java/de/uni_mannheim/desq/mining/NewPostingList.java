@@ -48,28 +48,13 @@ public class NewPostingList extends AbstractPostingList{
 
     @Override
     public void trim() { data.trim(); }
-
-    @Override
-    public Object getData() { return this.data; }
     
     @Override
     public AbstractIterator iterator() { return new Iterator(this); }
     
-    public final class Iterator extends AbstractIterator {
-        public Iterator() {
-            this.data = null;
-            this.offset = 0;
-        }
-
-        /** Creates an iterator backed by the given data */
-        public Iterator(ByteArrayList data) {
-            this.data = data;
-            this.offset = 0;
-        }
-
-        /** Creates an iterator backed by the given posting list */
-        public Iterator(AbstractPostingList postingList) {
-            this.data = (ByteArrayList) postingList.getData();
+    private class Iterator extends AbstractIterator {
+        public Iterator(NewPostingList postingList) {
+            this.data = postingList.data;
             this.offset = 0;
         }
         
