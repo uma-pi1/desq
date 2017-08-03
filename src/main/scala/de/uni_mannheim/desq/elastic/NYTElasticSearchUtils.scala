@@ -13,7 +13,7 @@ import de.uni_mannheim.desq.converters.nyt.NytUtil
 import de.uni_mannheim.desq.mining.IdentifiableWeightedSequence
 import de.uni_mannheim.desq.mining.spark.{DesqDatasetPartitionedWithID, IdentifiableDesqDataset}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.{HashPartitioner, SparkConf, SparkContext}
 import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.spark._
 
@@ -58,7 +58,7 @@ class NYTElasticSearchUtils extends Serializable {
     val sentences = articlesWithId.map(f => (f._2, f._1)).flatMapValues(f => f.getSentences)
     val dataset = IdentifiableDesqDataset.buildFromSentencesWithID(sentences)
 //    val dataset2 = dataset.save(path_out)
-    val partitionedDataset = DesqDatasetPartitionedWithID.partitionById[IdentifiableWeightedSequence](dataset)
+    val partitionedDataset = DesqDatasetPartitionedWithID.partitionById[IdentifiableWeightedSequence](dataset, new HashPartitioner(48))
     partitionedDataset.save(path_out)
     datasetTime.stop()
     println(s"Creating the dataset took ${datasetTime.elapsed(TimeUnit.MILLISECONDS)}")

@@ -13,7 +13,7 @@ import org.apache.hadoop.fs.permission.FsPermission
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.io.LongWritable
 import org.apache.spark.rdd.RDD
-import org.apache.spark.{HashPartitioner, SparkContext}
+import org.apache.spark.{HashPartitioner, Partitioner, SparkContext}
 
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
@@ -26,13 +26,13 @@ class DesqDatasetPartitionedWithID[V <: IdentifiableWeightedSequence](val sequen
 
   /**
     * Saves the partitioned DesqDataset to disk
-    * @param output Directory where we store the dataset
+    * @param outputPath Directory where we store the dataset
     * @param ct
     * @return DesqDatasetPartitioned
     */
-  def save(output: String)(implicit ct:ClassTag[V]): DesqDatasetPartitionedWithID[V] = {
-    val fileSystem = FileSystem.get(new URI(output), sequences.context.hadoopConfiguration)
-    val outputPath =  output + "/partitioned"
+  def save(outputPath: String)(implicit ct:ClassTag[V]): DesqDatasetPartitionedWithID[V] = {
+    val fileSystem = FileSystem.get(new URI(outputPath), sequences.context.hadoopConfiguration)
+
     // write sequences
     val sequencePath = s"$outputPath/sequences"
     sequences.mapPartitions(iter => iter.map(s=>(s._1, s._2))).saveAsSequenceFile(sequencePath)
@@ -71,6 +71,12 @@ class DesqDatasetPartitionedWithID[V <: IdentifiableWeightedSequence](val sequen
   def toDesqDataset[V<:WeightedSequence](implicit ct:ClassTag[V]): DesqDataset[V] = {
     val seqs = sequences.mapPartitions[V](iter=> iter.map(f=>f._2.asInstanceOf[V]))
     new DesqDataset[V](seqs , dict, usesFids)
+  }
+
+
+  def repartition[V<:IdentifiableWeightedSequence](partitioner:Partitioner): DesqDatasetPartitionedWithID[V] = {
+    val sequences = this.sequences.asInstanceOf[RDD[(Long, Class[V])]].partitionBy(partitioner)
+    new DesqDatasetPartitionedWithID[V](sequences.asInstanceOf[RDD[(Long,V)]],this.dict, this.usesFids)
   }
 
 }
@@ -118,10 +124,10 @@ object DesqDatasetPartitionedWithID {
     * @tparam V Type Parameter for the Sequences beeing used
     * @return Partitioned DesqDataset[V]
     */
-  def partitionById[V<:IdentifiableWeightedSequence](dataset: DesqDataset[V]): DesqDatasetPartitionedWithID[V] ={
-
-    val sequences = dataset.sequences.keyBy(_.id).asInstanceOf[RDD[(Long, Class[V])]].partitionBy(new HashPartitioner(24))
-
+  def partitionById[V<:IdentifiableWeightedSequence](dataset: DesqDataset[V], partitioner:Partitioner): DesqDatasetPartitionedWithID[V] ={
+    val sequences = dataset.sequences.keyBy(_.id).asInstanceOf[RDD[(Long, Class[V])]].partitionBy(partitioner)
     new DesqDatasetPartitionedWithID[V](sequences.asInstanceOf[RDD[(Long,V)]],dataset.dict, dataset.usesFids)
   }
+
+
 }

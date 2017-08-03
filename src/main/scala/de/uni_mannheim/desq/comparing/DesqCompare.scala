@@ -20,8 +20,9 @@ class DesqCompare {
     * @param sigma             Sigma for Mining
     * @param k                 Number of Sequences to be returned
     * @param sc                Spark Context
+    * @return resulting Aggregated Sequences and their Interestingness Scores
     */
-  def compare(data: IdentifiableDesqDataset, docIDMap: mutable.Map[Long, mutable.BitSet], patternExpression: String, sigma: Long, k: Int = 20)(implicit sc: SparkContext): Unit = {
+  def compare(data: IdentifiableDesqDataset, docIDMap: mutable.Map[Long, mutable.BitSet], patternExpression: String, sigma: Long, k: Int = 20)(implicit sc: SparkContext):  Array[(AggregatedWeightedSequence, Float, Float)] = {
     val conf = DesqCount.createConf(patternExpression, sigma)
     conf.setProperty("desq.mining.prune.irrelevant.inputs", true)
     conf.setProperty("desq.mining.use.two.pass", true)
@@ -53,6 +54,7 @@ class DesqCompare {
 //    val topEverything = global.filter(f => f._1.weight >= sigma || f._1.weight_other >= sigma).sortBy(ws => math.max(ws._2, ws._3), ascending = false).take(k)
     val topEverything = global.sortBy(ws => math.max(ws._2, ws._3), ascending = false).take(k)
     printTable(topEverything, results.dict, false, k)
+    topEverything
   }
 
     /**
