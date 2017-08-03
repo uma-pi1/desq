@@ -11,13 +11,12 @@ import org.apache.avro.io.{DecoderFactory, EncoderFactory}
 import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter}
 import org.apache.hadoop.fs.permission.FsPermission
 import org.apache.hadoop.fs.{FileSystem, Path}
-import org.apache.hadoop.io.{LongWritable, NullWritable}
-import org.apache.spark.{HashPartitioner, SparkContext}
-import org.apache.spark.SparkContext._
-
+import org.apache.hadoop.io.LongWritable
 import org.apache.spark.rdd.RDD
+import org.apache.spark.{HashPartitioner, SparkContext}
+
 import scala.language.implicitConversions
-import scala.reflect.{ClassTag, _}
+import scala.reflect.ClassTag
 
 
 /**
@@ -27,13 +26,13 @@ class DesqDatasetPartitionedWithID[V <: IdentifiableWeightedSequence](val sequen
 
   /**
     * Saves the partitioned DesqDataset to disk
-    * @param outputPath Path to save the dataset to
+    * @param output Directory where we store the dataset
     * @param ct
     * @return DesqDatasetPartitioned
     */
-  def save(outputPath: String)(implicit ct:ClassTag[V]): DesqDatasetPartitionedWithID[V] = {
-    val fileSystem = FileSystem.get(new URI(outputPath), sequences.context.hadoopConfiguration)
-
+  def save(output: String)(implicit ct:ClassTag[V]): DesqDatasetPartitionedWithID[V] = {
+    val fileSystem = FileSystem.get(new URI(output), sequences.context.hadoopConfiguration)
+    val outputPath =  output + "/partitioned"
     // write sequences
     val sequencePath = s"$outputPath/sequences"
     sequences.mapPartitions(iter => iter.map(s=>(s._1, s._2))).saveAsSequenceFile(sequencePath)
