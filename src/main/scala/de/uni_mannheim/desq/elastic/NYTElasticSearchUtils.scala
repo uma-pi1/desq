@@ -57,6 +57,7 @@ class NYTElasticSearchUtils extends Serializable {
     val datasetTime = Stopwatch.createStarted
     val sentences = articlesWithId.map(f => (f._2, f._1)).flatMapValues(f => f.getSentences)
     val dataset = IdentifiableDesqDataset.buildFromSentencesWithID(sentences)
+//    val dataset2 = dataset.save(path_out)
     val partitionedDataset = DesqDatasetPartitionedWithID.partitionById[IdentifiableWeightedSequence](dataset)
     partitionedDataset.save(path_out)
     datasetTime.stop()
@@ -67,20 +68,22 @@ class NYTElasticSearchUtils extends Serializable {
   /**
     * Create a new index for the NewYorkTimes Corpus
     *
-    * @param index Name for the Index
+    * @param indexS Name for the Index
     */
-  def createNYTIndex(index:String) = {
+  def createNYTIndex(indexS:String) = {
 
 
     ESConnection.client.execute {
-      createIndex(index) indexSetting("index.store.type", "mmapfs") mappings (
+//      create index indexS indexSetting("index.store.type", "mmapfs") indexSetting("index.store.preload", Array("nvd", "dvd", "tim")) mappings (
+        createIndex(indexS) mappings (
         mapping("article").as(
           textField("abstract$"),
           textField("content"),
           textField("onlineSections"),
           intField("publicationYear"),
           //          dateField("publicationDate")
-          dateField("publicationDate")
+          dateField("publicationDate"),
+          dynamicDateField()
 
         ) dateDetection true dynamicDateFormats ("yyyy/MM/dd")
         )
@@ -102,8 +105,8 @@ class NYTElasticSearchUtils extends Serializable {
       val day = if (article.getPublicationYear.isEmpty) "01" else if (article.getPublicationDayOfMonth.toInt < 9) "0" + article.getPublicationDayOfMonth else article.getPublicationDayOfMonth
       val month = if (article.getPublicationYear.isEmpty) "01" else if (article.getPublicationMonth.toInt < 9) "0" + article.getPublicationMonth else article.getPublicationMonth
       val year = if (article.getPublicationYear.isEmpty) 9999 else article.getPublicationYear.toInt
-      //      val publicationDate = article.getPublicationYear + "/" + month + "/" + day
-      val publicationDate = year.toString + month + day
+      val publicationDate = article.getPublicationYear + "/" + month + "/" + day
+//      val publicationDate = year.toString + month + day
       val esArticle = NYTEsArticle(article.getAbstract$, article.getContent, publicationDate, year, article.getOnlineSections) /*, article.getSentences)*/
       (String.valueOf(a._2), esArticle)
     }).saveToEsWithMeta(index)
@@ -192,26 +195,28 @@ object NYTElasticSearchUtils extends App {
   initDesq(sparkConf)
   implicit val sc = new SparkContext(sparkConf)
 
-  val path_in = "data-local/NYTimesProcessed/results/"
-  val path_out = "data-local/processed/sparkconvert/es_all_v2/"
 
+//  val path_in = "data-local/NYTimesProcessed/results/"
+//  val path_out = "data-local/processed/sparkconvert/es_all_v2/"
+//
   val nytEs = new NYTElasticSearchUtils
-  nytEs.createIndexAndDataset(path_in, path_out, "nyt_v2")
-
-  val dataset = IdentifiableDesqDataset.load(path_out)
-  val ids_1 = nytEs.searchES("usa", "nyt/article")
-
-  val ids_2 = nytEs.searchES("germany", "nyt/article")
-
-  println(s"count of ids: ${ids_1.size}")
-  println(s"count before filter: ${dataset.sequences.count()}")
-  val usa = new IdentifiableDesqDataset(dataset.sequences.filter(f => ids_1.contains(String.valueOf(f.id))), dataset.dict, true)
-  val germany = new IdentifiableDesqDataset(dataset.sequences.filter(f => ids_2.contains(String.valueOf(f.id))), dataset.dict, true)
-
-  val germany_updated = germany.copyWithRecomputedCountsAndFids()
-  val usa_updated = usa.copyWithRecomputedCountsAndFids()
-  println(s"count after filter: ${usa.sequences.count()}")
-  println(s"count after filter: ${germany.sequences.count()}")
+  nytEs.createNYTIndex("test1")
+//  nytEs.createIndexAndDataset(path_in, path_out, "nyt_v2")
+//
+//  val dataset = IdentifiableDesqDataset.load(path_out)
+//  val ids_1 = nytEs.searchES("usa", "nyt/article")
+//
+//  val ids_2 = nytEs.searchES("germany", "nyt/article")
+//
+//  println(s"count of ids: ${ids_1.size}")
+//  println(s"count before filter: ${dataset.sequences.count()}")
+//  val usa = new IdentifiableDesqDataset(dataset.sequences.filter(f => ids_1.contains(String.valueOf(f.id))), dataset.dict, true)
+//  val germany = new IdentifiableDesqDataset(dataset.sequences.filter(f => ids_2.contains(String.valueOf(f.id))), dataset.dict, true)
+//
+//  val germany_updated = germany.copyWithRecomputedCountsAndFids()
+//  val usa_updated = usa.copyWithRecomputedCountsAndFids()
+//  println(s"count after filter: ${usa.sequences.count()}")
+//  println(s"count after filter: ${germany.sequences.count()}")
 }
 
 /**
