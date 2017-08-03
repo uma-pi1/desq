@@ -104,7 +104,7 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
             //          pattern matches at least one query hence support is equal to the sequence weight
             currentSupportGlobal = s.weight
             //            check which queries the sequence fulfills
-            val bits = docIDs.get(s.id).get
+            val bits = docIDs(s.id)
             //          If the docID is relevant for the local query then set the local weight
             if (bits.contains(1)) {
               currentSupportLocal = s.weight
@@ -134,8 +134,7 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     }).reduceByKey((x, y) => (x._1 + y._1, x._2 + y._2)) // now sum up counts
       .filter(filter)
       //      TODO: Change from Global Support to Aggregate Function
-      //      TODO: Create Sequence and DesqDataset that can hold aggregate as value
-      .map(s => s._1.withSupport(-1, s._2._1 - s._2._2, s._2._2)) // and pack the remaining sequences into a IdentifiableWeightedSequence
+      .map(s => s._1.withSupport(-1, s._2._2, s._2._1 - s._2._2)) // and pack the remaining sequences into a IdentifiableWeightedSequence
     // all done, return result (last parameter is true because mining.DesqCount always produces fids)
     new DefaultDesqDatasetWithAggregates(patterns, data.dict, true)
   }
