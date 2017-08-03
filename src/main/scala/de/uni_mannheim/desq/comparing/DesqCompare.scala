@@ -50,7 +50,8 @@ class DesqCompare {
     })
 
     //    Get the Top k sequences of each side
-    val topEverything = global.filter(f => f._1.weight >= sigma || f._1.weight_other >= sigma).sortBy(ws => math.max(ws._2, ws._3), ascending = false).take(k)
+//    val topEverything = global.filter(f => f._1.weight >= sigma || f._1.weight_other >= sigma).sortBy(ws => math.max(ws._2, ws._3), ascending = false).take(k)
+    val topEverything = global.sortBy(ws => math.max(ws._2, ws._3), ascending = false).take(k)
     printTable(topEverything, results.dict, false, k)
   }
 
