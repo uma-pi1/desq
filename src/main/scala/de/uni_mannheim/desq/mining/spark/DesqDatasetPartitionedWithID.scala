@@ -6,7 +6,7 @@ import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
 import de.uni_mannheim.desq.avro.AvroDesqDatasetDescriptor
 import de.uni_mannheim.desq.dictionary._
-import de.uni_mannheim.desq.mining.{IdentifiableWeightedSequence, WeightedSequence}
+import de.uni_mannheim.desq.mining.{AggregatedWeightedSequence, IdentifiableWeightedSequence, WeightedSequence}
 import org.apache.avro.io.{DecoderFactory, EncoderFactory}
 import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter}
 import org.apache.hadoop.fs.permission.FsPermission
@@ -26,16 +26,17 @@ class DesqDatasetPartitionedWithID[V <: IdentifiableWeightedSequence](val sequen
 
   /**
     * Saves the partitioned DesqDataset to disk
+    *
     * @param outputPath Directory where we store the dataset
     * @param ct
     * @return DesqDatasetPartitioned
     */
-  def save(outputPath: String)(implicit ct:ClassTag[V]): DesqDatasetPartitionedWithID[V] = {
+  def save(outputPath: String)(implicit ct: ClassTag[V]): DesqDatasetPartitionedWithID[V] = {
     val fileSystem = FileSystem.get(new URI(outputPath), sequences.context.hadoopConfiguration)
 
     // write sequences
     val sequencePath = s"$outputPath/sequences"
-    sequences.mapPartitions(iter => iter.map(s=>(s._1, s._2))).saveAsSequenceFile(sequencePath)
+    sequences.mapPartitions(iter => iter.map(s => (s._1, s._2))).saveAsSequenceFile(sequencePath)
 
     // write dictionary
     val dictPath = s"$outputPath/dict.avro.gz"
@@ -62,21 +63,20 @@ class DesqDatasetPartitionedWithID[V <: IdentifiableWeightedSequence](val sequen
   }
 
 
-
   /**
     * Transforms this DesqDataset which uses a RDD[K,V] in a regular DesqDataset[V]
     *
     * @return DesqDataset[V]
     */
-  def toDesqDataset[V<:WeightedSequence](implicit ct:ClassTag[V]): DesqDataset[V] = {
-    val seqs = sequences.mapPartitions[V](iter=> iter.map(f=>f._2.asInstanceOf[V]))
-    new DesqDataset[V](seqs , dict, usesFids)
+  def toDesqDataset[V <: WeightedSequence](implicit ct: ClassTag[V]): DesqDataset[V] = {
+    val seqs = sequences.mapPartitions[V](iter => iter.map(f => f._2.asInstanceOf[V]))
+    new DesqDataset[V](seqs, dict, usesFids)
   }
 
 
-  def repartition[V<:IdentifiableWeightedSequence](partitioner:Partitioner): DesqDatasetPartitionedWithID[V] = {
+  def repartition[V <: IdentifiableWeightedSequence](partitioner: Partitioner): DesqDatasetPartitionedWithID[V] = {
     val sequences = this.sequences.asInstanceOf[RDD[(Long, Class[V])]].partitionBy(partitioner)
-    new DesqDatasetPartitionedWithID[V](sequences.asInstanceOf[RDD[(Long,V)]],this.dict, this.usesFids)
+    new DesqDatasetPartitionedWithID[V](sequences.asInstanceOf[RDD[(Long, V)]], this.dict, this.usesFids)
   }
 
 }
@@ -87,12 +87,12 @@ object DesqDatasetPartitionedWithID {
   /**
     *
     * @param inputPath Path were the Dataset is stored
-    * @param sc Implicit SparkContext
-    * @param ct Implicit ClassTag of the SequenceType
+    * @param sc        Implicit SparkContext
+    * @param ct        Implicit ClassTag of the SequenceType
     * @tparam V Type Parameter for the Sequences beeing used
     * @return Partitioned DesqDataset[V]
     */
-  def load[V <: IdentifiableWeightedSequence](inputPath: String)(implicit sc: SparkContext, ct:ClassTag[V]): DesqDatasetPartitionedWithID[V] = {
+  def load[V <: IdentifiableWeightedSequence](inputPath: String)(implicit sc: SparkContext, ct: ClassTag[V]): DesqDatasetPartitionedWithID[V] = {
     val fileSystem = FileSystem.get(new URI(inputPath), sc.hadoopConfiguration)
     // read descriptor
     var descriptor = new AvroDesqDatasetDescriptor()
@@ -112,7 +112,17 @@ object DesqDatasetPartitionedWithID {
 
     // read sequences
     val sequencePath = s"$inputPath/sequences"
-    val sequences = sc.sequenceFile(sequencePath, classOf[LongWritable], ct.runtimeClass).map(kv => (kv._1.get(), kv._2.asInstanceOf[V]))
+    val sequences = sc.sequenceFile(sequencePath, classOf[LongWritable], ct.runtimeClass).mapPartitions(kv => {
+      new Iterator[(Long, V)] {
+        override def hasNext: Boolean = kv.hasNext
+
+        override def next(): (Long, V) = {
+          val current = kv.next
+          (current._1.get(), current._2.asInstanceOf[V])
+        }
+      }
+    }, true)
+
 
     // return the dataset
     new DesqDatasetPartitionedWithID[V](sequences, dict, descriptor.getUsesFids)
@@ -120,13 +130,14 @@ object DesqDatasetPartitionedWithID {
 
   /**
     * Partitions an Input Dataset by its sequences ids
+    *
     * @param dataset Dataset that uses IdentifiableWeightedSequences or Sequences extending those
     * @tparam V Type Parameter for the Sequences beeing used
     * @return Partitioned DesqDataset[V]
     */
-  def partitionById[V<:IdentifiableWeightedSequence](dataset: DesqDataset[V], partitioner:Partitioner): DesqDatasetPartitionedWithID[V] ={
+  def partitionById[V <: IdentifiableWeightedSequence](dataset: DesqDataset[V], partitioner: Partitioner): DesqDatasetPartitionedWithID[V] = {
     val sequences = dataset.sequences.keyBy(_.id).asInstanceOf[RDD[(Long, Class[V])]].partitionBy(partitioner)
-    new DesqDatasetPartitionedWithID[V](sequences.asInstanceOf[RDD[(Long,V)]],dataset.dict, dataset.usesFids)
+    new DesqDatasetPartitionedWithID[V](sequences.asInstanceOf[RDD[(Long, V)]], dataset.dict, dataset.usesFids)
   }
 
 
