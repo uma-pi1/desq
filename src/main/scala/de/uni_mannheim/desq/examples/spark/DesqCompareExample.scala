@@ -10,7 +10,7 @@ import de.uni_mannheim.desq.converters.nyt.NytUtil
 import de.uni_mannheim.desq.elastic.NYTElasticSearchUtils
 import de.uni_mannheim.desq.mining.IdentifiableWeightedSequence
 import de.uni_mannheim.desq.mining.spark.{DesqDatasetPartitionedWithID, IdentifiableDesqDataset}
-import org.apache.spark.{HashPartitioner, SparkConf, SparkContext}
+import org.apache.spark.{HashPartitioner, RangePartitioner, SparkConf, SparkContext}
 
 import scala.collection.JavaConversions._
 
@@ -100,7 +100,8 @@ object DesqCompareExample {
     print("Loading Dataset")
     val dataloadTime = Stopwatch.createStarted
     val dataset = IdentifiableDesqDataset.load(path_source)
-//    dataset.sequences.cache().count
+    //    dataset.sequences.cache()
+    val ds = dataset.sequences
 
     dataloadTime.stop()
     println(dataloadTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
@@ -116,10 +117,10 @@ object DesqCompareExample {
     val leftPrepTime = Stopwatch.createStarted
     val ids_left = sc.broadcast(ids_query_l)
     println(s"only left ${ids_left.value.size()}")
-//    val filtered_sequences_left = sequences.filter(f => ids_left.value.contains(f.id))
-//    val dataset_left = new IdentifiableDesqDataset(filtered_sequences_left.coalesce(Math.max(Math.ceil(filtered_sequences_left.count / 2240000.0).toInt, 1)), dataset.dict.deepCopy(), true)
-    val dataset_left = new IdentifiableDesqDataset(dataset.sequences.filter(f => ids_left.value.contains(f.id)).coalesce(18), dataset.dict.deepCopy(), true)
-//    val dataset_left_2 = new IdentifiableDesqDataset(dataset.sequences.filter(f => ids_left.value.contains(f.id)).coalesce(18), dataset.dict.deepCopy(), true)
+    val filtered_sequences_left = dataset.sequences.filter(f => ids_left.value.contains(f.id))
+    val dataset_left = new IdentifiableDesqDataset(filtered_sequences_left.coalesce(Math.max(Math.ceil(filtered_sequences_left.count / 2240000.0).toInt, 1)), dataset.dict.deepCopy(), true)
+    //    val dataset_left = new IdentifiableDesqDataset(dataset.sequences.filter(f => ids_left.value.contains(f.id)).coalesce(18), dataset.dict.deepCopy(), true)
+    //    val dataset_left_2 = new IdentifiableDesqDataset(dataset.sequences.filter(f => ids_left.value.contains(f.id)).coalesce(18), dataset.dict.deepCopy(), true)
     //        val dataset_left_ = new IdentifiableDesqDataset(dataset.sequences.filter{case (seq) => ids_left.value.contains(seq.id)}, dataset.dict.deepCopy())
     //        val dataset_left = dataset_left_.copyWithRecomputedCountsAndFids()
 
@@ -130,9 +131,9 @@ object DesqCompareExample {
     val rightPrepTime = Stopwatch.createStarted
     val ids_right = sc.broadcast(ids_query_r)
     println(s"only right ${ids_right.value.size}")
-//    val filtered_sequences_right = sequences.filter(f => ids_right.value.contains(f.id))
-//    val dataset_right = new IdentifiableDesqDataset(filtered_sequences_right.coalesce(Math.max(Math.ceil(filtered_sequences_right.count / 2240000.0).toInt, 1)), dataset.dict.deepCopy(), true)
-    val dataset_right = new IdentifiableDesqDataset(dataset.sequences.filter(f => ids_right.value.contains(f.id)).coalesce(18), dataset.dict.deepCopy(), true)
+    val filtered_sequences_right = dataset.sequences.filter(f => ids_right.value.contains(f.id))
+    val dataset_right = new IdentifiableDesqDataset(filtered_sequences_right.coalesce(Math.max(Math.ceil(filtered_sequences_right.count / 2240000.0).toInt, 1)), dataset.dict.deepCopy(), true)
+    //    val dataset_right = new IdentifiableDesqDataset(dataset.sequences.filter(f => ids_right.value.contains(f.id)).coalesce(18), dataset.dict.deepCopy(), true)
     //        val dataset_right_ = new IdentifiableDesqDataset(dataset.sequences.filter{case (seq) => ids_right.value.contains(seq.id)}, dataset.dict.deepCopy())
     //        val dataset_right = dataset_right_.copyWithRecomputedCountsAndFids()
     rightPrepTime.stop()
@@ -146,7 +147,7 @@ object DesqCompareExample {
 
   }
 
-  def searchAndCompare(path_source: String, query_left: String, query_right: String, patternExpression: String, sigma: Int = 1, k: Int = 10, index: String)(implicit sc: SparkContext): Unit = {
+  def searchAndCompare(path_source: String, query_left: String, query_right: String, patternExpression: String, sigma: Int = 1, k: Int = 10, index: String, partitions: Int = 96, limit: Int = 1000)(implicit sc: SparkContext): Unit = {
     print("Initializing Compare... ")
     val prepTime = Stopwatch.createStarted
     val es = new NYTElasticSearchUtils
@@ -156,8 +157,6 @@ object DesqCompareExample {
     print("Loading Dataset")
     val dataloadTime = Stopwatch.createStarted
 
-    val partitions = 128
-
     val dataset: DesqDatasetPartitionedWithID[IdentifiableWeightedSequence] = if (!Files.exists(Paths.get(s"$path_source/partitioned/"))) {
       val dataset = IdentifiableDesqDataset.load(path_source)
       val sequences = dataset.sequences.keyBy(_.id).partitionBy(new HashPartitioner(96))
@@ -165,31 +164,25 @@ object DesqCompareExample {
       datasetPartitioned.save(s"$path_source/partitioned/96")
       datasetPartitioned
     } else {
-      val datasetPartitioned = {
+      val datasetPartitioned: DesqDatasetPartitionedWithID[IdentifiableWeightedSequence] = {
 
         val datasetPartitioned = if (!Files.exists(Paths.get(s"$path_source/partitioned/$partitions"))) {
-          DesqDatasetPartitionedWithID.load[IdentifiableWeightedSequence](s"$path_source/partitioned/96")
-        } else DesqDatasetPartitionedWithID.load[IdentifiableWeightedSequence](s"$path_source/partitioned/$partitions")
-
-
-        if (!(datasetPartitioned.sequences.partitions.length == partitions)) {
-          val datasetRepartitioned = datasetPartitioned.repartition[IdentifiableWeightedSequence](new HashPartitioner(partitions))
+          val dataset = DesqDatasetPartitionedWithID.load[IdentifiableWeightedSequence](s"$path_source/partitioned/96")
+          val datasetRepartitioned = dataset.repartition[IdentifiableWeightedSequence](new HashPartitioner(partitions))
           datasetRepartitioned.save(s"$path_source/partitioned/$partitions")
           datasetRepartitioned
-        } else {
-          datasetPartitioned
-        }
+        } else DesqDatasetPartitionedWithID.load[IdentifiableWeightedSequence](s"$path_source/partitioned/$partitions")
+        datasetPartitioned
       }
       datasetPartitioned
-
     }
     dataloadTime.stop()
-    println(s"Loading Dataset took: ${dataloadTime.elapsed(TimeUnit.MILLISECONDS)}ms")
+    println(s"Loading Dataset took: ${dataloadTime.elapsed(TimeUnit.SECONDS)}s")
     print("Querying Elastic... ")
     val queryTime = Stopwatch.createStarted
-    val docIDMap = es.searchESCombines(index, 10000, query_left, query_right)
+    val docIDMap = es.searchESCombines(index, limit, query_left, query_right)
     queryTime.stop()
-    println(s"Querying Elastic took: ${queryTime.elapsed(TimeUnit.MILLISECONDS)}ms")
+    println(s"Querying Elastic took: ${queryTime.elapsed(TimeUnit.SECONDS)}s")
     println(s"There are ${docIDMap.size} relevant documents.")
 
     println("Initialize Dataset with ES Query")
@@ -207,15 +200,15 @@ object DesqCompareExample {
       , true
     )
     leftPrepTime.stop()
-    println(s"Filtering Dataset took: ${leftPrepTime.elapsed(TimeUnit.MILLISECONDS)}ms")
+    println(s"Filtering Dataset took: ${leftPrepTime.elapsed(TimeUnit.SECONDS)}s")
 
     println("Mining interesting sequences... ")
     val compareTime = Stopwatch.createStarted
     val sequences = compare.compare(dataset_filtered, docIDMap, patternExpression, sigma, k)
     compareTime.stop
-    println(s"Mining interesting sequences took: ${compareTime.elapsed(TimeUnit.MILLISECONDS)}ms")
+    println(s"Mining interesting sequences took: ${compareTime.elapsed(TimeUnit.SECONDS)}s")
 
-
+    //    println(s"Overall Runtime is ${compareTime.elapsed(TimeUnit.SECONDS)+ leftPrepTime.elapsed(TimeUnit.SECONDS) + queryTime.elapsed(TimeUnit.SECONDS)+ dataloadTime.elapsed(TimeUnit.SECONDS)}")
 
 
   }
@@ -238,31 +231,40 @@ object DesqCompareExample {
   }
 
   def main(args: Array[String]) {
-    val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
+    val conf = new SparkConf().setAppName(getClass.getName).setMaster("spark://goman:7077")
+      .set("spark.driver.extraClassPath", sys.props("java.class.path"))
+      .set("spark.executor.extraClassPath", sys.props("java.class.path"))
+//      .set("spark.executor.cores", "8")
+//      .set("spark.executor.memory", "6G")
+//      .set("spark.rdd.compress", "true")
+//      .set("spark.worker.instances", "4")
+//      .set("spark.worker.cores", "2")
+//      .set("dfs.block.size", "128mb")
       .set("fs.local.block.size", "128mb")
       .set("spark.eventLog.enabled", "true")
+    val wallclock = Stopwatch.createStarted()
     initDesq(conf)
     implicit val sc = new SparkContext(conf)
     //    buildAndCompare()
     //    compareDatasets()
 
     val path_in = "data-local/NYTimesProcessed/results/"
-//        val path_out = "data-local/processed/es_2006/"
-//        val index = "nyt2006"
+    //        val path_out = "data-local/processed/es_2006/"
+    //        val index = "nyt2006"
     //    val path_out = "data-local/processed/es_all"
     //    val index = "nyt/article"
-//    val path_out = "data-local/processed/es_all_v4/"
-//    val index = "nyt_v4"
-        val path_out = "data-local/processed/es_200702_v1/"
-    val index = "nyt_200702_v1"
+    val path_out = "data-local/processed/es_all_v6/"
+    val index = "nyt_v6"
+    //        val path_out = "data-local/processed/es_200702_v1/"
+    //    val index = "nyt_200702_v1"
     val indexmapping = index + "/article"
     if (!Files.exists(Paths.get(path_out))) {
       Files.createDirectory(Paths.get(path_out))
       createIndexAndDataSet(path_in, path_out, index)
     }
 
-    val query_left = "\"Donald Trump\""
-    val query_right = "\"Hillary Clinton\""
+    val query_left = "\"George W. Bush\" \"George Bush\""
+    val query_right = "\"Hillary Clinton\" \"Hillary Rodham Clinton\""
     //    val query_left = "2007"
     //    val query_right = "2007"
     val patternExpression = "(DT+? RB+ JJ+ NN+ PR+)"
@@ -275,22 +277,26 @@ object DesqCompareExample {
     val patternExpressionN3 = "(ENTITY^ be@VB=^) DT? (RB? JJ? NN)"
     val patternExpressionN4 = "(.^){3} NN"
     val patternExpressionO1 = "(JJ NN) ."
-    val patternExpressionO2 = "(RB JJ) ^NN"
-    val patternExpressionO3 = "(JJ JJ) ^NN"
-    val patternExpressionO4 = "(NN JJ) ^NN"
+    val patternExpressionO2 = "(RB JJ) NN^"
+    val patternExpressionO3 = "(JJ JJ) NN^"
+    val patternExpressionO4 = "(NN JJ) NN^"
     val patternExpressionO5 = "(RB VB) ."
     val patternExpressionO1_5 = "(JJ NN .)| (RB JJ ^NN)| (JJ JJ ^NN) | (NN JJ ^NN) | (RB VB .)"
     val patternExpressionOpinion2 = "(ENTITY).^{1,3} [(JJ NN .)| (RB JJ ^NN)| (JJ JJ ^NN) | (NN JJ ^NN) | (RB VB .)]"
-    val patternExpressionI1 = "(.^){2,6}"
-    val sigma = 1
-    val k = 40
+    val patternExpressionI1 = "(.){2,6}"
+    val sigma = 10
+    val k = 100
+    val partitions = 128
+    val limit = 100
     //        searchAndCompareNaive(path_out, query_left, query_right, patternExpressionO2, sigma, k, indexmapping)
-    searchAndCompareNaive(path_out, query_left, query_right, patternExpressionO1, sigma, k, indexmapping)
-    //    searchAndCompare(path_out, query_left, query_right, patternExpressionO3, sigma, k, index)
+    //    searchAndCompareNaive(path_out, query_left, query_right, patternExpressionO1, sigma, k, indexmapping)
+    searchAndCompare(path_out, query_left, query_right, patternExpressionI1, sigma, k, index, partitions, limit)
     //    searchAndCompare(path_out, query_left, query_right, patternExpressionO4, sigma, k, index)
     //    searchAndCompare(path_out, query_left, query_right, patternExpressionO5, sigma, k, index)
     //    searchAndCompare(path_out, query_left, query_right, patternExpressionO1_5, sigma, k, index)
     //    System.in.read
     //    sc.stop()
+    wallclock.stop()
+    println(s"System Runtime: ${wallclock.elapsed(TimeUnit.SECONDS)}")
   }
 }
