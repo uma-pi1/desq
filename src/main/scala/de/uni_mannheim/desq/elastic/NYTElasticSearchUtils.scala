@@ -105,7 +105,7 @@ class NYTElasticSearchUtils extends Serializable {
       val day = if (article.getPublicationYear.isEmpty) "01" else if (article.getPublicationDayOfMonth.toInt < 9) "0" + article.getPublicationDayOfMonth else article.getPublicationDayOfMonth
       val month = if (article.getPublicationYear.isEmpty) "01" else if (article.getPublicationMonth.toInt < 9) "0" + article.getPublicationMonth else article.getPublicationMonth
       val year = if (article.getPublicationYear.isEmpty) 9999 else article.getPublicationYear.toInt
-      val publicationDate = article.getPublicationYear + "/" + month + "/" + day
+      val publicationDate = year.toString + "/" + month + "/" + day
 //      val publicationDate = year.toString + month + day
       val esArticle = NYTEsArticle(article.getAbstract$, article.getContent, publicationDate, year, article.getOnlineSections) /*, article.getSentences)*/
       (String.valueOf(a._2), esArticle)
