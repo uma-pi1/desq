@@ -147,7 +147,7 @@ object DesqCompareExample {
 
   }
 
-  def searchAndCompare(path_source: String, query_left: String, query_right: String, patternExpression: String, sigma: Int = 1, k: Int = 10, index: String, partitions: Int = 96, limit: Int = 1000)(implicit sc: SparkContext): Unit = {
+  def searchAndCompare(path_source: String, query_background: String, query_left: String, query_right: String, patternExpression: String, sigma: Int = 1, k: Int = 10, index: String, partitions: Int = 96, limit: Int = 1000)(implicit sc: SparkContext): Unit = {
     print("Initializing Compare... ")
     val prepTime = Stopwatch.createStarted
     val es = new NYTElasticSearchUtils
@@ -180,7 +180,7 @@ object DesqCompareExample {
     println(s"Loading Dataset took: ${dataloadTime.elapsed(TimeUnit.SECONDS)}s")
     print("Querying Elastic... ")
     val queryTime = Stopwatch.createStarted
-    val docIDMap = es.searchESCombines(index, limit, query_left, query_right)
+    val docIDMap = es.searchESCombines(index, limit, query_background, query_left, query_right)
     queryTime.stop()
     println(s"Querying Elastic took: ${queryTime.elapsed(TimeUnit.SECONDS)}s")
     println(s"There are ${docIDMap.size} relevant documents.")
@@ -231,7 +231,7 @@ object DesqCompareExample {
   }
 
   def main(args: Array[String]) {
-    val conf = new SparkConf().setAppName(getClass.getName).setMaster("spark://goman:7077")
+    val conf = new SparkConf().setAppName(getClass.getName).setMaster("local[2]")
       .set("spark.driver.extraClassPath", sys.props("java.class.path"))
       .set("spark.executor.extraClassPath", sys.props("java.class.path"))
 //      .set("spark.executor.cores", "8")
@@ -248,13 +248,13 @@ object DesqCompareExample {
     //    buildAndCompare()
     //    compareDatasets()
 
-    val path_in = "data-local/NYTimesProcessed/results/"
+    val path_in = "data-local/nyt/2006/"
     //        val path_out = "data-local/processed/es_2006/"
     //        val index = "nyt2006"
     //    val path_out = "data-local/processed/es_all"
     //    val index = "nyt/article"
-    val path_out = "data-local/processed/es_all_v6/"
-    val index = "nyt_v6"
+    val path_out = "data-local/processed/es2006/"
+    val index = "nyt2006"
     //        val path_out = "data-local/processed/es_200702_v1/"
     //    val index = "nyt_200702_v1"
     val indexmapping = index + "/article"
@@ -263,8 +263,9 @@ object DesqCompareExample {
       createIndexAndDataSet(path_in, path_out, index)
     }
 
-    val query_left = "\"George W. Bush\" \"George Bush\""
-    val query_right = "\"Hillary Clinton\" \"Hillary Rodham Clinton\""
+    val query_background = "*"
+    val query_right = "New York"
+    val query_left = "Washington"
     //    val query_left = "2007"
     //    val query_right = "2007"
     val patternExpression = "(DT+? RB+ JJ+ NN+ PR+)"
@@ -284,13 +285,13 @@ object DesqCompareExample {
     val patternExpressionO1_5 = "(JJ NN .)| (RB JJ ^NN)| (JJ JJ ^NN) | (NN JJ ^NN) | (RB VB .)"
     val patternExpressionOpinion2 = "(ENTITY).^{1,3} [(JJ NN .)| (RB JJ ^NN)| (JJ JJ ^NN) | (NN JJ ^NN) | (RB VB .)]"
     val patternExpressionI1 = "(.){2,6}"
-    val sigma = 10
+    val sigma = 1
     val k = 100
     val partitions = 128
-    val limit = 100
+    val limit = 1900000
     //        searchAndCompareNaive(path_out, query_left, query_right, patternExpressionO2, sigma, k, indexmapping)
     //    searchAndCompareNaive(path_out, query_left, query_right, patternExpressionO1, sigma, k, indexmapping)
-    searchAndCompare(path_out, query_left, query_right, patternExpressionI1, sigma, k, index, partitions, limit)
+    searchAndCompare(path_out,query_background, query_left, query_right, patternExpression3, sigma, k, index, partitions, limit)
     //    searchAndCompare(path_out, query_left, query_right, patternExpressionO4, sigma, k, index)
     //    searchAndCompare(path_out, query_left, query_right, patternExpressionO5, sigma, k, index)
     //    searchAndCompare(path_out, query_left, query_right, patternExpressionO1_5, sigma, k, index)
