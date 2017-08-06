@@ -176,8 +176,8 @@ class NYTElasticSearchUtils extends Serializable {
     */
   def searchESCombines(index: String, limit_i: Int, queries: String*): mutable.Map[Long, mutable.BitSet] = {
     val map = mutable.Map[Long, mutable.BitSet]()
-    for (i <- 1 to queries.size ) yield {
-      val ids = searchES(queries.get(i-1), index, limit_i)
+    for (i <- 0 to queries.size - 1 ) yield {
+      val ids = searchES(queries.get(i), index, limit_i)
       for (id <- ids) {
         val newBitSet = map.getOrElse(id, mutable.BitSet(i)) += i
         map += (id -> newBitSet)
