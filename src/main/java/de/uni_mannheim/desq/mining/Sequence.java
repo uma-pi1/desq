@@ -62,6 +62,12 @@ public class Sequence extends IntArrayList implements Externalizable, Writable {
         return result;
     }
 
+    public AggregatedSequence withSupport(long id, long[] support){
+        AggregatedSequence result = new AggregatedSequence(a, support);
+        result.size = this.size;
+        return result;
+    }
+
 
     public String getUniqueIdentifier() {
         String uid = "";
