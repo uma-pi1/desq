@@ -139,29 +139,45 @@ public class EliasGammaPostingList extends AbstractPostingList{
         private LongArrayList data;
         private long currentData;
         
+        private byte internalOffset;
+        
         public Iterator(EliasGammaPostingList postingList){
             this.data = postingList.dataList;
             
             assert this.data.size() > 0;
             this.currentData = this.data.getLong(offset);
+            
+            this.internalOffset = 0;
         }
         
         @Override
         int nextNonNegativeIntIntern() {
-            byte length = (byte) Long.numberOfLeadingZeros(this.currentData);
+            byte length = (byte) (((Long.numberOfLeadingZeros(this.currentData) - this.internalOffset) * 2) + 1);
             
-            if(length == 64){
+            /*if(length == 64){
                 this.offset++;
                 this.currentData = this.data.getLong(offset);
-            }
+            }*/
             
-            if(length > 32){
-                
+            int returnValue = 0;
+            
+            if((this.internalOffset += length) <= 64){
+                returnValue = (int) (this.currentData >>> (64 - this.internalOffset));
+                this.currentData &= ((long)1 << 64 - this.internalOffset) - 1;
             } else {
-                
+                offset++;
+                long tmp = this.data.getLong(offset);
+                if(Long.numberOfLeadingZeros(tmp) == 0){
+                    returnValue = (int) (this.currentData & (((long)1 << (64 - this.internalOffset)) - 1));
+
+                    this.currentData = tmp;
+                    
+                } else {
+                    
+                }
             }
             
-            return 0;
+            return returnValue;
         }
 
         @Override
@@ -181,4 +197,31 @@ public class EliasGammaPostingList extends AbstractPostingList{
         
     }
     
+    public static void main(String[] args){
+        EliasGammaPostingList postingList = new EliasGammaPostingList();
+        
+        postingList.newPosting();
+        
+        postingList.addNonNegativeInt(12);
+        postingList.addNonNegativeInt(96);
+        postingList.addNonNegativeInt(5);
+        postingList.addNonNegativeInt(75);
+        postingList.addNonNegativeInt(12);
+        postingList.addNonNegativeInt(1963);
+        postingList.addNonNegativeInt(9432);
+        postingList.addNonNegativeInt(23);
+        
+        
+        
+        AbstractIterator iterator = postingList.iterator();
+        
+        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
+        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
+        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
+        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
+        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
+        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
+        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
+        
+    }
 }

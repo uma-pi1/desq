@@ -48,6 +48,14 @@ public class VarBytePostingList extends AbstractPostingList{
 
     }
     
+    private int getNumberOfBytes(int value){
+        if((value >>> 8) == 0) return 1;
+        if((value >>> 16) == 0) return 2;
+        if((value >>> 24) == 0) return 3;
+        
+        return 4;
+    }
+    
     @Override
     public void addNonNegativeIntIntern(int value){
         if(bitsWritten == 64){
@@ -57,13 +65,32 @@ public class VarBytePostingList extends AbstractPostingList{
             this.bitsWritten = 0;
         }
         
-        int dataCount = MAPPING[32 - Integer.numberOfLeadingZeros(value)];
-
-        for(int i = 0; i < dataCount; i++){
+        //int dataCount = this.getNumberOfBytes(value);//MAPPING[32 - Integer.numberOfLeadingZeros(value)];
+        int dataCount = 0;
+        
+        while (true) {
+            final int b = value & 0xFF;
+            dataCount++;
+            data.add((byte)b);
+            if (value == b) {
+                break;
+            } else {
+                value >>>= 8;
+            }
+        }
+        
+        /*int count = dataCount;
+        while(dataCount > 0){
             final int b = value & 0xFF;
             data.add((byte)b);
             value >>>= 8;
-        }
+            dataCount--;
+        }*/
+        /*for(int i = 0; i < dataCount; i++){
+            final int b = value & 0xFF;
+            data.add((byte)b);
+            value >>>= 8;
+        }*/
         
         switch(dataCount){
             case 1:
@@ -131,9 +158,39 @@ public class VarBytePostingList extends AbstractPostingList{
                         
             int returnValue = 0;
             
-            for(int i = 0; i < (int) ((controlDataLongLocal) & 3) + 1; i++){
-                returnValue |= ((this.data.getByte(this.offset) & 0xFF) << (i * 8));
+            /*for(int i = 0; i < (int) ((controlDataLongLocal) & 3) + 1; i++){
+                returnValue += ((this.data.getByte(this.offset) & 0xFF) << (i * 8));
                 this.offset++;
+            }*/
+            switch((int) ((controlDataLongLocal) & 3)){
+                case 0:
+                    returnValue = this.data.getByte(this.offset);
+                    this.offset++;
+                    break;
+                case 1:
+                    returnValue = this.data.getByte(this.offset);
+                    this.offset++;
+                    returnValue |= this.data.getByte(this.offset) << 8;
+                    this.offset++;
+                    break;
+                case 2:
+                    returnValue = this.data.getByte(this.offset);
+                    this.offset++;
+                    returnValue |= this.data.getByte(this.offset) << 8;
+                    this.offset++;
+                    returnValue |= this.data.getByte(this.offset) << 16;
+                    this.offset++;
+                    break;
+                case 3:
+                    returnValue = this.data.getByte(this.offset);
+                    this.offset++;
+                    returnValue |= this.data.getByte(this.offset) << 8;
+                    this.offset++;
+                    returnValue |= this.data.getByte(this.offset) << 16;
+                    this.offset++;
+                    returnValue |= this.data.getByte(this.offset) << 24;
+                    this.offset++;
+                    break;
             }
             
             this.internalOffset += 2;

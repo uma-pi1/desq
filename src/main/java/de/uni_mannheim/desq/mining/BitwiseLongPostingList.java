@@ -37,7 +37,7 @@ public class BitwiseLongPostingList extends AbstractPostingList{
     
     @Override
     public void addNonNegativeIntIntern(int value){
-        
+                
         assert value >= 0;
         assert size() > 0;
         
@@ -51,6 +51,7 @@ public class BitwiseLongPostingList extends AbstractPostingList{
             
             if(lengthB == 0){
                 freeBits--;
+                controlData.set(lastIndex, (currentControlData |= ((long)1 << freeBits)));
             } else {
                 freeBits -= lengthB;
 
@@ -58,9 +59,9 @@ public class BitwiseLongPostingList extends AbstractPostingList{
                 data.set(lastIndex, (currentData |= (long)b << freeBits));
 
                 // Get last control int and add control bits
-                controlData.set(lastIndex, (currentControlData |= ((((long)1 << lengthB) - 2) << freeBits)));
+                controlData.set(lastIndex, (currentControlData |= ((long)1 << freeBits)));
             }
-            
+                        
             // Reset variables if all 64 bits of the int are set with data bits
             if(freeBits == 0){
                 freeBits = 64;
@@ -72,19 +73,20 @@ public class BitwiseLongPostingList extends AbstractPostingList{
             }
         } else {
             
-            long controlMask = ((long)1 << lengthB) - 2;
+            //long controlMask = ((long)1 << lengthB) - 2;
             
             // Add part of data bits to fill the first int
             data.set(lastIndex, currentData |= ((long)b >>> (lengthB - freeBits)));
             
             // Add part of control data bits to fill the first int
-            controlData.set(lastIndex, currentControlData |= (controlMask >>> (lengthB - freeBits)));
+            //controlData.set(lastIndex, currentControlData |= (controlMask >>> (lengthB - freeBits)));
 
             // Reset variables and shift the rest of the data bits to the left and add it to a new int, same for control data
             freeBits = (byte)(64 - (lengthB - freeBits));
             
             currentData = (long)b << freeBits;
-            currentControlData = controlMask << freeBits;
+            //currentControlData = controlMask << freeBits;
+            currentControlData = (long)1 << freeBits;
             data.add(currentData);
             controlData.add(currentControlData);
                     
@@ -142,21 +144,14 @@ public class BitwiseLongPostingList extends AbstractPostingList{
             
             int returnValue;
             
-            // Set offset before to the current position inside the int
             byte offsetBefore = internalOffset;
 
-            /* Shift the mask to the last positon to cover zeros in the control string
-               11011101 : control data
-               11100000 : mask
-               11111101 : new control data*/ 
             if(offsetBefore != 0){
-                currentControlData |= (0x8000000000000000L) >> (offsetBefore - 1);
+                currentControlData &= (((long)1 << (64 - offsetBefore)) - 1);
             }
+                        
+            internalOffset = (byte) (Long.numberOfLeadingZeros(currentControlData) + 1);
             
-            // Invert control string and read number of leading zeros
-            internalOffset = (byte) (Long.numberOfLeadingZeros(~currentControlData) + 1);
-            
-            // Check if the current read int is split to two ints, by checking if the internal offset is the int length
             if(internalOffset > 64){
 
                 int mask = ((1 << (64 - offsetBefore)) - 1);
@@ -167,7 +162,7 @@ public class BitwiseLongPostingList extends AbstractPostingList{
                 currentData = this.data.getLong(offset);
                 currentControlData = this.controlData.getLong(offset);
 
-                internalOffset = (byte) (Long.numberOfLeadingZeros(~currentControlData) + 1);
+                internalOffset = (byte) (Long.numberOfLeadingZeros(currentControlData) + 1);
                 
                 returnValue = (returnValue << internalOffset) | (int) (currentData >>> (64 - internalOffset));
             } else {

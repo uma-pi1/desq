@@ -103,7 +103,7 @@ public class PostingListBenchmark {
     }
     
     public static void main(String[] args){
-        PostingListBenchmark benchmark = new PostingListBenchmark("test.txt", new BitwiseLongPostingList());
+        PostingListBenchmark benchmark = new PostingListBenchmark("test.txt", new VarBytePostingList());
         
         int reps = 1000;
         
