@@ -5,6 +5,7 @@
  */
 package de.uni_mannheim.desq.mining;
 
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 /**
@@ -19,16 +20,20 @@ public class BitwiseLongPostingList extends AbstractPostingList{
     
     private long currentData;
     private long currentControlData;
-    private int lastIndex;
+    private int offset;
+    
+    private IntArrayList index;
 
     /** Constructs a new empty posting list */
     public BitwiseLongPostingList() {
         data = new LongArrayList();
         controlData = new LongArrayList();
         
+        index = new IntArrayList();
+        
         currentData = 0;
         currentControlData = 0;
-        lastIndex = 0;
+        offset = 0;
         
         data.add(0);
         controlData.add(0);
@@ -51,15 +56,15 @@ public class BitwiseLongPostingList extends AbstractPostingList{
             
             if(lengthB == 0){
                 freeBits--;
-                controlData.set(lastIndex, (currentControlData |= ((long)1 << freeBits)));
+                controlData.set(offset, (currentControlData |= ((long)1 << freeBits)));
             } else {
                 freeBits -= lengthB;
 
                 // Get last int and add data bits
-                data.set(lastIndex, (currentData |= (long)b << freeBits));
+                data.set(offset, (currentData |= (long)b << freeBits));
 
                 // Get last control int and add control bits
-                controlData.set(lastIndex, (currentControlData |= ((long)1 << freeBits)));
+                controlData.set(offset, (currentControlData |= ((long)1 << freeBits)));
             }
                         
             // Reset variables if all 64 bits of the int are set with data bits
@@ -69,14 +74,14 @@ public class BitwiseLongPostingList extends AbstractPostingList{
                 currentControlData = 0;
                 data.add(0);
                 controlData.add(0);
-                lastIndex++;
+                offset++;
             }
         } else {
             
             //long controlMask = ((long)1 << lengthB) - 2;
             
             // Add part of data bits to fill the first int
-            data.set(lastIndex, currentData |= ((long)b >>> (lengthB - freeBits)));
+            data.set(offset, currentData |= ((long)b >>> (lengthB - freeBits)));
             
             // Add part of control data bits to fill the first int
             //controlData.set(lastIndex, currentControlData |= (controlMask >>> (lengthB - freeBits)));
@@ -90,7 +95,7 @@ public class BitwiseLongPostingList extends AbstractPostingList{
             data.add(currentData);
             controlData.add(currentControlData);
                     
-            lastIndex++;
+            offset++;
         }     
     }
 
@@ -113,6 +118,13 @@ public class BitwiseLongPostingList extends AbstractPostingList{
         data.trim();
     }
 
+    @Override
+    public void newPosting() {
+        noPostings++;
+        if (noPostings>1) // first posting does not need separator
+            this.addNonNegativeIntIntern(0);
+            this.index.add(((64 - freeBits) << 24) + offset);
+    }
 
     @Override
     public AbstractIterator iterator() {
@@ -124,6 +136,8 @@ public class BitwiseLongPostingList extends AbstractPostingList{
         private final LongArrayList data;
         private final LongArrayList controlData;
         
+        private IntArrayList index;
+        
         private long currentData;
         private long currentControlData;
         private byte internalOffset;
@@ -131,6 +145,8 @@ public class BitwiseLongPostingList extends AbstractPostingList{
         public Iterator(BitwiseLongPostingList postingList){
             this.data = postingList.data;
             this.controlData = postingList.controlData;
+            
+            this.index = postingList.index;
             
             this.currentData = this.data.getLong(offset);
             this.currentControlData = this.controlData.getLong(offset);
@@ -154,9 +170,7 @@ public class BitwiseLongPostingList extends AbstractPostingList{
             
             if(internalOffset > 64){
 
-                int mask = ((1 << (64 - offsetBefore)) - 1);
-
-                returnValue = (int) currentData & mask;
+                returnValue = (int) currentData & ((1 << (64 - offsetBefore)) - 1);
 
                 offset++;
                 currentData = this.data.getLong(offset);
@@ -182,6 +196,20 @@ public class BitwiseLongPostingList extends AbstractPostingList{
             return returnValue;
         }
 
+        public boolean nextPosting(int index){
+            if(index >= this.index.size()){
+                return false;
+            }
+            int tmp = this.index.getInt(index);
+            this.offset = tmp & 0xFFFFFF;
+            this.internalOffset = (byte)(tmp >>> 24);
+            
+            if(this.offset >= this.data.size() || this.internalOffset > 64)
+                return false;
+            else
+                return true;
+        }
+        
         @Override
         public boolean nextPosting() {
             if (offset >= data.size())
@@ -195,5 +223,37 @@ public class BitwiseLongPostingList extends AbstractPostingList{
             } while (b!=0);
             return true;
         }
+    }
+    
+    public static void main(String[] args){
+        BitwiseLongPostingList postingList = new BitwiseLongPostingList();
+        
+        postingList.newPosting();
+        
+        postingList.addInt(12);
+        postingList.addInt(12);
+        postingList.addInt(12);
+        
+        postingList.newPosting();
+        
+        postingList.addInt(12);
+        postingList.addInt(12);
+        postingList.addInt(12);
+        
+        postingList.newPosting();
+        
+        postingList.addInt(21);
+        postingList.addInt(21);
+        postingList.addInt(21);
+        
+        AbstractIterator iterator = postingList.iterator();
+        
+        System.out.println("Posting: " + iterator.nextPosting(1));
+        
+        System.out.println("Value: " + iterator.nextInt());
+        System.out.println("Value: " + iterator.nextInt());
+        System.out.println("Value: " + iterator.nextInt());
+        
+        
     }
 }

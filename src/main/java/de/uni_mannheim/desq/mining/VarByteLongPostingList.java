@@ -62,17 +62,16 @@ public class VarByteLongPostingList extends AbstractPostingList{
 
         byte freeBits = (byte) (64 - this.internalOffset);
         
+        this.data.set(offset, currentDataLong |= ((long)value << this.internalOffset));
+        
         if(freeBits < dataCount){
             assert internalOffset != 64;
-            
-            this.data.set(offset, currentDataLong |= ((long)value << this.internalOffset));
-            
+                      
             this.data.add(currentDataLong = (long)value >>> freeBits);
             
             this.internalOffset = (dataCount - freeBits);
             this.offset++;
         } else {
-            this.data.set(offset, currentDataLong |= ((long)value << this.internalOffset));
             this.internalOffset += dataCount;
             
             if(internalOffset == 64){
