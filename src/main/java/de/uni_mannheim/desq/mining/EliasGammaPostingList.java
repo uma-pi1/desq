@@ -5,6 +5,7 @@
  */
 package de.uni_mannheim.desq.mining;
 
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import java.util.BitSet;
 
@@ -17,6 +18,8 @@ public class EliasGammaPostingList extends AbstractPostingList{
     private int currentPosition;
     private BitSet data;
     
+    private IntArrayList index;
+    
     private int freeBits;
     private int offset;
     private LongArrayList dataList;
@@ -28,6 +31,7 @@ public class EliasGammaPostingList extends AbstractPostingList{
         
         // addInt2()
         dataList = new LongArrayList();
+        index = new IntArrayList();
         dataList.add(0);
         offset = 0;
         freeBits = 64;
@@ -128,7 +132,13 @@ public class EliasGammaPostingList extends AbstractPostingList{
     public void trim() {
         this.dataList.trim();
     }
-        
+
+    @Override
+    public void newPosting() {
+        noPostings++;
+        this.index.add(((64 - freeBits) << 24) + offset);
+    }
+    
     @Override
     public AbstractIterator iterator() {
         return new Iterator(this);
@@ -146,10 +156,14 @@ public class EliasGammaPostingList extends AbstractPostingList{
         private LongArrayList data;
         private long currentData;
         
+        private IntArrayList index;
+        private int postings;
+        
         private byte internalOffset;
         
         public Iterator(EliasGammaPostingList postingList){
             this.data = postingList.dataList;
+            this.index = postingList.index;
             
             assert this.data.size() > 0;
             this.currentData = this.data.getLong(offset);
@@ -159,19 +173,21 @@ public class EliasGammaPostingList extends AbstractPostingList{
         
         @Override
         int nextNonNegativeIntIntern() {
+            if(this.internalOffset != 0){
+                this.currentData &= ((long)1 << 64 - this.internalOffset) - 1;
+            }
+            
             byte leadingZeros = (byte)(Long.numberOfLeadingZeros(this.currentData) - this.internalOffset);
             byte length = (byte) ((leadingZeros * 2) + 1);
             
             int returnValue = 0;
             
-            if((this.internalOffset += length) <= 64){
+            if((this.internalOffset += ((leadingZeros * 2) + 1)) <= 64){
                 returnValue = (int) (this.currentData >>> (64 - this.internalOffset));
                 
                 if(length == 64){
                     this.offset++;
                     this.currentData = this.data.getLong(offset);
-                } else {
-                    this.currentData &= ((long)1 << 64 - this.internalOffset) - 1;
                 }
             } else {
                 offset++;
@@ -181,35 +197,44 @@ public class EliasGammaPostingList extends AbstractPostingList{
                     this.internalOffset -= 64;
                     
                     returnValue = (int) (this.currentData << this.internalOffset | (tmp >>> 64 - this.internalOffset));
-
-                    this.currentData = tmp & (((long)1 << 64 - this.internalOffset) - 1);
                 } else {
                     byte dataLength = (byte)Long.numberOfLeadingZeros(tmp);
 
                     this.internalOffset = (byte)((dataLength + (dataLength + leadingZeros)) + 1);
                     
                     returnValue = (int)(tmp >>> (64 - this.internalOffset));
-                    
-                    this.currentData = tmp & (((long)1 << 64 - this.internalOffset) - 1);
                 }
+                
+                this.currentData = tmp;
             }
             
             return returnValue;
         }
         
         @Override
-        public boolean nextPosting() {
-            if (offset >= data.size())
+        public boolean nextPosting(int index){
+            if(index >= this.index.size()){
                 return false;
-
-            int b;
-            do {
-                b = this.nextNonNegativeIntIntern();
-                //offset++;
-                if (offset >= data.size())
-                    return false;
-            } while (b!=0);
-            return true;
+            }
+            int tmp = this.index.getInt(index);
+            this.offset = tmp & 0xFFFFFF;
+            System.out.println("offset: " + offset);
+            this.internalOffset = (byte)(tmp >>> 24);
+            System.out.println("intOff: " + internalOffset);
+            
+            if(this.offset >= this.data.size() || this.internalOffset > 64)
+                return false;
+            else
+                return true;
+        }
+        
+        @Override
+        public boolean nextPosting() {
+            if(!this.nextPosting(postings))
+                return false;
+            else
+                postings++;
+                return true;
         }
         
     }
@@ -219,46 +244,31 @@ public class EliasGammaPostingList extends AbstractPostingList{
         
         postingList.newPosting();
         
-        postingList.addNonNegativeInt(12);
-        postingList.addNonNegativeInt(12);
-        postingList.addNonNegativeInt(12);
-        postingList.addNonNegativeInt(12);
-        postingList.addNonNegativeInt(12);
-        postingList.addNonNegativeInt(12);
-        postingList.addNonNegativeInt(12);
-        postingList.addNonNegativeInt(12);
-        postingList.addNonNegativeInt(512);
-        postingList.addNonNegativeInt(12);
-        postingList.addNonNegativeInt(12);
-        postingList.addNonNegativeInt(12);
-        postingList.addNonNegativeInt(12);
-        postingList.addNonNegativeInt(12);
-        postingList.addNonNegativeInt(12);
-        postingList.addNonNegativeInt(96);
-        postingList.addNonNegativeInt(5);
-        postingList.addNonNegativeInt(75);
-        postingList.addNonNegativeInt(12);
-        postingList.addNonNegativeInt(1963);
-        postingList.addNonNegativeInt(9432);
-        postingList.addNonNegativeInt(23);
+        postingList.addInt(12);
+        postingList.addInt(12);
+        
+        postingList.newPosting();
+        
+        postingList.addInt(16);
+        postingList.addInt(12);
+        postingList.addInt(12);
+        
+        postingList.newPosting();
+        
+        postingList.addInt(21);
+        postingList.addInt(21);
+        postingList.addInt(21);
         
         postingList.printData();
         
         AbstractIterator iterator = postingList.iterator();
         
-        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
-        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
-        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
-        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
-        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
-        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
-        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
-        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
-        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
-        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
-        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
-        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
-        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
+        System.out.println("Posting: " + iterator.nextPosting(1));
+        
+        System.out.println("Value: " + iterator.nextInt());
+        System.out.println("Value: " + iterator.nextInt());
+        System.out.println("Value: " + iterator.nextInt());
+        
         
     }
 }

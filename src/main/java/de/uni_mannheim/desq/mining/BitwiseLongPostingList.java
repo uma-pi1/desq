@@ -123,7 +123,7 @@ public class BitwiseLongPostingList extends AbstractPostingList{
         noPostings++;
         if (noPostings>1) // first posting does not need separator
             this.addNonNegativeIntIntern(0);
-            this.index.add(((64 - freeBits) << 24) + offset);
+        this.index.add(((64 - freeBits) << 24) + offset);
     }
 
     @Override
@@ -230,13 +230,16 @@ public class BitwiseLongPostingList extends AbstractPostingList{
         
         postingList.newPosting();
         
-        postingList.addInt(12);
-        postingList.addInt(12);
-        postingList.addInt(12);
+        postingList.addInt(0xFFFFFFFF);
+        postingList.addInt(0xFFFFFFFF);
+        postingList.addInt(0xFFFFFFFF);
+        postingList.addInt(0xFFFFFFFF);
+        postingList.addInt(0xFFFFFFFF);
+        postingList.addInt(0xFFFFFFFF);
         
         postingList.newPosting();
         
-        postingList.addInt(12);
+        postingList.addInt(16);
         postingList.addInt(12);
         postingList.addInt(12);
         
@@ -248,7 +251,7 @@ public class BitwiseLongPostingList extends AbstractPostingList{
         
         AbstractIterator iterator = postingList.iterator();
         
-        System.out.println("Posting: " + iterator.nextPosting(1));
+        System.out.println("Posting: " + iterator.nextPosting(2));
         
         System.out.println("Value: " + iterator.nextInt());
         System.out.println("Value: " + iterator.nextInt());
