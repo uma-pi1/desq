@@ -134,6 +134,13 @@ public class EliasGammaPostingList extends AbstractPostingList{
         return new Iterator(this);
     }
     
+    
+    public void printData(){
+        for(int i = 0; i < dataList.size(); i++){
+            System.out.println("data: " + Long.toBinaryString(dataList.getLong(i)));
+        }
+    }
+    
     private class Iterator extends AbstractIterator{
 
         private LongArrayList data;
@@ -152,34 +159,44 @@ public class EliasGammaPostingList extends AbstractPostingList{
         
         @Override
         int nextNonNegativeIntIntern() {
-            byte length = (byte) (((Long.numberOfLeadingZeros(this.currentData) - this.internalOffset) * 2) + 1);
-            
-            /*if(length == 64){
-                this.offset++;
-                this.currentData = this.data.getLong(offset);
-            }*/
+            byte leadingZeros = (byte)(Long.numberOfLeadingZeros(this.currentData) - this.internalOffset);
+            byte length = (byte) ((leadingZeros * 2) + 1);
             
             int returnValue = 0;
             
             if((this.internalOffset += length) <= 64){
                 returnValue = (int) (this.currentData >>> (64 - this.internalOffset));
-                this.currentData &= ((long)1 << 64 - this.internalOffset) - 1;
+                
+                if(length == 64){
+                    this.offset++;
+                    this.currentData = this.data.getLong(offset);
+                } else {
+                    this.currentData &= ((long)1 << 64 - this.internalOffset) - 1;
+                }
             } else {
                 offset++;
                 long tmp = this.data.getLong(offset);
-                if(Long.numberOfLeadingZeros(tmp) == 0){
-                    returnValue = (int) (this.currentData & (((long)1 << (64 - this.internalOffset)) - 1));
+                
+                if((int)(this.currentData << (this.internalOffset - 64)) != 0){
+                    this.internalOffset -= 64;
+                    
+                    returnValue = (int) (this.currentData << this.internalOffset | (tmp >>> 64 - this.internalOffset));
 
-                    this.currentData = tmp;
-                    
+                    this.currentData = tmp & (((long)1 << 64 - this.internalOffset) - 1);
                 } else {
+                    byte dataLength = (byte)Long.numberOfLeadingZeros(tmp);
+
+                    this.internalOffset = (byte)((dataLength + (dataLength + leadingZeros)) + 1);
                     
+                    returnValue = (int)(tmp >>> (64 - this.internalOffset));
+                    
+                    this.currentData = tmp & (((long)1 << 64 - this.internalOffset) - 1);
                 }
             }
             
             return returnValue;
         }
-
+        
         @Override
         public boolean nextPosting() {
             if (offset >= data.size())
@@ -203,6 +220,20 @@ public class EliasGammaPostingList extends AbstractPostingList{
         postingList.newPosting();
         
         postingList.addNonNegativeInt(12);
+        postingList.addNonNegativeInt(12);
+        postingList.addNonNegativeInt(12);
+        postingList.addNonNegativeInt(12);
+        postingList.addNonNegativeInt(12);
+        postingList.addNonNegativeInt(12);
+        postingList.addNonNegativeInt(12);
+        postingList.addNonNegativeInt(12);
+        postingList.addNonNegativeInt(512);
+        postingList.addNonNegativeInt(12);
+        postingList.addNonNegativeInt(12);
+        postingList.addNonNegativeInt(12);
+        postingList.addNonNegativeInt(12);
+        postingList.addNonNegativeInt(12);
+        postingList.addNonNegativeInt(12);
         postingList.addNonNegativeInt(96);
         postingList.addNonNegativeInt(5);
         postingList.addNonNegativeInt(75);
@@ -211,10 +242,16 @@ public class EliasGammaPostingList extends AbstractPostingList{
         postingList.addNonNegativeInt(9432);
         postingList.addNonNegativeInt(23);
         
-        
+        postingList.printData();
         
         AbstractIterator iterator = postingList.iterator();
         
+        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
+        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
+        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
+        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
+        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
+        System.out.println("Next Int: " + iterator.nextNonNegativeInt());
         System.out.println("Next Int: " + iterator.nextNonNegativeInt());
         System.out.println("Next Int: " + iterator.nextNonNegativeInt());
         System.out.println("Next Int: " + iterator.nextNonNegativeInt());
