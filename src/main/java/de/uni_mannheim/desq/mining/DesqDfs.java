@@ -135,6 +135,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** If true, we take all frequent items of the sequence as pivot items*/
 	final boolean sendToAllFrequentItems;
 
+	/** If true, we determine the last position of the input sequence that can generate the pivot item and do not expand further than this position if the pivot item wasn't seen before */
+	final boolean stopAtLastPivotPos;
+
 	/** Stores the input items of which we know that they cannot create the pivot item with any of the FST's transitions */
 	BitSet cannotProducePivotItem = new BitSet();
 
@@ -218,6 +221,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		useHybrid = ctx.conf.getBoolean("desq.mining.use.hybrid", false);
 		useGrid = ctx.conf.getBoolean("desq.mining.use.grid", false);
 		sendToAllFrequentItems = ctx.conf.getBoolean("desq.mining.send.to.all.frequent.items", false);
+		stopAtLastPivotPos = ctx.conf.getBoolean("desq.mining.stop.at.last.pivot.pos", false);
 
 		// create FST once per JVM
 		Stopwatch swFst = new Stopwatch().start();
@@ -344,7 +348,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 				currentDfaStateSequence = dfaStateSequences.get(currentInputId);
 
 				// if we mine a partition, we find the last position of the input sequence that can create a pivot item
-				if(pivotItem != 0) {
+				if(stopAtLastPivotPos && pivotItem != 0) {
 					findLastPivotPositionForCurrentInputSequence();
 				}
 
@@ -461,7 +465,7 @@ pos: 	do { // loop over positions; used for tail recursion optimization
 
 			// if we are mining a partition, we don't run the FST further on an input sequence if we have not seen
 	 		// 		the pivot item and there is no chance to see it further down the input seq.
-			if(pivotItem != 0 && (!seenPivot && pos > lastPivotPos.getInt(currentInputId))) {
+			if(stopAtLastPivotPos && pivotItem != 0 && (!seenPivot && pos > lastPivotPos.getInt(currentInputId))) {
 				return state.isFinal();
 			}
 

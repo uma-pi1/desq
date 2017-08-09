@@ -37,6 +37,7 @@ object DesqRunner {
     var useGrid: Boolean = _
     var sendToAllFrequentItems: Boolean = _
     var useFlist: Boolean = _
+    var stopAtLastPivotPos: Boolean = _
 
     val runConf = scala.collection.mutable.Map[String, String]()
 
@@ -82,7 +83,7 @@ object DesqRunner {
         } else { // use default settings for local running: run the thesis example in all algorithms
             runConf.put("count.patterns", "true")
             runConf.put("input", "data/thesis-example/DesqDataset/")
-            runGrid(Array("Thesis"), Array("DDCount", "DDIS", "DDIN", "DDIN/NA", "DDIN/A"))
+            runGrid(Array("Thesis"), Array("Semi-naive", "DDIS", "DDIN", "DDIN/NA", "DDIN/A"))
             // We could also directly run a pattern expression with one specific algorithm
             // runDesq("Thesis", 2)
         }
@@ -131,6 +132,7 @@ object DesqRunner {
         if (useDesqCount) {
             minerConf = DesqCount.createConf(patternExp, sigma)
         }
+        minerConf.setProperty("desq.mining.use.flist", useFlist)
         minerConf.setProperty("desq.mining.prune.irrelevant.inputs", "false")
         minerConf.setProperty("desq.mining.use.two.pass", "true")
         minerConf.setProperty("desq.mining.send.nfas", sendNFAs)
@@ -410,6 +412,7 @@ object DesqRunner {
         useGrid = false
         sendToAllFrequentItems = false
         useFlist = true
+        stopAtLastPivotPos = true
         algorithm match {
             case "Naive" =>
                 useDesqCount = true
@@ -418,9 +421,16 @@ object DesqRunner {
                 useDesqCount = true
             case "DDIS" =>
                 aggregateShuffleSequences = false
+            case "DDIS-lp" =>
+                aggregateShuffleSequences = false
+                stopAtLastPivotPos = false
             case "DDIS.tr" =>
                 aggregateShuffleSequences = false
                 trimInputSequences = true
+            case "DDIS.tr-lp" =>
+                aggregateShuffleSequences = false
+                trimInputSequences = true
+                stopAtLastPivotPos = false
             case "DDIS.grid" =>
                 aggregateShuffleSequences = false
                 useGrid = true
@@ -444,6 +454,10 @@ object DesqRunner {
                 sendNFAs = true
                 mergeSuffixes = false
                 aggregateShuffleSequences = false
+            case "DDIN/N" =>
+                sendNFAs = true
+                mergeSuffixes = false
+                aggregateShuffleSequences = true
             case "DDIN/A" =>
                 sendNFAs = true
                 mergeSuffixes = true
