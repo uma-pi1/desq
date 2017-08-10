@@ -112,6 +112,9 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
 
     val results = miner.mine(data, docIDMap, filter)
 
+    val seq_count = results.sequences.count
+    results.sequences.repartition(Math.max(Math.ceil(seq_count / 2000000.0).toInt, 8))
+
     //    Join the sequences of both sides and compute the interestingness values
     val global = results.sequences.mapPartitions[(AggregatedWeightedSequence, Float, Float)](rows => {
       new Iterator[(AggregatedWeightedSequence, Float, Float)] {
@@ -163,6 +166,8 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
     }
 
     val results = miner.mine(data, docIDMap, filter)
+    val seq_count = results.sequences.count
+    results.sequences.repartition(Math.max(Math.ceil(seq_count / 2000000.0).toInt, 8))
     val intResults = results.sequences.mapPartitions[(AggregatedSequence, Float, Float)](rows => {
       new Iterator[(AggregatedSequence, Float, Float)] {
         override def hasNext: Boolean = rows.hasNext
@@ -205,7 +210,7 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
       case (k, (lv, None)) => (lv.get, (1 + lv.get.weight) / 1.toFloat, lv.get.weight, 1 / (1 + lv.get.weight).toFloat, 0)
       case (k, (None, rv)) => (rv.get, 1 / (1 + rv.get.weight).toFloat, 0, (1 + rv.get.weight) / 1.toFloat, rv.get.weight)
       case (k, (lv, rv)) => (lv.get, (1 + lv.get.weight) / (1 + rv.get.weight).toFloat, lv.get.weight, (1 + rv.get.weight) / (1 + lv.get.weight).toFloat, rv.get.weight)
-    }.cache()
+    }
 
     val topEverything = global.filter(f => f._3 >= sigma || f._5 >= sigma).sortBy(ws => math.max(ws._2, ws._4), ascending = false).take(k).map(ws => ((ws._1.withSupport(ws._3), ws._2), (ws._1.withSupport(ws._5), ws._4)))
     topEverything
