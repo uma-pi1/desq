@@ -1,18 +1,97 @@
 package de.uni_mannheim.desq.comparing
 
-import de.uni_mannheim.desq.avro.Sentence
+import java.nio.file.{Files, Paths}
+import java.util.concurrent.TimeUnit
+
+import com.google.common.base.Stopwatch
 import de.uni_mannheim.desq.dictionary.Dictionary
-import de.uni_mannheim.desq.mining.{DesqCount => _, DesqMiner => _, DesqMinerContext => _, _}
+import de.uni_mannheim.desq.elastic.NYTElasticSearchUtils
 import de.uni_mannheim.desq.mining.spark._
-import org.apache.spark.SparkContext
+import de.uni_mannheim.desq.mining.{DesqCount => _, DesqMiner => _, DesqMinerContext => _, _}
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
+import org.apache.spark.{HashPartitioner, SparkContext}
 
 import scala.collection.mutable
 
 /**
   * Created by ivo on 05.07.17.
   */
-class DesqCompare {
+class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkContext) {
+  val es = new NYTElasticSearchUtils
+  val dataset = if (partitions == 0) {
+    IdentifiableDesqDataset.load(data_path)
+  } else if (!Files.exists(Paths.get(s"$data_path/partitioned/"))) {
+    val dataset = IdentifiableDesqDataset.load(data_path)
+    println("Dataset Partitioning unknown and will be repartitioned with 96 partitions!")
+    val sequences = dataset.sequences.keyBy(_.id).partitionBy(new HashPartitioner(96))
+    val datasetPartitioned = new DesqDatasetPartitionedWithID[IdentifiableWeightedSequence](sequences, dataset.dict, true)
+    datasetPartitioned.save(s"$data_path/partitioned/96")
+    println(s"Repartitioned Data is stored to $data_path/partitioned/96")
+    datasetPartitioned
+  } else {
+    val datasetPartitioned: DesqDatasetPartitionedWithID[IdentifiableWeightedSequence] = {
+
+      val datasetPartitioned = if (!Files.exists(Paths.get(s"$data_path/partitioned/$partitions"))) {
+        println(s"Dataset partitioned with $partitions cannot be found! Repartitioning!")
+        val dataset = DesqDatasetPartitionedWithID.load[IdentifiableWeightedSequence](s"$data_path/partitioned/96")
+        val datasetRepartitioned = dataset.repartition[IdentifiableWeightedSequence](new HashPartitioner(partitions))
+        datasetRepartitioned.save(s"$data_path/partitioned/$partitions")
+        println(s"Repartitioned Data is stored to $data_path/partitioned/$partitions")
+        datasetRepartitioned
+      } else DesqDatasetPartitionedWithID.load[IdentifiableWeightedSequence](s"$data_path/partitioned/$partitions")
+      datasetPartitioned
+    }
+    datasetPartitioned
+  }
+
+  var queryT = 0L
+  var filterT = 0L
+
+  /**
+    * Create the Ad-hoc DesqDataset
+    * @param index ElasticSearch Index to Query
+    * @param query_B Optional: Query to specify the overall dataset
+    * @param query_L Query for the "Left Dataset"
+    * @param query_R Query for the "Right Dataset"
+    * @param limit Limit of results for a query
+    * @return (Ad-hoc Dataset, Broadcast[Combined Index]
+    */
+  def createAdhocDatasets(index: String, query_B: String, query_L: String, query_R: String, limit: Int = 10000): (IdentifiableDesqDataset, Broadcast[mutable.Map[Long, mutable.BitSet]]) = {
+    println("Initialize Dataset with ES Query")
+    val queryTime = Stopwatch.createStarted
+    val docIDMap = es.searchESCombines(index, limit, query_B, query_L, query_R)
+    val ids = sc.broadcast(docIDMap)
+    queryTime.stop()
+    queryT = queryTime.elapsed(TimeUnit.SECONDS)
+
+    println("Initialize Dataset with ES Query")
+    val leftPrepTime = Stopwatch.createStarted
+
+    val adhocDataset = if (partitions == 0) {
+      val sequences = dataset.asInstanceOf[IdentifiableDesqDataset].sequences
+      new IdentifiableDesqDataset(sequences.filter(f => ids.value.contains(f.id)).repartition(Math.max(Math.ceil(sequences.count / 2240000.0).toInt, 8)), dataset.asInstanceOf[IdentifiableDesqDataset].dict.deepCopy(), true)
+    } else {
+      val sequences = dataset.asInstanceOf[DesqDatasetPartitionedWithID[IdentifiableWeightedSequence]].sequences
+      val keys = ids.value.keySet
+      val parts = keys.map(_.## % sequences.partitions.length)
+      val filtered_sequences: RDD[IdentifiableWeightedSequence] = sequences.mapPartitionsWithIndex((i, iter) =>
+        if (parts.contains(i)) iter.filter { case (k, v) => keys.contains(k) }
+        else Iterator()).map(k => k._2)
+      val seqs_filt =  filtered_sequences.repartition(Math.max(Math.ceil(filtered_sequences.count / 2240000.0).toInt, 8))
+      new IdentifiableDesqDataset(
+        seqs_filt
+        , dataset.asInstanceOf[DesqDatasetPartitionedWithID[IdentifiableWeightedSequence]].dict.deepCopy()
+        , true
+      )
+    }
+    leftPrepTime.stop()
+    filterT = leftPrepTime.elapsed(TimeUnit.SECONDS)
+    println(s"Filtering Dataset took: ${leftPrepTime.elapsed(TimeUnit.SECONDS)}s")
+    (adhocDataset, ids)
+  }
+
+
   /**
     *
     * @param data              Original DesqDataset for left collection of articles
@@ -22,19 +101,19 @@ class DesqCompare {
     * @param sc                Spark Context
     * @return resulting Aggregated Sequences and their Interestingness Scores
     */
-  def compare(data: IdentifiableDesqDataset, docIDMap: mutable.Map[Long, mutable.BitSet], patternExpression: String, sigma: Long, k: Int = 20)(implicit sc: SparkContext):  Unit = {
+  def compare(data: IdentifiableDesqDataset, docIDMap: Broadcast[mutable.Map[Long, mutable.BitSet]], patternExpression: String, sigma: Long, k: Int = 20)(implicit sc: SparkContext): Array[(AggregatedWeightedSequence, Float, Float)] = {
     val conf = DesqCount.createConf(patternExpression, sigma)
     conf.setProperty("desq.mining.prune.irrelevant.inputs", true)
     conf.setProperty("desq.mining.use.two.pass", true)
     val ctx = new DesqMinerContext(conf)
     val miner = DesqMiner.create(ctx)
 
-    val filter = (x:(Sequence, (Long, Long)))=>(x._2._1-x._2._2) >= sigma || x._2._2 >= sigma
+    val filter = (x: (Sequence, (Long, Long))) => (x._2._1 - x._2._2) >= sigma || x._2._2 >= sigma
 
     val results = miner.mine(data, docIDMap, filter)
 
     //    Join the sequences of both sides and compute the interestingness values
-    val global = results.sequences.mapPartitions[(AggregatedWeightedSequence, Float, Float)] (rows => {
+    val global = results.sequences.mapPartitions[(AggregatedWeightedSequence, Float, Float)](rows => {
       new Iterator[(AggregatedWeightedSequence, Float, Float)] {
 
         override def hasNext: Boolean = rows.hasNext
@@ -50,11 +129,11 @@ class DesqCompare {
     })
 
     //    Get the Top k sequences of each side
-//    val topEverything = global.filter(f => f._1.weight >= sigma || f._1.weight_other >= sigma).sortBy(ws => math.max(ws._2, ws._3), ascending = false).take(k)
+    //    val topEverything = global.filter(f => f._1.weight >= sigma || f._1.weight_other >= sigma).sortBy(ws => math.max(ws._2, ws._3), ascending = false).take(k)
     val topEverything = global.sortBy(ws => math.max(ws._2, ws._3), ascending = false).take(k)
-//    val topEverything = global.sortBy(ws => ws._1.weight_other, ascending = false ).take(k)
+    //    val topEverything = global.sortBy(ws => ws._1.weight_other, ascending = false ).take(k)
     printTable(topEverything, results.dict, false, k)
-//    topEverything
+    topEverything
   }
 
   /**
@@ -68,45 +147,46 @@ class DesqCompare {
     * @param sc                Spark Context
     * @return resulting Aggregated Sequences and their Interestingness Scores
     */
-  def compareWithBackground(data: IdentifiableDesqDataset, docIDMap: mutable.Map[Long, mutable.BitSet], patternExpression: String, sigma: Long, k: Int = 20)(implicit sc: SparkContext):  Unit = {
+  def compareWithBackground(data: IdentifiableDesqDataset, docIDMap: Broadcast[mutable.Map[Long, mutable.BitSet]], patternExpression: String, sigma: Long, k: Int = 20)(implicit sc: SparkContext): Array[(AggregatedSequence, Float, Float)] = {
     val conf = DesqCount.createConf(patternExpression, sigma)
     conf.setProperty("desq.mining.prune.irrelevant.inputs", true)
     conf.setProperty("desq.mining.use.two.pass", true)
     val ctx = new DesqMinerContext(conf)
     val miner = DesqMiner.create(ctx)
 
-    val filter = (x:(Sequence, Array[Long]))=> {
+    val filter = (x: (Sequence, Array[Long])) => {
       var temp = false
-      val bool = for (c <- x._2){
-          if (c >=sigma) temp = true
+      val bool = for (c <- x._2) {
+        if (c >= sigma) temp = true
       }
       temp
     }
 
     val results = miner.mine(data, docIDMap, filter)
-    val intResults = results.sequences.mapPartitions[(AggregatedSequence, Float, Float)] (rows=>{
-      new Iterator[(AggregatedSequence, Float, Float)]{
-      override def hasNext: Boolean = rows.hasNext
-      override def next(): (AggregatedSequence, Float, Float) = {
-        val oldSeq = rows.next
-        val interestingness_l = (1 + oldSeq.support(1)) / (1 + oldSeq.support(0)).toFloat
-        val interestingness_r = (1 + oldSeq.support(2)) / (1 + oldSeq.support(0)).toFloat
-        val newSeq = oldSeq.clone()
-        (newSeq, interestingness_l, interestingness_r)
+    val intResults = results.sequences.mapPartitions[(AggregatedSequence, Float, Float)](rows => {
+      new Iterator[(AggregatedSequence, Float, Float)] {
+        override def hasNext: Boolean = rows.hasNext
+
+        override def next(): (AggregatedSequence, Float, Float) = {
+          val oldSeq = rows.next
+          val interestingness_l = (1 + oldSeq.support(1)) / (1 + oldSeq.support(0)).toFloat
+          val interestingness_r = (1 + oldSeq.support(2)) / (1 + oldSeq.support(0)).toFloat
+          val newSeq = oldSeq.clone()
+          (newSeq, interestingness_l, interestingness_r)
+        }
       }
-    }
     })
-//    val topEverything = intResults.sortBy(ws => math.max(ws._2, ws._3), ascending = false).take(k)
+    //    val topEverything = intResults.sortBy(ws => math.max(ws._2, ws._3), ascending = false).take(k)
     val topEverything = intResults.sortBy(ws => ws._1.support(0), ascending = false).take(k)
     printTableWB(topEverything, results.dict, false, k)
-
+    topEverything
 
   }
 
-    /**
+  /**
     * Compares two sets of mined sequences. Their Interestingess is calculated by comparing the local frequency inside the dataset
     * with the overall frequency of the pattern in both datasets. If a pattern was not mined in the other dataset the frequency is set to 0.
-      *
+    *
     * @param left  Sequences that are mined by desq
     * @param right Sequences that are mined by desq
     * @param k     Number of Interesting Phrases to return
@@ -142,10 +222,10 @@ class DesqCompare {
   /**
     * Prints out the top-K sequences with item sids and interestigness
     *
-    * @param topKSequences      top-k sequences for the two subcollections
-    * @param dict               Global Dictionary containing all items
-    * @param usesFids           Boolean Flag
-    * @param k                  Integer
+    * @param topKSequences top-k sequences for the two subcollections
+    * @param dict          Global Dictionary containing all items
+    * @param usesFids      Boolean Flag
+    * @param k             Integer
     */
   def printPattern(topKSequences: Array[(AggregatedWeightedSequence, Float, Float)], dict: Dictionary, usesFids: Boolean = false, k: Int = 10): Unit = {
     println(s"_____________________ Top ${
@@ -153,7 +233,7 @@ class DesqCompare {
     } Interesting Sequences for Left  _____________________")
     print(topKSequences)
 
-    def print(sequences: Array[(AggregatedWeightedSequence, Float,Float)]) {
+    def print(sequences: Array[(AggregatedWeightedSequence, Float, Float)]) {
       for (tuple <- sequences) {
         val sids = for (element <- tuple._1.elements()) yield {
           if (usesFids) {

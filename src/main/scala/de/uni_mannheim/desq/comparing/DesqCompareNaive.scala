@@ -1,19 +1,67 @@
 package de.uni_mannheim.desq.comparing
 
+import java.util.concurrent.TimeUnit
+
+import com.google.common.base.Stopwatch
 import de.uni_mannheim.desq.avro.Sentence
 import de.uni_mannheim.desq.dictionary.Dictionary
+import de.uni_mannheim.desq.elastic.NYTElasticSearchUtils
 import de.uni_mannheim.desq.mining.spark._
 import de.uni_mannheim.desq.mining.{IdentifiableWeightedSequence, Sequence, WeightedSequence}
 import org.apache.spark.SparkContext
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 
 /**
   * Created by ivo on 02.05.17.
-  *
   * Class which supports building DesqDatasets from NYT Articles in Avro format, as well as comparing these datasets.
   *
   */
-class DesqCompareNaive {
+class DesqCompareNaive(data_path:String)(implicit sc:SparkContext) {
+  val dataset: IdentifiableDesqDataset = IdentifiableDesqDataset.load(data_path)
+  var queryT = 0L
+  var filterT = 0L
+
+  /**
+    * Execute Queries and Create Ad-hoc Datasets
+    * @param index Name of Index to query
+    * @param query_L User-defined Query
+    * @param query_R User-defined Query
+    * @param limit Result limit
+    * @return Tuple of Ad-hoc IdentifiableDesqDatasets
+    */
+  def createAdhocDatasets(index:String, query_L: String, query_R: String, limit:Int): (IdentifiableDesqDataset, IdentifiableDesqDataset) ={
+    val queryTime = Stopwatch.createStarted
+    val es = new NYTElasticSearchUtils
+    val ids_query_l:Seq[Long] = es.searchES(query_L, index, limit)
+    val ids_L= sc.broadcast(ids_query_l)
+    val ids_query_r:Seq[Long] = es.searchES(query_R, index, limit)
+    val ids_R = sc.broadcast(ids_query_r)
+    queryTime.stop()
+    queryT = queryTime.elapsed(TimeUnit.SECONDS)
+    println(queryT + "s")
+    println(ids_query_l.size + ids_query_r.size)
+    val filterTime = Stopwatch.createStarted
+    val data_L = filterData(ids_L)
+    val data_R = filterData(ids_R)
+    filterTime.stop()
+    filterT = filterTime.elapsed(TimeUnit.SECONDS)
+
+    (data_L, data_R)
+  }
+
+  /**
+    * Filter the dataset based on document ids
+    * @param ids Set of Document IDs (Query Result)
+    * @return Ad-hoc Dataset
+    */
+  def filterData(ids: Broadcast[Seq[Long]]): IdentifiableDesqDataset ={
+    val sequences = dataset.sequences.filter(f => ids.value.contains(f.id))
+    val parts = Math.max(Math.ceil(sequences.count / 2240000.0).toInt, 64)
+    new IdentifiableDesqDataset(sequences.repartition(parts), dataset.dict.deepCopy(), true)
+  }
+
+
   /**
     *
     * @param left              Original DesqDataset for left collection of articles

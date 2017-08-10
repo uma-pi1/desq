@@ -4,9 +4,8 @@ import java.util.concurrent.TimeUnit
 
 import com.google.common.base.Stopwatch
 import com.sksamuel.elastic4s.ElasticDsl._
-import com.sksamuel.elastic4s.mappings.FieldType.{IntegerType, StringType}
+import com.sksamuel.elastic4s.ElasticsearchClientUri
 import com.sksamuel.elastic4s.xpack.security.XPackElasticClient
-import com.sksamuel.elastic4s.{ElasticsearchClientUri, TcpClient}
 import de.uni_mannheim.desq.Desq.initDesq
 import de.uni_mannheim.desq.avro.AvroArticle
 import de.uni_mannheim.desq.converters.nyt.NytUtil
@@ -122,10 +121,14 @@ class NYTElasticSearchUtils extends Serializable {
     */
   def searchES(query_s: String, index: String, limit_i: Int = 10000): Seq[Long] = {
     val resp = ESConnection.client.execute {
-      search(index) query query_s fetchSource false storedFields "_id" limit limit_i
+      search(index) query {
+        constantScoreQuery(
+          matchQuery("content", query_s)
+        )
+      } fetchSource false storedFields "_id" limit limit_i
     }.await(Duration(30, "seconds"))
     val ids = resp.ids.map(id => id.toLong)
-    ids
+      ids
   }
 
   /**
