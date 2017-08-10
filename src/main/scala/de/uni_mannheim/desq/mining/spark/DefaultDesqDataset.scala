@@ -24,12 +24,7 @@ class DefaultDesqDataset(sequences: RDD[WeightedSequence], dict: Dictionary, use
     dictBroadcast = source.dictBroadcast
   }
 
-  /** Returns a copy of this dataset with a new dictionary, containing updated counts and fid identifiers. The
-    * original input sequences are "translated" to the new dictionary if needed. */
-  override def copyWithRecomputedCountsAndFids(): DefaultDesqDataset = {
-    val result = super.copyWithRecomputedCountsAndFids()
-    result.asInstanceOf[DefaultDesqDataset]
-  }
+
 
   /**
     * Builds a DesqDataset from an RDD of rows. Every row corresponds to one article, which may contain many sentences.

@@ -61,7 +61,7 @@ object Icdm16TraditionalMiningTest {
             // load the dictionary & update hierarchy
             val dict = Dictionary.loadFrom(dictFile)
             val delFile = sc.parallelize(Source.fromURL(dataFile).getLines.toSeq)
-            dataset = DefaultDesqDataset.loadFromDelFile[WeightedSequence](delFile, dict, usesFids = false).copyWithRecomputedCountsAndFids().asInstanceOf[DefaultDesqDataset]
+            dataset = DefaultDesqDataset.loadFromDelFile[WeightedSequence](delFile, dict, usesFids = false).copyWithRecomputedCountsAndFids()
             dataset.sequences.cache()
         }
         dataset
