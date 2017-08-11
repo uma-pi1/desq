@@ -7,7 +7,9 @@ import java.util.concurrent.TimeUnit
 import com.google.common.base.Stopwatch
 import de.uni_mannheim.desq.Desq.initDesq
 import de.uni_mannheim.desq.comparing.{DesqCompare, DesqCompareNaive}
+import de.uni_mannheim.desq.dictionary.Dictionary
 import de.uni_mannheim.desq.elastic.NYTElasticSearchUtils
+import de.uni_mannheim.desq.mining.AggregatedSequence
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.mutable.ListBuffer
@@ -16,7 +18,8 @@ import scala.collection.mutable.ListBuffer
   * Created by ivo on 05.05.17.
   */
 object DesqCompareExample {
-  var wallclock:Stopwatch = Stopwatch.createUnstarted()
+  var wallclock: Stopwatch = Stopwatch.createUnstarted()
+
   /**
     * Run the First Version of the System
     *
@@ -55,7 +58,7 @@ object DesqCompareExample {
     val totalTime = dataloadTime.elapsed(TimeUnit.SECONDS) + compare.filterT + compare.filterT + compareTime.elapsed(TimeUnit.SECONDS)
     val times = s"DC1-$patExp-$sigma-$query_L-$query_R-$limit.csv"
     val times_string = s"$totalTime, ${dataloadTime.elapsed(TimeUnit.SECONDS)},${compare.filterT},${compare.queryT},${compareTime.elapsed(TimeUnit.SECONDS)}"
-   writeTimesToFile(times_string, path_out, times)
+    writeTimesToFile(times_string, path_out, times)
   }
 
   /**
@@ -74,7 +77,7 @@ object DesqCompareExample {
     * @param limit     Maximum Number of Results for each Query
     * @param sc        SparkContext
     */
-  def searchAndCompare(data_path: String, queryFrom: String, queryTo:String, query_L: String, query_R: String, patExp: String, sigma: Int = 1, k: Int = 10, index: String, parts: Int = 96, limit: Int = 1000, path_out: String)(implicit sc: SparkContext): Unit = {
+  def searchAndCompare(data_path: String, queryFrom: String, queryTo: String, query_L: String, query_R: String, patExp: String, sigma: Int = 1, k: Int = 10, index: String, parts: Int = 96, limit: Int = 1000, path_out: String)(implicit sc: SparkContext): Unit = {
     print("Initializing Compare... ")
     val prepTime = Stopwatch.createStarted
     val es = new NYTElasticSearchUtils
@@ -97,15 +100,18 @@ object DesqCompareExample {
 
     println("Mining interesting sequences... ")
     val compareTime = Stopwatch.createStarted
-    val sequences = compare.compare(dataset, index_comb, patExp, sigma, k)
+//     compare.compare(dataset, index_comb, patExp, sigma, k)
+   val sequences =   compare.compareWithBackground(dataset, index_comb, patExp, sigma, k)
     compareTime.stop
     println(s"Mining interesting sequences took: ${compareTime.elapsed(TimeUnit.SECONDS)}s")
 
-//    val totalTime = dataloadTime.elapsed(TimeUnit.SECONDS) + compare.queryT + compare.filterT + compareTime.elapsed(TimeUnit.SECONDS)
-    val totalTime  = wallclock.stop.elapsed(TimeUnit.SECONDS)
+    //    val totalTime = dataloadTime.elapsed(TimeUnit.SECONDS) + compare.queryT + compare.filterT + compareTime.elapsed(TimeUnit.SECONDS)
+    val totalTime = wallclock.stop.elapsed(TimeUnit.SECONDS)
     val times = s"DC2-$patExp-$sigma-$query_L-$query_R-$limit-$parts.csv"
     val times_string = s"$totalTime, ${dataloadTime.elapsed(TimeUnit.SECONDS)},${compare.filterT},${compare.queryT},${compareTime.elapsed(TimeUnit.SECONDS)}"
     writeTimesToFile(times_string, path_out, times)
+    printAggregatedSequencesToFile(path_out, times, sequences, dataset.dict)
+
 
   }
 
@@ -147,86 +153,113 @@ object DesqCompareExample {
     }
   }
 
-  def main(args: Array[String]) {
-    var path_in = "data-local/nyt/2006/"
-    var path_out = "data-local/processed/es_2006"
-    var parts = 128
-    var sigma = 10
-    var patternExp = "(JJ NN) ."
-    var index = "nyt2006"
-    var queryL = "George Bush"
-    var queryR = "Hillary Clinton"
-    var queryFrom = ""
-    var queryTo = ""
-    var limit = 10000
-    var k = 100
-    var algo = "DC"
-    var master = "local[*]"
-
-    var params = ListBuffer[Array[String]]()
-    if (args.length > 0) {
-      for (arg <- args) {
-        val splits = arg.split("=")
-        params += splits
+  def printAggregatedSequencesToFile(path_out: String, filename: String, sequences: Array[((AggregatedSequence, Float, Float))], dict: Dictionary) {
+    if (!Files.exists(Paths.get(s"$path_out/experiments/"))) {
+      Files.createDirectory(Paths.get(s"$path_out/experiments/"))
+    }
+    val file = if (!Files.exists(Paths.get(s"$path_out/experiments/sequences_$filename"))) {
+      new File(s"$path_out/experiments/sequences_$filename")
+    } else {
+      val timestamp: Long = System.currentTimeMillis / 1000
+      new File(s"$path_out/experiments/${timestamp.toString}_$filename")
+    }
+    val bw = new BufferedWriter(new FileWriter(file))
+    bw.write("sequence, global_freq, left_freq, left_int, right_freq, right_int")
+    for (s <- sequences) s match {
+      case ((s._1, s._2, s._3)) => {
+        val sids = for (e <- s._1.elements) yield {
+          dict.sidOfFid(e)
+        }
+        bw.write(s"${sids.deep.mkString("[", " ", "]")},${s._1.support(0)},${s._1.support(1)},${s._2},${s._1.support(2)},${s._3}\n")
       }
     }
-
-    params.toList.collect {
-      case Array("--master", argMaster: String) => master = argMaster
-      case Array("--algo", argAlgo: String) => algo = argAlgo
-      case Array("--in", argIn: String) => path_in = argIn
-      case Array("--out", argOut: String) => path_out = argOut
-      case Array("--parts", argParts: String) => parts = argParts.toInt
-      case Array("--patexp", argPatEx: String) => patternExp = argPatEx
-      case Array("--index", argIndex: String) => index = argIndex
-      case Array("--left", argQL: String) => queryL = argQL
-      case Array("--right", argQR: String) => queryR = argQR
-      case Array("--from", argQF: String) => queryFrom = argQF
-      case Array("--to", argQT: String) => queryTo = argQT
-      case Array("--limit", argLimit: String) => limit = argLimit.toInt
-      case Array("--k", argK: String) => k = argK.toInt
-      case Array("--sigma", argSigma: String) => sigma = argSigma.toInt
-    }
-
-    val conf = new SparkConf().setAppName(getClass.getName).setMaster(master)
-      .set("spark.driver.extraClassPath", sys.props("java.class.path"))
-      .set("spark.executor.extraClassPath", sys.props("java.class.path"))
-      .set("fs.local.block.size", "128mb")
-      .set("spark.eventLog.enabled", "true")
-    wallclock.start()
-    initDesq(conf)
-    implicit val sc = new SparkContext(conf)
-
-    if (!Files.exists(Paths.get(path_out))) {
-      Files.createDirectory(Paths.get(path_out))
-      createIndexAndDataSet(path_in, path_out, index)
-    }
-
-    val patternExpression = "(DT+? RB+ JJ+ NN+ PR+)"
-    val patternExpression2 = "(RB+ MD+ VB+)"
-    val patternExpression3 = "(ENTITY)"
-    val patternExpression4 = "(VB)"
-    val patternExpressionN1 = "ENTITY (VB+ NN+? IN?) ENTITY"
-    val patternExpressionN2 = "(ENTITY^ VB+ NN+? IN? ENTITY^)"
-    val patternExpressionN21 = "(ENTITY VB+ NN+? IN? ENTITY)"
-    val patternExpressionN3 = "(ENTITY^ be@VB=^) DT? (RB? JJ? NN)"
-    val patternExpressionN4 = "(.^){3} NN"
-    val patternExpressionO1 = "(JJ NN) ."
-    val patternExpressionO2 = "(RB JJ) NN^"
-    val patternExpressionO3 = "(JJ JJ) NN^"
-    val patternExpressionO4 = "(NN JJ) NN^"
-    val patternExpressionO5 = "(RB VB) ."
-    val patternExpressionO1_5 = "(JJ NN .)| (RB JJ ^NN)| (JJ JJ ^NN) | (NN JJ ^NN) | (RB VB .)"
-    val patternExpressionOpinion2 = "(ENTITY).^{1,3} [(JJ NN .)| (RB JJ ^NN)| (JJ JJ ^NN) | (NN JJ ^NN) | (RB VB .)]"
-    val patternExpressionI1 = "(.){2,6}"
-
-
-    if (algo == "DC") searchAndCompare(path_out, queryFrom, queryTo, queryL, queryR, patternExp, sigma, k, index, parts, limit, path_out)
-    else searchAndCompareNaive(path_out, queryR, queryL, patternExp, sigma, k, index, limit, path_out)
-
-    //    TODO: Query for Background and filter the dataset && conjunction of ad-hoc query and background query || Use all queries and simple ad-hoc queries
-
-    println(s"System Runtime: ${wallclock.elapsed(TimeUnit.SECONDS)}")
-    sc.stop()
+    bw.close()
   }
+
+
+
+def main (args: Array[String] ) {
+  var path_in = "data-local/NYTimesProcessed/results/"
+  var path_out = "data-local/processed/es_all_v1"
+  var parts = 128
+  var sigma = 10
+  var patternExp = "(JJ NN) ."
+  var index = "nyt_v1"
+  var queryL = "George Bush"
+  var queryR = "Hillary Clinton"
+  var queryFrom = "2006/01/01"
+  var queryTo = "2006/09/01"
+  var limit = 10000
+  var k = 100
+  var algo = "DC"
+  var master = "local[*]"
+
+  var params = ListBuffer[Array[String]] ()
+  if (args.length > 0) {
+  for (arg <- args) {
+  val splits = arg.split ("=")
+  params += splits
+}
+}
+
+  params.toList.collect {
+  case Array ("--master", argMaster: String) => master = argMaster
+  case Array ("--algo", argAlgo: String) => algo = argAlgo
+  case Array ("--in", argIn: String) => path_in = argIn
+  case Array ("--out", argOut: String) => path_out = argOut
+  case Array ("--parts", argParts: String) => parts = argParts.toInt
+  case Array ("--patexp", argPatEx: String) => patternExp = argPatEx
+  case Array ("--index", argIndex: String) => index = argIndex
+  case Array ("--left", argQL: String) => queryL = argQL
+  case Array ("--right", argQR: String) => queryR = argQR
+  case Array ("--from", argQF: String) => queryFrom = argQF
+  case Array ("--to", argQT: String) => queryTo = argQT
+  case Array ("--limit", argLimit: String) => limit = argLimit.toInt
+  case Array ("--k", argK: String) => k = argK.toInt
+  case Array ("--sigma", argSigma: String) => sigma = argSigma.toInt
+}
+
+  val conf = new SparkConf ().setAppName (getClass.getName).setMaster (master)
+  .set ("spark.driver.extraClassPath", sys.props ("java.class.path") )
+  .set ("spark.executor.extraClassPath", sys.props ("java.class.path") )
+  .set ("fs.local.block.size", "128mb")
+  .set ("spark.eventLog.enabled", "true")
+  wallclock.start
+  initDesq(conf)
+  implicit val sc = new SparkContext (conf)
+
+  if (! Files.exists (Paths.get (path_out) ) ) {
+  Files.createDirectory (Paths.get (path_out) )
+  createIndexAndDataSet (path_in, path_out, index)
+}
+
+  val patternExpression = "(DT+? RB+ JJ+ NN+ PR+)"
+  val patternExpression2 = "(RB+ MD+ VB+)"
+  val patternExpression3 = "(ENTITY)"
+  val patternExpression4 = "(VB)"
+  val patternExpressionN1 = "ENTITY (VB+ NN+? IN?) ENTITY"
+  val patternExpressionN2 = "(ENTITY^ VB+ NN+? IN? ENTITY^)"
+  val patternExpressionN21 = "(ENTITY VB+ NN+? IN? ENTITY)"
+  val patternExpressionN3 = "(ENTITY^ be@VB=^) DT? (RB? JJ? NN)"
+  val patternExpressionN4 = "(.^){3} NN"
+  val patternExpressionO1 = "(JJ NN) ."
+  val patternExpressionO2 = "(RB JJ) NN^"
+  val patternExpressionO3 = "(JJ JJ) NN^"
+  val patternExpressionO4 = "(NN JJ) NN^"
+  val patternExpressionO5 = "(RB VB) ."
+  val patternExpressionO1_5 = "(JJ NN .)| (RB JJ ^NN)| (JJ JJ ^NN) | (NN JJ ^NN) | (RB VB .)"
+  val patternExpressionOpinion2 = "(ENTITY).^{1,3} [(JJ NN .)| (RB JJ ^NN)| (JJ JJ ^NN) | (NN JJ ^NN) | (RB VB .)]"
+  val patternExpressionI1 = "(.){2,6}"
+
+
+  if (algo == "DC") searchAndCompare (path_out, queryFrom, queryTo, queryL, queryR, patternExp, sigma, k, index, parts, limit, path_out)
+  else searchAndCompareNaive (path_out, queryR, queryL, patternExp, sigma, k, index, limit, path_out)
+
+  //    TODO: Query for Background and filter the dataset && conjunction of ad-hoc query and background query || Use all queries and simple ad-hoc queries
+
+  println (s"System Runtime: ${
+  wallclock.elapsed (TimeUnit.SECONDS)
+}")
+  sc.stop ()
+}
 }

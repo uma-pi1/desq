@@ -118,7 +118,7 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
     val results = miner.mine(data, docIDMap, filter)
 
     val seq_count = results.sequences.count
-    results.sequences.repartition(Math.max(Math.ceil(seq_count / 2000000.0).toInt, 32))
+    results.sequences.repartition(Math.ceil(seq_count / 2000000.0).toInt)
 
     //    Join the sequences of both sides and compute the interestingness values
     val global = results.sequences.mapPartitions[(AggregatedWeightedSequence, Float, Float)](rows => {
