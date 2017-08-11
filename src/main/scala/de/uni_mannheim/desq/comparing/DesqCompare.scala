@@ -70,7 +70,8 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
 
     val adhocDataset = if (partitions == 0) {
       val sequences = dataset.asInstanceOf[IdentifiableDesqDataset].sequences
-      new IdentifiableDesqDataset(sequences.filter(f => ids.value.contains(f.id)).repartition(Math.max(Math.ceil(sequences.count / 2240000.0).toInt, 8)), dataset.asInstanceOf[IdentifiableDesqDataset].dict.deepCopy(), true)
+      val filtered_sequences = sequences.filter(f => ids.value.contains(f.id))
+      new IdentifiableDesqDataset(filtered_sequences.repartition(Math.max(Math.ceil(filtered_sequences.count / 50000.0).toInt, 32)), dataset.asInstanceOf[IdentifiableDesqDataset].dict.deepCopy(), true)
     } else {
       val sequences = dataset.asInstanceOf[DesqDatasetPartitionedWithID[IdentifiableWeightedSequence]].sequences
       val keys = ids.value.keySet
@@ -78,7 +79,7 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
       val filtered_sequences: RDD[IdentifiableWeightedSequence] = sequences.mapPartitionsWithIndex((i, iter) =>
         if (parts.contains(i)) iter.filter { case (k, v) => keys.contains(k) }
         else Iterator()).map(k => k._2)
-      val seqs_filt =  filtered_sequences.repartition(Math.max(Math.ceil(filtered_sequences.count / 2240000.0).toInt, 8))
+      val seqs_filt =  filtered_sequences.repartition(Math.max(Math.ceil(filtered_sequences.count /50000.0).toInt, 32))
       new IdentifiableDesqDataset(
         seqs_filt
         , dataset.asInstanceOf[DesqDatasetPartitionedWithID[IdentifiableWeightedSequence]].dict.deepCopy()
@@ -113,7 +114,7 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
     val results = miner.mine(data, docIDMap, filter)
 
     val seq_count = results.sequences.count
-    results.sequences.repartition(Math.max(Math.ceil(seq_count / 2000000.0).toInt, 8))
+    results.sequences.repartition(Math.max(Math.ceil(seq_count / 2000000.0).toInt, 32))
 
     //    Join the sequences of both sides and compute the interestingness values
     val global = results.sequences.mapPartitions[(AggregatedWeightedSequence, Float, Float)](rows => {
@@ -167,7 +168,7 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
 
     val results = miner.mine(data, docIDMap, filter)
     val seq_count = results.sequences.count
-    results.sequences.repartition(Math.max(Math.ceil(seq_count / 2000000.0).toInt, 8))
+    results.sequences.repartition(Math.ceil(seq_count / 2000000.0).toInt)
     val intResults = results.sequences.mapPartitions[(AggregatedSequence, Float, Float)](rows => {
       new Iterator[(AggregatedSequence, Float, Float)] {
         override def hasNext: Boolean = rows.hasNext

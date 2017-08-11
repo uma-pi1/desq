@@ -55,7 +55,7 @@ object DesqCompareExample {
     val totalTime = dataloadTime.elapsed(TimeUnit.SECONDS) + compare.filterT + compare.filterT + compareTime.elapsed(TimeUnit.SECONDS)
     val times = s"DC1-$patExp-$sigma-$query_L-$query_R-$limit.csv"
     val times_string = s"$totalTime, ${dataloadTime.elapsed(TimeUnit.SECONDS)},${compare.filterT},${compare.queryT},${compareTime.elapsed(TimeUnit.SECONDS)}"
-
+   writeTimesToFile(times_string, path_out, times)
   }
 
   /**
@@ -147,16 +147,16 @@ object DesqCompareExample {
   }
 
   def main(args: Array[String]) {
-    var path_in = "data-local/nyt/2006/"
-    var path_out = "data-local/processed/es_2006"
+    var path_in = "data-local/NYTProcessed/results"
+    var path_out = "data-local/processed/es_all_v1"
     var parts = 128
     var sigma = 10
     var patternExp = "(JJ NN) ."
-    var index = "nyt2006"
+    var index = "nyt_v1"
     var queryL = "George Bush"
     var queryR = "Hillary Clinton"
     var queryB = "*"
-    var limit = 10000
+    var limit = 100
     var k = 100
     var algo = "DC"
     var master = "local[*]"
@@ -186,8 +186,9 @@ object DesqCompareExample {
     }
 
     val conf = new SparkConf().setAppName(getClass.getName).setMaster(master)
-      .set("spark.driver.extraClassPath", sys.props("java.class.path"))
-      .set("spark.executor.extraClassPath", sys.props("java.class.path"))
+     // .set("spark.driver.extraClassPath", sys.props("java.class.path"))
+     // .set("spark.executor.extraClassPath", sys.props("java.class.path"))
+     // .set("executor.memory", "8G")
       .set("fs.local.block.size", "128mb")
       .set("spark.eventLog.enabled", "true")
     wallclock.start()

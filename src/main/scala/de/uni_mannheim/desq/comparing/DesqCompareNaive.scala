@@ -57,7 +57,7 @@ class DesqCompareNaive(data_path:String)(implicit sc:SparkContext) {
     */
   def filterData(ids: Broadcast[Seq[Long]]): IdentifiableDesqDataset ={
     val sequences = dataset.sequences.filter(f => ids.value.contains(f.id))
-    val parts = Math.max(Math.ceil(sequences.count / 2240000.0).toInt, 64)
+    val parts = Math.max(Math.ceil(sequences.count / 2240000.0).toInt, 32)
     new IdentifiableDesqDataset(sequences.repartition(parts), dataset.dict.deepCopy(), true)
   }
 
