@@ -57,10 +57,14 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
     * @param limit Limit of results for a query
     * @return (Ad-hoc Dataset, Broadcast[Combined Index]
     */
-  def createAdhocDatasets(index: String, query_B: String, query_L: String, query_R: String, limit: Int = 10000): (IdentifiableDesqDataset, Broadcast[mutable.Map[Long, mutable.BitSet]]) = {
+  def createAdhocDatasets(index: String, queryFrom: String, queryTo: String, query_L: String, query_R: String, limit: Int = 10000): (IdentifiableDesqDataset, Broadcast[mutable.Map[Long, mutable.BitSet]]) = {
     println("Initialize Dataset with ES Query")
     val queryTime = Stopwatch.createStarted
-    val docIDMap = es.searchESCombines(index, limit, query_B, query_L, query_R)
+    val docIDMap = if (queryTo =="" && queryFrom == "") {
+      es.searchESCombines(index, limit, query_L, query_R)
+    } else{
+      es.searchESWithDateRangeBackground(index,limit,  queryFrom, queryTo, query_L, query_R)
+    }
     val ids = sc.broadcast(docIDMap)
     queryTime.stop()
     queryT = queryTime.elapsed(TimeUnit.SECONDS)

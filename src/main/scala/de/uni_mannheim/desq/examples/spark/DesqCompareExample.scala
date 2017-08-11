@@ -62,7 +62,8 @@ object DesqCompareExample {
     * Run the improved Version of the System.
     *
     * @param data_path Where is the data stored?
-    * @param query_B   Optional: Set the Background Dataset
+    * @param queryFrom Optional: Set the Background Dataset Start Date
+    * @param queryTo   Optional: Set the Background Dataset End Date
     * @param query_L   Keyword Query for the "Left Dataset"
     * @param query_R   Keyword Query for the "Right Dataset"
     * @param patExp    PatternExpression used for mining
@@ -73,7 +74,7 @@ object DesqCompareExample {
     * @param limit     Maximum Number of Results for each Query
     * @param sc        SparkContext
     */
-  def searchAndCompare(data_path: String, query_B: String, query_L: String, query_R: String, patExp: String, sigma: Int = 1, k: Int = 10, index: String, parts: Int = 96, limit: Int = 1000, path_out: String)(implicit sc: SparkContext): Unit = {
+  def searchAndCompare(data_path: String, queryFrom: String, queryTo:String, query_L: String, query_R: String, patExp: String, sigma: Int = 1, k: Int = 10, index: String, parts: Int = 96, limit: Int = 1000, path_out: String)(implicit sc: SparkContext): Unit = {
     print("Initializing Compare... ")
     val prepTime = Stopwatch.createStarted
     val es = new NYTElasticSearchUtils
@@ -88,7 +89,7 @@ object DesqCompareExample {
 
     print("Querying Elastic and Creating Ad-hoc Dataset... ")
 
-    val (dataset, index_comb) = compare.createAdhocDatasets(index, query_B, query_L, query_R, limit)
+    val (dataset, index_comb) = compare.createAdhocDatasets(index, queryFrom, queryTo, query_L, query_R, limit)
     println(s"There are ${index_comb.value.size} relevant documents.")
 
     println(s"Querying Elastic & Creating Ad-hoc Dataset took: ${compare.filterT + compare.queryT}s")
@@ -147,16 +148,17 @@ object DesqCompareExample {
   }
 
   def main(args: Array[String]) {
-    var path_in = "data-local/NYTProcessed/results"
-    var path_out = "data-local/processed/es_all_v1"
+    var path_in = "data-local/nyt/2006/"
+    var path_out = "data-local/processed/es_2006"
     var parts = 128
     var sigma = 10
     var patternExp = "(JJ NN) ."
-    var index = "nyt_v1"
+    var index = "nyt2006"
     var queryL = "George Bush"
     var queryR = "Hillary Clinton"
-    var queryB = "*"
-    var limit = 100
+    var queryFrom = ""
+    var queryTo = ""
+    var limit = 10000
     var k = 100
     var algo = "DC"
     var master = "local[*]"
@@ -179,16 +181,16 @@ object DesqCompareExample {
       case Array("--index", argIndex: String) => index = argIndex
       case Array("--left", argQL: String) => queryL = argQL
       case Array("--right", argQR: String) => queryR = argQR
-      case Array("--background", argQB: String) => queryB = argQB
+      case Array("--from", argQF: String) => queryFrom = argQF
+      case Array("--to", argQT: String) => queryTo = argQT
       case Array("--limit", argLimit: String) => limit = argLimit.toInt
       case Array("--k", argK: String) => k = argK.toInt
       case Array("--sigma", argSigma: String) => sigma = argSigma.toInt
     }
 
     val conf = new SparkConf().setAppName(getClass.getName).setMaster(master)
-     // .set("spark.driver.extraClassPath", sys.props("java.class.path"))
-     // .set("spark.executor.extraClassPath", sys.props("java.class.path"))
-     // .set("executor.memory", "8G")
+      .set("spark.driver.extraClassPath", sys.props("java.class.path"))
+      .set("spark.executor.extraClassPath", sys.props("java.class.path"))
       .set("fs.local.block.size", "128mb")
       .set("spark.eventLog.enabled", "true")
     wallclock.start()
@@ -219,7 +221,7 @@ object DesqCompareExample {
     val patternExpressionI1 = "(.){2,6}"
 
 
-    if (algo == "DC") searchAndCompare(path_out, queryB, queryL, queryR, patternExp, sigma, k, index, parts, limit, path_out)
+    if (algo == "DC") searchAndCompare(path_out, queryFrom, queryTo, queryL, queryR, patternExp, sigma, k, index, parts, limit, path_out)
     else searchAndCompareNaive(path_out, queryR, queryL, patternExp, sigma, k, index, limit, path_out)
 
     //    TODO: Query for Background and filter the dataset && conjunction of ad-hoc query and background query || Use all queries and simple ad-hoc queries

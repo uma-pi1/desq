@@ -85,8 +85,12 @@ class DesqCompareNaive(data_path:String)(implicit sc:SparkContext) {
     } else {
       //    Mine the two datasets
       val left_result = miner.mine(left.toDefaultDesqDataset())
-      val right_result = miner.mine(right.toDefaultDesqDataset())
+      val seq_countL = left_result.sequences.count
+      left_result.sequences.repartition(Math.max(Math.ceil(seq_countL / 2000000.0).toInt, 64))
 
+      val right_result = miner.mine(right.toDefaultDesqDataset())
+      val seq_countR = right_result.sequences.count
+      right_result.sequences.repartition(Math.max(Math.ceil(seq_countR / 2000000.0).toInt, 64))
       //    Compare the two results based on interestingness and return the top-K from both datasets
       val results = findTopKPattern(left_result, right_result, k, sigma = sigma)
       results
