@@ -168,7 +168,7 @@ class NYTElasticSearchUtils extends Serializable {
 
   def searchESWithDateRangeBackground(index:String, limit_i:Int, queryFrom:String, queryTo:String, queries:String*)={
     val map = mutable.Map[Long, mutable.BitSet]()
-    val ids = searchESByDateRange(queryFrom, queryTo, index, limit_i)
+    val ids = searchESByDateRange(queryFrom, queryTo, index, 1800000)
     for (id <- ids) {
       val newBitSet = map.getOrElse(id, mutable.BitSet(1)) += 1
       map += (id -> newBitSet)
