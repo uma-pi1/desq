@@ -126,7 +126,7 @@ class NYTElasticSearchUtils extends Serializable {
           matchQuery("content", query_s)
         )
       } fetchSource false storedFields "_id" limit limit_i
-    }.await(Duration(30, "seconds"))
+    }.await(Duration(30L, TimeUnit.SECONDS))
     val ids = resp.ids.map(id => id.toLong)
     ids
   }
@@ -144,9 +144,11 @@ class NYTElasticSearchUtils extends Serializable {
   def searchESByDateRange(min: String, max: String, index: String, limit_i: Int = 10000): Seq[Long] = {
     val resp = ESConnection.client.execute {
       search(index) storedFields "publicationDate" query {
+        constantScoreQuery(
         rangeQuery("publicationDate") gte min lte max
+        )
       } fetchSource false storedFields "_id" limit limit_i
-    }.await(Duration(30, "seconds"))
+    }.await(Duration(270L,  TimeUnit.SECONDS))
     val ids = resp.ids.map(id => id.toLong)
     ids
   }
@@ -159,7 +161,7 @@ class NYTElasticSearchUtils extends Serializable {
             rangeQuery("publicationDate") gte min lte max,
             matchQuery("content", query_s)
           ) fetchSource false storedFields "_id" limit limit_i
-    }.await(Duration(90, "seconds"))
+    }.await(Duration(90,  TimeUnit.SECONDS))
     val ids = resp.ids.map(id => id.toLong)
     ids
   }
@@ -194,7 +196,7 @@ class NYTElasticSearchUtils extends Serializable {
   def searchESByYear(year: Int, index: String, limit_i: Int = 10000): Seq[Long] = {
     val resp = ESConnection.client.execute {
       search(index) termQuery("publicationYear", year) limit limit_i
-    }.await(Duration(30, "seconds"))
+    }.await(Duration(30,  TimeUnit.SECONDS))
     val ids = resp.ids.map(id => id.toLong)
     ids
   }

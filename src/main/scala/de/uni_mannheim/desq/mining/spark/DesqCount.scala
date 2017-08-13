@@ -72,6 +72,13 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     new DefaultDesqDataset(patterns, data, true)
   }
 
+  /**
+    * DESQ-TwoCount
+    * @param data IndentifiableDesqDataset
+    * @param docIDs Corresponding CombIndex
+    * @param filter Filter Function for the Results
+    * @return DefaultDesqDatasetWithAggregates
+    */
   override def mine(data: IdentifiableDesqDataset, docIDs: Broadcast[mutable.Map[Long, mutable.BitSet]], filter: ((Sequence, (Long, Long))) => Boolean): DefaultDesqDatasetWithAggregates = {
     // localize the variables we need in the RDD
     val dictBroadcast = data.broadcastDictionary()
@@ -134,7 +141,13 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     new DefaultDesqDatasetWithAggregates(patterns, data.dict, true)
   }
 
-
+  /**
+    * DESQ-MultiCount
+    * @param data IndentifiableDesqDataset
+    * @param docIDs Corresponding CombIndex
+    * @param filter Filter Function for the Results
+    * @return DesqDatasetWithAggregate
+    */
   //  override def mine(data: IdentifiableDesqDataset, docIDs: mutable.Map[Long, mutable.BitSet], filter: ((Sequence, (Long, Long))) => Boolean): DefaultDesqDatasetWithAggregates = {
   override def mine(data: IdentifiableDesqDataset, docIDs: Broadcast[mutable.Map[Long, mutable.BitSet]], filter: ((Sequence, Array[Long])) => Boolean): DesqDatasetWithAggregate = {
     // localize the variables we need in the RDD
@@ -143,7 +156,7 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     val conf = ctx.conf
     val usesFids = data.usesFids
     val minSupport = conf.getLong("desq.mining.min.support")
-    val counters = 4
+    val counters = conf.getInt("desq.mining.count.datasets")
 
 
     val createSeqCountsMap = (seqcounts: (Sequence, Array[Long])) => {
@@ -205,7 +218,7 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
             elements(0) = s.weight
             //          If the docID is relevant for the local query then set the local weight
             for (x <- 1 until counters) {
-              if (bits.contains(x)) elements(x) = s.weight else elements(x) = 0
+              if (bits.contains(x+1)) elements(x) = s.weight else elements(x) = 0
             }
             // and run sequential DesqCount to get all output sequences produced by that input
             if (usesFids) {
