@@ -8,6 +8,7 @@ import de.uni_mannheim.desq.dictionary.Dictionary
 import de.uni_mannheim.desq.elastic.NYTElasticSearchUtils
 import de.uni_mannheim.desq.mining.spark._
 import de.uni_mannheim.desq.mining.{DesqCount => _, DesqMiner => _, DesqMinerContext => _, _}
+import it.unimi.dsi.fastutil.longs.LongArrayList
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{HashPartitioner, SparkContext}
@@ -67,7 +68,7 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
       es.searchESCombines(index, limit, query_L, query_R)
     } else{
       counters = 3
-      es.searchESWithDateRangeBackground(index,limit,  queryFrom, queryTo, query_L, query_R)
+      es.searchESWithDateRangeBackground(index, limit,  queryFrom, queryTo, query_L, query_R)
     }
     val ids = sc.broadcast(docIDMap)
     queryTime.stop()
@@ -79,7 +80,7 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
     val adhocDataset = if (partitions == 0) {
       val sequences = dataset.asInstanceOf[IdentifiableDesqDataset].sequences
       val filtered_sequences = sequences.filter(f => ids.value.contains(f.id))
-      new IdentifiableDesqDataset(filtered_sequences.coalesce(Math.max(Math.ceil(filtered_sequences.count / 50000.0).toInt, 32)), dataset.asInstanceOf[IdentifiableDesqDataset].dict.deepCopy(), true)
+      new IdentifiableDesqDataset(filtered_sequences.coalesce(Math.max(Math.ceil(filtered_sequences.count / 500000.0).toInt, 64)), dataset.asInstanceOf[IdentifiableDesqDataset].dict.deepCopy(), true)
     } else {
       val sequences = dataset.asInstanceOf[DesqDatasetPartitionedWithID[IdentifiableWeightedSequence]].sequences
       val keys = ids.value.keySet
@@ -87,7 +88,7 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
       val filtered_sequences: RDD[IdentifiableWeightedSequence] = sequences.mapPartitionsWithIndex((i, iter) =>
         if (parts.contains(i)) iter.filter { case (k, v) => keys.contains(k) }
         else Iterator()).map(k => k._2)
-      val seqs_filt =  filtered_sequences.coalesce(Math.max(Math.ceil(filtered_sequences.count /50000.0).toInt, 32))
+      val seqs_filt =  filtered_sequences.coalesce(Math.max(Math.ceil(filtered_sequences.count /500000.0).toInt, 64))
       new IdentifiableDesqDataset(
         seqs_filt
         , dataset.asInstanceOf[DesqDatasetPartitionedWithID[IdentifiableWeightedSequence]].dict.deepCopy()
@@ -167,10 +168,10 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
     val ctx = new DesqMinerContext(conf)
     val miner = DesqMiner.create(ctx)
 
-    val filter = (x: (Sequence, Array[Long])) => {
+    val filter = (x: (Sequence, LongArrayList)) => {
       var temp = false
-      val bool = for (c <- x._2) {
-        if (c >= sigma) temp = true
+      val bool = for (c <- 1 until x._2.size()) {
+        if (x._2.getLong(c) >= sigma) temp = true
       }
       temp
     }
@@ -184,15 +185,15 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
 
         override def next(): (AggregatedSequence, Float, Float) = {
           val oldSeq = rows.next
-          val interestingness_l = (oldSeq.support(1)) / (oldSeq.support(0)).toFloat
-          val interestingness_r = (oldSeq.support(2)) / (oldSeq.support(0)).toFloat
+          val interestingness_l = (oldSeq.support.getLong(1)) / (oldSeq.support.getLong(0)).toFloat
+          val interestingness_r = (oldSeq.support.getLong(2)) / (oldSeq.support.getLong(0)).toFloat
           val newSeq = oldSeq.clone()
           (newSeq, interestingness_l, interestingness_r)
         }
       }
     })
     //    val topEverything = intResults.sortBy(ws => math.max(ws._2, ws._3), ascending = false).take(k)
-    val topEverything = intResults.sortBy(ws => ws._1.support(0), ascending = false).take(k)
+    val topEverything = intResults.sortBy(ws => ws._1.support.getLong(0), ascending = false).take(k)
     printTableWB(topEverything, results.dict, false, k)
     topEverything
 
@@ -297,7 +298,7 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
           val sids = for (e <- s._1.elements) yield {
             dict.sidOfFid(e)
           }
-          println(s"|${sids.deep.mkString("[", " ", "]")}|${s._1.support(0)}|${s._1.support(1)}|${s._2}|${s._1.support(2)}|${s._3}|")
+          println(s"|${sids.deep.mkString("[", " ", "]")}|${s._1.support.getLong(0)}|${s._1.support.getLong(1)}|${s._2}|${s._1.support.getLong(2)}|${s._3}|")
         }
       }
     }

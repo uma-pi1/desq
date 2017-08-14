@@ -1,6 +1,7 @@
 package de.uni_mannheim.desq.mining.spark
 
 import de.uni_mannheim.desq.mining.Sequence
+import it.unimi.dsi.fastutil.longs.LongArrayList
 import org.apache.spark.broadcast.Broadcast
 
 import scala.collection.mutable
@@ -29,7 +30,7 @@ abstract class DesqMiner(val ctx: DesqMinerContext) {
 
   def mine(data: IdentifiableDesqDataset, docIDs: Broadcast[mutable.Map[Long, mutable.BitSet]], filter: ((Sequence, (Long, Long))) => Boolean): DefaultDesqDatasetWithAggregates
 
-  def mine(data: IdentifiableDesqDataset, docIDs: Broadcast[mutable.Map[Long, mutable.BitSet]], filter: ((Sequence, Array[Long])) => Boolean): DesqDatasetWithAggregate
+  def mine(data: IdentifiableDesqDataset, docIDs: Broadcast[mutable.Map[Long, mutable.BitSet]], filter: ((Sequence, LongArrayList)) => Boolean): DesqDatasetWithAggregate
 }
 
 object DesqMiner {
