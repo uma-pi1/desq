@@ -9,7 +9,7 @@ import de.uni_mannheim.desq.Desq.initDesq
 import de.uni_mannheim.desq.comparing.{DesqCompare, DesqCompareNaive}
 import de.uni_mannheim.desq.dictionary.Dictionary
 import de.uni_mannheim.desq.elastic.NYTElasticSearchUtils
-import de.uni_mannheim.desq.mining.spark.{DefaultDesqDataset, DesqCount, DesqMiner, DesqMinerContext}
+import de.uni_mannheim.desq.mining.spark._
 import de.uni_mannheim.desq.mining.{AggregatedSequence, AggregatedWeightedSequence, WeightedSequence}
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -103,11 +103,10 @@ object DesqCompareExample {
     compareTime.stop
     println(s"Mining interesting sequences took: ${compareTime.elapsed(TimeUnit.SECONDS)}s")
 
-    //    val totalTime = dataloadTime.elapsed(TimeUnit.SECONDS) + compare.queryT + compare.filterT + compareTime.elapsed(TimeUnit.SECONDS)
     val totalTime = wallclock.stop.elapsed(TimeUnit.SECONDS)
-    val filename = s"DC2-$patExp-$sigma-$query_L-$query_R-$limit-${parts}_${System.currentTimeMillis / 1000}.csv"
+    val filename = s"DC2-$patExp-$sigma-$query_L-$query_R-$limit-${parts}"
     val times_string = s"$totalTime, ${dataloadTime.elapsed(TimeUnit.SECONDS)},${compare.filterT},${compare.queryT},${compareTime.elapsed(TimeUnit.SECONDS)}"
-    writeTimesToFile(times_string, data_path, filename)
+    writeTimesToFile(times_string, data_path, filename+".csv")
     printAggregatedWeightedSequencesToFile(data_path, filename, sequences, dataset.dict)
 
 
@@ -154,16 +153,16 @@ object DesqCompareExample {
     println("Mining interesting sequences... ")
     val compareTime = Stopwatch.createStarted
     //     compare.compare(dataset, index_comb, patExp, sigma, k)
-    val sequences = compare.compareWithBackground(dataset, index_comb, patExp, sigma, k)
+    val (sequences, dict) = compare.compareWithBackground(dataset, index_comb, patExp, sigma, k)
     compareTime.stop
     println(s"Mining interesting sequences took: ${compareTime.elapsed(TimeUnit.SECONDS)}s")
 
     //    val totalTime = dataloadTime.elapsed(TimeUnit.SECONDS) + compare.queryT + compare.filterT + compareTime.elapsed(TimeUnit.SECONDS)
     val totalTime = wallclock.stop.elapsed(TimeUnit.SECONDS)
-    val times = s"DC2-$patExp-$sigma-$query_L-$query_R-$limit-$parts-${queryFrom.replace("/", "-")}-${queryTo.replace("/", "-")}_${System.currentTimeMillis / 1000}.csv"
+    val times = s"DCM-$patExp-$sigma-$query_L-$query_R-$limit-$parts-${queryFrom.replace("/", "-")}-${queryTo.replace("/", "-")}"
     val times_string = s"$totalTime, ${dataloadTime.elapsed(TimeUnit.SECONDS)},${compare.filterT},${compare.queryT},${compareTime.elapsed(TimeUnit.SECONDS)}"
-    writeTimesToFile(times_string, data_path, times)
-    printAggregatedSequencesToFile(data_path, times, sequences, dataset.dict)
+    writeTimesToFile(times_string, data_path, times+".csv")
+    printAggregatedSequencesToFile(data_path, times, sequences, dict)
 
 
   }
@@ -178,17 +177,11 @@ object DesqCompareExample {
 
     print("Loading Dataset")
     val dataloadTime = Stopwatch.createStarted
-    val dataset = DefaultDesqDataset.load(data_path)
+    val dataset = IdentifiableDesqDataset.load(data_path).toDefaultDesqDataset()
     dataloadTime.stop()
     println(s"Loading Dataset took: ${dataloadTime.elapsed(TimeUnit.SECONDS)}s")
 
     print("Querying Elastic and Creating Ad-hoc Dataset... ")
-//
-//    val (dataset, index_comb) = compare.createAdhocDatasets(index, query_L, query_R, limit, queryFrom, queryTo)
-//    println(s"There are ${index_comb.value.size} relevant documents.")
-//
-//    println(s"Querying Elastic & Creating Ad-hoc Dataset took: ${compare.filterT + compare.queryT}s")
-
 
     println("Mining interesting sequences... ")
     val compareTime = Stopwatch.createStarted
@@ -204,20 +197,20 @@ object DesqCompareExample {
 
     val totalTime = wallclock.stop.elapsed(TimeUnit.SECONDS)
 
-    val filename = s"DC-$patExp-$sigma-$query_L-$query_R-$limit-${queryFrom.replace("/", "-")}-${queryTo.replace("/", "-")}_${System.currentTimeMillis / 1000}_regularDC.csv"
+    val filename = s"COUNT-$patExp-$sigma-$query_L-$query_R-$limit-${queryFrom.replace("/", "-")}-${queryTo.replace("/", "-")}"
 
     val times_string = s"$totalTime, ${dataloadTime.elapsed(TimeUnit.SECONDS)},0,0,${compareTime.elapsed(TimeUnit.SECONDS)}"
 
-    writeTimesToFile(times_string, data_path, filename)
+    writeTimesToFile(times_string, data_path, filename+".csv")
 
     if (!Files.exists(Paths.get(s"$data_path/experiments/"))) {
       Files.createDirectory(Paths.get(s"$data_path/experiments/"))
     }
-    val file = if (!Files.exists(Paths.get(s"$data_path/experiments/sequences_$filename"))) {
-      new File(s"$data_path/experiments/sequences_$filename")
+    val file = if (!Files.exists(Paths.get(s"$data_path/experiments/${filename}_sequences.csv"))) {
+      new File(s"$data_path/experiments/${filename}_sequences.csv")
     } else {
       val timestamp: Long = System.currentTimeMillis / 1000
-      new File(s"$data_path/experiments/${timestamp.toString}_$filename")
+      new File(s"$data_path/experiments/${filename}_${timestamp.toString}_sequences.csv")
     }
     val bw = new BufferedWriter(new FileWriter(file))
     bw.write("sequence, global_freq, left_freq, left_int, right_freq, right_int\n")
@@ -277,11 +270,11 @@ object DesqCompareExample {
     if (!Files.exists(Paths.get(s"$path_out/experiments/"))) {
       Files.createDirectory(Paths.get(s"$path_out/experiments/"))
     }
-    val file = if (!Files.exists(Paths.get(s"$path_out/experiments/sequences_$filename"))) {
-      new File(s"$path_out/experiments/sequences_$filename")
+    val file = if (!Files.exists(Paths.get(s"$path_out/experiments/${filename}_sequences.csv"))) {
+      new File(s"$path_out/experiments/${filename}_sequences.csv")
     } else {
       val timestamp: Long = System.currentTimeMillis / 1000
-      new File(s"$path_out/experiments/${timestamp.toString}_$filename")
+      new File(s"$path_out/experiments/${filename}_sequences_${timestamp.toString}.csv")
     }
     val bw = new BufferedWriter(new FileWriter(file))
     bw.write("sequence, global_freq, left_freq, left_int, right_freq, right_int\n")
@@ -300,11 +293,11 @@ object DesqCompareExample {
     if (!Files.exists(Paths.get(s"$path_out/experiments/"))) {
       Files.createDirectory(Paths.get(s"$path_out/experiments/"))
     }
-    val file = if (!Files.exists(Paths.get(s"$path_out/experiments/sequences_$filename"))) {
-      new File(s"$path_out/experiments/sequences_$filename")
+    val file = if (!Files.exists(Paths.get(s"$path_out/experiments/${filename}_sequences.csv"))) {
+      new File(s"$path_out/experiments/${filename}_sequences.csv")
     } else {
       val timestamp: Long = System.currentTimeMillis / 1000
-      new File(s"$path_out/experiments/${timestamp.toString}_$filename")
+      new File(s"$path_out/experiments/${filename}_sequences_${timestamp.toString}.csv")
     }
     val bw = new BufferedWriter(new FileWriter(file))
     bw.write("sequence, global_freq, left_freq, left_int, right_freq, right_int\n")
@@ -321,14 +314,14 @@ object DesqCompareExample {
 
 
   def main(args: Array[String]) {
-    var path_in = "data-local/NYTimesProcessed/results/"
-    var path_out = "data-local/processed/es_all_v1"
-    var parts = 128
-    var sigma = 10
+    var path_in = "data-local/nyt/2006/"
+    var path_out = "data-local/processed/es2006"
+    var parts = 0
+    var sigma = 20
 //    var patternExp = "(ENTITY . ENTITY) | (ENTITY .. ENTITY) |(ENTITY ... ENTITY) "
     var patternExp = "(JJ NN) ."
 //    var patternExp = "(.){2,6}"
-    var index = "nyt_v1"
+    var index = "nyt2006"
     var queryL = "George Bush"
     var queryR = "United States"
     var queryFrom = "1987/01/01"
@@ -336,7 +329,7 @@ object DesqCompareExample {
     var limit = 1800000
     var k = 1000
     var algo = "DC"
-    var master = "local[*]"
+    var master = "local"
 
     var params = ListBuffer[Array[String]]()
     if (args.length > 0) {
@@ -366,7 +359,7 @@ object DesqCompareExample {
     val conf = new SparkConf().setAppName(getClass.getName).setMaster(master)
       .set("spark.driver.extraClassPath", sys.props("java.class.path"))
       .set("spark.executor.extraClassPath", sys.props("java.class.path"))
-      .set("fs.local.block.size", "128mb")
+//      .set("fs.local.block.size", "128mb")
       .set("spark.eventLog.enabled", "true")
     wallclock.start
     initDesq(conf)
