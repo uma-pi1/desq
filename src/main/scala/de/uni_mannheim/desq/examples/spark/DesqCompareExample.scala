@@ -290,7 +290,7 @@ object DesqCompareExample {
         val sids = for (e <- s._1.elements) yield {
           dict.sidOfFid(e)
         }
-        bw.write(s"${sids.deep.mkString("[", " ", "]")},${s._1.support(0)},${s._1.support(1)},${s._2},${s._1.support(2)},${s._3}\n")
+        bw.write(s"${sids.deep.mkString("[", " ", "]")},${s._1.support.getLong(0)},${s._1.support.getLong(1)},${s._2},${s._1.support.getLong(2)},${s._3}\n")
       }
     }
     bw.close()
@@ -323,13 +323,13 @@ object DesqCompareExample {
   def main(args: Array[String]) {
     var path_in = "data-local/NYTimesProcessed/results/"
     var path_out = "data-local/processed/es_all_v1"
-    var parts = 256
+    var parts = 128
     var sigma = 10
 //    var patternExp = "(ENTITY . ENTITY) | (ENTITY .. ENTITY) |(ENTITY ... ENTITY) "
     var patternExp = "(JJ NN) ."
 //    var patternExp = "(.){2,6}"
     var index = "nyt_v1"
-    var queryL = "Terrorism"
+    var queryL = "George Bush"
     var queryR = "United States"
     var queryFrom = "1987/01/01"
     var queryTo = "2007/12/31"

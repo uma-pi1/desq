@@ -4,6 +4,8 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import de.uni_mannheim.desq.util.Writable2Serializer;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+import org.antlr.runtime.misc.IntArray;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableUtils;
 
@@ -16,24 +18,29 @@ import static java.lang.Math.toIntExact;
  * Created by ivo on 05.08.17.
  */
 public class AggregatedSequence extends WeightedSequence implements Externalizable, Writable{
-    public long[] support;
-    public AggregatedSequence(long[] support){
+    public LongArrayList support;
+    public AggregatedSequence(LongArrayList support){
         super();
-        this.weight = support[0];
+        this.weight = support.getLong(0);
         this.support = support;
     }
 
     protected AggregatedSequence(int capacity) {
         super(capacity);
         weight = 1;
-        support = new long[4];
+        support = new LongArrayList(4);
     }
 
 
-    public AggregatedSequence(int[] a, long[] support){
+    public AggregatedSequence(int[] a, long[] b){
         super(a, 1L);
         this.weight = 1L;
-        this.support = support;
+        if (b == null){
+            this.support = null;
+        } else{
+            this.support = new LongArrayList(b);
+        }
+
 
     }
 
@@ -41,7 +48,7 @@ public class AggregatedSequence extends WeightedSequence implements Externalizab
      * the extend possible, i.e., the returned sequence may share date with this sequence. */
     @Override
     public AggregatedSequence withSupport(long id, long[] support) {
-        if (this.support == support) return this;
+        if (this.support.elements() == support) return this;
         AggregatedSequence result = new AggregatedSequence(a, support);
         result.size = this.size;
         return result;
@@ -111,9 +118,9 @@ public class AggregatedSequence extends WeightedSequence implements Externalizab
 
     @Override
     public void write(DataOutput out) throws IOException {
-        WritableUtils.writeVLong(out, support.length);
-        for (int i = 0; i < support.length; i++) {
-            WritableUtils.writeVLong(out, support[i]);
+
+        for (int i = 0; i < 4; i++) {
+            WritableUtils.writeVLong(out, support.getLong(i));
 
         }
         super.write(out);
@@ -121,12 +128,12 @@ public class AggregatedSequence extends WeightedSequence implements Externalizab
 
     @Override
     public void readFields(DataInput in) throws IOException {
-        int size = toIntExact(WritableUtils.readVLong(in));
-        if (support == null || support.length < size) {
-            support = new long[size];
+        int size = 4;
+        if (support == null || support.size() < size) {
+            support = new LongArrayList(size);
         }
         for (int i = 0; i < size; i++) {
-            support[i] = WritableUtils.readVLong(in);
+            support.add(i, WritableUtils.readVLong(in));
         }
         super.readFields(in);
     }
