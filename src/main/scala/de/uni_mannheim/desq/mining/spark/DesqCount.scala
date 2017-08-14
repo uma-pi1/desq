@@ -3,13 +3,11 @@ package de.uni_mannheim.desq.mining.spark
 import de.uni_mannheim.desq.mining.Sequence
 import de.uni_mannheim.desq.util.DesqProperties
 import it.unimi.dsi.fastutil.ints.IntArrayList
-import it.unimi.dsi.fastutil.longs.{LongArrayList, LongList}
+import it.unimi.dsi.fastutil.longs.LongArrayList
 import it.unimi.dsi.fastutil.objects._
 import org.apache.spark.broadcast.Broadcast
-import org.apache.spark.rdd.RDD
 
 import scala.collection.mutable
-import collection.JavaConverters._
 
 /**
   * Created by rgemulla on 14.09.2016.
@@ -77,7 +75,8 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 
   /**
     * DESQ-TwoCount
-    * @param data IndentifiableDesqDataset
+    *
+    * @param data   IndentifiableDesqDataset
     * @param docIDs Corresponding CombIndex
     * @param filter Filter Function for the Results
     * @return DefaultDesqDatasetWithAggregates
@@ -102,6 +101,7 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         var currentSupportGlobal = 0L
         var currentSupportLocal = 0L
         val itemFids = new IntArrayList()
+
         // here we check if we have an output sequence from the current row; if not, we more to the next row
         // that produces an output
         override def hasNext: Boolean = {
@@ -131,6 +131,7 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
           }
           outputIterator.hasNext
         }
+
         override def next(): (Sequence, (Long, Long)) = {
           val pattern = outputIterator.next()
           (pattern, (currentSupportGlobal, currentSupportLocal))
@@ -146,7 +147,8 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 
   /**
     * DESQ-MultiCount
-    * @param data IndentifiableDesqDataset
+    *
+    * @param data   IndentifiableDesqDataset
     * @param docIDs Corresponding CombIndex
     * @param filter Filter Function for the Results
     * @return DesqDatasetWithAggregate
@@ -170,47 +172,47 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     }
 
 
-
-    val incSeqCounts = (map: Object2ObjectOpenHashMap[Sequence, LongArrayList], seqcounts: (Sequence,  LongArrayList)) => {
+    val incSeqCounts = (map: Object2ObjectOpenHashMap[Sequence, LongArrayList], seqcounts: (Sequence, LongArrayList)) => {
       val seq = seqcounts._1
       if (map.containsKey(seq)) {
-         var updated = map.get(seq).clone
-          for(i<- 0 until seqcounts._2.size()){
-            updated.set(i, updated.getLong(i) + seqcounts._2.getLong(i))
-          }
+        var updated = map.get(seq).clone
+        for (i <- 0 until seqcounts._2.size()) {
+          updated.set(i, updated.getLong(i) + seqcounts._2.getLong(i))
+        }
         map.put(seq, updated)
-//        map.update(seq, map(seq).zipAll(seqcounts._2, 0, 0).map { case (a: Long, b: Long) => a + b })
+        //        map.update(seq, map(seq).zipAll(seqcounts._2, 0, 0).map { case (a: Long, b: Long) => a + b })
       } else map.put(seqcounts._1, seqcounts._2)
       map
     }
 
     val incCounts = (arr1: LongArrayList, arr2: LongArrayList) => {
-      if (arr1.size() == 0){
-        for( i<- 0 until counters) arr1.add(i, arr2.getLong(i))
-      }
-      for(i<- 0 until arr2.size()){
-        arr1.set(i, arr1.getLong(i) + arr2.getLong(i))
+      if (arr1.size() == 0) {
+        for (i <- 0 until counters) arr1.add(i, arr2.getLong(i))
+      } else {
+
+        for (i <- 0 until arr2.size()) {
+          arr1.set(i, arr1.getLong(i) + arr2.getLong(i))
+        }
       }
       arr1
     }
 
 
-
     val mergeSeqCounts = (map1: Object2ObjectOpenHashMap[Sequence, LongArrayList], map2: Object2ObjectOpenHashMap[Sequence, LongArrayList]) => {
-     val iterator  = map2.keySet().iterator()
+      val iterator = map2.keySet().iterator()
 
       while (iterator.hasNext) {
         val seq = iterator.next
         if (map1.containsKey(seq)) {
           var updated = map1.get(seq)
-          var other  = map2.get(seq)
-          for(i<- 0 until other.size()){
+          var other = map2.get(seq)
+          for (i <- 0 until other.size()) {
             updated.set(i, updated.getLong(i) + other.getLong(i))
           }
           map1.put(seq, updated)
-//          map1.update(seq, map1(seq).zipAll(map2(seq), 0, 0).map { case (a: Long, b: Long) => a + b })
+          //          map1.update(seq, map1(seq).zipAll(map2(seq), 0, 0).map { case (a: Long, b: Long) => a + b })
         } else {
-          map1.put(seq, map2.get(seq).clone())
+          map1.put(seq, map2.get(seq))
         }
       }
       map1
@@ -230,9 +232,9 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         var outputIterator: ObjectIterator[Sequence] = ObjectLists.emptyList[Sequence].iterator()
         var currentSupportGlobal = 0L
         var currentSupportLeft = 0L
-        val elements  = new LongArrayList()
+        val elements = new LongArrayList()
         for (i <- 0 until counters) elements.add(i, 0)
-//        var elements = new Array[Long](counters)
+        //        var elements = new Array[Long](counters)
         val itemFids = new IntArrayList()
 
         // here we check if we have an output sequence from the current row; if not, we more to the next row
@@ -243,10 +245,10 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
             // if not, go to the next input sequence
             val s = rows.next()
             val bits = docIDs(s.id)
-            elements.set(0,s.weight.toInt)
+            elements.set(0, s.weight.toInt)
             //          If the docID is relevant for the local query then set the local weight
             for (x <- 1 until counters) {
-              if (bits.contains(x+1)) elements.set(x, s.weight.toInt) else elements.set(x,0)
+              if (bits.contains(x + 1)) elements.set(x, s.weight.toInt) else elements.set(x, 0)
             }
             // and run sequential DesqCount to get all output sequences produced by that input
             if (usesFids) {
@@ -266,26 +268,26 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         }
       }
     }).aggregateByKey(new LongArrayList(counters))(incCounts, incCounts)
-//      .mapPartitions[(Sequence, LongArrayList)](rows => {
-//      new Iterator[(Sequence, LongArrayList)] {
-//        var outputIterator: ObjectIterator[Sequence] = _
-//        var currentPartition: (Sequence, LongArrayList) = _
-//        var currentSupport: LongArrayList = _
-//        override def hasNext: Boolean = {
-//          while ((outputIterator == null || !outputIterator.hasNext) && rows.hasNext) {
-//            currentPartition = rows.next()
-//            outputIterator = currentPartition
-//          }
-//          if (outputIterator == null) return false
-//          outputIterator.hasNext
-//        }
-//
-//        override def next: (Sequence, LongArrayList) = {
-//          val result  = outputIterator.next()
-//          (result.getKey, result.getValue)
-//        }
-//      }
-//    })
+      //      .mapPartitions[(Sequence, LongArrayList)](rows => {
+      //      new Iterator[(Sequence, LongArrayList)] {
+      //        var outputIterator: ObjectIterator[Sequence] = _
+      //        var currentPartition: (Sequence, LongArrayList) = _
+      //        var currentSupport: LongArrayList = _
+      //        override def hasNext: Boolean = {
+      //          while ((outputIterator == null || !outputIterator.hasNext) && rows.hasNext) {
+      //            currentPartition = rows.next()
+      //            outputIterator = currentPartition
+      //          }
+      //          if (outputIterator == null) return false
+      //          outputIterator.hasNext
+      //        }
+      //
+      //        override def next: (Sequence, LongArrayList) = {
+      //          val result  = outputIterator.next()
+      //          (result.getKey, result.getValue)
+      //        }
+      //      }
+      //    })
       .filter(filter)
       .map(s => s._1.withSupport(-1, s._2.elements)) // and pack the remaining sequences into a IdentifiableWeightedSequence
     // all done, return result (last parameter is true because mining.DesqCount always produces fids)

@@ -80,15 +80,16 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
     val adhocDataset = if (partitions == 0) {
       val sequences = dataset.asInstanceOf[IdentifiableDesqDataset].sequences
       val filtered_sequences = sequences.filter(f => ids.value.contains(f.id))
-      new IdentifiableDesqDataset(filtered_sequences.coalesce(Math.max(Math.ceil(filtered_sequences.count / 500000.0).toInt, 64)), dataset.asInstanceOf[IdentifiableDesqDataset].dict.deepCopy(), true)
+      new IdentifiableDesqDataset(filtered_sequences, dataset.asInstanceOf[IdentifiableDesqDataset].dict.deepCopy(), true)
     } else {
       val sequences = dataset.asInstanceOf[DesqDatasetPartitionedWithID[IdentifiableWeightedSequence]].sequences
       val keys = ids.value.keySet
       val parts = keys.map(_.## % sequences.partitions.length)
-      val filtered_sequences: RDD[IdentifiableWeightedSequence] = sequences.mapPartitionsWithIndex((i, iter) =>
+      val filtered_sequences: RDD[IdentifiableWeightedSequence] = sequences.mapPartitionsWithIndex((i, iter) =>{
+
         if (parts.contains(i)) iter.filter { case (k, v) => keys.contains(k) }
-        else Iterator()).map(k => k._2)
-      val seqs_filt =  filtered_sequences.coalesce(Math.max(Math.ceil(filtered_sequences.count /500000.0).toInt, 64))
+        else Iterator()}).map(k => k._2)
+      val seqs_filt =  filtered_sequences.repartition(Math.max(Math.ceil(filtered_sequences.count /300000.0).toInt, partitions))
       new IdentifiableDesqDataset(
         seqs_filt
         , dataset.asInstanceOf[DesqDatasetPartitionedWithID[IdentifiableWeightedSequence]].dict.deepCopy()
@@ -123,7 +124,7 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
     val results = miner.mine(data, docIDMap, filter)
 
     val seq_count = results.sequences.count
-    results.sequences.coalesce(Math.ceil(seq_count / 2000000.0).toInt)
+//    results.sequences.coalesce(Math.ceil(seq_count / 2000000.0).toInt)
 
     //    Join the sequences of both sides and compute the interestingness values
     val global = results.sequences.mapPartitions[(AggregatedWeightedSequence, Float, Float)](rows => {
@@ -160,7 +161,7 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
     * @param sc                Spark Context
     * @return resulting Aggregated Sequences and their Interestingness Scores
     */
-  def compareWithBackground(data: IdentifiableDesqDataset, docIDMap: Broadcast[mutable.Map[Long, mutable.BitSet]], patternExpression: String, sigma: Long, k: Int = 20)(implicit sc: SparkContext): Array[(AggregatedSequence, Float, Float)] = {
+  def compareWithBackground(data: IdentifiableDesqDataset, docIDMap: Broadcast[mutable.Map[Long, mutable.BitSet]], patternExpression: String, sigma: Long, k: Int = 20)(implicit sc: SparkContext): (Array[(AggregatedSequence, Float, Float)], Dictionary) = {
     val conf = DesqCount.createConf(patternExpression, sigma)
     conf.setProperty("desq.mining.prune.irrelevant.inputs", true)
     conf.setProperty("desq.mining.use.two.pass", true)
@@ -178,7 +179,7 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
 
     val results = miner.mine(data, docIDMap, filter)
     val seq_count = results.sequences.count
-    results.sequences.coalesce(Math.ceil(seq_count / 2000000.0).toInt)
+//    results.sequences.coalesce(Math.ceil(seq_count / 2000000.0).toInt)
     val intResults = results.sequences.mapPartitions[(AggregatedSequence, Float, Float)](rows => {
       new Iterator[(AggregatedSequence, Float, Float)] {
         override def hasNext: Boolean = rows.hasNext
@@ -196,17 +197,21 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
 //    val topEverything = intResults.sortBy(ws => ws._1.support.getLong(0), ascending = false).cache.take(k)
     val ord = new Ordering[(AggregatedSequence, Float, Float)]{
       override def compare(x: (AggregatedSequence, Float, Float), y: (AggregatedSequence, Float, Float)): Int = {
-        val x_val = x._1.support.getLong(0)
-        val y_val = y._1.support.getLong(0)
+
+//        val x_val = math.max(x._1.support.getLong(1), x._1.support.getLong(2))
+//        val y_val = math.max(y._1.support.getLong(1), y._1.support.getLong(2))
+
+        val x_val = math.abs(x._2-x._3)
+        val y_val = math.abs(y._2-y._3)
 
         if(x_val == y_val ) 0
         else if (x_val > y_val) -1
         else 1
       }
     }
-    val topEverything = intResults.takeOrdered(k)(ord)
-    printTableWB(topEverything, results.dict, false, k)
-    topEverything
+//    val topEverything = intResults.takeOrdered(k)(ord)
+//    printTableWB(topEverything, results.dict, false, k)
+    (intResults.collect, results.dict)
 
   }
 
