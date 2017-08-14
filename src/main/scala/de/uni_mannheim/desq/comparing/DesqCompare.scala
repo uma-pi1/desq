@@ -193,7 +193,18 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
       }
     })
     //    val topEverything = intResults.sortBy(ws => math.max(ws._2, ws._3), ascending = false).take(k)
-    val topEverything = intResults.sortBy(ws => ws._1.support.getLong(0), ascending = false).take(k)
+//    val topEverything = intResults.sortBy(ws => ws._1.support.getLong(0), ascending = false).cache.take(k)
+    val ord = new Ordering[(AggregatedSequence, Float, Float)]{
+      override def compare(x: (AggregatedSequence, Float, Float), y: (AggregatedSequence, Float, Float)): Int = {
+        val x_val = x._1.support.getLong(0)
+        val y_val = y._1.support.getLong(0)
+
+        if(x_val == y_val ) 0
+        else if (x_val > y_val) -1
+        else 1
+      }
+    }
+    val topEverything = intResults.takeOrdered(k)(ord)
     printTableWB(topEverything, results.dict, false, k)
     topEverything
 
