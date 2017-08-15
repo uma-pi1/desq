@@ -5,11 +5,13 @@
  */
 package de.uni_mannheim.desq.mining;
 
+import com.google.common.base.Stopwatch;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 /**
  *
@@ -17,60 +19,76 @@ import java.io.IOException;
  */
 public class PostingListBenchmark {
     
+    private final Stopwatch stopwatch = Stopwatch.createUnstarted();
+    
     private int[] testData;
-    private boolean firstPosting;
     
-    private AbstractPostingList postingList;
+    private final AbstractPostingList postingList;
+    private final AbstractIterator iterator;
     
-    public PostingListBenchmark(String testDataFile, AbstractPostingList postingList){
+    public PostingListBenchmark(String testDataFile, AbstractPostingList postingList, AbstractIterator iterator){
         this.postingList = postingList;
         
-        this.firstPosting = true;
+        this.iterator = iterator;
         
         readData(testDataFile);
     }
     
-    public void addTestData(int count){
-        long startTime = System.currentTimeMillis();
-        this.postingList.newPosting();
+    public void addData(int count){
+        int average = 0;
         
-        for(int i = 0; i < testData.length; i++){
-            for(int k = 0; k < count; k++){
-                this.postingList.addInt(testData[i]);
-            }
-        }
-        System.out.println("Time adding test data: " + (System.currentTimeMillis() - startTime));
-    }
-    
-    public void readTestData(int count, int count2){
-        AbstractIterator iterator = postingList.iterator();
-        
-        if(!firstPosting){
-            iterator.nextPosting();
-        } else {
-            firstPosting = false;
-        }
-        
-        while(count > 0){
-            long startTime = System.currentTimeMillis();
-            for(int i = 0; i < testData.length; i++){
-               for(int k = 0; k < count2; k++){
-                    iterator.nextInt();
+        for(int i = 0; i < count; i++){
+            this.start();
+            this.postingList.clear();
+            this.postingList.newPosting();
+
+            for(int k = 0; k < testData.length; k++){
+                if(testData[k] == 0){
+                    postingList.newPosting();
+                } else {
+                    postingList.addNonNegativeInt(testData[k]);
                 }
             }
-            System.out.println("Time reading test data: " + (System.currentTimeMillis() - startTime));
+
+            this.stop();
             
-            count--;
+            average += stopwatch.elapsed(TimeUnit.MILLISECONDS);
         }
+        
+        average /= (double)count;
+        
+        System.out.println("Time adding data: " + average + "ms");
     }
     
-    public void allocateSpace(int count){
-        int entries = 0;
+    public void readData(int count){     
         
-        while(entries < (testData.length * 30)){
-            this.addTestData(count);
-            entries += testData.length;
+        int countData = 0;
+        int countPostings = 0;
+        int average = 0;
+        
+        for(int i = 0; i < count; i++){
+            this.iterator.reset(postingList);
+            
+            this.start();
+
+            do{
+                countPostings++;
+                while(iterator.hasNext()){
+                    iterator.nextNonNegativeInt();
+                    countData++;
+                }
+            } while(iterator.nextPosting());
+
+            this.stop();
+
+            average += stopwatch.elapsed(TimeUnit.MILLISECONDS);
         }
+        
+        average /= (double)count;
+
+        System.out.println("Time reading data: " + average + "ms");
+        System.out.println("Data read: " + countData);
+        System.out.println("Postings read: " + countPostings);
     }
     
     private boolean readData(String file){
@@ -81,7 +99,7 @@ public class PostingListBenchmark {
         String line;
         
         try {
-            reader = new BufferedReader(new FileReader("test.txt"));
+            reader = new BufferedReader(new FileReader(file));
             
             if(reader.readLine().equals("Started writer")){
                 while((line = reader.readLine()) != null){
@@ -102,15 +120,20 @@ public class PostingListBenchmark {
         }
     }
     
+    public void start() {
+        stopwatch.reset();
+        stopwatch.start();
+    }
+
+    public void stop() {
+        stopwatch.stop();
+    }
+    
     public static void main(String[] args){
-        PostingListBenchmark benchmark = new PostingListBenchmark("test.txt", new VarBytePostingList());
+        PostingListBenchmark benchmark = new PostingListBenchmark("test_small_values.txt", new NewPostingList(), new NewPostingList.Iterator());
         
-        int reps = 1000;
+        benchmark.addData(20);
         
-        benchmark.allocateSpace(reps);
-        
-        benchmark.addTestData(reps);
-        
-        benchmark.readTestData(6, reps);
+        benchmark.readData(20);
     }
 }

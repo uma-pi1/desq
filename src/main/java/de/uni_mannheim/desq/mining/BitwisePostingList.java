@@ -255,5 +255,11 @@ public class BitwisePostingList extends AbstractPostingList{
             } while (b!=0);
             return true;
         }
+
+        @Override
+        public boolean hasNext() {
+            //return offset < data.size() && ((currentData & 1 << (32 - internalOffset)) != 0);
+            return false;
+        }
     }
 }

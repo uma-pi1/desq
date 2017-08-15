@@ -16,7 +16,7 @@ public abstract class AbstractPostingList {
     /** Appends a non negative integer value to the current posting list. Only use to append 0 to end
      * the current posting. */
     protected abstract void addNonNegativeIntIntern(int value);
-    
+        
     /** Clears this posting list. Reset number of postings. */
     public abstract void clear();
 

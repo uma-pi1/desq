@@ -12,37 +12,25 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
  *
  * @author Kai
  */
-public class BitwiseLongPostingList extends AbstractPostingList{
-
+public final class BitwiseLongPostingList extends AbstractPostingList{
+    
     private final LongArrayList data;
     private final LongArrayList controlData;
-    private static byte freeBits;
+    private byte freeBits;
     
     private long currentData;
     private long currentControlData;
-    private int offset;
     
-    private IntArrayList index;
-
     /** Constructs a new empty posting list */
     public BitwiseLongPostingList() {
         data = new LongArrayList();
         controlData = new LongArrayList();
-        
-        index = new IntArrayList();
-        
-        currentData = 0;
-        currentControlData = 0;
-        offset = 0;
-        
-        data.add(0);
-        controlData.add(0);
-        freeBits = 64;
+                
+        this.clear();
     }
     
     @Override
     public void addNonNegativeIntIntern(int value){
-                
         assert value >= 0;
         assert size() > 0;
         
@@ -56,46 +44,31 @@ public class BitwiseLongPostingList extends AbstractPostingList{
             
             if(lengthB == 0){
                 freeBits--;
-                controlData.set(offset, (currentControlData |= ((long)1 << freeBits)));
+                currentControlData |= ((long)1 << freeBits);
             } else {
                 freeBits -= lengthB;
 
-                // Get last int and add data bits
-                data.set(offset, (currentData |= (long)b << freeBits));
+                currentData |= ((long)b << freeBits);
 
-                // Get last control int and add control bits
-                controlData.set(offset, (currentControlData |= ((long)1 << freeBits)));
+                currentControlData |= ((long)1 << freeBits);
             }
                         
-            // Reset variables if all 64 bits of the int are set with data bits
             if(freeBits == 0){
                 freeBits = 64;
+                data.add(currentData);
+                controlData.add(currentControlData);
                 currentData = 0;
                 currentControlData = 0;
-                data.add(0);
-                controlData.add(0);
-                offset++;
             }
         } else {
-            
-            //long controlMask = ((long)1 << lengthB) - 2;
-            
-            // Add part of data bits to fill the first int
-            data.set(offset, currentData |= ((long)b >>> (lengthB - freeBits)));
-            
-            // Add part of control data bits to fill the first int
-            //controlData.set(lastIndex, currentControlData |= (controlMask >>> (lengthB - freeBits)));
+                        
+            data.add(currentData |= ((long)b >>> (lengthB - freeBits)));
+            controlData.add(currentControlData);
 
-            // Reset variables and shift the rest of the data bits to the left and add it to a new int, same for control data
             freeBits = (byte)(64 - (lengthB - freeBits));
             
             currentData = (long)b << freeBits;
-            //currentControlData = controlMask << freeBits;
             currentControlData = (long)1 << freeBits;
-            data.add(currentData);
-            controlData.add(currentControlData);
-                    
-            offset++;
         }     
     }
 
@@ -110,7 +83,14 @@ public class BitwiseLongPostingList extends AbstractPostingList{
     @Override
     public void clear() {
         data.clear();
-        noPostings = 0;
+        controlData.clear();
+                
+        currentData = 0;
+        currentControlData = 0;
+        
+        freeBits = 64;
+        
+        this.noPostings = 0;
     }
 
     @Override
@@ -123,7 +103,6 @@ public class BitwiseLongPostingList extends AbstractPostingList{
         noPostings++;
         if (noPostings>1) // first posting does not need separator
             this.addNonNegativeIntIntern(0);
-        this.index.add(((64 - freeBits) << 24) + offset);
     }
 
     @Override
@@ -131,28 +110,72 @@ public class BitwiseLongPostingList extends AbstractPostingList{
         return new Iterator(this);
     }
     
-    private class Iterator extends AbstractIterator{
+    public static final class Iterator extends AbstractIterator{
 
-        private final LongArrayList data;
-        private final LongArrayList controlData;
-        
-        private IntArrayList index;
-        
+        private LongArrayList data;
+        private LongArrayList controlData;
+                
         private long currentData;
         private long currentControlData;
         private byte internalOffset;
+        
+        private int count;
+        private int noPostings;
+        
+        public Iterator(){
+            this.data = null;
+            this.controlData = null;
+                        
+            this.currentData = 0;
+            this.currentControlData = 0;
+            
+            this.internalOffset = 0;
+            this.offset = 0;
+            
+            this.count = 1;
+            this.noPostings = 0;
+        }
         
         public Iterator(BitwiseLongPostingList postingList){
             this.data = postingList.data;
             this.controlData = postingList.controlData;
             
-            this.index = postingList.index;
+            this.data.add(postingList.currentData);
+            this.controlData.add(postingList.currentControlData);
+                        
+            this.internalOffset = 0;
+            this.offset = 0;
+            
+            this.count = 1;
+            this.noPostings = postingList.noPostings;
             
             this.currentData = this.data.getLong(offset);
             this.currentControlData = this.controlData.getLong(offset);
-            
+        }
+        
+        @Override
+        public final void reset() {
             this.internalOffset = 0;
             this.offset = 0;
+            
+            this.count = 1;
+            
+            this.currentData = this.data.getLong(offset);
+            this.currentControlData = this.controlData.getLong(offset);
+        }
+        
+        @Override
+        public final void reset(AbstractPostingList postingList) {
+            BitwiseLongPostingList postingListTmp = (BitwiseLongPostingList) postingList;
+            this.data = postingListTmp.data;
+            this.controlData = postingListTmp.controlData;
+            
+            this.data.add(postingListTmp.currentData);
+            this.controlData.add(postingListTmp.currentControlData);
+                                    
+            this.noPostings = postingListTmp.noPostings;
+            
+            this.reset();
         }
         
         @Override
@@ -162,14 +185,7 @@ public class BitwiseLongPostingList extends AbstractPostingList{
             
             byte offsetBefore = internalOffset;
 
-            if(offsetBefore != 0){
-                currentControlData &= (((long)1 << (64 - offsetBefore)) - 1);
-            }
-                        
-            internalOffset = (byte) (Long.numberOfLeadingZeros(currentControlData) + 1);
-            
-            if(internalOffset > 64){
-
+            if(currentControlData == 0){
                 returnValue = (int) currentData & ((1 << (64 - offsetBefore)) - 1);
 
                 offset++;
@@ -180,6 +196,7 @@ public class BitwiseLongPostingList extends AbstractPostingList{
                 
                 returnValue = (returnValue << internalOffset) | (int) (currentData >>> (64 - internalOffset));
             } else {
+                internalOffset = (byte) (Long.numberOfLeadingZeros(currentControlData) + 1);
                 long mask = (((long)1 << (internalOffset - offsetBefore)) - 1);
 
                 returnValue = (int)((currentData >>> (64 - internalOffset)) & mask);
@@ -193,70 +210,30 @@ public class BitwiseLongPostingList extends AbstractPostingList{
                 }
             }
             
-            return returnValue;
-        }
-
-        public boolean nextPosting(int index){
-            if(index >= this.index.size()){
-                return false;
+            if(internalOffset != 0){
+                currentControlData &= (((long)1 << (64 - internalOffset)) - 1);
             }
-            int tmp = this.index.getInt(index);
-            this.offset = tmp & 0xFFFFFF;
-            this.internalOffset = (byte)(tmp >>> 24);
             
-            if(this.offset >= this.data.size() || this.internalOffset > 64)
-                return false;
-            else
-                return true;
+            return returnValue;
         }
         
         @Override
         public boolean nextPosting() {
-            if (offset >= data.size())
+            if (offset >= data.size() || count >= noPostings){
                 return false;
+            }
 
             int b;
             do {
                 b = this.nextNonNegativeIntIntern();
-                if (offset >= data.size())
-                    return false;
             } while (b!=0);
+            count++;
             return true;
         }
-    }
-    
-    public static void main(String[] args){
-        BitwiseLongPostingList postingList = new BitwiseLongPostingList();
-        
-        postingList.newPosting();
-        
-        postingList.addInt(0xFFFFFFFF);
-        postingList.addInt(0xFFFFFFFF);
-        postingList.addInt(0xFFFFFFFF);
-        postingList.addInt(0xFFFFFFFF);
-        postingList.addInt(0xFFFFFFFF);
-        postingList.addInt(0xFFFFFFFF);
-        
-        postingList.newPosting();
-        
-        postingList.addInt(16);
-        postingList.addInt(12);
-        postingList.addInt(12);
-        
-        postingList.newPosting();
-        
-        postingList.addInt(21);
-        postingList.addInt(21);
-        postingList.addInt(21);
-        
-        AbstractIterator iterator = postingList.iterator();
-        
-        System.out.println("Posting: " + iterator.nextPosting(2));
-        
-        System.out.println("Value: " + iterator.nextInt());
-        System.out.println("Value: " + iterator.nextInt());
-        System.out.println("Value: " + iterator.nextInt());
-        
-        
+
+        @Override
+        public boolean hasNext() {
+            return offset < data.size() && !((currentData & ((long)1 << (63 - internalOffset))) == 0);
+        }
     }
 }

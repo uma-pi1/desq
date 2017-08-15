@@ -50,11 +50,36 @@ public class NewPostingList extends AbstractPostingList{
     public void trim() { data.trim(); }
     
     @Override
+    public final void newPosting() {
+        noPostings++;
+        if (noPostings>1) // first posting does not need separator
+            data.add((byte)0);
+    }
+    
+    @Override
     public AbstractIterator iterator() { return new Iterator(this); }
     
-    private class Iterator extends AbstractIterator {
+    public static final class Iterator extends AbstractIterator {
+        
+        public Iterator(){
+            this.data = null;
+            this.offset = 0;
+        }
+        
         public Iterator(NewPostingList postingList) {
             this.data = postingList.data;
+            this.offset = 0;
+        }
+        
+        public void reset(){
+            this.offset = 0;
+        }
+        
+        @Override
+        public void reset(AbstractPostingList postingList) {
+            NewPostingList postingListTmp = (NewPostingList) postingList;
+            
+            this.data = postingListTmp.data;
             this.offset = 0;
         }
         
@@ -94,6 +119,11 @@ public class NewPostingList extends AbstractPostingList{
                     return false;
             } while (b!=0);
             return true;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return offset < data.size() && data.getByte(offset) != 0;
         }
     }
 }

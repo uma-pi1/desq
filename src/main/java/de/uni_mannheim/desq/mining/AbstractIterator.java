@@ -17,15 +17,12 @@ public abstract class AbstractIterator {
         /** The offset at which to read. Intentionally public; use with care. */
         public int offset;
 
-        /** Resets this iterator to the beginning of the first posting. */
-        public void reset() {
-            this.offset = 0;
-        }
-
+        abstract public void reset();
+                
+        abstract public void reset(AbstractPostingList postingList);
+        
         /** Is there another value in the current posting? */
-        public boolean hasNext() {
-            return offset < data.size() && data.getByte(offset) != 0;
-        }
+        abstract public boolean hasNext();
 
         public final int nextNonNegativeInt(){
             return this.nextNonNegativeIntIntern() - 1;

@@ -44,12 +44,29 @@ public class IntegerPostingList extends AbstractPostingList{
         return new Iterator(this);
     }
     
-    private class Iterator extends AbstractIterator{
+    public static final class Iterator extends AbstractIterator{
 
         private IntArrayList data;
         
+        public Iterator(){
+            this.data = null;
+            this.offset = 0;
+        }
+        
         public Iterator(IntegerPostingList postingList) {
             this.data = postingList.data;
+            this.offset = 0;
+        }
+        
+        public void reset(){
+            this.offset = 0;
+        }
+        
+        @Override
+        public void reset(AbstractPostingList postingList) {
+            IntegerPostingList postingListTmp = (IntegerPostingList) postingList;
+            
+            this.data = postingListTmp.data;
             this.offset = 0;
         }
         
@@ -71,7 +88,11 @@ public class IntegerPostingList extends AbstractPostingList{
             } while (b!=0);
             return true;
         }
-    
+
+        @Override
+        public boolean hasNext() {
+            return offset < data.size() && data.getInt(offset) != 0;
+        }
     }
     
 }

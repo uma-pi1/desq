@@ -18,24 +18,8 @@ public class VarBytePostingList extends AbstractPostingList{
     private final LongArrayList controlData;
     private int bitsWritten;
     private long controlDataLong;
-    private int noControlData;
     
-    private final static int[] MAPPING;
-    
-    static {
-        MAPPING = new int[33];
-        for(int i = 0; i <= 32; i++){
-            if(i <= 8){
-                MAPPING[i] = 1;
-            } else if(i > 8 && i <= 16){
-                MAPPING[i] = 2;
-            } else if(i > 16 && i <= 24){
-                MAPPING[i] = 3;
-            } else if(i > 24 && i <= 32){
-                MAPPING[i] = 4;
-            }
-        }
-    }
+    private int dataCount;
     
     public VarBytePostingList() {
         this.data = new ByteArrayList();
@@ -43,55 +27,32 @@ public class VarBytePostingList extends AbstractPostingList{
         
         this.bitsWritten = 0;
         this.controlDataLong = 0;
-        this.noControlData = 0;
-        this.controlData.add(controlDataLong);
-
-    }
-    
-    private int getNumberOfBytes(int value){
-        if((value >>> 8) == 0) return 1;
-        if((value >>> 16) == 0) return 2;
-        if((value >>> 24) == 0) return 3;
-        
-        return 4;
     }
     
     @Override
     public void addNonNegativeIntIntern(int value){
-        if(bitsWritten == 64){
-            this.controlDataLong = 0;
-            this.controlData.add(controlDataLong);
-            this.noControlData++;
-            this.bitsWritten = 0;
+        dataCount = 0;
+        
+        if(value >>> 8 == 0){
+            data.add((byte)(value & 0xFF));
+            dataCount = 1;
+        } else if (value >>> 16 == 0){
+            data.add((byte)(value & 0xFF));
+            data.add((byte)(value >>> 8 & 0xFF));
+            dataCount = 2;
+        } else if (value >>> 24 == 0){
+            data.add((byte)(value & 0xFF));
+            data.add((byte)(value >>> 8 & 0xFF));
+            data.add((byte)(value >>> 16 & 0xFF));
+            dataCount = 3;
+        } else {
+            data.add((byte)(value & 0xFF));
+            data.add((byte)(value >>> 8 & 0xFF));
+            data.add((byte)(value >>> 16 & 0xFF));
+            data.add((byte)(value >>> 24 & 0xFF));
+            dataCount = 4;
         }
-        
-        //int dataCount = this.getNumberOfBytes(value);//MAPPING[32 - Integer.numberOfLeadingZeros(value)];
-        int dataCount = 0;
-        
-        while (true) {
-            final int b = value & 0xFF;
-            dataCount++;
-            data.add((byte)b);
-            if (value == b) {
-                break;
-            } else {
-                value >>>= 8;
-            }
-        }
-        
-        /*int count = dataCount;
-        while(dataCount > 0){
-            final int b = value & 0xFF;
-            data.add((byte)b);
-            value >>>= 8;
-            dataCount--;
-        }*/
-        /*for(int i = 0; i < dataCount; i++){
-            final int b = value & 0xFF;
-            data.add((byte)b);
-            value >>>= 8;
-        }*/
-        
+                
         switch(dataCount){
             case 1:
                 break;
@@ -106,14 +67,18 @@ public class VarBytePostingList extends AbstractPostingList{
                 break;
         }
         
-        bitsWritten += 2;
-        
-        this.controlData.set(this.noControlData, controlDataLong);
+        if(bitsWritten == 62){
+            this.controlData.add(controlDataLong);
+            this.controlDataLong = 0;
+            this.bitsWritten = 0;
+        } else {
+            bitsWritten += 2;
+        }
     }
     
     @Override
     public AbstractIterator iterator() {
-        return new Iterator(this.data, this.controlData);
+        return new Iterator(this);
     }
 
     @Override
@@ -134,21 +99,63 @@ public class VarBytePostingList extends AbstractPostingList{
         this.data.trim();
     }
     
-    private class Iterator extends AbstractIterator{
+    public static final class Iterator extends AbstractIterator{
 
-        private final LongArrayList controlData;
+        private LongArrayList controlData;
         
         private int internalOffset;
         private int controlOffset;
         
         private long controlDataLongLocal;
         
-        public Iterator(ByteArrayList data, LongArrayList controlData) {
-            this.data = data;
-            this.controlData = controlData;
+        private int noPostings;
+        private int count;
+                
+        public Iterator(){
+            this.data = null;
+            this.controlData = null;
+
             this.internalOffset = 0;
             this.controlOffset = 0;
             this.offset = 0;
+            
+            this.count = 1;
+            
+            this.controlDataLongLocal = 0;
+            this.noPostings = 0;
+        }
+        
+        public Iterator(VarBytePostingList postingList) {
+            this.data = postingList.data;
+            this.controlData = postingList.controlData;
+
+            this.controlData.add(postingList.controlDataLong);
+            
+            this.noPostings = postingList.noPostings;
+            
+            this.reset();
+        }
+        
+        @Override
+        public void reset(AbstractPostingList postingList) {
+            VarBytePostingList postingListTmp = (VarBytePostingList) postingList;
+            
+            this.data = postingListTmp.data;
+            this.controlData = postingListTmp.controlData;
+            
+            this.controlData.add(postingListTmp.controlDataLong);
+            this.noPostings = postingListTmp.noPostings;
+            
+            this.reset();
+        }
+        
+        @Override
+        public void reset(){
+            this.internalOffset = 0;
+            this.controlOffset = 0;
+            this.offset = 0;
+            
+            this.count = 1;
             
             this.controlDataLongLocal = this.controlData.getLong(this.controlOffset);
         }
@@ -158,37 +165,28 @@ public class VarBytePostingList extends AbstractPostingList{
                         
             int returnValue = 0;
             
-            /*for(int i = 0; i < (int) ((controlDataLongLocal) & 3) + 1; i++){
-                returnValue += ((this.data.getByte(this.offset) & 0xFF) << (i * 8));
-                this.offset++;
-            }*/
+            returnValue = (this.data.getByte(this.offset) & 0xFF);
+            this.offset++;
+            
             switch((int) ((controlDataLongLocal) & 3)){
                 case 0:
-                    returnValue = this.data.getByte(this.offset);
-                    this.offset++;
                     break;
                 case 1:
-                    returnValue = this.data.getByte(this.offset);
-                    this.offset++;
-                    returnValue |= this.data.getByte(this.offset) << 8;
+                    returnValue |= ((this.data.getByte(this.offset) & 0xFF) << 8);
                     this.offset++;
                     break;
                 case 2:
-                    returnValue = this.data.getByte(this.offset);
+                    returnValue |= ((this.data.getByte(this.offset) & 0xFF) << 8);
                     this.offset++;
-                    returnValue |= this.data.getByte(this.offset) << 8;
-                    this.offset++;
-                    returnValue |= this.data.getByte(this.offset) << 16;
+                    returnValue |= ((this.data.getByte(this.offset) & 0xFF) << 16);
                     this.offset++;
                     break;
                 case 3:
-                    returnValue = this.data.getByte(this.offset);
+                    returnValue |= ((this.data.getByte(this.offset) & 0xFF) << 8);
                     this.offset++;
-                    returnValue |= this.data.getByte(this.offset) << 8;
+                    returnValue |= ((this.data.getByte(this.offset) & 0xFF) << 16);
                     this.offset++;
-                    returnValue |= this.data.getByte(this.offset) << 16;
-                    this.offset++;
-                    returnValue |= this.data.getByte(this.offset) << 24;
+                    returnValue |= ((this.data.getByte(this.offset) & 0xFF) << 24);
                     this.offset++;
                     break;
             }
@@ -207,16 +205,21 @@ public class VarBytePostingList extends AbstractPostingList{
 
         @Override
         public boolean nextPosting() {
-            if (offset >= data.size())
+            if (offset >= data.size() || count >= this.noPostings){
                 return false;
+            }
 
             int b;
             do {
                 b = this.nextNonNegativeIntIntern();
-                if (offset >= data.size())
-                    return false;
             } while (b!=0);
+            count++;
             return true;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return offset < data.size() && !(data.getByte(offset) == 0 && ((controlDataLongLocal & 3) == 0));
         }
     }
 }
