@@ -11,6 +11,7 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -30,6 +31,21 @@ public class PostingListBenchmark {
         this.postingList = postingList;
         
         this.iterator = iterator;
+        
+        /*Random random = new Random();
+        
+        int numberOfElements = 100000000;
+        int postingSize = 100;
+        
+        testData = new int[numberOfElements + (numberOfElements / postingSize)];
+                
+        for(int i = 0; i < numberOfElements; i++){
+            testData[i] = random.nextInt(127);
+            
+            if(i % postingSize == 0){
+                testData[i] = 0;
+            }
+        }*/
         
         readData(testDataFile);
     }
