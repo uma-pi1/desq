@@ -49,11 +49,7 @@ public class EliasGammaPostingList extends AbstractPostingList{
                 
                 data.add(currentData);
                 
-                if(toAdd == 0){
-                    currentData = ((long) value) << (freeBits -= length);
-                } else {
-                    currentData = ((long) value) << (freeBits -= (length + toAdd));
-                }
+                currentData = ((long) value) << (freeBits -= (length + toAdd));
             } else {                
                 int toAdd = totalLength - freeBits;
                 data.add(currentData |= ((long) value) >>> (totalLength - freeBits));
@@ -80,6 +76,7 @@ public class EliasGammaPostingList extends AbstractPostingList{
         this.data.clear();
         this.currentData = 0;
         freeBits = 64;
+        this.noPostings = 0;
     }
 
     @Override
@@ -97,13 +94,6 @@ public class EliasGammaPostingList extends AbstractPostingList{
     @Override
     public AbstractIterator iterator() {
         return new Iterator(this);
-    }
-    
-    
-    public void printData(){
-        for(int i = 0; i < data.size(); i++){
-            System.out.println("data: " + Long.toBinaryString(data.getLong(i)));
-        }
     }
     
     public static final class Iterator extends AbstractIterator{
@@ -226,8 +216,9 @@ public class EliasGammaPostingList extends AbstractPostingList{
         
         @Override
         public boolean nextPosting() {
-            if (offset >= this.data.size() || count >= noPostings)
+            if (offset >= this.data.size() || count >= noPostings){
                 return false;
+            }
 
             int b;
             do {
@@ -239,10 +230,7 @@ public class EliasGammaPostingList extends AbstractPostingList{
 
         @Override
         public boolean hasNext() {
-            if((offset >= data.size() - 1) && (currentData == 0)){
-                return false;
-            }
-            return offset < data.size() && ((currentData & ((long)1 << (63 - internalOffset))) == 0);
+            return offset < data.size() && (((currentData & ((long)1 << (63 - internalOffset))) == 0) && !((currentData == 0) && (offset == data.size() - 1)));
         }
     }
 }

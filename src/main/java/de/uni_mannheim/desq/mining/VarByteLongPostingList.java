@@ -5,6 +5,7 @@
  */
 package de.uni_mannheim.desq.mining;
 
+import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 /**
@@ -15,8 +16,7 @@ public class VarByteLongPostingList extends AbstractPostingList{
     
     private final LongArrayList data;
     private final LongArrayList controlData;
-    
-    private int offset;
+        
     private int internalOffset;
     private int bitsWritten;
     
@@ -42,7 +42,7 @@ public class VarByteLongPostingList extends AbstractPostingList{
     protected void addNonNegativeIntIntern(int value) {
         
         int dataCount = this.getNumberOfBytes(value);
-
+        
         byte freeBits = (byte) (64 - this.internalOffset);
                 
         if(freeBits < dataCount){
@@ -53,7 +53,6 @@ public class VarByteLongPostingList extends AbstractPostingList{
             currentDataLong = (long)value >>> freeBits;
             
             this.internalOffset = (dataCount - freeBits);
-            this.offset++;
         } else {
             currentDataLong |= ((long)value << this.internalOffset);
             
@@ -63,10 +62,9 @@ public class VarByteLongPostingList extends AbstractPostingList{
                 this.data.add(currentDataLong);
                 this.currentDataLong = 0;
                 this.internalOffset = 0;
-                this.offset++;
             }
         }
-                
+
         switch(dataCount){
             case 8:
                 break;
@@ -100,14 +98,13 @@ public class VarByteLongPostingList extends AbstractPostingList{
                 
         this.bitsWritten = 0;
         this.internalOffset = 0;
-        this.offset = 0;
         
         this.noPostings = 0;
     }
 
     @Override
     public int noBytes() {
-        return this.data.size() * 8;
+        return this.data.size() * 8 + this.controlData.size() * 8;
     }
 
     @Override
@@ -200,15 +197,16 @@ public class VarByteLongPostingList extends AbstractPostingList{
             byte possibleBits = (byte) (64 - bitsRead);
             
             int returnValue = (int) ((this.currentDataLocal & (((long)1 << dataCount) - 1)));
+            
             if(dataCount > possibleBits){                
                 this.offset++;
                 this.currentDataLocal = this.data.getLong(this.offset);
 
                 returnValue |= (int) ((this.currentDataLocal & ((1 << (dataCount - possibleBits)) - 1))) << possibleBits;
 
-                this.currentDataLocal >>>= (dataCount - possibleBits);
-                
                 this.bitsRead = dataCount - possibleBits;
+                
+                this.currentDataLocal >>>= this.bitsRead;
             } else {
                 this.currentDataLocal >>>= dataCount;
                 this.bitsRead += dataCount;

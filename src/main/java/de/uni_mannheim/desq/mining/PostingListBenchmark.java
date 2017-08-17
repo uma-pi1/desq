@@ -58,6 +58,7 @@ public class PostingListBenchmark {
         average /= (double)count;
         
         System.out.println("Time adding data: " + average + "ms");
+        System.out.println("Posting list size: " + postingList.noBytes() + " bytes.");
     }
     
     public void readData(int count){     
@@ -79,6 +80,9 @@ public class PostingListBenchmark {
                 }
             } while(iterator.nextPosting());
 
+            /*for(int k = 0; k < 90000000; k++){
+                iterator.nextNonNegativeInt();
+            }*/
             this.stop();
 
             average += stopwatch.elapsed(TimeUnit.MILLISECONDS);
@@ -103,7 +107,10 @@ public class PostingListBenchmark {
             
             if(reader.readLine().equals("Started writer")){
                 while((line = reader.readLine()) != null){
-                    tmpData.add(Integer.valueOf(line));
+                    try{
+                        tmpData.add(Integer.valueOf(line));
+                    } catch (Exception e){
+                    }
                 }
             }
             
@@ -130,7 +137,7 @@ public class PostingListBenchmark {
     }
     
     public static void main(String[] args){
-        PostingListBenchmark benchmark = new PostingListBenchmark("test_small_values.txt", new NewPostingList(), new NewPostingList.Iterator());
+        PostingListBenchmark benchmark = new PostingListBenchmark("test_nyt_data.txt", new EliasGammaPostingList(), new EliasGammaPostingList.Iterator());
         
         benchmark.addData(20);
         

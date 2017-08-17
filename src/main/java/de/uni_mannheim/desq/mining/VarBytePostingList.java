@@ -31,38 +31,39 @@ public class VarBytePostingList extends AbstractPostingList{
     
     @Override
     public void addNonNegativeIntIntern(int value){
-        dataCount = 0;
+        int dataCount = 0;
         
         if(value >>> 8 == 0){
             data.add((byte)(value & 0xFF));
-            dataCount = 1;
+            dataCount = 0;
         } else if (value >>> 16 == 0){
             data.add((byte)(value & 0xFF));
             data.add((byte)(value >>> 8 & 0xFF));
-            dataCount = 2;
+            dataCount = 1;
         } else if (value >>> 24 == 0){
             data.add((byte)(value & 0xFF));
             data.add((byte)(value >>> 8 & 0xFF));
             data.add((byte)(value >>> 16 & 0xFF));
-            dataCount = 3;
+            dataCount = 2;
         } else {
             data.add((byte)(value & 0xFF));
             data.add((byte)(value >>> 8 & 0xFF));
             data.add((byte)(value >>> 16 & 0xFF));
             data.add((byte)(value >>> 24 & 0xFF));
-            dataCount = 4;
+            dataCount = 3;
         }
-                
+        
         switch(dataCount){
-            case 1:
+            case 0:
+                this.controlDataLong |= 0;
                 break;
-            case 2:
+            case 1:
                 this.controlDataLong |= (long) 1 << bitsWritten;
                 break;
-            case 3:
+            case 2:
                 this.controlDataLong |= (long) 2 << bitsWritten;
                 break;
-            case 4:
+            case 3:
                 this.controlDataLong |= (long) 3 << bitsWritten;
                 break;
         }

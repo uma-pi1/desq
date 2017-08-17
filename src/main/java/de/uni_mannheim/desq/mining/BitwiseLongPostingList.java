@@ -73,7 +73,7 @@ public final class BitwiseLongPostingList extends AbstractPostingList{
     }
 
     @Override
-    public int noBytes() { return data.size(); }
+    public int noBytes() { return data.size() * 8 + controlData.size() * 8; }
 
     @Override
     public int size() {
@@ -142,28 +142,12 @@ public final class BitwiseLongPostingList extends AbstractPostingList{
             
             this.data.add(postingList.currentData);
             this.controlData.add(postingList.currentControlData);
-                        
-            this.internalOffset = 0;
-            this.offset = 0;
             
-            this.count = 1;
             this.noPostings = postingList.noPostings;
             
-            this.currentData = this.data.getLong(offset);
-            this.currentControlData = this.controlData.getLong(offset);
+            this.reset();
         }
-        
-        @Override
-        public final void reset() {
-            this.internalOffset = 0;
-            this.offset = 0;
-            
-            this.count = 1;
-            
-            this.currentData = this.data.getLong(offset);
-            this.currentControlData = this.controlData.getLong(offset);
-        }
-        
+
         @Override
         public final void reset(AbstractPostingList postingList) {
             BitwiseLongPostingList postingListTmp = (BitwiseLongPostingList) postingList;
@@ -179,27 +163,34 @@ public final class BitwiseLongPostingList extends AbstractPostingList{
         }
         
         @Override
-        public int nextNonNegativeIntIntern() {
+        public final void reset() {
+            this.internalOffset = 0;
+            this.offset = 0;
             
+            this.count = 1;
+            
+            this.currentData = this.data.getLong(offset);
+            this.currentControlData = this.controlData.getLong(offset);
+        }
+        
+        @Override
+        public int nextNonNegativeIntIntern() {
             int returnValue;
             
-            byte offsetBefore = internalOffset;
-
             if(currentControlData == 0){
-                returnValue = (int) currentData & ((1 << (64 - offsetBefore)) - 1);
+                returnValue = (int) currentData;
 
                 offset++;
                 currentData = this.data.getLong(offset);
                 currentControlData = this.controlData.getLong(offset);
-
-                internalOffset = (byte) (Long.numberOfLeadingZeros(currentControlData) + 1);
                 
+                internalOffset = (byte) (Long.numberOfLeadingZeros(currentControlData) + 1);
+                                
                 returnValue = (returnValue << internalOffset) | (int) (currentData >>> (64 - internalOffset));
             } else {
                 internalOffset = (byte) (Long.numberOfLeadingZeros(currentControlData) + 1);
-                long mask = (((long)1 << (internalOffset - offsetBefore)) - 1);
 
-                returnValue = (int)((currentData >>> (64 - internalOffset)) & mask);
+                returnValue = (int)(currentData >>> (64 - internalOffset));
 
                 if(internalOffset == 64){
                     internalOffset = 0;
@@ -211,7 +202,9 @@ public final class BitwiseLongPostingList extends AbstractPostingList{
             }
             
             if(internalOffset != 0){
-                currentControlData &= (((long)1 << (64 - internalOffset)) - 1);
+                long mask = (((long)1 << (64 - internalOffset)) - 1);
+                currentControlData &= mask;
+                currentData &= mask;
             }
             
             return returnValue;
