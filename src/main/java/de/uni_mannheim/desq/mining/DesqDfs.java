@@ -46,8 +46,14 @@ public final class DesqDfs extends MemoryDesqMiner {
 	private final ArrayList<State.ItemStateIterator> itemStateIterators = new ArrayList<>();
 
     /** An iterator over a projected database (a posting list) for reuse */
-	private final PostingList.Iterator projectedDatabaseIt = new PostingList.Iterator();
-
+	//private final PostingList.Iterator projectedDatabaseIt = new PostingList.Iterator();
+        //private final AbstractIterator projectedDatabaseIt = new BitwiseLongPostingList.Iterator();
+        //private final AbstractIterator projectedDatabaseIt = new VarBytePostingList.Iterator();
+        //private final AbstractIterator projectedDatabaseIt = new IntegerPostingList.Iterator();
+        //private final AbstractIterator projectedDatabaseIt = new NewPostingList.Iterator();
+        //private final AbstractIterator projectedDatabaseIt = new VarByteLongPostingList.Iterator();
+        private final AbstractIterator projectedDatabaseIt = new EliasGammaPostingList.Iterator();
+        
 	/** The root node of the search tree. */
 	private final DesqDfsTreeNode root;
 
@@ -241,7 +247,12 @@ pos: 	do { // loop over positions; used for tail recursion optimization
 
 			// get iterator over next output item/state pairs; reuse existing ones if possible
 			// in two-pass, only iterates over states that we saw in the first pass (the other ones can safely be skipped)
-			final int itemFid = currentInputSequence.getInt(pos);
+                        //int itemFid = 0;
+                        //try{
+                            final int itemFid = currentInputSequence.getInt(pos);
+                        /*} catch(Exception e){
+                            projectedDatabaseIt.printData();
+                        }*/
 			final BitSet validToStates = useTwoPass
 					? currentDfaStateSequence[currentInputSequence.size() - (pos + 1)].getFstStates() // only states from first pass
 					: null; // all states
@@ -348,6 +359,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 						if (stateId < 0) // if >= 0, then there is only one possible FST state and it's not recorded in the posting list
 							stateId = projectedDatabaseIt.nextNonNegativeInt();
 						final int pos = projectedDatabaseIt.nextNonNegativeInt(); // position of next input item
+                                                //projectedDatabaseIt.printData();
 						reachedFinalStateWithoutOutput |= incStep(pos, fst.getState(stateId), 0, expand);
 					} while (projectedDatabaseIt.hasNext());
 

@@ -18,7 +18,10 @@ public class DesqDfsExample {
 		int lambda = 3;
 		boolean generalize = false;
 		String patternExp = DesqDfs.patternExpressionFor(gamma, lambda, generalize);
-		//patternExp = "(JJ@ JJ@ NN@)";
+		//patternExp = "([.^ . .]|[. .^ .]|[. . .^])";
+                //patternExp = "(.^){0,3}";
+                //patternExp = "(.^ JJ@ NN@)";
+                //patternExp = "(JJ@ JJ@ NN@)";
 
 		DesqProperties conf = DesqDfs.createConf(patternExp, sigma);
 		conf.setProperty("desq.mining.prune.irrelevant.inputs", false);
@@ -72,8 +75,8 @@ public class DesqDfsExample {
     }
 
     public static void protein() throws IOException {
-		String patternExpression = "([S|T]).*(.).*([R|K])";
-		//String patternExpression = "([S=|T=]).*(.).*([R=|K=])";
+		//String patternExpression = "([S|T]).*(.).*([R|K])";
+		String patternExpression = "([S=|T=]).*(.).*([R=|K=])";
 		int sigma = 500;
 
 		DesqProperties conf = DesqDfs.createConf(patternExpression, sigma);
@@ -120,7 +123,7 @@ public class DesqDfsExample {
 		//nyt();
 		//netflixFlat();
         //netflixDeep();
-		//protein();
-		ryan();
+		protein();
+		//ryan();
 	}
 }
