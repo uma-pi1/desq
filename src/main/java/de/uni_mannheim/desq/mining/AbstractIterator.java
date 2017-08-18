@@ -24,7 +24,7 @@ public abstract class AbstractIterator {
         /** Is there another value in the current posting? */
         abstract public boolean hasNext();
 
-        public final int nextNonNegativeInt(){
+        public int nextNonNegativeInt(){
             return this.nextNonNegativeIntIntern() - 1;
         }
         

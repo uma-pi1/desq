@@ -5,14 +5,13 @@
  */
 package de.uni_mannheim.desq.mining;
 
-import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 /**
  *
  * @author Kai
  */
-public class VarByteLongPostingList extends AbstractPostingList{
+public class VarByteLongAdvancedPostingList extends AbstractPostingList{
     
     private final LongArrayList data;
     private final LongArrayList controlData;
@@ -23,25 +22,16 @@ public class VarByteLongPostingList extends AbstractPostingList{
     private long controlDataLong;
     private long currentDataLong;
     
-    public VarByteLongPostingList(){   
+    public VarByteLongAdvancedPostingList(){   
         this.data = new LongArrayList();
         this.controlData = new LongArrayList();
         
         this.clear();
     }
     
-    private int getNumberOfBytes(int value){
-        if((value >>> 8) == 0) return 8;
-        if((value >>> 16) == 0) return 16;
-        if((value >>> 24) == 0) return 24;
-        
-        return 32;
-    }
-    
     @Override
     protected void addNonNegativeIntIntern(int value) {
         
-        //int dataCount = this.getNumberOfBytes(value);
         int dataCount = 0;
         
         if((value >>> 8) == 0) {dataCount = 8;}
@@ -147,41 +137,49 @@ public class VarByteLongPostingList extends AbstractPostingList{
     public static final class Iterator extends AbstractIterator{
 
         private LongArrayList data;
-        private LongArrayList controlData;
-        
-        private long controlDataLongLocal;
-        private long currentDataLocal;
+        private LongArrayList control;
+
+        private int dataOffset;
         private int controlOffset;
-        private int internalOffset;
-        private int bitsRead;
         
-        private int offset;
+        
+        private long currentData;
+        private long currentControl;
+        
+        private int currentDataOffset;
+        private int currentControlOffset;
         
         private int noPostings;
         private int count;
         
+        private boolean readLastData;
+        private int cachedReturnValue;
+        
         public Iterator(){
             this.data = null;
-            this.controlData = null;
+            this.control = null;
             
-            this.offset = 0;
+            this.dataOffset = 0;
             this.controlOffset = 0;
-            this.internalOffset = 0;
-            this.bitsRead = 0;
+            this.currentDataOffset = 0;
+            this.currentControlOffset = 0;
             
-            this.currentDataLocal = 0;
-            this.controlDataLongLocal = 0;
+            this.currentData = 0;
+            this.currentControl = 0;
+            
+            this.readLastData = false;
+            this.cachedReturnValue = -1;
             
             //
             this.count = 1;
         }
         
-        public Iterator(VarByteLongPostingList postingList){
+        public Iterator(VarByteLongAdvancedPostingList postingList){
             this.data = postingList.data;
-            this.controlData = postingList.controlData;
+            this.control = postingList.controlData;
             
             this.data.add(postingList.currentDataLong);
-            this.controlData.add(postingList.controlDataLong);
+            this.control.add(postingList.controlDataLong);
             
             this.noPostings = postingList.noPostings;
             
@@ -189,13 +187,16 @@ public class VarByteLongPostingList extends AbstractPostingList{
         }
         
         public void reset(){
-            this.offset = 0;
+            this.dataOffset = 0;
             this.controlOffset = 0;
-            this.internalOffset = 0;
-            this.bitsRead = 0;
+            this.currentDataOffset = 0;
+            this.currentControlOffset = 0;
             
-            this.currentDataLocal = this.data.getLong(offset);
-            this.controlDataLongLocal = this.controlData.getLong(controlOffset);
+            this.readLastData = false;
+            this.cachedReturnValue = -1;
+            
+            this.currentData = this.data.getLong(dataOffset);
+            this.currentControl = this.control.getLong(controlOffset);
             
             //
             this.count = 1;
@@ -203,13 +204,13 @@ public class VarByteLongPostingList extends AbstractPostingList{
         
         @Override
         public void reset(AbstractPostingList postingList) {
-            VarByteLongPostingList postingListTmp = (VarByteLongPostingList) postingList;
+            VarByteLongAdvancedPostingList postingListTmp = (VarByteLongAdvancedPostingList) postingList;
             
             this.data = postingListTmp.data;
-            this.controlData = postingListTmp.controlData;
-            
+            this.control = postingListTmp.controlData;
+                        
             this.data.add(postingListTmp.currentDataLong);
-            this.controlData.add(postingListTmp.controlDataLong);
+            this.control.add(postingListTmp.controlDataLong);
             
             this.noPostings = postingListTmp.noPostings;
             
@@ -217,48 +218,60 @@ public class VarByteLongPostingList extends AbstractPostingList{
         }
         
         @Override
-        int nextNonNegativeIntIntern() {            
-            int dataCount = (int) (((controlDataLongLocal) & 3) + 1) * 8;
+        int nextNonNegativeIntIntern() {
+            int returnValue = -1;
             
-            int possibleBits = 64 - bitsRead;
-            
-            int returnValue = (int) ((this.currentDataLocal & ((1L << dataCount) - 1)));
-            
-            if(dataCount > possibleBits){                
-                this.offset++;
-                this.currentDataLocal = this.data.getLong(this.offset);
-
-                returnValue |= (int) ((this.currentDataLocal & ((1 << (dataCount - possibleBits)) - 1))) << possibleBits;
-
-                this.bitsRead = dataCount - possibleBits;
-                
-                this.currentDataLocal >>>= this.bitsRead;
+            if(readLastData){
+                return returnValue;
             } else {
-                this.currentDataLocal >>>= dataCount;
-                this.bitsRead += dataCount;
+            
+                int dataCount = (int) (((currentControl) & 3) + 1) * 8;
+
+                int possibleBits = 64 - currentControlOffset;
+
+                returnValue = (int) ((this.currentData & ((1L << dataCount) - 1)));
+
+                if(dataCount > possibleBits){                
+                    this.dataOffset++;
+                    this.currentData = this.data.getLong(this.dataOffset);
+
+                    returnValue |= (int) ((this.currentData & ((1 << (dataCount - possibleBits)) - 1))) << possibleBits;
+
+                    this.currentControlOffset = dataCount - possibleBits;
+
+                    this.currentData >>>= this.currentControlOffset;
+                } else {
+                    this.currentData >>>= dataCount;
+                    this.currentControlOffset += dataCount;
+                }
+
+                this.currentDataOffset += 2;
+                this.currentControl >>= 2;
+
+                if(this.currentControlOffset == 64){
+                    this.currentControlOffset = 0;
+                    this.dataOffset++;
+                    this.currentData = this.data.getLong(this.dataOffset);
+                }
+
+                if(this.currentDataOffset == 64){
+                    this.currentDataOffset = 0;
+                    this.controlOffset++;
+                    this.currentControl = this.control.getLong(this.controlOffset);
+                }
             }
-            
-            this.internalOffset += 2;
-            this.controlDataLongLocal >>= 2;
-            
-            if(this.bitsRead == 64){
-                this.bitsRead = 0;
-                this.offset++;
-                this.currentDataLocal = this.data.getLong(this.offset);
-            }
-            
-            if(this.internalOffset == 64){
-                this.internalOffset = 0;
-                this.controlOffset++;
-                this.controlDataLongLocal = this.controlData.getLong(this.controlOffset);
-            }
-            
             return returnValue;
         }
 
         @Override
+        public int nextNonNegativeInt(){
+            return this.cachedReturnValue;
+            //return this.nextNonNegativeIntIntern() - 1;
+        }
+        
+        @Override
         public boolean nextPosting() {
-            if (offset > data.size() || count >= noPostings)
+            if (dataOffset > data.size() || count >= noPostings)
                 return false;
 
             int b;
@@ -271,7 +284,14 @@ public class VarByteLongPostingList extends AbstractPostingList{
 
         @Override
         public boolean hasNext() {
-            return offset < data.size() && !((controlDataLongLocal & 3) == 0 && (currentDataLocal & 0xFF) == 0);
+            
+            this.cachedReturnValue = this.nextNonNegativeIntIntern() - 1;
+            if(this.cachedReturnValue == 0)
+                return false;
+            else
+                return true;
+            //return dataOffset < data.size() && !((currentControl & 3) == 0 && (currentData & 0xFF) == 0);
         }
     }
+    
 }
