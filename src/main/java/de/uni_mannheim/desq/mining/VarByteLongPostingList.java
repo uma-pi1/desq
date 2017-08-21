@@ -70,7 +70,9 @@ public class VarByteLongPostingList extends AbstractPostingList{
             }
         }
 
-        switch(dataCount){
+        if(dataCount > 8)
+            this.currentControl |= ((dataCount >>> 3L) - 1L) << controlOffset;
+        /*switch(dataCount){
             case 8:
                 break;
             case 16:
@@ -82,7 +84,7 @@ public class VarByteLongPostingList extends AbstractPostingList{
             case 32:
                 this.currentControl |= 3L << controlOffset;
                 break;
-        }
+        }*/
         
         controlOffset += 2;
         
