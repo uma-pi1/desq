@@ -11,6 +11,7 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -27,11 +28,19 @@ public class PostingListBenchmark {
     private final AbstractPostingList postingList;
     private final AbstractIterator iterator;
     
+    //private final PostingList postingList;
+    //private final PostingList.Iterator iterator;
+    
     public PostingListBenchmark(String testDataFile, AbstractPostingList postingList, AbstractIterator iterator){
+        
         this.postingList = postingList;
         
         this.iterator = iterator;
         
+        /*this.postingList = new PostingList();
+        this.iterator = new PostingList.Iterator();*/
+        
+        // ------- Without test file --------
         /*Random random = new Random();
         
         int numberOfElements = 100000000;
@@ -47,7 +56,31 @@ public class PostingListBenchmark {
             }
         }*/
         
-        readData(testDataFile);
+        // ------- With test file --------
+        //readData(testDataFile);
+    }
+    
+    public void createData(String filePath){
+        PrintWriter writer = null;
+        
+        try{
+            writer = new PrintWriter(filePath, "UTF-8");
+            writer.println("Started writer");
+        } catch (IOException e) {
+            System.out.println("Failed to setup PrintWriter!");
+        }
+        
+        Random random = new Random();
+        
+        for(int i = 0; i < 100000000; i++){
+            writer.println("" + random.nextInt(127));
+            
+            if(i % 100 == 0){
+                writer.println("" + 0);
+            }
+        }
+        
+        writer.flush();
     }
     
     public void addData(int count){
@@ -153,7 +186,9 @@ public class PostingListBenchmark {
     }
     
     public static void main(String[] args){
-        PostingListBenchmark benchmark = new PostingListBenchmark("test_nyt_data.txt", new EliasGammaPostingList(), new EliasGammaPostingList.Iterator());
+        PostingListBenchmark benchmark = new PostingListBenchmark("test_small_values.txt", new VarByteLongAdvancedPostingList(), new VarByteLongAdvancedPostingList.Iterator());
+        
+        //benchmark.createData("creator_test.txt");
         
         benchmark.addData(20);
         
