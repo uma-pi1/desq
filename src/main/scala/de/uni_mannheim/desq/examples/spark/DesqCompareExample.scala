@@ -34,7 +34,7 @@ object DesqCompareExample {
     * @param limit       Maximum Number of Results for each Query
     * @param sc          SparkContext
     */
-  def searchAndCompareNaive(path_source: String, query_L: String, query_R: String, patExp: String, sigma: Int = 1, k: Int = 10, index: String, limit: Int, path_out: String)(implicit sc: SparkContext): Unit = {
+  def searchAndCompareNaive(path_source: String, path_out:String, query_L: String, query_R: String, patExp: String, sigma: Int = 1, k: Int = 10, index: String, limit: Int)(implicit sc: SparkContext): Unit = {
     print("Initializing Compare... ")
     val prepTime = Stopwatch.createStarted
     val es = new NYTElasticSearchUtils
@@ -76,7 +76,7 @@ object DesqCompareExample {
     * @param limit     Maximum Number of Results for each Query
     * @param sc        SparkContext
     */
-  def searchAndCompareDesqTwoCount(data_path: String, query_L: String, query_R: String, patExp: String, sigma: Int = 1, k: Int = 10, index: String, parts: Int = 96, limit: Int = 1000)(implicit sc: SparkContext): Unit = {
+  def searchAndCompareDesqTwoCount(data_path: String, out_path:String, query_L: String, query_R: String, patExp: String, sigma: Int = 1, k: Int = 10, index: String, section: Boolean = false, parts: Int = 96, limit: Int = 1000)(implicit sc: SparkContext): Unit = {
     print("Initializing Compare... ")
     val prepTime = Stopwatch.createStarted
     val es = new NYTElasticSearchUtils
@@ -91,7 +91,7 @@ object DesqCompareExample {
 
     print("Querying Elastic and Creating Ad-hoc Dataset... ")
 
-    val (dataset, index_comb) = compare.createAdhocDatasets(index, query_L, query_R, limit)
+    val (dataset, index_comb) = compare.createAdhocDatasets(index, query_L, query_R, limit, section)
     println(s"There are ${index_comb.value.size} relevant documents.")
 
     println(s"Querying Elastic & Creating Ad-hoc Dataset took: ${compare.filterT + compare.queryT}s")
@@ -106,8 +106,8 @@ object DesqCompareExample {
     val totalTime = wallclock.stop.elapsed(TimeUnit.SECONDS)
     val filename = s"DC2-$patExp-$sigma-$query_L-$query_R-$limit-${parts}"
     val times_string = s"$totalTime, ${dataloadTime.elapsed(TimeUnit.SECONDS)},${compare.filterT},${compare.queryT},${compareTime.elapsed(TimeUnit.SECONDS)}"
-    writeTimesToFile(times_string, data_path, filename+".csv")
-    printAggregatedWeightedSequencesToFile(data_path, filename, sequences, dataset.dict)
+    writeTimesToFile(times_string, out_path, filename + ".csv")
+    printAggregatedWeightedSequencesToFile(out_path, filename, sequences, dataset.dict)
 
 
   }
@@ -129,7 +129,7 @@ object DesqCompareExample {
     * @param limit     Maximum Number of Results for each Query
     * @param sc        SparkContext
     */
-  def searchAndCompareDesqMultiCount(data_path: String, queryFrom: String, queryTo: String, query_L: String, query_R: String, patExp: String, sigma: Int = 1, k: Int = 10, index: String, parts: Int = 96, limit: Int = 1000)(implicit sc: SparkContext): Unit = {
+  def searchAndCompareDesqMultiCount(data_path: String, out_path:String, queryFrom: String, queryTo: String, query_L: String, query_R: String, section: Boolean = false, patExp: String, sigma: Int = 1, k: Int = 10, index: String, parts: Int = 96, limit: Int = 1000)(implicit sc: SparkContext): Unit = {
     print("Initializing Compare... ")
     val prepTime = Stopwatch.createStarted
     val es = new NYTElasticSearchUtils
@@ -144,7 +144,7 @@ object DesqCompareExample {
 
     print("Querying Elastic and Creating Ad-hoc Dataset... ")
 
-    val (dataset, index_comb) = compare.createAdhocDatasets(index, query_L, query_R, limit, queryFrom, queryTo)
+    val (dataset, index_comb) = compare.createAdhocDatasets(index, query_L, query_R, limit, section, queryFrom, queryTo)
     println(s"There are ${index_comb.value.size} relevant documents.")
 
     println(s"Querying Elastic & Creating Ad-hoc Dataset took: ${compare.filterT + compare.queryT}s")
@@ -161,27 +161,40 @@ object DesqCompareExample {
     val totalTime = wallclock.stop.elapsed(TimeUnit.SECONDS)
     val times = s"DCM-$patExp-$sigma-$query_L-$query_R-$limit-$parts-${queryFrom.replace("/", "-")}-${queryTo.replace("/", "-")}"
     val times_string = s"$totalTime, ${dataloadTime.elapsed(TimeUnit.SECONDS)},${compare.filterT},${compare.queryT},${compareTime.elapsed(TimeUnit.SECONDS)}"
-    writeTimesToFile(times_string, data_path, times+".csv")
-    printAggregatedSequencesToFile(data_path, times, sequences, dict)
+    writeTimesToFile(times_string, out_path, times + ".csv")
+    printAggregatedSequencesToFile(out_path, times, sequences, dict)
 
 
   }
 
 
-  def searchAndMine(data_path: String, queryFrom: String, queryTo: String, query_L: String, query_R: String, patExp: String, sigma: Int = 1, k: Int = 10, index: String, parts: Int = 96, limit: Int = 1000)(implicit sc: SparkContext): Unit ={
+  def searchAndMine(data_path: String, out_path:String, queryFrom: String, queryTo: String, query_L: String, query_R: String, patExp: String, sigma: Int = 1, k: Int = 10, index: String, parts: Int = 96, limit: Int = 1000)(implicit sc: SparkContext): Unit = {
     print("Initializing Compare... ")
     val prepTime = Stopwatch.createStarted
     val es = new NYTElasticSearchUtils
     prepTime.stop()
     println(prepTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
+    //    print("Loading Dataset")
+    //    val dataloadTime = Stopwatch.createStarted
+    //    val dataset = IdentifiableDesqDataset.load(data_path).toDefaultDesqDataset()
+    //    dataloadTime.stop()
+    //    println(s"Loading Dataset took: ${dataloadTime.elapsed(TimeUnit.SECONDS)}s")
+
     print("Loading Dataset")
     val dataloadTime = Stopwatch.createStarted
-    val dataset = IdentifiableDesqDataset.load(data_path).toDefaultDesqDataset()
+    val compare = new DesqCompare(data_path, parts)
     dataloadTime.stop()
     println(s"Loading Dataset took: ${dataloadTime.elapsed(TimeUnit.SECONDS)}s")
 
     print("Querying Elastic and Creating Ad-hoc Dataset... ")
+
+    val (dataset, index_comb) = compare.createAdhocDatasets(index, query_L, query_R, limit, false, queryFrom, queryTo)
+    println(s"There are ${index_comb.value.size} relevant documents.")
+    val defaultDataset = dataset.toDefaultDesqDataset()
+    //println(defaultDataset.sequences.cache.count)
+    println(s"Querying Elastic & Creating Ad-hoc Dataset took: ${compare.filterT + compare.queryT}s")
+
 
     println("Mining interesting sequences... ")
     val compareTime = Stopwatch.createStarted
@@ -190,7 +203,7 @@ object DesqCompareExample {
     conf.setProperty("desq.mining.use.two.pass", true)
     val ctx = new DesqMinerContext(conf)
     val miner = DesqMiner.create(ctx)
-    val result = miner.mine(dataset)
+    val result = miner.mine(defaultDataset)
     val sequences = result.sequences.collect()
     compareTime.stop
     println(s"Mining interesting sequences took: ${compareTime.elapsed(TimeUnit.SECONDS)}s")
@@ -201,26 +214,26 @@ object DesqCompareExample {
 
     val times_string = s"$totalTime, ${dataloadTime.elapsed(TimeUnit.SECONDS)},0,0,${compareTime.elapsed(TimeUnit.SECONDS)}"
 
-    writeTimesToFile(times_string, data_path, filename+".csv")
+    writeTimesToFile(times_string, out_path, filename + ".csv")
 
-    if (!Files.exists(Paths.get(s"$data_path/experiments/"))) {
-      Files.createDirectory(Paths.get(s"$data_path/experiments/"))
+    if (!Files.exists(Paths.get(s"$out_path/experiments/"))) {
+      Files.createDirectory(Paths.get(s"$out_path/experiments/"))
     }
-    val file = if (!Files.exists(Paths.get(s"$data_path/experiments/${filename}_sequences.csv"))) {
-      new File(s"$data_path/experiments/${filename}_sequences.csv")
+    val file = if (!Files.exists(Paths.get(s"$out_path/experiments/${filename}_sequences.csv"))) {
+      new File(s"$out_path/experiments/${filename}_sequences.csv")
     } else {
       val timestamp: Long = System.currentTimeMillis / 1000
-      new File(s"$data_path/experiments/${filename}_${timestamp.toString}_sequences.csv")
+      new File(s"$out_path/experiments/${filename}_${timestamp.toString}_sequences.csv")
     }
     val bw = new BufferedWriter(new FileWriter(file))
     bw.write("sequence, global_freq, left_freq, left_int, right_freq, right_int\n")
     val dict = result.dict
     for (s <- sequences) s match {
-      case (_:WeightedSequence) => {
+      case (_: WeightedSequence) => {
         val sids = for (e <- s.elements) yield {
           dict.sidOfFid(e)
         }
-        bw.write(s"${sids.deep.mkString("[", " ", "]")},${s.weight}\n")
+        bw.write(s"${sids.deep.mkString("[", " ", "]").replace(",", "")},${s.weight}\n")
       }
     }
     bw.close()
@@ -243,7 +256,8 @@ object DesqCompareExample {
     print("Indexing Articles and Creating DesqDataset... ")
     val dataTime = Stopwatch.createStarted
     val nytEs = new NYTElasticSearchUtils
-    nytEs.createIndexAndDataset(path_in, path_out, index)
+    //    nytEs.createIndexAndDataset(path_in, path_out, index)
+    nytEs.createIndexAndDatasetEval(path_in, path_out, index)
     dataTime.stop()
     println(dataTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
   }
@@ -283,7 +297,7 @@ object DesqCompareExample {
         val sids = for (e <- s._1.elements) yield {
           dict.sidOfFid(e)
         }
-        bw.write(s"${sids.deep.mkString("[", " ", "]")},${s._1.support.getLong(0)},${s._1.support.getLong(1)},${s._2},${s._1.support.getLong(2)},${s._3}\n")
+        bw.write(s"${sids.deep.mkString("[", " ", "]").replace(",", "")},${s._1.support.getLong(0)},${s._1.support.getLong(1)},${s._2},${s._1.support.getLong(2)},${s._3}\n")
       }
     }
     bw.close()
@@ -306,7 +320,7 @@ object DesqCompareExample {
         val sids = for (e <- s._1.elements) yield {
           dict.sidOfFid(e)
         }
-        bw.write(s"${sids.deep.mkString("[", " ", "]")},${s._1.weight},${s._2},${s._1.weight_other},${s._2}\n")
+        bw.write(s"${sids.deep.mkString("[", " ", "]").replace(",", "")},${s._1.weight},${s._2},${s._1.weight_other},${s._2}\n")
       }
     }
     bw.close()
@@ -314,22 +328,25 @@ object DesqCompareExample {
 
 
   def main(args: Array[String]) {
-    var path_in = "data-local/nyt/2006/"
-    var path_out = "data-local/processed/es2006"
-    var parts = 0
+    var path_in = "data-local/NYTimesProcessed/results/"
+    var path_out = "data-local/processed/es_eval"
+    var path_data = "data-local/processed/es_eval"
+    var parts = 256
     var sigma = 20
-//    var patternExp = "(ENTITY . ENTITY) | (ENTITY .. ENTITY) |(ENTITY ... ENTITY) "
-    var patternExp = "(JJ NN) ."
-//    var patternExp = "(.){2,6}"
-    var index = "nyt2006"
-    var queryL = "George Bush"
-    var queryR = "United States"
-    var queryFrom = "1987/01/01"
+    //    var patternExp = "(ENTITY . ENTITY) | (ENTITY .. ENTITY) |(ENTITY ... ENTITY) "
+    var patternExp = "(ENTITY^ be@VB=^) DT? (RB? JJ? NN)"
+    //    var patternExp = "(.){2,6}"
+    var index = "nyt_eval"
+    var query1 = "*"
+    var query2 = "*"
+    var query3 = "*"
+    var queryFrom = "1978/01/01"
     var queryTo = "2007/12/31"
     var limit = 1800000
     var k = 1000
-    var algo = "DC"
-    var master = "local"
+    var algo = "D2C"
+    var master = "local[*]"
+    var section = false
 
     var params = ListBuffer[Array[String]]()
     if (args.length > 0) {
@@ -344,29 +361,35 @@ object DesqCompareExample {
       case Array("--algo", argAlgo: String) => algo = argAlgo
       case Array("--in", argIn: String) => path_in = argIn
       case Array("--out", argOut: String) => path_out = argOut
+      case Array("--data", argData: String) => path_data = argData
       case Array("--parts", argParts: String) => parts = argParts.toInt
       case Array("--patexp", argPatEx: String) => patternExp = argPatEx
       case Array("--index", argIndex: String) => index = argIndex
-      case Array("--left", argQL: String) => queryL = argQL
-      case Array("--right", argQR: String) => queryR = argQR
+      case Array("--q1", argQ1: String) => query1 = argQ1
+      case Array("--q2", argQ2: String) => query2 = argQ2
+      case Array("--q2", argQ3: String) => query3 = argQ3
       case Array("--from", argQF: String) => queryFrom = argQF
       case Array("--to", argQT: String) => queryTo = argQT
       case Array("--limit", argLimit: String) => limit = argLimit.toInt
       case Array("--k", argK: String) => k = argK.toInt
       case Array("--sigma", argSigma: String) => sigma = argSigma.toInt
+      case Array("--section", argSection: String) => section = argSection.toBoolean
     }
+
+    if (path_out == "") path_out = path_data
 
     val conf = new SparkConf().setAppName(getClass.getName).setMaster(master)
       .set("spark.driver.extraClassPath", sys.props("java.class.path"))
       .set("spark.executor.extraClassPath", sys.props("java.class.path"))
-//      .set("fs.local.block.size", "128mb")
+            .set("fs.local.block.size", "128mb")
+      .set("spark.driver.maxResultSize", "6192mb")
       .set("spark.eventLog.enabled", "true")
     wallclock.start
     initDesq(conf)
     implicit val sc = new SparkContext(conf)
 
-    if (!Files.exists(Paths.get(path_out))) {
-      Files.createDirectory(Paths.get(path_out))
+    if (!Files.exists(Paths.get(path_data))) {
+      Files.createDirectory(Paths.get(path_data))
       createIndexAndDataSet(path_in, path_out, index)
     }
 
@@ -390,18 +413,15 @@ object DesqCompareExample {
     val patternExpressionI1 = "(.){2,6}"
 
 
-
-    if (algo == "DC") {
-      if (queryFrom.isEmpty && queryTo.isEmpty) {
-        searchAndCompareDesqTwoCount(path_out, queryL, queryR, patternExp, sigma, k, index, parts, limit)
-      } else {
-        searchAndCompareDesqMultiCount(path_out, queryFrom, queryTo, queryL, queryR, patternExp, sigma, k, index, parts, limit)
-      }
-    } else if(algo == "COUNT"){
-        searchAndMine(path_out, queryFrom, queryTo, queryL, queryR, patternExp, sigma, k, index, parts, limit)
+    if (algo == "DMC") {
+      searchAndCompareDesqMultiCount(path_data, path_out, queryFrom, queryTo, query1, query2, section, patternExp, sigma, k, index, parts, limit)
+    } else if (algo == "D2C") {
+      searchAndCompareDesqTwoCount(path_data, path_out, query1, query2, patternExp, sigma, k, index, section, parts, limit)
+    } else if (algo == "COUNT") {
+      searchAndMine(path_data, path_out, queryFrom, queryTo, query1, query2, patternExp, sigma, k, index, parts, limit)
+    } else if (algo == "NAIVE") {
+      searchAndCompareNaive(path_data, path_out, query1, query2, patternExp, sigma, k, index, limit)
     }
-    else searchAndCompareNaive(path_out, queryR, queryL, patternExp, sigma, k, index, limit, path_out)
-
     //    TODO: Query for Background and filter the dataset && conjunction of ad-hoc query and background query || Use all queries and simple ad-hoc queries
 
     println(s"System Runtime: ${

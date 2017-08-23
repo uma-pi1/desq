@@ -7,7 +7,7 @@ import com.sksamuel.elastic4s.ElasticDsl._
 import com.sksamuel.elastic4s.ElasticsearchClientUri
 import com.sksamuel.elastic4s.xpack.security.XPackElasticClient
 import de.uni_mannheim.desq.Desq.initDesq
-import de.uni_mannheim.desq.avro.AvroArticle
+import de.uni_mannheim.desq.avro.{AvroArticle, Sentence}
 import de.uni_mannheim.desq.converters.nyt.NytUtil
 import de.uni_mannheim.desq.mining.IdentifiableWeightedSequence
 import de.uni_mannheim.desq.mining.spark.{DesqDatasetPartitionedWithID, IdentifiableDesqDataset}
@@ -40,6 +40,7 @@ class NYTElasticSearchUtils extends Serializable {
     *
     * @param path_in  Directory where the source avro articles lay
     * @param path_out Directory where the DataSet should be written
+    * @param index    Name of the Index
     * @param sc       SparkContext
     */
   def createIndexAndDataset(path_in: String, path_out: String, index: String)(implicit sc: SparkContext) = {
@@ -63,6 +64,41 @@ class NYTElasticSearchUtils extends Serializable {
     println(s"Creating the dataset took ${datasetTime.elapsed(TimeUnit.MILLISECONDS)}")
 
   }
+
+
+  /** Creates the Index and Dataset used for the Experimental Evaluation of the Thesis
+    *
+    * @param path_in  Directory where the source avro articles are read from
+    * @param path_out Directory where the DataSet is written to
+    * @param index    Name of the Index
+    * @param sc       Spark Context
+    */
+  def createIndexAndDatasetEval(path_in: String, path_out: String, index: String)(implicit sc: SparkContext) = {
+    val articles = NytUtil.loadArticlesFromFile(path_in)
+    val articlesWithId = articles.zipWithUniqueId().cache
+    val indexTime = Stopwatch.createStarted
+    this.createNYTIndex(index)
+    indexTime.stop()
+    println(s"Creating the index took ${indexTime.elapsed(TimeUnit.MILLISECONDS)}}")
+    val elasticTime = Stopwatch.createStarted
+    articlesWithId.unpersist()
+    val sampleArticles = articlesWithId.sample(false, 0.125, 1337)
+    this.writeArticlesToEs(sampleArticles, index + "/article")
+
+    val datasetTime = Stopwatch.createStarted
+    val sampleSequences = sampleArticles.map(f => (f._2, f._1)).flatMapValues(f => f.getSentences)
+    val dataset = IdentifiableDesqDataset.buildFromSentencesWithID(sampleSequences)
+    val sampleSize = sampleSequences.count()
+    println(s"We have ${sampleSize} in our index")
+    val parts = math.ceil(sampleSize / 150000).toInt
+    val partitionedDataset = DesqDatasetPartitionedWithID.partitionById[IdentifiableWeightedSequence](dataset, new HashPartitioner(parts))
+    partitionedDataset.save(path_out)
+    datasetTime.stop()
+    println(s"Creating the dataset took ${datasetTime.elapsed(TimeUnit.MILLISECONDS)}")
+    elasticTime.stop
+    println(s"Writing to Elastic took ${elasticTime.elapsed(TimeUnit.MILLISECONDS)}}")
+  }
+
 
   /**
     * Create a new index for the NewYorkTimes Corpus
@@ -120,13 +156,23 @@ class NYTElasticSearchUtils extends Serializable {
     * @return IDs of the matching articles as Strings
     */
   def searchES(query_s: String, index: String, limit_i: Int = 10000): Seq[Long] = {
-    val resp = ESConnection.client.execute {
-      search(index) query {
-        constantScoreQuery(
-          matchQuery("content", query_s)
-        )
-      } fetchSource false storedFields "_id" limit limit_i
-    }.await(Duration(30L, TimeUnit.SECONDS))
+    val resp = if(query_s.equals("*")) {
+      ESConnection.client.execute {
+        search(index) query {
+          constantScoreQuery(
+            wildcardQuery("content", query_s)
+          )
+        } fetchSource false storedFields "_id" limit limit_i
+      }.await(Duration(30L, TimeUnit.SECONDS))
+    } else {
+      ESConnection.client.execute {
+        search(index) query {
+          constantScoreQuery(
+            matchQuery("content", query_s)
+          )
+        } fetchSource false storedFields "_id" limit limit_i
+      }.await(Duration(30L, TimeUnit.SECONDS))
+    }
     val ids = resp.ids.map(id => id.toLong)
     ids
   }
@@ -145,38 +191,68 @@ class NYTElasticSearchUtils extends Serializable {
     val resp = ESConnection.client.execute {
       search(index) storedFields "publicationDate" query {
         constantScoreQuery(
-        rangeQuery("publicationDate") gte min lte max
+          rangeQuery("publicationDate") gte min lte max
         )
       } fetchSource false storedFields "_id" limit limit_i
-    }.await(Duration(270L,  TimeUnit.SECONDS))
+    }.await(Duration(270L, TimeUnit.SECONDS))
     val ids = resp.ids.map(id => id.toLong)
     ids
   }
 
   def searchESDateRangeAndTerm(query_s: String, min: String, max: String, index: String, limit_i: Int = 10000): Seq[Long] = {
+    val resp = if (query_s.equals("*")) {
+      ESConnection.client.execute {
+        search(index) query
+          boolQuery.
+            must(
+            rangeQuery("publicationDate") gte min lte max,
+          wildcardQuery("content", query_s)
+            ) fetchSource false storedFields "_id" limit limit_i
+      }.await(Duration(90, TimeUnit.SECONDS))
+    } else {
+      ESConnection.client.execute {
+        search(index) query
+          boolQuery.
+            must(
+              rangeQuery("publicationDate") gte min lte max,
+              matchQuery("content", query_s)
+            ) fetchSource false storedFields "_id" limit limit_i
+      }.await(Duration(90, TimeUnit.SECONDS))
+    }
+    val ids = resp.ids.map(id => id.toLong)
+    ids
+  }
+
+  def searchESDateRangeAndSection(query_s: String, min: String, max: String, index: String, limit_i: Int = 10000): Seq[Long] = {
     val resp = ESConnection.client.execute {
       search(index) query
         boolQuery.
           must(
             rangeQuery("publicationDate") gte min lte max,
-            matchQuery("content", query_s)
+            matchQuery("onlineSections", query_s)
           ) fetchSource false storedFields "_id" limit limit_i
-    }.await(Duration(90,  TimeUnit.SECONDS))
+    }.await(Duration(90, TimeUnit.SECONDS))
     val ids = resp.ids.map(id => id.toLong)
     ids
   }
 
-  def searchESWithDateRangeBackground(index:String, limit_i:Int, queryFrom:String, queryTo:String, queries:String*)={
+
+  def searchESWithDateRangeBackground(index: String, limit_i: Int, queryFrom: String, queryTo: String, section: Boolean, queries: String*) = {
     val map = mutable.Map[Long, mutable.BitSet]()
     val ids = searchESByDateRange(queryFrom, queryTo, index, 1800000)
     for (id <- ids) {
       val newBitSet = map.getOrElse(id, mutable.BitSet(1)) += 1
       map += (id -> newBitSet)
     }
-    for (i <- 0 until queries.size ) yield {
-      val ids = searchESDateRangeAndTerm(queries.get(i), queryFrom, queryTo, index, limit_i)
+    for (i <- 0 until queries.size) yield {
+      val ids = if (section) {
+        searchESDateRangeAndSection(queries.get(i), queryFrom, queryTo, index, limit_i)
+      }
+      else {
+        searchESDateRangeAndTerm(queries.get(i), queryFrom, queryTo, index, limit_i)
+      }
       for (id <- ids) {
-        val newBitSet = map.getOrElse(id, mutable.BitSet(i+2)) += i+2
+        val newBitSet = map.getOrElse(id, mutable.BitSet(i + 2)) += i + 2
         newBitSet += 1
         map += (id -> newBitSet)
       }
@@ -196,7 +272,7 @@ class NYTElasticSearchUtils extends Serializable {
   def searchESByYear(year: Int, index: String, limit_i: Int = 10000): Seq[Long] = {
     val resp = ESConnection.client.execute {
       search(index) termQuery("publicationYear", year) limit limit_i
-    }.await(Duration(30,  TimeUnit.SECONDS))
+    }.await(Duration(30, TimeUnit.SECONDS))
     val ids = resp.ids.map(id => id.toLong)
     ids
   }
@@ -236,9 +312,9 @@ object NYTElasticSearchUtils extends App {
   //  val path_out = "data-local/processed/sparkconvert/es_all_v2/"
   //
   val nytEs = new NYTElasticSearchUtils
-//  nytEs.createNYTIndex("test1")
+  //  nytEs.createNYTIndex("test1")
 
-  nytEs.searchESWithDateRangeBackground("nyt2006", 10000, "2006/04/01", "2006/05/01", "Easter", "Easter")
+  nytEs.searchESWithDateRangeBackground("nyt2006", 10000, "2006/04/01", "2006/05/01", false, "Easter", "Easter")
 
   //  nytEs.createIndexAndDataset(path_in, path_out, "nyt_v2")
   //

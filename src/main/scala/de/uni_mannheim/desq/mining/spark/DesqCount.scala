@@ -232,7 +232,7 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         var outputIterator: ObjectIterator[Sequence] = ObjectLists.emptyList[Sequence].iterator()
         var currentSupportGlobal = 0L
         var currentSupportLeft = 0L
-        val elements = new LongArrayList()
+        val elements = new LongArrayList(counters)
         for (i <- 0 until counters) elements.add(i, 0)
         //        var elements = new Array[Long](counters)
         val itemFids = new IntArrayList()

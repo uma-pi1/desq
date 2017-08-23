@@ -60,7 +60,7 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
     * @param queryTo  End Date for Date Range Background
     * @return (Ad-hoc Dataset, Broadcast[Combined Index]
     */
-  def createAdhocDatasets(index: String, query_L: String, query_R: String, limit: Int = 10000, queryFrom: String="", queryTo: String=""): (IdentifiableDesqDataset, Broadcast[mutable.Map[Long, mutable.BitSet]]) = {
+  def createAdhocDatasets(index: String, query_L: String, query_R: String, limit: Int = 10000, section:Boolean, queryFrom: String="", queryTo: String=""): (IdentifiableDesqDataset, Broadcast[mutable.Map[Long, mutable.BitSet]]) = {
     println("Initialize Dataset with ES Query")
     val queryTime = Stopwatch.createStarted
     val docIDMap = if (queryTo =="" && queryFrom == "") {
@@ -68,7 +68,7 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
       es.searchESCombines(index, limit, query_L, query_R)
     } else{
       counters = 3
-      es.searchESWithDateRangeBackground(index, limit,  queryFrom, queryTo, query_L, query_R)
+      es.searchESWithDateRangeBackground(index, limit,  queryFrom, queryTo, section,  query_L, query_R)
     }
     val ids = sc.broadcast(docIDMap)
     queryTime.stop()
@@ -80,6 +80,7 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
     val adhocDataset = if (partitions == 0) {
       val sequences = dataset.asInstanceOf[IdentifiableDesqDataset].sequences
       val filtered_sequences = sequences.filter(f => ids.value.contains(f.id))
+      filtered_sequences.coalesce(filtered_sequences.getNumPartitions)
       new IdentifiableDesqDataset(filtered_sequences, dataset.asInstanceOf[IdentifiableDesqDataset].dict.deepCopy(), true)
     } else {
       val sequences = dataset.asInstanceOf[DesqDatasetPartitionedWithID[IdentifiableWeightedSequence]].sequences
@@ -89,9 +90,9 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
 
         if (parts.contains(i)) iter.filter { case (k, v) => keys.contains(k) }
         else Iterator()}).map(k => k._2)
-      val seqs_filt =  filtered_sequences.repartition(Math.max(Math.ceil(filtered_sequences.count /300000.0).toInt, partitions))
+//      val seqs_filt =  filtered_sequences.repartition(Math.max(Math.ceil(filtered_sequences.count / 100000.0).toInt, partitions))
       new IdentifiableDesqDataset(
-        seqs_filt
+        filtered_sequences
         , dataset.asInstanceOf[DesqDatasetPartitionedWithID[IdentifiableWeightedSequence]].dict.deepCopy()
         , true
       )
@@ -123,7 +124,7 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
 
     val results = miner.mine(data, docIDMap, filter)
 
-    val seq_count = results.sequences.count
+//    val seq_count = results.sequences.count
 //    results.sequences.coalesce(Math.ceil(seq_count / 2000000.0).toInt)
 
     //    Join the sequences of both sides and compute the interestingness values
@@ -178,7 +179,7 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
     }
 
     val results = miner.mine(data, docIDMap, filter)
-    val seq_count = results.sequences.count
+//    val seq_count = results.sequences.count
 //    results.sequences.coalesce(Math.ceil(seq_count / 2000000.0).toInt)
     val intResults = results.sequences.mapPartitions[(AggregatedSequence, Float, Float)](rows => {
       new Iterator[(AggregatedSequence, Float, Float)] {
