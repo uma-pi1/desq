@@ -43,79 +43,56 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
         
         int freeBits = 64 - this.dataOffset;
         
-        if(!wroteData){
-            if(freeBits < dataCount){
-                assert dataOffset != 64;
+        if(freeBits < dataCount){
+            assert dataOffset != 64;
 
-                this.data.add(currentData | ((long)value << this.dataOffset));
-
-                this.dataOffset = (dataCount - freeBits);
-                currentData = (long)value >>> freeBits;
-            } else {
-                currentData |= ((long)value << this.dataOffset);
-
-                this.dataOffset += dataCount;
-
-                if(dataOffset == 64){
-                    this.data.add(currentData);
-                    this.currentData = 0;
-                    this.dataOffset = 0;
-                }
-            }
-            if(dataCount > 8)
-                this.currentControl |= ((dataCount >>> 3L) - 1L) << controlOffset;
-            /*switch(dataCount){
-                case 8:
-                    break;
-                case 16:
-                    this.currentControl |= 1L << controlOffset;
-                    break;
-                case 24:
-                    this.currentControl |= 2L << controlOffset;
-                    break;
-                case 32:
-                    this.currentControl |= 3L << controlOffset;
-                    break;
-            }*/
-
-            controlOffset += 2;
-
-            if(controlOffset == 64){
-                this.control.add(currentControl);
-                this.currentControl = 0;
-                this.controlOffset = 0;
-            }
-        } else {
-            if(freeBits < dataCount){
-                assert dataOffset != 64;
-
+            if(wroteData){
                 this.data.set(this.data.size() - 1, currentData | ((long)value << this.dataOffset));
-                this.wroteData = false;
-
-                this.dataOffset = (dataCount - freeBits);
-                currentData = (long)value >>> freeBits;
+                wroteData = false;
             } else {
-                this.data.set(this.data.size() - 1, currentData |= ((long)value << this.dataOffset));
+                this.data.add(currentData | ((long)value << this.dataOffset));
+            }
 
-                this.dataOffset += dataCount;
+            this.dataOffset = (dataCount - freeBits);
+            currentData = (long)value >>> freeBits;
+        } else {
+            currentData |= ((long)value << this.dataOffset);
 
-                if(dataOffset == 64){
-                    this.wroteData = false;
-                    this.currentData = 0;
-                    this.dataOffset = 0;
+            this.dataOffset += dataCount;
+
+            if(dataOffset == 64){
+                if(wroteData){
+                    this.data.set(this.data.size() - 1, currentData);
+                    wroteData = false;
+                } else {
+                    this.data.add(currentData);
                 }
+                this.currentData = 0;
+                this.dataOffset = 0;
             }
+        }
+        if(dataCount > 8)
+            this.currentControl |= ((dataCount >>> 3L) - 1L) << controlOffset;
+        /*switch(dataCount){
+            case 8:
+                break;
+            case 16:
+                this.currentControl |= 1L << controlOffset;
+                break;
+            case 24:
+                this.currentControl |= 2L << controlOffset;
+                break;
+            case 32:
+                this.currentControl |= 3L << controlOffset;
+                break;
+        }*/
 
-            if(dataCount > 8)
-                this.control.set(this.control.size() - 1, this.currentControl |= ((dataCount >>> 3L) - 1L) << controlOffset);
+        controlOffset += 2;
 
-            controlOffset += 2;
-
-            if(controlOffset == 64){
-                this.wroteData = false;
-                this.currentControl = 0;
-                this.controlOffset = 0;
-            }
+        if(controlOffset == 64){
+            this.control.add(currentControl);
+            this.currentControl = 0;
+            this.controlOffset = 0;
         }
     }
 
@@ -222,6 +199,9 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
                 this.data.add(postingList.currentData);
                 this.control.add(postingList.currentControl);
                 postingList.wroteData = true;
+            } else {
+                this.data.set(postingList.data.size() - 1, postingList.currentData);
+                this.control.set(postingList.control.size() - 1, postingList.currentControl);
             }
             
             this.noPostings = postingList.noPostings;
@@ -256,6 +236,9 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
                 this.data.add(postingListTmp.currentData);
                 this.control.add(postingListTmp.currentControl);
                 postingListTmp.wroteData = true;
+            } else {
+                this.data.set(postingListTmp.data.size() - 1, postingListTmp.currentData);
+                this.control.set(postingListTmp.control.size() - 1, postingListTmp.currentControl);
             }
             
             this.noPostings = postingListTmp.noPostings;
@@ -307,7 +290,6 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
 
         @Override
         public int nextNonNegativeInt(){
-            //return cachedReturnValue - 1;
             return this.nextNonNegativeIntIntern() - 1;
         }
         
@@ -316,11 +298,6 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
             if (dataOffset > data.size() || count >= noPostings){
                 return false;
             }
-            
-            /*while(cachedReturnValue != 0) {
-                //hasNext = this.hasNext();
-                cachedReturnValue = this.nextNonNegativeIntIntern();
-            }*/
             
             int b;
             do {
@@ -332,16 +309,8 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
 
         @Override
         public boolean hasNext() {
-            /*this.cachedReturnValue = this.nextNonNegativeIntIntern();
-            
-            if(this.cachedReturnValue == 0){
-                hasNext = false;
-            } else {
-                hasNext = true;
-            }
-            
-            return hasNext;*/
-            return dataOffset < data.size() && !((currentControl & 3) == 0 && (currentData & 0xFF) == 0);
+            //return dataOffset < data.size() && !((currentControl & 3) == 0 && (currentData & 0xFF) == 0);
+            return !((currentControl & 3) == 0 && (currentData & 0xFF) == 0);
         }
     }
 }
