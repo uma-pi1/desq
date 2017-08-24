@@ -14,17 +14,19 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
 public class VarByteLongAdvancedPostingList extends AbstractPostingList{
     
     private final LongArrayList data;
-    private final LongArrayList controlData;
+    private final LongArrayList control;
         
-    private int internalOffset;
-    private int bitsWritten;
+    private int dataOffset;
+    private int controlOffset;
     
-    private long controlDataLong;
-    private long currentDataLong;
+    private long currentControl;
+    private long currentData;
+    
+    private boolean wroteData;
     
     public VarByteLongAdvancedPostingList(){   
         this.data = new LongArrayList();
-        this.controlData = new LongArrayList();
+        this.control = new LongArrayList();
         
         this.clear();
     }
@@ -39,47 +41,81 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
         else if((value >>> 24) == 0) {dataCount = 24;}
         else {dataCount = 32;}
         
-        int freeBits = 64 - this.internalOffset;
-                
-        if(freeBits < dataCount){
-            assert internalOffset != 64;
-            
-            this.data.add(currentDataLong | ((long)value << this.internalOffset));
-            
-            this.internalOffset = (dataCount - freeBits);
-            currentDataLong = (long)value >>> freeBits;
-        } else {
-            currentDataLong |= ((long)value << this.internalOffset);
-            
-            this.internalOffset += dataCount;
-            
-            if(internalOffset == 64){
-                this.data.add(currentDataLong);
-                this.currentDataLong = 0;
-                this.internalOffset = 0;
-            }
-        }
+        int freeBits = 64 - this.dataOffset;
+        
+        if(!wroteData){
+            if(freeBits < dataCount){
+                assert dataOffset != 64;
 
-        switch(dataCount){
-            case 8:
-                break;
-            case 16:
-                this.controlDataLong |= 1L << bitsWritten;
-                break;
-            case 24:
-                this.controlDataLong |= 2L << bitsWritten;
-                break;
-            case 32:
-                this.controlDataLong |= 3L << bitsWritten;
-                break;
-        }
-        
-        bitsWritten += 2;
-        
-        if(bitsWritten == 64){
-            this.controlData.add(controlDataLong);
-            this.controlDataLong = 0;
-            this.bitsWritten = 0;
+                this.data.add(currentData | ((long)value << this.dataOffset));
+
+                this.dataOffset = (dataCount - freeBits);
+                currentData = (long)value >>> freeBits;
+            } else {
+                currentData |= ((long)value << this.dataOffset);
+
+                this.dataOffset += dataCount;
+
+                if(dataOffset == 64){
+                    this.data.add(currentData);
+                    this.currentData = 0;
+                    this.dataOffset = 0;
+                }
+            }
+            if(dataCount > 8)
+                this.currentControl |= ((dataCount >>> 3L) - 1L) << controlOffset;
+            /*switch(dataCount){
+                case 8:
+                    break;
+                case 16:
+                    this.currentControl |= 1L << controlOffset;
+                    break;
+                case 24:
+                    this.currentControl |= 2L << controlOffset;
+                    break;
+                case 32:
+                    this.currentControl |= 3L << controlOffset;
+                    break;
+            }*/
+
+            controlOffset += 2;
+
+            if(controlOffset == 64){
+                this.control.add(currentControl);
+                this.currentControl = 0;
+                this.controlOffset = 0;
+            }
+        } else {
+            if(freeBits < dataCount){
+                assert dataOffset != 64;
+
+                this.data.set(this.data.size() - 1, currentData | ((long)value << this.dataOffset));
+                this.wroteData = false;
+
+                this.dataOffset = (dataCount - freeBits);
+                currentData = (long)value >>> freeBits;
+            } else {
+                this.data.set(this.data.size() - 1, currentData |= ((long)value << this.dataOffset));
+
+                this.dataOffset += dataCount;
+
+                if(dataOffset == 64){
+                    this.wroteData = false;
+                    this.currentData = 0;
+                    this.dataOffset = 0;
+                }
+            }
+
+            if(dataCount > 8)
+                this.control.set(this.control.size() - 1, this.currentControl |= ((dataCount >>> 3L) - 1L) << controlOffset);
+
+            controlOffset += 2;
+
+            if(controlOffset == 64){
+                this.wroteData = false;
+                this.currentControl = 0;
+                this.controlOffset = 0;
+            }
         }
     }
 
@@ -87,19 +123,21 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
     public void newPosting(){
         noPostings++;
         if (noPostings>1){ // first posting does not need separator            
-            internalOffset += 8;
-            bitsWritten += 2;
+            //this.addNonNegativeIntIntern(0);
+            
+            dataOffset += 8;
+            controlOffset += 2;
 
-            if(internalOffset == 64){
-                this.data.add(currentDataLong);
-                this.currentDataLong = 0;
-                this.internalOffset = 0;
+            if(dataOffset == 64){
+                this.data.add(currentData);
+                this.currentData = 0;
+                this.dataOffset = 0;
             }
             
-            if(bitsWritten == 64){
-                this.controlData.add(controlDataLong);
-                this.controlDataLong = 0;
-                this.bitsWritten = 0;
+            if(controlOffset == 64){
+                this.control.add(currentControl);
+                this.currentControl = 0;
+                this.controlOffset = 0;
             }
         }
     }
@@ -107,26 +145,28 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
     @Override
     public void clear() {
         this.data.clear();
-        this.controlData.clear();
+        this.control.clear();
         
-        this.controlDataLong = 0;
-        this.currentDataLong = 0;
+        this.currentControl = 0;
+        this.currentData = 0;
                 
-        this.bitsWritten = 0;
-        this.internalOffset = 0;
+        this.controlOffset = 0;
+        this.dataOffset = 0;
+        
+        this.wroteData = false;
         
         this.noPostings = 0;
     }
 
     @Override
     public int noBytes() {
-        return this.data.size() * 8 + this.controlData.size() * 8;
+        return this.data.size() * 8 + this.control.size() * 8;
     }
 
     @Override
     public void trim() {
         this.data.trim();
-        this.controlData.trim();
+        this.control.trim();
     }
 
     @Override
@@ -152,8 +192,8 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
         private int noPostings;
         private int count;
         
-        private boolean readLastData;
         private int cachedReturnValue;
+        private boolean hasNext;
         
         public Iterator(){
             this.data = null;
@@ -167,8 +207,8 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
             this.currentData = 0;
             this.currentControl = 0;
             
-            this.readLastData = false;
             this.cachedReturnValue = -1;
+            this.hasNext = false;
             
             //
             this.count = 1;
@@ -176,10 +216,13 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
         
         public Iterator(VarByteLongAdvancedPostingList postingList){
             this.data = postingList.data;
-            this.control = postingList.controlData;
+            this.control = postingList.control;
             
-            this.data.add(postingList.currentDataLong);
-            this.control.add(postingList.controlDataLong);
+            if(!postingList.wroteData){
+                this.data.add(postingList.currentData);
+                this.control.add(postingList.currentControl);
+                postingList.wroteData = true;
+            }
             
             this.noPostings = postingList.noPostings;
             
@@ -192,8 +235,8 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
             this.currentDataOffset = 0;
             this.currentControlOffset = 0;
             
-            this.readLastData = false;
             this.cachedReturnValue = -1;
+            this.hasNext = false;
             
             this.currentData = this.data.getLong(dataOffset);
             this.currentControl = this.control.getLong(controlOffset);
@@ -207,91 +250,98 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
             VarByteLongAdvancedPostingList postingListTmp = (VarByteLongAdvancedPostingList) postingList;
             
             this.data = postingListTmp.data;
-            this.control = postingListTmp.controlData;
-                        
-            this.data.add(postingListTmp.currentDataLong);
-            this.control.add(postingListTmp.controlDataLong);
+            this.control = postingListTmp.control;
+            
+            if(!postingListTmp.wroteData){
+                this.data.add(postingListTmp.currentData);
+                this.control.add(postingListTmp.currentControl);
+                postingListTmp.wroteData = true;
+            }
             
             this.noPostings = postingListTmp.noPostings;
             
             this.reset();
         }
-        
+           
         @Override
         int nextNonNegativeIntIntern() {
             int returnValue = -1;
             
-            if(readLastData){
-                return returnValue;
+            int dataCount = (int) (((currentControl) & 3) + 1) * 8;
+
+            int possibleBits = 64 - currentControlOffset;
+
+            returnValue = (int) ((this.currentData & ((1L << dataCount) - 1)));
+
+            if(dataCount > possibleBits){                
+                this.dataOffset++;
+                this.currentData = this.data.getLong(this.dataOffset);
+
+                returnValue |= (int) ((this.currentData & ((1 << (dataCount - possibleBits)) - 1))) << possibleBits;
+
+                this.currentControlOffset = dataCount - possibleBits;
+
+                this.currentData >>>= this.currentControlOffset;
             } else {
-            
-                int dataCount = (int) (((currentControl) & 3) + 1) * 8;
-
-                int possibleBits = 64 - currentControlOffset;
-
-                returnValue = (int) ((this.currentData & ((1L << dataCount) - 1)));
-
-                if(dataCount > possibleBits){                
-                    this.dataOffset++;
-                    this.currentData = this.data.getLong(this.dataOffset);
-
-                    returnValue |= (int) ((this.currentData & ((1 << (dataCount - possibleBits)) - 1))) << possibleBits;
-
-                    this.currentControlOffset = dataCount - possibleBits;
-
-                    this.currentData >>>= this.currentControlOffset;
-                } else {
-                    this.currentData >>>= dataCount;
-                    this.currentControlOffset += dataCount;
-                }
-
-                this.currentDataOffset += 2;
-                this.currentControl >>= 2;
-
-                if(this.currentControlOffset == 64){
-                    this.currentControlOffset = 0;
-                    this.dataOffset++;
-                    this.currentData = this.data.getLong(this.dataOffset);
-                }
-
-                if(this.currentDataOffset == 64){
-                    this.currentDataOffset = 0;
-                    this.controlOffset++;
-                    this.currentControl = this.control.getLong(this.controlOffset);
-                }
+                this.currentData >>>= dataCount;
+                this.currentControlOffset += dataCount;
             }
+
+            this.currentDataOffset += 2;
+            this.currentControl >>= 2;
+
+            if(this.currentControlOffset == 64){
+                this.currentControlOffset = 0;
+                this.dataOffset++;
+                this.currentData = this.data.getLong(this.dataOffset);
+            }
+
+            if(this.currentDataOffset == 64){
+                this.currentDataOffset = 0;
+                this.controlOffset++;
+                this.currentControl = this.control.getLong(this.controlOffset);
+            }
+            
             return returnValue;
         }
 
         @Override
         public int nextNonNegativeInt(){
-            return this.cachedReturnValue;
-            //return this.nextNonNegativeIntIntern() - 1;
+            //return cachedReturnValue - 1;
+            return this.nextNonNegativeIntIntern() - 1;
         }
         
         @Override
         public boolean nextPosting() {
-            if (dataOffset > data.size() || count >= noPostings)
+            if (dataOffset > data.size() || count >= noPostings){
                 return false;
-
+            }
+            
+            /*while(cachedReturnValue != 0) {
+                //hasNext = this.hasNext();
+                cachedReturnValue = this.nextNonNegativeIntIntern();
+            }*/
+            
             int b;
             do {
                 b = this.nextNonNegativeIntIntern();
-            } while (b!=0);
+            } while(b!=0);
             count++;
             return true;
         }
 
         @Override
         public boolean hasNext() {
+            /*this.cachedReturnValue = this.nextNonNegativeIntIntern();
             
-            this.cachedReturnValue = this.nextNonNegativeIntIntern() - 1;
-            if(this.cachedReturnValue == 0)
-                return false;
-            else
-                return true;
-            //return dataOffset < data.size() && !((currentControl & 3) == 0 && (currentData & 0xFF) == 0);
+            if(this.cachedReturnValue == 0){
+                hasNext = false;
+            } else {
+                hasNext = true;
+            }
+            
+            return hasNext;*/
+            return dataOffset < data.size() && !((currentControl & 3) == 0 && (currentData & 0xFF) == 0);
         }
     }
-    
 }
