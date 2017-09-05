@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package de.uni_mannheim.desq.mining;
 
 import it.unimi.dsi.fastutil.longs.LongArrayList;
@@ -23,6 +18,7 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
     private long currentData;
     
     private boolean wroteData;
+    private boolean wroteControl;
     
     public VarByteLongAdvancedPostingList(){   
         this.data = new LongArrayList();
@@ -73,24 +69,17 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
         }
         if(dataCount > 8)
             this.currentControl |= ((dataCount >>> 3L) - 1L) << controlOffset;
-        /*switch(dataCount){
-            case 8:
-                break;
-            case 16:
-                this.currentControl |= 1L << controlOffset;
-                break;
-            case 24:
-                this.currentControl |= 2L << controlOffset;
-                break;
-            case 32:
-                this.currentControl |= 3L << controlOffset;
-                break;
-        }*/
 
         controlOffset += 2;
 
         if(controlOffset == 64){
-            this.control.add(currentControl);
+            if(wroteControl){
+                this.control.set(this.control.size() - 1, currentControl);
+                this.wroteControl = false;
+            } else {
+                this.control.add(currentControl);
+            }
+            
             this.currentControl = 0;
             this.controlOffset = 0;
         }
@@ -99,9 +88,7 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
     @Override
     public void newPosting(){
         noPostings++;
-        if (noPostings>1){ // first posting does not need separator            
-            //this.addNonNegativeIntIntern(0);
-            
+        if (noPostings>1){ // first posting does not need separator                        
             dataOffset += 8;
             controlOffset += 2;
 
@@ -131,6 +118,7 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
         this.dataOffset = 0;
         
         this.wroteData = false;
+        this.wroteControl = false;
         
         this.noPostings = 0;
     }
@@ -169,9 +157,6 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
         private int noPostings;
         private int count;
         
-        private int cachedReturnValue;
-        private boolean hasNext;
-        
         public Iterator(){
             this.data = null;
             this.control = null;
@@ -184,10 +169,6 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
             this.currentData = 0;
             this.currentControl = 0;
             
-            this.cachedReturnValue = -1;
-            this.hasNext = false;
-            
-            //
             this.count = 1;
         }
         
@@ -195,13 +176,18 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
             this.data = postingList.data;
             this.control = postingList.control;
             
-            if(!postingList.wroteData){
-                this.data.add(postingList.currentData);
-                this.control.add(postingList.currentControl);
-                postingList.wroteData = true;
-            } else {
+            if(postingList.wroteData){
                 this.data.set(postingList.data.size() - 1, postingList.currentData);
+            } else {
+                this.data.add(postingList.currentData);
+                postingList.wroteData = true;
+            }
+            
+            if(postingList.wroteControl){
                 this.control.set(postingList.control.size() - 1, postingList.currentControl);
+            } else {
+                this.control.add(postingList.currentControl);
+                postingList.wroteControl = true;
             }
             
             this.noPostings = postingList.noPostings;
@@ -215,13 +201,9 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
             this.currentDataOffset = 0;
             this.currentControlOffset = 0;
             
-            this.cachedReturnValue = -1;
-            this.hasNext = false;
-            
             this.currentData = this.data.getLong(dataOffset);
             this.currentControl = this.control.getLong(controlOffset);
-            
-            //
+           
             this.count = 1;
         }
         
@@ -232,13 +214,18 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
             this.data = postingListTmp.data;
             this.control = postingListTmp.control;
             
-            if(!postingListTmp.wroteData){
-                this.data.add(postingListTmp.currentData);
-                this.control.add(postingListTmp.currentControl);
-                postingListTmp.wroteData = true;
-            } else {
+            if(postingListTmp.wroteData){
                 this.data.set(postingListTmp.data.size() - 1, postingListTmp.currentData);
+            } else {
+                this.data.add(postingListTmp.currentData);
+                postingListTmp.wroteData = true;
+            }
+            
+            if(postingListTmp.wroteControl){
                 this.control.set(postingListTmp.control.size() - 1, postingListTmp.currentControl);
+            } else {
+                this.control.add(postingListTmp.currentControl);
+                postingListTmp.wroteControl = true;
             }
             
             this.noPostings = postingListTmp.noPostings;
@@ -309,8 +296,7 @@ public class VarByteLongAdvancedPostingList extends AbstractPostingList{
 
         @Override
         public boolean hasNext() {
-            //return dataOffset < data.size() && !((currentControl & 3) == 0 && (currentData & 0xFF) == 0);
-            return !((currentControl & 3) == 0 && (currentData & 0xFF) == 0);
+            return dataOffset < data.size() && !((currentControl & 3) == 0 && (currentData & 0xFF) == 0);
         }
     }
 }

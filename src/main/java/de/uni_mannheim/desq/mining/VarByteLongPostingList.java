@@ -1,11 +1,5 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package de.uni_mannheim.desq.mining;
 
-import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 /**
@@ -23,6 +17,9 @@ public class VarByteLongPostingList extends AbstractPostingList{
     private long currentData;
     private long currentControl;
     
+    private boolean wroteData;
+    private boolean wroteControl;
+    
     public VarByteLongPostingList(){   
         this.data = new LongArrayList();
         this.control = new LongArrayList();
@@ -30,18 +27,9 @@ public class VarByteLongPostingList extends AbstractPostingList{
         this.clear();
     }
     
-    private int getNumberOfBytes(int value){
-        if((value >>> 8) == 0) return 8;
-        if((value >>> 16) == 0) return 16;
-        if((value >>> 24) == 0) return 24;
-        
-        return 32;
-    }
-    
     @Override
     protected void addNonNegativeIntIntern(int value) {
         
-        //int dataCount = this.getNumberOfBytes(value);
         int dataCount = 0;
         
         if((value >>> 8) == 0) {dataCount = 8;}
@@ -54,7 +42,12 @@ public class VarByteLongPostingList extends AbstractPostingList{
         if(freeBits < dataCount){
             assert dataOffset != 64;
             
-            this.data.add(currentData | ((long)value << this.dataOffset));
+            if(this.wroteData){
+                this.data.set(this.data.size() - 1, currentData | ((long)value << this.dataOffset));
+                this.wroteData = false;
+            } else {
+                this.data.add(currentData | ((long)value << this.dataOffset));
+            }
             
             this.dataOffset = (dataCount - freeBits);
             currentData = (long)value >>> freeBits;
@@ -64,7 +57,13 @@ public class VarByteLongPostingList extends AbstractPostingList{
             this.dataOffset += dataCount;
             
             if(dataOffset == 64){
-                this.data.add(currentData);
+                if(this.wroteData){
+                    this.data.set(this.data.size() - 1, currentData);
+                    this.wroteData = false;
+                } else {
+                    this.data.add(currentData);
+                }
+                
                 this.currentData = 0;
                 this.dataOffset = 0;
             }
@@ -89,7 +88,13 @@ public class VarByteLongPostingList extends AbstractPostingList{
         controlOffset += 2;
         
         if(controlOffset == 64){
-            this.control.add(currentControl);
+            if(this.wroteControl){
+                this.control.set(this.control.size() - 1, currentControl);
+                this.wroteControl = false;
+            } else {
+                this.control.add(currentControl);
+            }
+            
             this.currentControl = 0;
             this.controlOffset = 0;
         }
@@ -106,22 +111,34 @@ public class VarByteLongPostingList extends AbstractPostingList{
     public void newPosting(){
         noPostings++;
         if (noPostings>1){ // first posting does not need separator            
-            //this.addNonNegativeIntIntern(0);
-            
+            this.addNonNegativeIntIntern(0);
+            /*
             dataOffset += 8;
             controlOffset += 2;
 
             if(dataOffset == 64){
-                this.data.add(currentData);
+                if(this.wroteData){
+                    this.data.set(this.data.size() - 1, currentData);
+                    this.wroteData = false;
+                } else {
+                    this.data.add(currentData);
+                }
+                
                 this.currentData = 0;
                 this.dataOffset = 0;
             }
             
             if(controlOffset == 64){
-                this.control.add(currentControl);
+                if(this.wroteControl){
+                    this.control.set(this.control.size() - 1, currentControl);
+                    this.wroteControl = false;
+                } else {
+                    this.control.add(currentControl);
+                }
+                
                 this.currentControl = 0;
                 this.controlOffset = 0;
-            }
+            }*/
         }
     }
     
@@ -129,6 +146,9 @@ public class VarByteLongPostingList extends AbstractPostingList{
     public void clear() {
         this.data.clear();
         this.control.clear();
+        
+        this.wroteData = false;
+        this.wroteControl = false;
         
         this.currentControl = 0;
         this.currentData = 0;
@@ -192,8 +212,20 @@ public class VarByteLongPostingList extends AbstractPostingList{
             this.data = postingList.data;
             this.control = postingList.control;
             
-            this.data.add(postingList.currentData);
-            this.control.add(postingList.currentControl);
+            if(postingList.wroteData){
+                this.data.set(this.data.size() - 1, postingList.currentData);
+            } else {
+                this.data.add(postingList.currentData);
+                postingList.wroteData = true;
+            }
+            
+            if(postingList.wroteControl){
+                this.control.set(this.control.size() - 1, postingList.currentControl);
+            } else {
+                this.control.add(postingList.currentControl);
+                postingList.wroteControl = true;
+            }
+            
             
             this.noPostings = postingList.noPostings;
             
@@ -220,8 +252,19 @@ public class VarByteLongPostingList extends AbstractPostingList{
             this.data = postingListTmp.data;
             this.control = postingListTmp.control;
             
-            this.data.add(postingListTmp.currentData);
-            this.control.add(postingListTmp.currentControl);
+            if(postingListTmp.wroteData){
+                this.data.set(this.data.size() - 1, postingListTmp.currentData);
+            } else {
+                this.data.add(postingListTmp.currentData);
+                postingListTmp.wroteData = true;
+            }
+            
+            if(postingListTmp.wroteControl){
+                this.control.set(this.control.size() - 1, postingListTmp.currentControl);
+            } else {
+                this.control.add(postingListTmp.currentControl);
+                postingListTmp.wroteControl = true;
+            }
             
             this.noPostings = postingListTmp.noPostings;
             
