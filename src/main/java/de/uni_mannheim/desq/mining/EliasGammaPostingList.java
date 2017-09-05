@@ -1,13 +1,7 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package de.uni_mannheim.desq.mining;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
-import java.util.BitSet;
 
 /**
  *
@@ -20,10 +14,14 @@ public class EliasGammaPostingList extends AbstractPostingList{
     
     private long currentData;
     
+    private boolean wroteData;
+    
     public EliasGammaPostingList() {
         data = new LongArrayList();
         this.currentData = 0;
         freeBits = 64;
+        
+        wroteData = false;
     }
 
     @Override
@@ -31,7 +29,7 @@ public class EliasGammaPostingList extends AbstractPostingList{
         
         value += 1;
         
-        byte length = (byte) (32 - Integer.numberOfLeadingZeros(value));
+        int length = 32 - Integer.numberOfLeadingZeros(value);
         int totalLength = 2 * length - 1;
         
         if(freeBits >= totalLength){            
@@ -39,7 +37,12 @@ public class EliasGammaPostingList extends AbstractPostingList{
             
             if(freeBits == 0){
                 freeBits = 64;
-                data.add(currentData);
+                if(wroteData){
+                    data.set(data.size() - 1, currentData);
+                    wroteData = false;
+                } else {
+                    data.add(currentData);
+                }
                 this.currentData = 0;
             }
         } else {
@@ -47,12 +50,23 @@ public class EliasGammaPostingList extends AbstractPostingList{
                 int toAdd = (length - 1) - freeBits;
                 freeBits = 64;
                 
-                data.add(currentData);
+                if(wroteData){
+                    data.set(data.size() - 1, currentData);
+                    wroteData = false;
+                } else {
+                    data.add(currentData);
+                }
                 
                 currentData = ((long) value) << (freeBits -= (length + toAdd));
             } else {                
                 int toAdd = totalLength - freeBits;
-                data.add(currentData |= ((long) value) >>> (totalLength - freeBits));
+                
+                if(wroteData){
+                    data.set(data.size() - 1, currentData |= ((long) value) >>> (totalLength - freeBits));
+                    wroteData = false;
+                } else {
+                    data.add(currentData |= ((long) value) >>> (totalLength - freeBits));
+                }
                 
                 freeBits = 64;
                 
@@ -105,7 +119,7 @@ public class EliasGammaPostingList extends AbstractPostingList{
         private int noPostings;
         private int count;
         
-        private byte internalOffset;
+        private int internalOffset;
         
         public Iterator(){
             this.data = null;
@@ -121,7 +135,13 @@ public class EliasGammaPostingList extends AbstractPostingList{
         public Iterator(EliasGammaPostingList postingList){
             this.data = postingList.data;
             
-            this.data.add(postingList.currentData);
+            if(postingList.wroteData){
+                this.data.set(postingList.data.size() - 1, postingList.currentData);
+            } else {
+                this.data.add(postingList.currentData);
+                postingList.wroteData = true;
+            }
+            
             
             this.currentData = this.data.getLong(offset);
             
@@ -146,7 +166,13 @@ public class EliasGammaPostingList extends AbstractPostingList{
             EliasGammaPostingList postingListTmp = (EliasGammaPostingList) postingList;
             
             this.data = postingListTmp.data;
-            this.data.add(postingListTmp.currentData);
+            
+            if(postingListTmp.wroteData){
+                this.data.set(postingListTmp.data.size() - 1, postingListTmp.currentData);
+            } else {
+                this.data.add(postingListTmp.currentData);
+                postingListTmp.wroteData = true;
+            }
             
             this.internalOffset = 0;
             this.offset = 0;
@@ -159,9 +185,9 @@ public class EliasGammaPostingList extends AbstractPostingList{
         
         @Override
         int nextNonNegativeIntIntern() {                    
-            byte leadingZeros = (byte)(Long.numberOfLeadingZeros(this.currentData) - this.internalOffset);
+            int leadingZeros = Long.numberOfLeadingZeros(this.currentData) - this.internalOffset;
             
-            byte length = (byte) ((leadingZeros * 2) + 1);
+            int length = (leadingZeros * 2) + 1;
             
             int returnValue = 0;
             
@@ -169,9 +195,9 @@ public class EliasGammaPostingList extends AbstractPostingList{
                 returnValue = (int) (this.currentData >>> (64 - this.internalOffset));
                 
                 if(internalOffset == 64){
-                    this.internalOffset = 0;
                     this.offset++;
                     this.currentData = this.data.getLong(offset);
+                    this.internalOffset = 0;
                 }
             } else {
                 offset++;
@@ -182,9 +208,9 @@ public class EliasGammaPostingList extends AbstractPostingList{
                     
                     returnValue = (int) (this.currentData << this.internalOffset | (tmp >>> 64 - this.internalOffset));
                 } else {
-                    byte dataLength = (byte)Long.numberOfLeadingZeros(tmp);
+                    int dataLength = Long.numberOfLeadingZeros(tmp);
 
-                    this.internalOffset = (byte)((dataLength + (dataLength + leadingZeros)) + 1);
+                    this.internalOffset = (dataLength + (dataLength + leadingZeros)) + 1;
                     
                     returnValue = (int)(tmp >>> (64 - this.internalOffset));
                 }
