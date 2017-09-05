@@ -1,11 +1,5 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package de.uni_mannheim.desq.mining;
 
-import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 /**
@@ -15,17 +9,19 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
 public final class BitwiseLongPostingList extends AbstractPostingList{
     
     private final LongArrayList data;
-    private final LongArrayList controlData;
-    private byte freeBits;
+    private final LongArrayList control;
+    private int freeBits;
     
     private long currentData;
-    private long currentControlData;
+    private long currentControl;
+    
+    private boolean wroteData;
     
     /** Constructs a new empty posting list */
     public BitwiseLongPostingList() {
         data = new LongArrayList();
-        controlData = new LongArrayList();
-                
+        control = new LongArrayList();
+        
         this.clear();
     }
     
@@ -37,43 +33,49 @@ public final class BitwiseLongPostingList extends AbstractPostingList{
         final int b = value;
 
         // Get number of data bits from the current value
-        byte lengthB = (byte) (32 - Integer.numberOfLeadingZeros(b));
+        int lengthB = 32 - Integer.numberOfLeadingZeros(b);
                 
         // Check if data bits fit into the last int
         if(lengthB <= freeBits){
             
-            if(lengthB == 0){
-                freeBits--;
-                currentControlData |= ((long)1 << freeBits);
-            } else {
-                freeBits -= lengthB;
+            freeBits -= lengthB;
 
-                currentData |= ((long)b << freeBits);
-
-                currentControlData |= ((long)1 << freeBits);
-            }
+            currentData |= ((long)b << freeBits);
+            currentControl |= ((long)1 << freeBits);
                         
             if(freeBits == 0){
-                freeBits = 64;
-                data.add(currentData);
-                controlData.add(currentControlData);
+                if(wroteData){
+                    data.set(data.size() - 1, currentData);
+                    control.set(control.size() - 1, currentControl);
+                    wroteData = false;
+                } else {
+                    data.add(currentData);
+                    control.add(currentControl);
+                }
+                
                 currentData = 0;
-                currentControlData = 0;
+                currentControl = 0;
+                freeBits = 64;
             }
         } else {
-                        
-            data.add(currentData |= ((long)b >>> (lengthB - freeBits)));
-            controlData.add(currentControlData);
+            if(wroteData){
+                data.set(data.size() - 1, currentData |= ((long)b >>> (lengthB - freeBits)));
+                control.set(control.size() - 1, currentControl);
+                wroteData = false;
+            } else {
+                data.add(currentData |= ((long)b >>> (lengthB - freeBits)));
+                control.add(currentControl);
+            }
 
-            freeBits = (byte)(64 - (lengthB - freeBits));
+            freeBits = 64 - (lengthB - freeBits);
             
             currentData = (long)b << freeBits;
-            currentControlData = (long)1 << freeBits;
+            currentControl = (long)1 << freeBits;
         }     
     }
 
     @Override
-    public int noBytes() { return data.size() * 8 + controlData.size() * 8; }
+    public int noBytes() { return data.size() * 8 + control.size() * 8; }
 
     @Override
     public int size() {
@@ -83,10 +85,12 @@ public final class BitwiseLongPostingList extends AbstractPostingList{
     @Override
     public void clear() {
         data.clear();
-        controlData.clear();
-                
+        control.clear();
+        
+        this.wroteData = false;
+        
         currentData = 0;
-        currentControlData = 0;
+        currentControl = 0;
         
         freeBits = 64;
         
@@ -101,8 +105,25 @@ public final class BitwiseLongPostingList extends AbstractPostingList{
     @Override
     public void newPosting() {
         noPostings++;
-        if (noPostings>1) // first posting does not need separator
-            this.addNonNegativeIntIntern(0);
+        if (noPostings>1){ // first posting does not need separator
+            freeBits--;
+            currentControl |= ((long)1 << freeBits);
+        
+            if(freeBits == 0){
+                if(wroteData){
+                    data.set(data.size() - 1, currentData);
+                    control.set(control.size() - 1, currentControl);
+                    wroteData = false;
+                } else {
+                    data.add(currentData);
+                    control.add(currentControl);
+                }
+                
+                currentData = 0;
+                currentControl = 0;
+                freeBits = 64;
+            }
+        }
     }
 
     @Override
@@ -113,21 +134,21 @@ public final class BitwiseLongPostingList extends AbstractPostingList{
     public static final class Iterator extends AbstractIterator{
 
         private LongArrayList data;
-        private LongArrayList controlData;
+        private LongArrayList control;
                 
         private long currentData;
-        private long currentControlData;
-        private byte internalOffset;
+        private long currentControl;
+        private int internalOffset;
         
         private int count;
         private int noPostings;
         
         public Iterator(){
             this.data = null;
-            this.controlData = null;
+            this.control = null;
                         
             this.currentData = 0;
-            this.currentControlData = 0;
+            this.currentControl = 0;
             
             this.internalOffset = 0;
             this.offset = 0;
@@ -138,10 +159,16 @@ public final class BitwiseLongPostingList extends AbstractPostingList{
         
         public Iterator(BitwiseLongPostingList postingList){
             this.data = postingList.data;
-            this.controlData = postingList.controlData;
+            this.control = postingList.control;
             
-            this.data.add(postingList.currentData);
-            this.controlData.add(postingList.currentControlData);
+            if(postingList.wroteData){
+                this.data.set(postingList.data.size() - 1, postingList.currentData);
+                this.control.set(postingList.control.size() - 1, postingList.currentControl);
+            } else {
+                this.data.add(postingList.currentData);
+                this.control.add(postingList.currentControl);
+                postingList.wroteData = true;
+            }
             
             this.noPostings = postingList.noPostings;
             
@@ -152,10 +179,16 @@ public final class BitwiseLongPostingList extends AbstractPostingList{
         public final void reset(AbstractPostingList postingList) {
             BitwiseLongPostingList postingListTmp = (BitwiseLongPostingList) postingList;
             this.data = postingListTmp.data;
-            this.controlData = postingListTmp.controlData;
+            this.control = postingListTmp.control;
             
-            this.data.add(postingListTmp.currentData);
-            this.controlData.add(postingListTmp.currentControlData);
+            if(postingListTmp.wroteData){
+                this.data.set(postingListTmp.data.size() - 1, postingListTmp.currentData);
+                this.control.set(postingListTmp.control.size() - 1, postingListTmp.currentControl);
+            } else {
+                this.data.add(postingListTmp.currentData);
+                this.control.add(postingListTmp.currentControl);
+                postingListTmp.wroteData = true;
+            }
                                     
             this.noPostings = postingListTmp.noPostings;
             
@@ -170,40 +203,41 @@ public final class BitwiseLongPostingList extends AbstractPostingList{
             this.count = 1;
             
             this.currentData = this.data.getLong(offset);
-            this.currentControlData = this.controlData.getLong(offset);
+            this.currentControl = this.control.getLong(offset);
         }
         
         @Override
         public int nextNonNegativeIntIntern() {
             int returnValue;
             
-            if(currentControlData == 0){
+            if(currentControl == 0){
                 returnValue = (int) currentData;
 
                 offset++;
                 currentData = this.data.getLong(offset);
-                currentControlData = this.controlData.getLong(offset);
+                currentControl = this.control.getLong(offset);
                 
-                internalOffset = (byte) (Long.numberOfLeadingZeros(currentControlData) + 1);
+                internalOffset = Long.numberOfLeadingZeros(currentControl) + 1;
                                 
                 returnValue = (returnValue << internalOffset) | (int) (currentData >>> (64 - internalOffset));
             } else {
-                internalOffset = (byte) (Long.numberOfLeadingZeros(currentControlData) + 1);
+                internalOffset = Long.numberOfLeadingZeros(currentControl) + 1;
 
                 returnValue = (int)(currentData >>> (64 - internalOffset));
 
                 if(internalOffset == 64){
-                    internalOffset = 0;
                     offset++;
                     
                     currentData = this.data.getLong(offset);
-                    currentControlData = this.controlData.getLong(offset);
+                    currentControl = this.control.getLong(offset);
+                    
+                    internalOffset = 0;
                 }
             }
             
             if(internalOffset != 0){
                 long mask = (((long)1 << (64 - internalOffset)) - 1);
-                currentControlData &= mask;
+                currentControl &= mask;
                 currentData &= mask;
             }
             
