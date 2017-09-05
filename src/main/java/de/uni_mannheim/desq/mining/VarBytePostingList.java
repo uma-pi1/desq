@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package de.uni_mannheim.desq.mining;
 
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
@@ -21,12 +16,16 @@ public class VarBytePostingList extends AbstractPostingList{
     
     private int dataCount;
     
+    private boolean wroteData;
+    
     public VarBytePostingList() {
         this.data = new ByteArrayList();
         this.controlData = new LongArrayList();
         
         this.bitsWritten = 0;
         this.controlDataLong = 0;
+        
+        this.wroteData = false;
     }
     
     @Override
@@ -69,7 +68,13 @@ public class VarBytePostingList extends AbstractPostingList{
         }
         
         if(bitsWritten == 62){
-            this.controlData.add(controlDataLong);
+            if(this.wroteData){
+                this.controlData.set(this.controlData.size() - 1, controlDataLong);
+                this.wroteData = false;
+            } else {
+                this.controlData.add(controlDataLong);
+            }
+            
             this.controlDataLong = 0;
             this.bitsWritten = 0;
         } else {
@@ -98,6 +103,29 @@ public class VarBytePostingList extends AbstractPostingList{
     @Override
     public void trim() {
         this.data.trim();
+    }
+    
+    @Override
+    public void newPosting() {
+        noPostings++;
+        if (noPostings>1){ // first posting does not need separator
+            data.add((byte)0);
+            
+            if(bitsWritten == 62){
+                
+                if(this.wroteData){
+                    this.controlData.set(this.controlData.size() - 1, controlDataLong);
+                    this.wroteData = false;
+                } else {
+                    this.controlData.add(controlDataLong);
+                }
+                
+                this.controlDataLong = 0;
+                this.bitsWritten = 0;
+            } else {
+                bitsWritten += 2;
+            }
+        }
     }
     
     public static final class Iterator extends AbstractIterator{
@@ -130,7 +158,12 @@ public class VarBytePostingList extends AbstractPostingList{
             this.data = postingList.data;
             this.controlData = postingList.controlData;
 
-            this.controlData.add(postingList.controlDataLong);
+            if(postingList.wroteData){
+                this.controlData.set(postingList.controlData.size() - 1, postingList.controlDataLong);
+            } else {
+                this.controlData.add(postingList.controlDataLong);
+                postingList.wroteData = true;
+            }
             
             this.noPostings = postingList.noPostings;
             
@@ -144,7 +177,13 @@ public class VarBytePostingList extends AbstractPostingList{
             this.data = postingListTmp.data;
             this.controlData = postingListTmp.controlData;
             
-            this.controlData.add(postingListTmp.controlDataLong);
+            if(postingListTmp.wroteData){
+                this.controlData.set(postingListTmp.controlData.size() - 1, postingListTmp.controlDataLong);
+            } else {
+                this.controlData.add(postingListTmp.controlDataLong);
+                postingListTmp.wroteData = true;
+            }
+            
             this.noPostings = postingListTmp.noPostings;
             
             this.reset();
