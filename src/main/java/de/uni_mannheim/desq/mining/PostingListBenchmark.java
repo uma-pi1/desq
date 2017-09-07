@@ -25,23 +25,26 @@ public class PostingListBenchmark {
     
     private int[] testData;
     
-    private final AbstractPostingList postingList;
-    private final AbstractIterator iterator;
+    private AbstractPostingList postingList;
+    private AbstractIterator iterator;
     
-    //private final PostingList postingList;
-    //private final PostingList.Iterator iterator;
+    //private PostingList postingList;
+    //private PostingList.Iterator iterator;
     
-    public PostingListBenchmark(String testDataFile, AbstractPostingList postingList, AbstractIterator iterator){
+    public PostingListBenchmark(String testDataFile){
         
-        this.postingList = postingList;
+        this.postingList = null;
+        this.iterator = null;
         
-        this.iterator = iterator;
+        //this.postingList = postingList;
+        
+        //this.iterator = iterator;
         
         /*this.postingList = new PostingList();
         this.iterator = new PostingList.Iterator();*/
         
         // ------- Without test file --------
-        /*Random random = new Random();
+        Random random = new Random();
         
         int numberOfElements = 100000000;
         int postingSize = 100;
@@ -54,10 +57,64 @@ public class PostingListBenchmark {
             if(i % postingSize == 0){
                 testData[i] = 0;
             }
-        }*/
+        }
         
         // ------- With test file --------
         //readData(testDataFile);
+    }
+    
+    public void runTest(int testCase, int iterations){
+        /*
+            1- NewPostingList
+            2- BitwiseLongPostingList
+            3- EliasGammaPostingList
+            4- IntegerPostingList
+            5- VarBytePostingList
+            6- VarByteLongPostingList
+            7- VarByteLongAdvancedPostingList
+        */
+        
+        //this.postingList = new PostingList();
+        //this.iterator = new PostingList.Iterator();
+        
+        switch(testCase){
+            case 1:
+                this.postingList = new NewPostingList();
+                this.iterator = new NewPostingList.Iterator();
+                break;
+            case 2:
+                this.postingList = new BitwiseLongPostingList();
+                this.iterator = new BitwiseLongPostingList.Iterator();
+                break;
+            case 3:
+                this.postingList = new EliasGammaPostingList();
+                this.iterator = new EliasGammaPostingList.Iterator();
+                break;
+            case 4:
+                this.postingList = new IntegerPostingList();
+                this.iterator = new IntegerPostingList.Iterator();
+                break;
+            case 5:
+                this.postingList = new VarBytePostingList();
+                this.iterator = new VarBytePostingList.Iterator();
+                break;
+            case 6:
+                this.postingList = new VarByteLongPostingList();
+                this.iterator = new VarByteLongPostingList.Iterator();
+                break;
+            case 7:
+                this.postingList = new VarByteLongAdvancedPostingList();
+                this.iterator = new VarByteLongAdvancedPostingList.Iterator();
+                break;
+            default:
+                this.postingList = new NewPostingList();
+                this.iterator = new NewPostingList.Iterator();
+                break;
+        }
+        
+        this.addData(iterations);
+        
+        this.readData(iterations);
     }
     
     public void createData(String filePath){
@@ -76,7 +133,7 @@ public class PostingListBenchmark {
             writer.println("" + random.nextInt(127));
             
             if(i % 100 == 0){
-                writer.println("" + 0);
+                writer.println("" + -1);
             }
         }
         
@@ -92,7 +149,7 @@ public class PostingListBenchmark {
             this.postingList.newPosting();
 
             for(int k = 0; k < testData.length; k++){
-                if(testData[k] == 0){
+                if(testData[k] == -1){
                     postingList.newPosting();
                 } else {
                     postingList.addNonNegativeInt(testData[k]);
@@ -100,7 +157,7 @@ public class PostingListBenchmark {
             }
 
             this.stop();
-            
+                        
             average += stopwatch.elapsed(TimeUnit.MILLISECONDS);
         }
         
@@ -129,11 +186,15 @@ public class PostingListBenchmark {
                 }
             } while(iterator.nextPosting());
 
-            /*for(int k = 0; k < 90000000; k++){
-                iterator.nextNonNegativeInt();
-            }*/
             this.stop();
 
+            /*System.out.println("data: " + countData);
+            countData = 0;
+            
+            System.out.println("postings: " + countPostings);
+            countPostings = 0;*/
+            
+            System.out.println(stopwatch.elapsed(TimeUnit.MILLISECONDS));
             average += stopwatch.elapsed(TimeUnit.MILLISECONDS);
         }
         
@@ -186,12 +247,28 @@ public class PostingListBenchmark {
     }
     
     public static void main(String[] args){
-        PostingListBenchmark benchmark = new PostingListBenchmark("test_small_values.txt", new VarByteLongAdvancedPostingList(), new VarByteLongAdvancedPostingList.Iterator());
+        //String dataFile = "testdata_b1.txt";
         
+        PostingListBenchmark benchmark = new PostingListBenchmark("testdata_b1.txt");
+        
+        /*
+            1- NewPostingList
+            2- BitwiseLongPostingList
+            3- EliasGammaPostingList
+            4- IntegerPostingList
+            5- VarBytePostingList
+            6- VarByteLongPostingList
+            7- VarByteLongAdvancedPostingList
+        */
+        /*benchmark.runTest(1, 20);
+        benchmark.runTest(2, 20);
+        benchmark.runTest(3, 20);
+        benchmark.runTest(4, 20);*/
+        
+        benchmark.runTest(7, 20);
+        
+
         //benchmark.createData("creator_test.txt");
-        
-        benchmark.addData(20);
-        
-        benchmark.readData(20);
+
     }
 }
