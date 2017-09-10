@@ -11,6 +11,8 @@ import scala.collection.immutable.HashSet
 
 /**
   * Created by ivo on 03.05.17.
+  *
+  * Utility Class to parse AvroArcticles containing NYT articles
   */
 object NytUtil {
 

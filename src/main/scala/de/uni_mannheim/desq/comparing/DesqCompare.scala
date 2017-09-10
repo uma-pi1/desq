@@ -8,6 +8,7 @@ import de.uni_mannheim.desq.dictionary.Dictionary
 import de.uni_mannheim.desq.elastic.NYTElasticSearchUtils
 import de.uni_mannheim.desq.mining.spark._
 import de.uni_mannheim.desq.mining.{DesqCount => _, DesqMiner => _, DesqMinerContext => _, _}
+import de.uni_mannheim.desq.utilities.OutputPrinter
 import it.unimi.dsi.fastutil.longs.LongArrayList
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -17,6 +18,9 @@ import scala.collection.mutable
 
 /**
   * Created by ivo on 05.07.17.
+  *
+  * Enables comparing multiple ad-hoc datasets with regard to the interestingness of their sequences.
+  *
   */
 class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkContext) {
   val es = new NYTElasticSearchUtils
@@ -105,6 +109,7 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
 
 
   /**
+    * DESQ-Compare with DESQ-TwoCOUNT
     *
     * @param data              Original DesqDataset for left collection of articles
     * @param patternExpression Pattern of Interest
@@ -147,11 +152,12 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
     //    val topEverything = global.filter(f => f._1.weight >= sigma || f._1.weight_other >= sigma).sortBy(ws => math.max(ws._2, ws._3), ascending = false).take(k)
     val topEverything = global.sortBy(ws => math.max(ws._2, ws._3), ascending = false).take(k)
     //    val topEverything = global.sortBy(ws => ws._1.weight_other, ascending = false ).take(k)
-    printTable(topEverything, results.dict, false, k)
+    OutputPrinter.printTable(topEverything, results.dict, false, k)
     topEverything
   }
 
   /**
+    * DESQ-Compare with DESQ-MultiCOUNT
     * Variant that finds interesting phrases based on the same background
     * e.g. "New York" and "Washingtion" based on "*"
     *
@@ -210,8 +216,8 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
         else 1
       }
     }
-//    val topEverything = intResults.takeOrdered(k)(ord)
-//    printTableWB(topEverything, results.dict, false, k)
+    val topEverything = intResults.takeOrdered(k)(ord)
+    OutputPrinter.printTableWB(topEverything, results.dict, false, k)
     (intResults.collect, results.dict)
 
   }
@@ -252,74 +258,9 @@ class DesqCompare(data_path: String, partitions: Int = 96)(implicit sc: SparkCon
     global
   }
 
-  /**
-    * Prints out the top-K sequences with item sids and interestigness
-    *
-    * @param topKSequences top-k sequences for the two subcollections
-    * @param dict          Global Dictionary containing all items
-    * @param usesFids      Boolean Flag
-    * @param k             Integer
-    */
-  def printPattern(topKSequences: Array[(AggregatedWeightedSequence, Float, Float)], dict: Dictionary, usesFids: Boolean = false, k: Int = 10): Unit = {
-    println(s"_____________________ Top ${
-      k
-    } Interesting Sequences for Left  _____________________")
-    print(topKSequences)
 
-    def print(sequences: Array[(AggregatedWeightedSequence, Float, Float)]) {
-      for (tuple <- sequences) {
-        val sids = for (element <- tuple._1.elements()) yield {
-          if (usesFids) {
-            dict.sidOfFid(element)
-          } else {
-            dict.sidOfGid(element)
-          }
-        }
-        val output = sids.deep.mkString("[", " ", "]")
-        println(output + "@left<" + tuple._2 + ">@right<" + tuple._3 + ">")
-      }
-    }
-  }
 
-  def printTable(topKSequences: Array[(AggregatedWeightedSequence, Float, Float)], dict: Dictionary, usesFids: Boolean = false, k: Int = 10): Unit = {
 
-    println(s"| Top ${k.toString} Interesting Sequences | | | | |")
-    println("|Seq|Freq All | Interestigness All | Freq Right| Interestingness Right ")
-    println("|--------|--------|--------|--------|--------|")
-    print(topKSequences)
-
-    def print(sequences: Array[((AggregatedWeightedSequence, Float, Float))]) {
-
-      for (s <- sequences) s match {
-        case ((s._1, s._2, s._3)) => {
-          val sids = for (e <- s._1.elements) yield {
-            dict.sidOfFid(e)
-          }
-          println(s"|${sids.deep.mkString("[", " ", "]")}|${s._1.weight}|${s._2}|${s._3}|${s._1.weight_other}|")
-        }
-      }
-    }
-  }
-
-  def printTableWB(topKSequences: Array[(AggregatedSequence, Float, Float)], dict: Dictionary, usesFids: Boolean = false, k: Int = 10): Unit = {
-
-    println(s"| Top ${k.toString} Interesting Sequences | | | | |")
-    println("|Seq |Freq All | Freq Left | Interestingness Left | Freq Right| Interestingness Right ")
-    println("|--------|--------|--------|--------|--------|--------|")
-    print(topKSequences)
-
-    def print(sequences: Array[((AggregatedSequence, Float, Float))]) {
-
-      for (s <- sequences) s match {
-        case ((s._1, s._2, s._3)) => {
-          val sids = for (e <- s._1.elements) yield {
-            dict.sidOfFid(e)
-          }
-          println(s"|${sids.deep.mkString("[", " ", "]")}|${s._1.support.getLong(0)}|${s._1.support.getLong(1)}|${s._2}|${s._1.support.getLong(2)}|${s._3}|")
-        }
-      }
-    }
-  }
 
   def runMiner(data: DefaultDesqDataset, ctx: DesqMinerContext): (DesqMiner, DefaultDesqDataset) = {
     val miner = DesqMiner.create(ctx)

@@ -13,6 +13,7 @@ import java.util.List;
 
 /**
  * Created by ivo on 04.07.17.
+ * Desq Dataset that hold weighted sequences. Weights are arrays that can hold multiple support counts.
  */
 public final class AggregatedWeightedSequence extends WeightedSequence implements Externalizable, Writable{
     public long weight_other;

@@ -11,18 +11,23 @@ import de.uni_mannheim.desq.dictionary.Dictionary
 import de.uni_mannheim.desq.elastic.NYTElasticSearchUtils
 import de.uni_mannheim.desq.mining.spark._
 import de.uni_mannheim.desq.mining.{AggregatedSequence, AggregatedWeightedSequence, WeightedSequence}
+import de.uni_mannheim.desq.utilities.OutputPrinter
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.mutable.ListBuffer
 
 /**
   * Created by ivo on 05.05.17.
+  *
+  * Class that starts the different systems for mining interesting pattern from ad-hoc collections
+  * with declarative subsequence constraints.
+  *
   */
 object DesqCompareExample {
   var wallclock: Stopwatch = Stopwatch.createUnstarted()
 
   /**
-    * Run the First Version of the System
+    * Run the Naive Version of the System with DESQ-COUNT
     *
     * @param path_source Where is the data stored?
     * @param query_L     Keyword Query for the "Left Dataset"
@@ -59,11 +64,11 @@ object DesqCompareExample {
     val totalTime = dataloadTime.elapsed(TimeUnit.SECONDS) + compare.filterT + compare.filterT + compareTime.elapsed(TimeUnit.SECONDS)
     val times = s"DC1-$patExp-$sigma-$query_L-$query_R-${limit}_${System.currentTimeMillis / 1000}.csv"
     val times_string = s"$totalTime, ${dataloadTime.elapsed(TimeUnit.SECONDS)},${compare.filterT},${compare.queryT},${compareTime.elapsed(TimeUnit.SECONDS)}"
-    writeTimesToFile(times_string, path_out, times)
+    OutputPrinter.writeTimesToFile(times_string, path_out, times)
   }
 
   /**
-    * Run the improved Version of the System.
+    * Run the improved Version of the System with DESQ-TwoCOUNT.
     *
     * @param data_path Where is the data stored?
     * @param query_L   Keyword Query for the "Left Dataset"
@@ -106,14 +111,14 @@ object DesqCompareExample {
     val totalTime = wallclock.stop.elapsed(TimeUnit.SECONDS)
     val filename = s"DC2-$patExp-$sigma-$query_L-$query_R-$limit-${parts}"
     val times_string = s"$totalTime, ${dataloadTime.elapsed(TimeUnit.SECONDS)},${compare.filterT},${compare.queryT},${compareTime.elapsed(TimeUnit.SECONDS)}"
-    writeTimesToFile(times_string, out_path, filename + ".csv")
-    printAggregatedWeightedSequencesToFile(out_path, filename, sequences, dataset.dict)
+    OutputPrinter.writeTimesToFile(times_string, out_path, filename + ".csv")
+    OutputPrinter.printAggregatedWeightedSequencesToFile(out_path, filename, sequences, dataset.dict)
 
 
   }
 
   /**
-    * Run the improved Version of the System.
+    * Run the improved Version of the System with DESQ-MultiCOUNT.
     * Compare Ad-hoc Datasets with Background
     *
     * @param data_path Where is the data stored?
@@ -161,13 +166,29 @@ object DesqCompareExample {
     val totalTime = wallclock.stop.elapsed(TimeUnit.SECONDS)
     val times = s"DCM-$patExp-$sigma-$query_L-$query_R-$limit-$parts-${queryFrom.replace("/", "-")}-${queryTo.replace("/", "-")}"
     val times_string = s"$totalTime, ${dataloadTime.elapsed(TimeUnit.SECONDS)},${compare.filterT},${compare.queryT},${compareTime.elapsed(TimeUnit.SECONDS)}"
-    writeTimesToFile(times_string, out_path, times + ".csv")
-    printAggregatedSequencesToFile(out_path, times, sequences, dict)
+    OutputPrinter.writeTimesToFile(times_string, out_path, times + ".csv")
+    OutputPrinter.printAggregatedSequencesToFile(out_path, times, sequences, dict)
 
 
   }
 
-
+  /**
+    * Method to simulate ad-hoc dataset mining with DESQ-COUNT
+    *
+    * @param data_path source directory
+    * @param out_path output directory
+    * @param queryFrom Start of Date Range
+    * @param queryTo End of Date Range
+    * @param query_L First keyword query
+    * @param query_R Second keyword query
+    * @param patExp Pattern Expression
+    * @param sigma Minimum Support Threshold
+    * @param k Ranking size
+    * @param index Index name
+    * @param parts number of partitions
+    * @param limit query result limit
+    * @param sc spark context
+    */
   def searchAndMine(data_path: String, out_path:String, queryFrom: String, queryTo: String, query_L: String, query_R: String, patExp: String, sigma: Int = 1, k: Int = 10, index: String, parts: Int = 96, limit: Int = 1000)(implicit sc: SparkContext): Unit = {
     print("Initializing Compare... ")
     val prepTime = Stopwatch.createStarted
@@ -214,7 +235,7 @@ object DesqCompareExample {
 
     val times_string = s"$totalTime, ${dataloadTime.elapsed(TimeUnit.SECONDS)},0,0,${compareTime.elapsed(TimeUnit.SECONDS)}"
 
-    writeTimesToFile(times_string, out_path, filename + ".csv")
+    OutputPrinter.writeTimesToFile(times_string, out_path, filename + ".csv")
 
     if (!Files.exists(Paths.get(s"$out_path/experiments/"))) {
       Files.createDirectory(Paths.get(s"$out_path/experiments/"))
@@ -240,10 +261,6 @@ object DesqCompareExample {
 
   }
 
-
-  //    println(s"Overall Runtime is ${compareTime.elapsed(TimeUnit.SECONDS)+ leftPrepTime.elapsed(TimeUnit.SECONDS) + queryTime.elapsed(TimeUnit.SECONDS)+ dataloadTime.elapsed(TimeUnit.SECONDS)}")
-
-
   /**
     * Triggers the Index and DesqDataset Creation as a Preprocessing Step for all further analysis
     *
@@ -256,95 +273,34 @@ object DesqCompareExample {
     print("Indexing Articles and Creating DesqDataset... ")
     val dataTime = Stopwatch.createStarted
     val nytEs = new NYTElasticSearchUtils
-    //    nytEs.createIndexAndDataset(path_in, path_out, index)
-    nytEs.createIndexAndDatasetEval(path_in, path_out, index)
+        nytEs.createIndexAndDataset(path_in, path_out, index)
+//    nytEs.createIndexAndDatasetEval(path_in, path_out, index)
     dataTime.stop()
     println(dataTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
   }
 
-  def writeTimesToFile(times: String, path_out: String, filename: String) = {
-    if (!Files.exists(Paths.get(s"$path_out/experiments/"))) {
-      Files.createDirectory(Paths.get(s"$path_out/experiments/"))
-    }
-    if (!Files.exists(Paths.get(s"$path_out/experiments/$filename"))) {
-      val file = new File(s"$path_out/experiments/$filename")
-      val bw = new BufferedWriter(new FileWriter(file))
-      bw.write("total,load,query,filter,mining \n")
-      bw.write(times + "\n")
-      bw.close()
-    } else {
-      val file = new File(s"$path_out/experiments/$filename")
-      val bw = new BufferedWriter(new FileWriter(file, true))
-      bw.write(times + "\n")
-      bw.close()
-    }
-  }
 
-  def printAggregatedSequencesToFile(path_out: String, filename: String, sequences: Array[((AggregatedSequence, Float, Float))], dict: Dictionary) {
-    if (!Files.exists(Paths.get(s"$path_out/experiments/"))) {
-      Files.createDirectory(Paths.get(s"$path_out/experiments/"))
-    }
-    val file = if (!Files.exists(Paths.get(s"$path_out/experiments/${filename}_sequences.csv"))) {
-      new File(s"$path_out/experiments/${filename}_sequences.csv")
-    } else {
-      val timestamp: Long = System.currentTimeMillis / 1000
-      new File(s"$path_out/experiments/${filename}_sequences_${timestamp.toString}.csv")
-    }
-    val bw = new BufferedWriter(new FileWriter(file))
-    bw.write("sequence, global_freq, left_freq, left_int, right_freq, right_int\n")
-    for (s <- sequences) s match {
-      case ((s._1, s._2, s._3)) => {
-        val sids = for (e <- s._1.elements) yield {
-          dict.sidOfFid(e)
-        }
-        bw.write(s"${sids.deep.mkString("[", " ", "]").replace(",", "")},${s._1.support.getLong(0)},${s._1.support.getLong(1)},${s._2},${s._1.support.getLong(2)},${s._3}\n")
-      }
-    }
-    bw.close()
-  }
-
-  def printAggregatedWeightedSequencesToFile(path_out: String, filename: String, sequences: Array[((AggregatedWeightedSequence, Float, Float))], dict: Dictionary) {
-    if (!Files.exists(Paths.get(s"$path_out/experiments/"))) {
-      Files.createDirectory(Paths.get(s"$path_out/experiments/"))
-    }
-    val file = if (!Files.exists(Paths.get(s"$path_out/experiments/${filename}_sequences.csv"))) {
-      new File(s"$path_out/experiments/${filename}_sequences.csv")
-    } else {
-      val timestamp: Long = System.currentTimeMillis / 1000
-      new File(s"$path_out/experiments/${filename}_sequences_${timestamp.toString}.csv")
-    }
-    val bw = new BufferedWriter(new FileWriter(file))
-    bw.write("sequence, global_freq, left_freq, left_int, right_freq, right_int\n")
-    for (s <- sequences) s match {
-      case ((s._1, s._2, s._3)) => {
-        val sids = for (e <- s._1.elements) yield {
-          dict.sidOfFid(e)
-        }
-        bw.write(s"${sids.deep.mkString("[", " ", "]").replace(",", "")},${s._1.weight},${s._2},${s._1.weight_other},${s._2}\n")
-      }
-    }
-    bw.close()
-  }
 
 
   def main(args: Array[String]) {
-    var path_in = "data-local/NYTimesProcessed/results/"
-    var path_out = "data-local/processed/es_eval"
-    var path_data = "data-local/processed/es_eval"
+    var path_in = "data-local/NYTimesProcessed/results"
+//    var path_in = "data-local/processed/es_thesis_v1/rawdocs"
+    var path_out = "data-local/processed/es_all_v1"
+    var path_data = "data-local/processed/es_all_v1"
     var parts = 256
-    var sigma = 20
+    var sigma = 10
     //    var patternExp = "(ENTITY . ENTITY) | (ENTITY .. ENTITY) |(ENTITY ... ENTITY) "
-    var patternExp = "(ENTITY^ be@VB=^) DT? (RB? JJ? NN)"
+    var patternExp = "(DT JJ+ ? NN NN?)"
     //    var patternExp = "(.){2,6}"
-    var index = "nyt_eval"
-    var query1 = "*"
-    var query2 = "*"
+    var index = "nyt_v1"
+    var query1 = "Beckham"
+    var query2 = "\"Hillary Clinton\""
     var query3 = "*"
     var queryFrom = "1978/01/01"
     var queryTo = "2007/12/31"
     var limit = 1800000
     var k = 1000
-    var algo = "D2C"
+    var algo = "DMC"
     var master = "local[*]"
     var section = false
 
@@ -411,6 +367,7 @@ object DesqCompareExample {
     val patternExpressionO1_5 = "(JJ NN .)| (RB JJ ^NN)| (JJ JJ ^NN) | (NN JJ ^NN) | (RB VB .)"
     val patternExpressionOpinion2 = "(ENTITY).^{1,3} [(JJ NN .)| (RB JJ ^NN)| (JJ JJ ^NN) | (NN JJ ^NN) | (RB VB .)]"
     val patternExpressionI1 = "(.){2,6}"
+    val patternExpressionI2 = "(DT JJ+ ? NN NN?)"
 
 
     if (algo == "DMC") {
@@ -422,7 +379,6 @@ object DesqCompareExample {
     } else if (algo == "NAIVE") {
       searchAndCompareNaive(path_data, path_out, query1, query2, patternExp, sigma, k, index, limit)
     }
-    //    TODO: Query for Background and filter the dataset && conjunction of ad-hoc query and background query || Use all queries and simple ad-hoc queries
 
     println(s"System Runtime: ${
       wallclock.elapsed(TimeUnit.SECONDS)

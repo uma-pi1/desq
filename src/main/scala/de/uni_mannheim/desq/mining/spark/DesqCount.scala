@@ -11,6 +11,9 @@ import scala.collection.mutable
 
 /**
   * Created by rgemulla on 14.09.2016.
+  *
+  * Contains the implementations of DESQ-COUNT, DESQ-TwoCOUNT and DESQ-MultiCOUNT
+  *
   */
 class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 
@@ -20,6 +23,12 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     mine(data, filterFunction)
   }
 
+  /**
+    * DESQ-COUNT
+    * @param data input sequence data
+    * @param filter filter function for the extracted subsequence patterns
+    * @return extracted frequent subsquence patterns
+    */
   override def mine(data: DefaultDesqDataset, filter: ((Sequence, Long)) => Boolean): DefaultDesqDataset = {
     // localize the variables we need in the RDD
     val dictBroadcast = data.broadcastDictionary()
@@ -75,7 +84,7 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 
   /**
     * DESQ-TwoCount
-    *
+    * Runs on two ad-hoc collections.
     * @param data   IndentifiableDesqDataset
     * @param docIDs Corresponding CombIndex
     * @param filter Filter Function for the Results
@@ -139,7 +148,6 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
       }
     }).reduceByKey((x, y) => (x._1 + y._1, x._2 + y._2)) // now sum up counts
       .filter(filter)
-      //      TODO: Change from Global Support to Aggregate Function
       .map(s => s._1.withSupport(-1, s._2._2, s._2._1 - s._2._2)) // and pack the remaining sequences into a IdentifiableWeightedSequence
     // all done, return result (last parameter is true because mining.DesqCount always produces fids)
     new DefaultDesqDatasetWithAggregates(patterns, data.dict, true)
@@ -147,6 +155,7 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 
   /**
     * DESQ-MultiCount
+    * Runs on more than 2 ad-hoc datasets.
     *
     * @param data   IndentifiableDesqDataset
     * @param docIDs Corresponding CombIndex

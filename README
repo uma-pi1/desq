@@ -1,3 +1,65 @@
-Compile and run an example under Windows with more memory:
-set MAVEN_OPTS=-Xms4096m -Xmx4096m -Xss4m -Dspark.master=local && mvn compile && mvn exec:java -Dexec.mainClass="de.uni_mannheim.desq.examples.DesqDfsExample"
+# Interesting Pattern Mining on Ad-hoc Collections with Subsequence Constraints
 
+This repository covers the source code for the corresponding masters' thesis. The system enables the user to construct and mine multiple ad-hoc collections from a sequence dataset. Here, the New York Times corpus is used as an example. Futhermore, the user is able to specify a so called pattern expression which can combine multiple subsequence constraints such as gap, length, span and hierarchy.
+
+The code is based on the DESQ implementation of [DESQ](http://dws.informatik.uni-mannheim.de/en/resources/software/desq/).
+
+## Relevant Classes
+
+- DesqCount.scala: Contains the original DESQ-COUNT mining algorithm, as well as the proposed extension for mining multi ad-hoc datasets
+
+- DesqCompare.scala: Covers the systems code for comparing multiple ad-hoc collections with DESQ-TwoCOUNT or DESQ-MultiCOUNT
+
+- DesqCompareExample: Contains the code necessary to run experiments with the system. The system can either be configured and run from an IDE with the provided code or via the command line with a set of command line flags.
+
+- DesqDataset.scala, IdentifiableDesqDataset.scala, DefaultDesqDataset.scala etc. are all extensions of the DesqDataset that are necessary to mine multiple ad-hoc collections as one
+
+- DesqCompareNaive.scala: Contains the code for the naive approach of interesting sequence mining
+
+## Running the system
+
+The system can be run either from the IDE, or from the command line.
+
+### Prerequisites
+
+In order to run the system it is necessary to have a running ElasticSearch instance on the localhost on port 9300. This can be configured in NYTElasticSearchUtils.scala in line 389. Sorry no config file :*(
+Currently authentication with ElasticSearch is not implemented, thus the instance must have authentication disabled.
+
+The code was tested using ElasticSearch 5.4.0.
+
+### Sample Data
+Sample Data is provided in /data/thesis . This is the source directory containing the raw avro files. The provided data is a subset of 0.005% of the NYT Corpus.
+
+### Building the system
+In order to run the system it has to be compiled once with maven to generate the necessary AvroSchemas.
+
+### Command Line Flags:
+* `master`: Spark Setting, use local[*] for Spark standalone mode
+* `algo`: Mining Algoritm to be used [DCM: DESQ-MultiCOUNT, D2C: DESQ-TwoCOUNT, COUNT: DESQ-COUNT, NAIVE: DESQ-COUNT with NAIVE system]
+* `in`: Source directory where the raw avro files are contained
+* `out`: Destination directory where the results are written to
+* `data`: Directory where the DESQ-Dataset is stored
+* `parts`: Number of partitions to be used (experimental feature)
+* `patexp`: Pattern Expression that controls the output sequences
+* `index`: Name of the ElasticSearch Index
+* `q1`: Keyword query that controls the contents of one ad-hoc dataset
+* `q2`: Keyword query that controls the contents of another ad-hoc dataset
+* `from`: Optional: Lower bound for date range limit for sequences
+* `to`: Optional: Upper bound for date range limit for sequences
+* `limit` : Limits the number of relevant documents for an ad-hoc collections [1800000 for max.]
+* `k` : Amount of interesting subsequence to be returned
+* `sigma`: Minimum support threshold for frequent sequence mining
+* `section`: Boolean flag, determines whether the keyword queries are to be handled as sections
+
+### Command Line Example:
+This Example will run DESQ-MultiCOUNT on the section Business and Science of the NYT magazine.
+thesis_experiments.sh contains more examples for running the system
+
+`mvn compile && mvn exec:java -Dexec.mainClass="de.uni_mannheim.desq.examples.spark.DesqCompareExample" -Dexec.args="--master=local --algo=DMC --patexp=\"(DT JJ+? NN NN?)\" --limit=200000 --sigma=10 --parts=256 --from=1990/01/01 --to=1995/12/31 --q1=Business --q2=Science  --data=data-local/thesis_example --out=data-local/thesis_example --index=thesis --section=true"`
+
+
+Compile and run an example under Windows with more memory:
+`set MAVEN_OPTS=-Xms4096m -Xmx4096m -Xss4m && mvn compile && mvn exec:java -Dexec.mainClass="de.uni_mannheim.desq.examples.spark.DesqCompareExample" -Dexec.args="--master=local --algo=DMC --patexp=\"(DT JJ+? NN NN?)\" --limit=200000 --sigma=10 --parts=256 --from=1990/01/01 --to=1995/12/31 --q1=Business --q2=Science  --data=data-local/thesis_example --out=data-local/thesis_example --index=thesis --section=true"`
+
+Compile and run an example under Linux with more memory:
+`export MAVEN_OPTS=-Xms4096m -Xmx4096m -Xss4m && mvn compile && mvn exec:java -Dexec.mainClass="de.uni_mannheim.desq.examples.spark.DesqCompareExample" -Dexec.args="--master=local --algo=DMC --patexp=\"(DT JJ+? NN NN?)\" --limit=200000 --sigma=10 --parts=256 --from=1990/01/01 --to=1995/12/31 --q1=Business --q2=Science  --data=data-local/thesis_example --out=data-local/thesis_example --index=thesis --section=true"`

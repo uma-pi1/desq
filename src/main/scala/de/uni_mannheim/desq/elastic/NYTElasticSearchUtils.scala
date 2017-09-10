@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.elastic
 
+import java.net.URI
 import java.util.concurrent.TimeUnit
 
 import com.google.common.base.Stopwatch
@@ -9,8 +10,11 @@ import com.sksamuel.elastic4s.xpack.security.XPackElasticClient
 import de.uni_mannheim.desq.Desq.initDesq
 import de.uni_mannheim.desq.avro.{AvroArticle, Sentence}
 import de.uni_mannheim.desq.converters.nyt.NytUtil
+import de.uni_mannheim.desq.io.spark.AvroIO
 import de.uni_mannheim.desq.mining.IdentifiableWeightedSequence
 import de.uni_mannheim.desq.mining.spark.{DesqDatasetPartitionedWithID, IdentifiableDesqDataset}
+import org.apache.hadoop.fs.FileSystem
+import org.apache.hadoop.io.NullWritable
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{HashPartitioner, SparkConf, SparkContext}
 import org.elasticsearch.common.settings.Settings
@@ -27,8 +31,6 @@ import scala.concurrent.duration.Duration
   *
   *
   */
-//TODO: Method that allows mixture of metadata and keyword queries
-//TODO: Mehtod that calls the corresponding query depending on metadata or keywords beeing set
 
 class NYTElasticSearchUtils extends Serializable {
 
@@ -82,7 +84,15 @@ class NYTElasticSearchUtils extends Serializable {
     println(s"Creating the index took ${indexTime.elapsed(TimeUnit.MILLISECONDS)}}")
     val elasticTime = Stopwatch.createStarted
     articlesWithId.unpersist()
-    val sampleArticles = articlesWithId.sample(false, 0.125, 1337)
+    val sampleArticles = articlesWithId.sample(false, 0.005, 1337)
+
+    val fileSystem = FileSystem.get(new URI(path_out), sampleArticles.context.hadoopConfiguration)
+
+    // write sample docs to file
+    val docsPath = s"$path_out/rawdocs"
+    AvroIO.write(docsPath, sampleArticles.take(1)(0)._1.getSchema, sampleArticles.map(x=>x._1))
+
+
     this.writeArticlesToEs(sampleArticles, index + "/article")
 
     val datasetTime = Stopwatch.createStarted
@@ -124,6 +134,11 @@ class NYTElasticSearchUtils extends Serializable {
         )
 
     }
+
+    ESConnection.client.execute {
+      updateSettings(indexS) set("max_result_window","1800000")
+    }
+
   }
 
 
@@ -199,6 +214,15 @@ class NYTElasticSearchUtils extends Serializable {
     ids
   }
 
+  /**
+    * Search the Collection with a date range and a term
+    * @param query_s Keyword query
+    * @param min lower bound of the date range
+    * @param max upper bound of the date range
+    * @param index name of the index
+    * @param limit_i limit for the amount of returned results
+    * @return Collection of IDs
+    */
   def searchESDateRangeAndTerm(query_s: String, min: String, max: String, index: String, limit_i: Int = 10000): Seq[Long] = {
     val resp = if (query_s.equals("*")) {
       ESConnection.client.execute {
@@ -223,6 +247,15 @@ class NYTElasticSearchUtils extends Serializable {
     ids
   }
 
+  /**
+    * Search the Collection with a date range and a section name
+    * @param query_s Section name
+    * @param min lower bound of the date range
+    * @param max upper bound of the date range
+    * @param index name of the index
+    * @param limit_i limit for the amount of returned results
+    * @return Collection of IDs
+    */
   def searchESDateRangeAndSection(query_s: String, min: String, max: String, index: String, limit_i: Int = 10000): Seq[Long] = {
     val resp = ESConnection.client.execute {
       search(index) query
@@ -236,7 +269,16 @@ class NYTElasticSearchUtils extends Serializable {
     ids
   }
 
-
+  /**
+    * Initialization of a combined index for multiple queries
+    * @param index name of the index
+    * @param limit_i limit of the returned results
+    * @param queryFrom lower bound of the date range
+    * @param queryTo upper bound of the date range
+    * @param section section name
+    * @param queries variadic parameter for keyword queries
+    * @return combined index over all query results
+    */
   def searchESWithDateRangeBackground(index: String, limit_i: Int, queryFrom: String, queryTo: String, section: Boolean, queries: String*) = {
     val map = mutable.Map[Long, mutable.BitSet]()
     val ids = searchESByDateRange(queryFrom, queryTo, index, 1800000)
@@ -311,10 +353,14 @@ object NYTElasticSearchUtils extends App {
   //  val path_in = "data-local/NYTimesProcessed/results/"
   //  val path_out = "data-local/processed/sparkconvert/es_all_v2/"
   //
-  val nytEs = new NYTElasticSearchUtils
-  //  nytEs.createNYTIndex("test1")
+//  val nytEs = new NYTElasticSearchUtils
+//  //  nytEs.createNYTIndex("test1")
+//
+//  nytEs.searchESWithDateRangeBackground("nyt2006", 10000, "2006/04/01", "2006/05/01", false, "Easter", "Easter")
 
-  nytEs.searchESWithDateRangeBackground("nyt2006", 10000, "2006/04/01", "2006/05/01", false, "Easter", "Easter")
+  ESConnection.client.execute{
+    updateSettings("es_thesis_v2") set("max_result_window","1800000")
+  }
 
   //  nytEs.createIndexAndDataset(path_in, path_out, "nyt_v2")
   //

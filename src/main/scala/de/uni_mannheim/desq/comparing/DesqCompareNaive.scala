@@ -8,6 +8,7 @@ import de.uni_mannheim.desq.dictionary.Dictionary
 import de.uni_mannheim.desq.elastic.NYTElasticSearchUtils
 import de.uni_mannheim.desq.mining.spark._
 import de.uni_mannheim.desq.mining.{IdentifiableWeightedSequence, Sequence, WeightedSequence}
+import de.uni_mannheim.desq.utilities.OutputPrinter
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -96,7 +97,7 @@ class DesqCompareNaive(data_path:String)(implicit sc:SparkContext) {
       results
     }
     val global_dict = mergeDictionaries(left.dict, right.dict)
-    printTable(results, global_dict, false, k)
+    OutputPrinter.printTable(results, global_dict, false, k)
   }
 
   /**
@@ -255,59 +256,7 @@ class DesqCompareNaive(data_path:String)(implicit sc:SparkContext) {
     global
   }
 
-  /**
-    * Prints out the top-K sequences with item sids and interestigness
-    *
-    * @param topKSequencesLeft  top-k sequences of the left subcollection
-    * @param topKSequencesRight top-k sequences of the left subcollection
-    * @param dict               Global Dictionary containing all items
-    * @param usesFids           Boolean Flag
-    * @param k                  Integer
-    */
-  def printPattern(topKSequencesLeft: Array[(IdentifiableWeightedSequence, Float)], topKSequencesRight: Array[(IdentifiableWeightedSequence, Float)], dict: Dictionary, usesFids: Boolean = false, k: Int = 10): Unit = {
-    println(s"_____________________ Top ${
-      k
-    } Interesting Sequences for Left  _____________________")
-    print(topKSequencesLeft)
 
-    println(s"_____________________ Top ${
-      k
-    } Interesting Sequences for Right _____________________")
-    print(topKSequencesRight)
-
-    def print(sequences: Array[(IdentifiableWeightedSequence, Float)]) {
-      for (tuple <- sequences) {
-        val sids = for (element <- tuple._1.elements()) yield {
-          if (usesFids) {
-            dict.sidOfFid(element)
-          } else {
-            dict.sidOfGid(element)
-          }
-        }
-        val output = sids.deep.mkString("[", " ", "]")
-        println(output + "@" + tuple._2)
-      }
-    }
-  }
-
-  def printTable(topKSequences: Array[((WeightedSequence, Float), (WeightedSequence, Float))], dict: Dictionary, usesFids: Boolean = false, k: Int = 10): Unit = {
-
-    println(s"| Top ${k.toString} Interesting Sequences | | |")
-    println("|--------|--------|--------|")
-    print(topKSequences)
-
-    def print(sequences: Array[((WeightedSequence, Float), (WeightedSequence, Float))]) {
-
-      for (s <- sequences) s match {
-        case ((s._1._1, s._1._2), (s._2._1, s._2._2)) => {
-          val sids = for (e <- s._1._1.elements) yield {
-            dict.sidOfGid(e)
-          }
-          println(s"|${sids.deep.mkString("[", " ", "]")}|${s._1._2}|${s._2._2}|")
-        }
-      }
-    }
-  }
 
   def runMiner(data: DefaultDesqDataset, ctx: DesqMinerContext): (DesqMiner, DefaultDesqDataset) = {
     val miner = DesqMiner.create(ctx)

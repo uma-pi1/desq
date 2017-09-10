@@ -16,6 +16,8 @@ import static java.lang.Math.toIntExact;
 
 /**
  * Created by ivo on 05.08.17.
+ *
+ * Desq Dataset that hold weighted sequences. Weights are arrays that can hold multiple support counts.
  */
 public class AggregatedSequence extends WeightedSequence implements Externalizable, Writable{
     public LongArrayList support;

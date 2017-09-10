@@ -22,6 +22,8 @@ import scala.reflect.{ClassTag, _}
 
 /**
   * Created by rgemulla on 12.09.2016.
+  *
+  * Generic DesqDataset that is extended for various use cases
   */
 class DesqDataset[T <: WeightedSequence : ClassTag](val sequences: RDD[T], val dict: Dictionary, val usesFids: Boolean = false) {
   private var dictBroadcast: Broadcast[Dictionary] = _
