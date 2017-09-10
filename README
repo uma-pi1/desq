@@ -28,7 +28,8 @@ Currently authentication with ElasticSearch is not implemented, thus the instanc
 The code was tested using ElasticSearch 5.4.0.
 
 ### Sample Data
-Sample Data is provided in /data/thesis . This is the source directory containing the raw avro files. The provided data is a subset of 0.005% of the NYT Corpus.
+
+Sample Data is provided in /data/thesis\_example/ . This is the source directory containing the raw avro files. The provided data is a subset of 0.005% of the NYT Corpus. While the data is still over 900mb in size it contains roughly 10k articles. This will take roughly 15 minutes for the first run of the system due to index and dataset creation. All consecutive runs are naturally much faster. [Of course it is possible to delete articles in /data/thesis_example to speed up the process]
 
 ### Building the system
 In order to run the system it has to be compiled once with maven to generate the necessary AvroSchemas.
@@ -53,13 +54,13 @@ In order to run the system it has to be compiled once with maven to generate the
 
 ### Command Line Example:
 This Example will run DESQ-MultiCOUNT on the section Business and Science of the NYT magazine.
-thesis_experiments.sh contains more examples for running the system
+thesis_experiments.sh contains more examples for running the system.
 
-`mvn compile && mvn exec:java -Dexec.mainClass="de.uni_mannheim.desq.examples.spark.DesqCompareExample" -Dexec.args="--master=local --algo=DMC --patexp=\"(DT JJ+? NN NN?)\" --limit=200000 --sigma=10 --parts=256 --from=1990/01/01 --to=1995/12/31 --q1=Business --q2=Science  --data=data-local/thesis_example --out=data-local/thesis_example --index=thesis --section=true"`
+`mvn compile && mvn exec:java -Dexec.mainClass="de.uni_mannheim.desq.examples.spark.DesqCompareExample" -Dexec.args="--master=local --algo=DMC --patexp=\"(DT JJ+? NN NN?)\" --limit=10000 --sigma=10 --parts=256 --from=1978/01/01 --to=2007/12/31 --q1=Business --q2=Science  --in=data/thesis_example --data=data/thesis_processed --out=data/thesis_processed --index=thesis --section=true"`
 
 
 Compile and run an example under Windows with more memory:
-`set MAVEN_OPTS=-Xms4096m -Xmx4096m -Xss4m && mvn compile && mvn exec:java -Dexec.mainClass="de.uni_mannheim.desq.examples.spark.DesqCompareExample" -Dexec.args="--master=local --algo=DMC --patexp=\"(DT JJ+? NN NN?)\" --limit=200000 --sigma=10 --parts=256 --from=1990/01/01 --to=1995/12/31 --q1=Business --q2=Science  --data=data-local/thesis_example --out=data-local/thesis_example --index=thesis --section=true"`
+`set MAVEN_OPTS=-Xms4096m -Xmx4096m -Xss4m && mvn compile && mvn exec:java -Dexec.mainClass="de.uni_mannheim.desq.examples.spark.DesqCompareExample" -Dexec.args="--master=local --algo=DMC --patexp=\"(DT JJ+? NN NN?)\" --limit=10000 --sigma=10 --parts=256 --from=1978/01/01 --to=2007/12/31 --q1=Business --q2=Science  --in=data/thesis_example --data=data/thesis_processed --out=data/thesis_processed --index=thesis --section=true"`
 
 Compile and run an example under Linux with more memory:
-`export MAVEN_OPTS=-Xms4096m -Xmx4096m -Xss4m && mvn compile && mvn exec:java -Dexec.mainClass="de.uni_mannheim.desq.examples.spark.DesqCompareExample" -Dexec.args="--master=local --algo=DMC --patexp=\"(DT JJ+? NN NN?)\" --limit=200000 --sigma=10 --parts=256 --from=1990/01/01 --to=1995/12/31 --q1=Business --q2=Science  --data=data-local/thesis_example --out=data-local/thesis_example --index=thesis --section=true"`
+`export MAVEN_OPTS=-Xms4096m -Xmx4096m -Xss4m && mvn compile && mvn exec:java -Dexec.mainClass="de.uni_mannheim.desq.examples.spark.DesqCompareExample" -Dexec.args="--master=local --algo=DMC --patexp=\"(DT JJ+? NN NN?)\" --limit=10000 --sigma=10 --parts=256 --from=1978/01/01 --to=2007/12/31 --q1=Business --q2=Science  --in=data/thesis_example --data=data/thesis_processed --out=data/thesis_processed --index=thesis --section=true"`

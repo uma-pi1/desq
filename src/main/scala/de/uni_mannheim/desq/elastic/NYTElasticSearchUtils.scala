@@ -61,6 +61,9 @@ class NYTElasticSearchUtils extends Serializable {
     val dataset = IdentifiableDesqDataset.buildFromSentencesWithID(sentences)
     //    val dataset2 = dataset.save(path_out)
     val partitionedDataset = DesqDatasetPartitionedWithID.partitionById[IdentifiableWeightedSequence](dataset, new HashPartitioner(48))
+    ESConnection.client.execute{
+      updateSettings(index) set("max_result_window","1800000")
+    }
     partitionedDataset.save(path_out)
     datasetTime.stop()
     println(s"Creating the dataset took ${datasetTime.elapsed(TimeUnit.MILLISECONDS)}")
@@ -104,6 +107,9 @@ class NYTElasticSearchUtils extends Serializable {
     val partitionedDataset = DesqDatasetPartitionedWithID.partitionById[IdentifiableWeightedSequence](dataset, new HashPartitioner(parts))
     partitionedDataset.save(path_out)
     datasetTime.stop()
+    ESConnection.client.execute{
+      updateSettings(index) set("max_result_window","1800000")
+    }
     println(s"Creating the dataset took ${datasetTime.elapsed(TimeUnit.MILLISECONDS)}")
     elasticTime.stop
     println(s"Writing to Elastic took ${elasticTime.elapsed(TimeUnit.MILLISECONDS)}}")
@@ -134,10 +140,9 @@ class NYTElasticSearchUtils extends Serializable {
         )
 
     }
-
-    ESConnection.client.execute {
-      updateSettings(indexS) set("max_result_window","1800000")
-    }
+//    ESConnection.client.execute {
+//      updateSettings(indexS) set("max_result_window","1800000")
+//    }
 
   }
 
@@ -359,7 +364,7 @@ object NYTElasticSearchUtils extends App {
 //  nytEs.searchESWithDateRangeBackground("nyt2006", 10000, "2006/04/01", "2006/05/01", false, "Easter", "Easter")
 
   ESConnection.client.execute{
-    updateSettings("es_thesis_v2") set("max_result_window","1800000")
+    updateSettings("thesis") set("max_result_window","1800000")
   }
 
   //  nytEs.createIndexAndDataset(path_in, path_out, "nyt_v2")

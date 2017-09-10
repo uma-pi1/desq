@@ -299,7 +299,7 @@ object DesqCompareExample {
     var queryFrom = "1978/01/01"
     var queryTo = "2007/12/31"
     var limit = 1800000
-    var k = 1000
+    var k = 15
     var algo = "DMC"
     var master = "local[*]"
     var section = false
