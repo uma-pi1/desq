@@ -56,11 +56,11 @@ In order to run the system it has to be compiled once with maven to generate the
 This Example will run DESQ-MultiCOUNT on the section Business and Science of the NYT magazine.
 thesis_experiments.sh contains more examples for running the system.
 
-`mvn compile && mvn exec:java -Dexec.mainClass="de.uni_mannheim.desq.examples.spark.DesqCompareExample" -Dexec.args="--master=local --algo=DMC --patexp=\"(DT JJ+? NN NN?)\" --limit=10000 --sigma=10 --parts=256 --from=1978/01/01 --to=2007/12/31 --q1=Business --q2=Science  --in=data/thesis_example --data=data/thesis_processed --out=data/thesis_processed --index=thesis --section=true"`
+`mvn compile && mvn exec:java -Dexec.mainClass="de.uni_mannheim.desq.examples.spark.DesqCompareExample" -Dexec.args="--master=local --algo=DMC --patexp=\"(DT JJ+? NN NN?)\" --limit=10000 --sigma=10 --parts=96 --from=1978/01/01 --to=2007/12/31 --q1=Business --q2=Science  --in=data/thesis_example --data=data/thesis_processed --out=data/thesis_processed --index=thesis --section=true"`
 
 
 Compile and run an example under Windows with more memory:
-`set MAVEN_OPTS=-Xms4096m -Xmx4096m -Xss4m && mvn compile && mvn exec:java -Dexec.mainClass="de.uni_mannheim.desq.examples.spark.DesqCompareExample" -Dexec.args="--master=local --algo=DMC --patexp=\"(DT JJ+? NN NN?)\" --limit=10000 --sigma=10 --parts=256 --from=1978/01/01 --to=2007/12/31 --q1=Business --q2=Science  --in=data/thesis_example --data=data/thesis_processed --out=data/thesis_processed --index=thesis --section=true"`
+`set MAVEN_OPTS=-Xms4096m -Xmx4096m -Xss4m && mvn compile && mvn exec:java -Dexec.mainClass="de.uni_mannheim.desq.examples.spark.DesqCompareExample" -Dexec.args="--master=local --algo=DMC --patexp=\"(DT JJ+? NN NN?)\" --limit=10000 --sigma=10 --parts=96 --from=1978/01/01 --to=2007/12/31 --q1=Business --q2=Science  --in=data/thesis_example --data=data/thesis_processed --out=data/thesis_processed --index=thesis --section=true"`
 
 Compile and run an example under Linux with more memory:
-`export MAVEN_OPTS=-Xms4096m -Xmx4096m -Xss4m && mvn compile && mvn exec:java -Dexec.mainClass="de.uni_mannheim.desq.examples.spark.DesqCompareExample" -Dexec.args="--master=local --algo=DMC --patexp=\"(DT JJ+? NN NN?)\" --limit=10000 --sigma=10 --parts=256 --from=1978/01/01 --to=2007/12/31 --q1=Business --q2=Science  --in=data/thesis_example --data=data/thesis_processed --out=data/thesis_processed --index=thesis --section=true"`
+`export MAVEN_OPTS=-Xms4096m -Xmx4096m -Xss4m && mvn compile && mvn exec:java -Dexec.mainClass="de.uni_mannheim.desq.examples.spark.DesqCompareExample" -Dexec.args="--master=local --algo=DMC --patexp=\"(DT JJ+? NN NN?)\" --limit=10000 --sigma=10 --parts=96 --from=1978/01/01 --to=2007/12/31 --q1=Business --q2=Science  --in=data/thesis_example --data=data/thesis_processed --out=data/thesis_processed --index=thesis --section=true"`
