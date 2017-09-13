@@ -381,4 +381,70 @@ object DesqDataset {
     result.dictBroadcast = dictBroadcast
     result
   }
+
+  /** Convert standard desq sequences to itemsets
+    * Sort sequences of item in canonical order and remove duplicates
+    * Created by sulbrich on 13.09.2017
+    */
+  def buildItemsetsFromStrings(rawData: RDD[Array[String]]): DesqDataset = {
+    val parse = (strings: Array[String], seqBuilder: DictionaryBuilder) => {
+      seqBuilder.newSequence(1)
+
+      //Sort Todo: Alphabetical? Frequencies?
+      //scala.util.Sorting.quickSort(strings)
+      //scala.util.Sorting.stableSort(strings, ...)
+
+      def sortNumerical(s1: String, s2: String) = {
+        s1.toInt < s2.toInt
+      }
+      val stringsSorted = strings.sortWith(sortNumerical)
+
+      //Store sorted elements just once (itemset) in sequence
+      var lastElement:String = ""
+      for (string <- stringsSorted) {
+        if (lastElement != string){
+          seqBuilder.appendItem(string)
+          lastElement = string
+        }
+      }
+    }
+    build[Array[String]](rawData, parse)
+  }
+
+  def buildItemsets[T:scala.reflect.ClassTag](rawData: RDD[Array[T]]): DesqDataset = {
+   /* def isSubtype[T: scala.reflect.runtime.universe.TypeTag, S: scala.reflect.runtime.universe.TypeTag](x: T, y: S): Boolean = {
+      val leftTag = scala.reflect.runtime.universe.typeTag[T]
+      val rightTag = scala.reflect.runtime.universe.typeTag[S]
+      leftTag.tpe <:< rightTag.tpe
+    }*/
+
+    var lastElement:T = None.asInstanceOf[T]
+
+
+    val parse = (elements: Array[T], seqBuilder: DictionaryBuilder) => {
+      seqBuilder.newSequence(1)
+
+      //Sort Todo: Alphabetical? Frequencies?
+
+     /* if(isSubtype(elements(0),Class[Ordering[_]].getClass)) {
+
+
+        scala.util.Sorting.quickSort(elements) //Quicksort is based on Ordering Framework or primitive values
+        print("Sort based on Ordering")
+      }else{ */
+      scala.util.Sorting.stableSort[T](elements, (e1:T, e2:T) => {
+          String.valueOf(e1) < String.valueOf(e2) //Fallback: Conversion to string must work anyways
+        })
+      //print("Sort based on Fallback")   }
+
+      //Store sorted elements just once (itemset) in sequence
+      for (e <- elements) {
+        if (!lastElement.equals(e)){
+          seqBuilder.appendItem(String.valueOf(e))
+          lastElement = e
+        }
+      }
+    }
+    build[Array[T]](rawData, parse)
+  }
 }
