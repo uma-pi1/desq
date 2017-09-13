@@ -382,11 +382,8 @@ object DesqDataset {
     result
   }
 
-  /** Convert standard desq sequences to itemsets
-    * Sort sequences of item in canonical order and remove duplicates
-    * Created by sulbrich on 13.09.2017
-    */
-  def buildItemsetsFromStrings(rawData: RDD[Array[String]]): DesqDataset = {
+
+  /*def buildItemsetsFromStrings(rawData: RDD[Array[String]]): DesqDataset = {
     val parse = (strings: Array[String], seqBuilder: DictionaryBuilder) => {
       seqBuilder.newSequence(1)
 
@@ -409,33 +406,63 @@ object DesqDataset {
       }
     }
     build[Array[String]](rawData, parse)
-  }
+  }*/
 
-  def buildItemsets[T:scala.reflect.ClassTag](rawData: RDD[Array[T]]): DesqDataset = {
-   /* def isSubtype[T: scala.reflect.runtime.universe.TypeTag, S: scala.reflect.runtime.universe.TypeTag](x: T, y: S): Boolean = {
-      val leftTag = scala.reflect.runtime.universe.typeTag[T]
-      val rightTag = scala.reflect.runtime.universe.typeTag[S]
-      leftTag.tpe <:< rightTag.tpe
-    }*/
+  /** Convert standard desq sequences to itemsets
+    * Sort sequences of item in canonical order and remove duplicates
+    * Created by sulbrich on 13.09.2017
+    */
+  def buildItemsets(sourceDataset: DesqDataset): DesqDataset = {
+    val dict:Dictionary = sourceDataset.dict
 
-    var lastElement:T = None.asInstanceOf[T]
+    //Define Parser
+    val parse = (elements: (Array[String],Long), seqBuilder: DictionaryBuilder) => {
+      var lastElement:String = ""
+      val stringElements = elements._1
 
-
-    val parse = (elements: Array[T], seqBuilder: DictionaryBuilder) => {
       seqBuilder.newSequence(1)
 
-      //Sort Todo: Alphabetical? Frequencies?
+      //Sort by Frequencies and Alphabetical
+      scala.util.Sorting.stableSort[String](stringElements, (e1:String, e2:String) => {
+        val fid1 = dict.fidOf(e1)
+        val fid2 = dict.fidOf(e2)
+        if ( fid1  == fid2 ){
+          e1 < e2 //Fallback: Sort alphabetical
+        }else{
+          fid1 < fid2
+        }
+      })
 
-     /* if(isSubtype(elements(0),Class[Ordering[_]].getClass)) {
+      //Store sorted elements just once (itemset) in sequence
+      for (e <- stringElements) {
+        if (!lastElement.equals(e)){
+          seqBuilder.appendItem(e)
+          lastElement = e
+        }
+      }
+    }
 
+    //Build new DesqDataset
+    build[(Array[String],Long)](sourceDataset.toSidsWeightPairs(), parse)
+  }
 
-        scala.util.Sorting.quickSort(elements) //Quicksort is based on Ordering Framework or primitive values
-        print("Sort based on Ordering")
-      }else{ */
+  def buildItemsets[T:scala.reflect.ClassTag](data: RDD[Array[T]], dict: Dictionary): DesqDataset = {
+    //Define Parser
+    val parse = (elements: Array[T], seqBuilder: DictionaryBuilder) => {
+      var lastElement:T = None.asInstanceOf[T]
+
+      seqBuilder.newSequence(1)
+
+      //Sort by Frequencies and Alphabetical
       scala.util.Sorting.stableSort[T](elements, (e1:T, e2:T) => {
-          String.valueOf(e1) < String.valueOf(e2) //Fallback: Conversion to string must work anyways
+          val fid1 = dict.fidOf(String.valueOf(e1))
+          val fid2 = dict.fidOf(String.valueOf(e2))
+          if ( fid1  == fid2 ){
+            String.valueOf(e1) < String.valueOf(e2) //Fallback: Sort alphabetical
+          }else{
+            fid1 < fid2
+          }
         })
-      //print("Sort based on Fallback")   }
 
       //Store sorted elements just once (itemset) in sequence
       for (e <- elements) {
@@ -445,6 +472,8 @@ object DesqDataset {
         }
       }
     }
-    build[Array[T]](rawData, parse)
+
+    //Build new DesqDataset
+    build[Array[T]](data, parse)
   }
 }
