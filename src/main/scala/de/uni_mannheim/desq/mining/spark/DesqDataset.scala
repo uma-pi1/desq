@@ -383,31 +383,6 @@ object DesqDataset {
   }
 
 
-  /*def buildItemsetsFromStrings(rawData: RDD[Array[String]]): DesqDataset = {
-    val parse = (strings: Array[String], seqBuilder: DictionaryBuilder) => {
-      seqBuilder.newSequence(1)
-
-      //Sort Todo: Alphabetical? Frequencies?
-      //scala.util.Sorting.quickSort(strings)
-      //scala.util.Sorting.stableSort(strings, ...)
-
-      def sortNumerical(s1: String, s2: String) = {
-        s1.toInt < s2.toInt
-      }
-      val stringsSorted = strings.sortWith(sortNumerical)
-
-      //Store sorted elements just once (itemset) in sequence
-      var lastElement:String = ""
-      for (string <- stringsSorted) {
-        if (lastElement != string){
-          seqBuilder.appendItem(string)
-          lastElement = string
-        }
-      }
-    }
-    build[Array[String]](rawData, parse)
-  }*/
-
   /** Convert standard desq sequences to itemsets
     * Sort sequences of item in canonical order and remove duplicates
     * Created by sulbrich on 13.09.2017
@@ -422,15 +397,9 @@ object DesqDataset {
 
       seqBuilder.newSequence(1)
 
-      //Sort by Frequencies and Alphabetical
+      //Sort by Frequencies
       scala.util.Sorting.stableSort[String](stringElements, (e1:String, e2:String) => {
-        val fid1 = dict.fidOf(e1)
-        val fid2 = dict.fidOf(e2)
-        if ( fid1  == fid2 ){
-          e1 < e2 //Fallback: Sort alphabetical
-        }else{
-          fid1 < fid2
-        }
+        dict.fidOf(String.valueOf(e1)) > dict.fidOf(String.valueOf(e2)) //Sort by f(requency)id descending
       })
 
       //Store sorted elements just once (itemset) in sequence
@@ -455,13 +424,14 @@ object DesqDataset {
 
       //Sort by Frequencies and Alphabetical
       scala.util.Sorting.stableSort[T](elements, (e1:T, e2:T) => {
-          val fid1 = dict.fidOf(String.valueOf(e1))
-          val fid2 = dict.fidOf(String.valueOf(e2))
-          if ( fid1  == fid2 ){
-            String.valueOf(e1) < String.valueOf(e2) //Fallback: Sort alphabetical
-          }else{
-            fid1 < fid2
-          }
+        /*val fid1 = dict.fidOf(String.valueOf(e1))
+        val fid2 = dict.fidOf(String.valueOf(e2))
+        if ( fid1  == fid2 ){
+          String.valueOf(e1) < String.valueOf(e2) //Fallback: Sort alphabetical
+        }else{
+          fid1 > fid2 //Sort by f(requency)id descending
+        }*/
+        dict.fidOf(String.valueOf(e1)) > dict.fidOf(String.valueOf(e2)) //Sort by f(requency)id descending
         })
 
       //Store sorted elements just once (itemset) in sequence
