@@ -26,12 +26,14 @@ object DesqItemsetBuilderExample extends App {
   println("--")
   */
 
-  val sourceDataset = DesqDataset.load("data-local/nyt-1991-data") //data-local/small
-  val data = DesqDataset.buildItemsets(sourceDataset = sourceDataset)
+  //val sourceDataset = DesqDataset.load("data-local/nyt-1991-data") //data-local/small
+  val sourceDataset = sc.textFile("data-local/fimi_retail/retail.dat").map(s => s.split(" "))
+  val data = DesqDataset.buildItemsets(sourceDataset)
   data.print(5)
   //print fids for first example
   for (sid <- data.toSidsWeightPairs().first()._1){
-    println("sid = " + sid + ": fid = " + sourceDataset.dict.fidOf(sid))
+    //println("sid = " + sid + ": fid = " + sourceDataset.dict.fidOf(sid))
+    println("sid = " + sid + ": fid = " + data.dict.fidOf(sid))
   }
 
 
