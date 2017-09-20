@@ -415,26 +415,44 @@ object DesqDataset {
     build[(Array[String],Long)](sourceDataset.toSidsWeightPairs(), parse)
   }
 
-  def buildItemsets[T:scala.reflect.ClassTag](data: RDD[Array[T]], dict: Dictionary): DesqDataset = {
+  /** Convert any data to itemsets
+    * Sort sequences of item in canonical order and remove duplicates
+    * Created by sulbrich on 20.09.2017
+    *
+    * @param data the input data as an RDD
+    * @param extDict: If external dict provided: take it always; else use SequenceBuilder->Dict or none
+    */
+  //If external dict provided: take it always
+  //Else If SequenceBuilder is provided: take its dict
+  def buildItemsets[T:scala.reflect.ClassTag](data: RDD[Array[T]], extDict: Option[Dictionary]): DesqDataset = {
     //Define Parser
     val parse = (elements: Array[T], seqBuilder: DictionaryBuilder) => {
       var lastElement:T = None.asInstanceOf[T]
+      var dict:Dictionary = null
+      if (extDict.isEmpty){
+        seqBuilder match {
+          case dsb: DefaultSequenceBuilder =>
+            dict = dsb.getDict
+          case _ =>
+            dict = new Dictionary //Fallback: Empty dictionary TODO: better handling?
+        }
+      }else{ //external Dict provided
+        dict = extDict.get
+      }
 
       seqBuilder.newSequence(1)
 
-      //Sort by Frequencies and Alphabetical
-      scala.util.Sorting.stableSort[T](elements, (e1:T, e2:T) => {
-        /*val fid1 = dict.fidOf(String.valueOf(e1))
-        val fid2 = dict.fidOf(String.valueOf(e2))
-        if ( fid1  == fid2 ){
-          String.valueOf(e1) < String.valueOf(e2) //Fallback: Sort alphabetical
+      //Sort by Frequencies if dict provided, else alphabetical (for consistent duplicate removal)
+      scala.util.Sorting.stableSort[T](elements, (e1: T, e2: T) => {
+        if(dict.size() > 0) {
+          dict.fidOf(String.valueOf(e1)) > dict.fidOf(String.valueOf(e2)) //Sort by f(requency)id descending
         }else{
-          fid1 > fid2 //Sort by f(requency)id descending
-        }*/
-        dict.fidOf(String.valueOf(e1)) > dict.fidOf(String.valueOf(e2)) //Sort by f(requency)id descending
-        })
+          String.valueOf(e1) > String.valueOf(e2)  //Fallback: Alphabetical sort
+        }
+      })
 
       //Store sorted elements just once (itemset) in sequence
+      //For itemsets dfreq = cfreq -> duplicate removal in any case (dict and sequence construction)
       for (e <- elements) {
         if (!lastElement.equals(e)){
           seqBuilder.appendItem(String.valueOf(e))
