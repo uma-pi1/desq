@@ -48,4 +48,9 @@ public class DefaultSequenceBuilder implements SequenceBuilder {
     public IntList getCurrentGids() {
         return currentGids;
     }
+
+    /**Enable to call Dictionary via SequenceBuilder (added by sulbrich)  */
+    public Dictionary getDict() {
+        return dict;
+    }
 }
