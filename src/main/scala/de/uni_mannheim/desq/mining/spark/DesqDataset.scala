@@ -464,4 +464,8 @@ object DesqDataset {
     //Build new DesqDataset
     build[Array[T]](data, parse)
   }
+
+  def buildItemsets[T:scala.reflect.ClassTag](data: RDD[Array[T]]): DesqDataset = {
+    buildItemsets(data, None)
+  }
 }
