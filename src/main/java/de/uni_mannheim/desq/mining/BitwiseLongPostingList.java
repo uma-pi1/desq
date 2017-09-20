@@ -3,7 +3,7 @@ package de.uni_mannheim.desq.mining;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 /**
- *
+ * 
  * @author Kai
  */
 public final class BitwiseLongPostingList extends AbstractPostingList{
@@ -17,7 +17,7 @@ public final class BitwiseLongPostingList extends AbstractPostingList{
     
     private boolean wroteData;
     
-    /** Constructs a new empty posting list */
+    /** Constructs a new empty posting list. */
     public BitwiseLongPostingList() {
         data = new LongArrayList();
         control = new LongArrayList();
@@ -32,25 +32,29 @@ public final class BitwiseLongPostingList extends AbstractPostingList{
         
         final int b = value;
 
-        // Get number of data bits from the current value
+        // Get the number of data bits from the current value.
         int lengthB = 32 - Integer.numberOfLeadingZeros(b);
                 
-        // Check if data bits fit into the last int
+        // Check if data bits fit into the current long value.
         if(lengthB <= freeBits){
             
             freeBits -= lengthB;
 
+            // Write data and control data.
             currentData |= ((long)b << freeBits);
             currentControl |= ((long)1 << freeBits);
-                        
+            
+            // Add long values to the arrays.
             if(freeBits == 0){
-                if(wroteData){
+                
+                // Check if last value was already added to the array.
+                if(!wroteData){
+                    data.add(currentData);
+                    control.add(currentControl);
+                } else {
                     data.set(data.size() - 1, currentData);
                     control.set(control.size() - 1, currentControl);
                     wroteData = false;
-                } else {
-                    data.add(currentData);
-                    control.add(currentControl);
                 }
                 
                 currentData = 0;
@@ -58,17 +62,19 @@ public final class BitwiseLongPostingList extends AbstractPostingList{
                 freeBits = 64;
             }
         } else {
-            if(wroteData){
+            // Add first part of the integer value to the current long.
+            if(!wroteData){
+                data.add(currentData |= ((long)b >>> (lengthB - freeBits)));
+                control.add(currentControl);
+            } else {
                 data.set(data.size() - 1, currentData |= ((long)b >>> (lengthB - freeBits)));
                 control.set(control.size() - 1, currentControl);
                 wroteData = false;
-            } else {
-                data.add(currentData |= ((long)b >>> (lengthB - freeBits)));
-                control.add(currentControl);
             }
 
             freeBits = 64 - (lengthB - freeBits);
             
+            // Add second part of the integer to a new long value.
             currentData = (long)b << freeBits;
             currentControl = (long)1 << freeBits;
         }     
@@ -100,12 +106,15 @@ public final class BitwiseLongPostingList extends AbstractPostingList{
     @Override
     public void trim() {
         data.trim();
+        control.trim();
     }
 
     @Override
     public void newPosting() {
         noPostings++;
         if (noPostings>1){ // first posting does not need separator
+            
+            // A '1' is added to the control long value and a '0' to the data long value.
             freeBits--;
             currentControl |= ((long)1 << freeBits);
         
@@ -143,6 +152,7 @@ public final class BitwiseLongPostingList extends AbstractPostingList{
         private int count;
         private int noPostings;
         
+        /** Sets up an emtpy iterator. */
         public Iterator(){
             this.data = null;
             this.control = null;
@@ -157,10 +167,12 @@ public final class BitwiseLongPostingList extends AbstractPostingList{
             this.noPostings = 0;
         }
         
+        /** Sets up an iterator with a given posting list. */
         public Iterator(BitwiseLongPostingList postingList){
             this.data = postingList.data;
             this.control = postingList.control;
             
+            // Set last control/data long value if neccessary.
             if(postingList.wroteData){
                 this.data.set(postingList.data.size() - 1, postingList.currentData);
                 this.control.set(postingList.control.size() - 1, postingList.currentControl);
@@ -181,6 +193,7 @@ public final class BitwiseLongPostingList extends AbstractPostingList{
             this.data = postingListTmp.data;
             this.control = postingListTmp.control;
             
+            // Set last control/data long value if neccessary.
             if(postingListTmp.wroteData){
                 this.data.set(postingListTmp.data.size() - 1, postingListTmp.currentData);
                 this.control.set(postingListTmp.control.size() - 1, postingListTmp.currentControl);
@@ -210,21 +223,27 @@ public final class BitwiseLongPostingList extends AbstractPostingList{
         public int nextNonNegativeIntIntern() {
             int returnValue;
             
+            // Check if the data is split into two parts.
             if(currentControl == 0){
+                // Add first part to the return value.
                 returnValue = (int) currentData;
 
+                // Get second long value from the data/control array.
                 offset++;
                 currentData = this.data.getLong(offset);
                 currentControl = this.control.getLong(offset);
                 
                 internalOffset = Long.numberOfLeadingZeros(currentControl) + 1;
-                                
+                
+                // Add second part to the return value.
                 returnValue = (returnValue << internalOffset) | (int) (currentData >>> (64 - internalOffset));
             } else {
                 internalOffset = Long.numberOfLeadingZeros(currentControl) + 1;
 
+                // Get the integer value from the long value
                 returnValue = (int)(currentData >>> (64 - internalOffset));
 
+                // Get next control/data long value.
                 if(internalOffset == 64){
                     offset++;
                     
@@ -235,6 +254,7 @@ public final class BitwiseLongPostingList extends AbstractPostingList{
                 }
             }
             
+            // 'Delete' read data from the control/data long value.
             if(internalOffset != 0){
                 long mask = (((long)1 << (64 - internalOffset)) - 1);
                 currentControl &= mask;
@@ -250,10 +270,8 @@ public final class BitwiseLongPostingList extends AbstractPostingList{
                 return false;
             }
 
-            int b;
-            do {
-                b = this.nextNonNegativeIntIntern();
-            } while (b!=0);
+            while(this.nextNonNegativeIntIntern() != 0) {};
+
             count++;
             return true;
         }

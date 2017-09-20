@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package de.uni_mannheim.desq.mining;
 
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
@@ -17,13 +12,16 @@ public abstract class AbstractIterator {
         /** The offset at which to read. Intentionally public; use with care. */
         public int offset;
 
+        /** Resets the posting list to an empty posting list. */
         abstract public void reset();
-                
+        
+        /** Resets the posting list to a given posting list. */
         abstract public void reset(AbstractPostingList postingList);
         
         /** Is there another value in the current posting? */
         abstract public boolean hasNext();
 
+        /** Get the next value of the current posting. Invokes the unimplemented nextNonNegativeIntIntern() method. */
         public int nextNonNegativeInt(){
             return this.nextNonNegativeIntIntern() - 1;
         }

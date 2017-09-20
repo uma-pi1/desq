@@ -5,7 +5,8 @@ package de.uni_mannheim.desq.mining;
  * @author Kai
  */
 public abstract class AbstractPostingList {
-        
+    
+    // Number of postings in the posting list
     protected int noPostings;
 
     /** Constructs a new empty posting list */
@@ -17,11 +18,10 @@ public abstract class AbstractPostingList {
      * the current posting. */
     protected abstract void addNonNegativeIntIntern(int value);
         
-    /** Clears this posting list. Reset number of postings. */
+    /** Clears this posting list. Resets the number of postings. */
     public abstract void clear();
 
-    /** Returns the number of bytes using by this posting list. If an additional element is appended to this posting
-     * list, it starts at the offset given by this method. */
+    /** Returns the number of bytes used by this posting list. */
     public abstract int noBytes();
 
     /** Trims this posting list (so that the capacity of the underlying byte array equals the number of bytes
@@ -37,8 +37,7 @@ public abstract class AbstractPostingList {
         return noPostings;
     }
     
-    /** Appends a non-negative integer value to the current posting. Encoded slightly more efficiently than
-     * appending general integers (see {@link #addNonNegativeInt(int)}). */
+    /** Appends a non-negative integer value to the current posting. */
     public final void addNonNegativeInt(int value) {
         this.addNonNegativeIntIntern(value + 1);
     }

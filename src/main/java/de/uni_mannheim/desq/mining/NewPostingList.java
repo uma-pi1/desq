@@ -1,15 +1,10 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package de.uni_mannheim.desq.mining;
 
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 
 /**
  *
- * @author Kai-Arne
+ * @author Kai-Arne (implementation of methods by Kaustubh Beedkar and Rainer Gemulla)
  */
 public class NewPostingList extends AbstractPostingList{
 
@@ -113,8 +108,8 @@ public class NewPostingList extends AbstractPostingList{
 
             int b;
             do {
-                b = this.nextNonNegativeIntIntern();
-                //offset++;
+                b = data.getByte(offset);
+                offset++;
                 if (offset >= data.size())
                     return false;
             } while (b!=0);

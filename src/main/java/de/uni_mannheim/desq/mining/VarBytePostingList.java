@@ -18,6 +18,7 @@ public class VarBytePostingList extends AbstractPostingList{
     
     private boolean wroteData;
     
+    /** Sets up a new empty posting list. */
     public VarBytePostingList() {
         this.data = new ByteArrayList();
         this.controlData = new LongArrayList();
@@ -32,6 +33,7 @@ public class VarBytePostingList extends AbstractPostingList{
     public void addNonNegativeIntIntern(int value){
         int dataCount = 0;
         
+        // Check the number of bytes and add the integer value byte wise to the posting list.
         if(value >>> 8 == 0){
             data.add((byte)(value & 0xFF));
             dataCount = 0;
@@ -52,9 +54,9 @@ public class VarBytePostingList extends AbstractPostingList{
             dataCount = 3;
         }
         
+        // Add the two control data bits.
         switch(dataCount){
             case 0:
-                this.controlDataLong |= 0;
                 break;
             case 1:
                 this.controlDataLong |= (long) 1 << bitsWritten;
@@ -67,7 +69,9 @@ public class VarBytePostingList extends AbstractPostingList{
                 break;
         }
         
-        if(bitsWritten == 62){
+        if(!(bitsWritten == 62)){
+            bitsWritten += 2;
+        } else {
             if(this.wroteData){
                 this.controlData.set(this.controlData.size() - 1, controlDataLong);
                 this.wroteData = false;
@@ -77,8 +81,6 @@ public class VarBytePostingList extends AbstractPostingList{
             
             this.controlDataLong = 0;
             this.bitsWritten = 0;
-        } else {
-            bitsWritten += 2;
         }
     }
     
@@ -139,7 +141,8 @@ public class VarBytePostingList extends AbstractPostingList{
         
         private int noPostings;
         private int count;
-                
+        
+        /** Sets up a new empty iterator. */
         public Iterator(){
             this.data = null;
             this.controlData = null;
@@ -154,6 +157,7 @@ public class VarBytePostingList extends AbstractPostingList{
             this.noPostings = 0;
         }
         
+        /** Sets up a new iterator for the given posting list. */
         public Iterator(VarBytePostingList postingList) {
             this.data = postingList.data;
             this.controlData = postingList.controlData;
@@ -208,6 +212,7 @@ public class VarBytePostingList extends AbstractPostingList{
             returnValue = (this.data.getByte(this.offset) & 0xFF);
             this.offset++;
             
+            // Get the integer value by first reading the two control bits.
             switch((int) ((controlDataLongLocal) & 3)){
                 case 0:
                     break;
@@ -249,10 +254,8 @@ public class VarBytePostingList extends AbstractPostingList{
                 return false;
             }
 
-            int b;
-            do {
-                b = this.nextNonNegativeIntIntern();
-            } while (b!=0);
+            while(this.nextNonNegativeIntIntern() != 0) {};
+            
             count++;
             return true;
         }

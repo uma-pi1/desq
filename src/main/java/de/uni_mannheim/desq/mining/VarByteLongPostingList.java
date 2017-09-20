@@ -20,6 +20,7 @@ public class VarByteLongPostingList extends AbstractPostingList{
     private boolean wroteData;
     private boolean wroteControl;
     
+    /** Sets up a new empty posting list. */
     public VarByteLongPostingList(){   
         this.data = new LongArrayList();
         this.control = new LongArrayList();
@@ -32,26 +33,16 @@ public class VarByteLongPostingList extends AbstractPostingList{
         
         int dataCount = 0;
         
+        // Get the number of bytes (bits to simplify shifting).
         if((value >>> 8) == 0) {dataCount = 8;}
         else if((value >>> 16) == 0) {dataCount = 16;}
         else if((value >>> 24) == 0) {dataCount = 24;}
         else {dataCount = 32;}
         
         int freeBits = 64 - this.dataOffset;
-                
-        if(freeBits < dataCount){
-            assert dataOffset != 64;
-            
-            if(this.wroteData){
-                this.data.set(this.data.size() - 1, currentData | ((long)value << this.dataOffset));
-                this.wroteData = false;
-            } else {
-                this.data.add(currentData | ((long)value << this.dataOffset));
-            }
-            
-            this.dataOffset = (dataCount - freeBits);
-            currentData = (long)value >>> freeBits;
-        } else {
+        
+        // Check if the integer value fits in the current long value.
+        if(freeBits >= dataCount){            
             currentData |= ((long)value << this.dataOffset);
             
             this.dataOffset += dataCount;
@@ -67,23 +58,21 @@ public class VarByteLongPostingList extends AbstractPostingList{
                 this.currentData = 0;
                 this.dataOffset = 0;
             }
+        } else {
+            if(this.wroteData){
+                this.data.set(this.data.size() - 1, currentData | ((long)value << this.dataOffset));
+                this.wroteData = false;
+            } else {
+                this.data.add(currentData | ((long)value << this.dataOffset));
+            }
+            
+            this.dataOffset = (dataCount - freeBits);
+            currentData = (long)value >>> freeBits;
         }
 
+        // Set the two control data bits
         if(dataCount > 8)
             this.currentControl |= ((dataCount >>> 3L) - 1L) << controlOffset;
-        /*switch(dataCount){
-            case 8:
-                break;
-            case 16:
-                this.currentControl |= 1L << controlOffset;
-                break;
-            case 24:
-                this.currentControl |= 2L << controlOffset;
-                break;
-            case 32:
-                this.currentControl |= 3L << controlOffset;
-                break;
-        }*/
         
         controlOffset += 2;
         
@@ -98,48 +87,13 @@ public class VarByteLongPostingList extends AbstractPostingList{
             this.currentControl = 0;
             this.controlOffset = 0;
         }
-        
-        /*controlOffset = (controlOffset + 2) & 63;
-    
-        if(controlOffset == 0){
-            this.control.add(currentControl);
-            this.currentControl = 0;
-        }*/
     }
 
     @Override
     public void newPosting(){
         noPostings++;
-        if (noPostings>1){ // first posting does not need separator            
+        if (noPostings>1) // first posting does not need separator            
             this.addNonNegativeIntIntern(0);
-            /*
-            dataOffset += 8;
-            controlOffset += 2;
-
-            if(dataOffset == 64){
-                if(this.wroteData){
-                    this.data.set(this.data.size() - 1, currentData);
-                    this.wroteData = false;
-                } else {
-                    this.data.add(currentData);
-                }
-                
-                this.currentData = 0;
-                this.dataOffset = 0;
-            }
-            
-            if(controlOffset == 64){
-                if(this.wroteControl){
-                    this.control.set(this.control.size() - 1, currentControl);
-                    this.wroteControl = false;
-                } else {
-                    this.control.add(currentControl);
-                }
-                
-                this.currentControl = 0;
-                this.controlOffset = 0;
-            }*/
-        }
     }
     
     @Override
@@ -192,6 +146,7 @@ public class VarByteLongPostingList extends AbstractPostingList{
         private int noPostings;
         private int count;
         
+        /** Sets up a new empty iterator. */
         public Iterator(){
             this.data = null;
             this.control = null;
@@ -204,10 +159,10 @@ public class VarByteLongPostingList extends AbstractPostingList{
             this.currentData = 0;
             this.currentControl = 0;
             
-            //
             this.count = 1;
         }
         
+        /** Sets up an iterator for the given posting list. */
         public Iterator(VarByteLongPostingList postingList){
             this.data = postingList.data;
             this.control = postingList.control;
@@ -226,12 +181,12 @@ public class VarByteLongPostingList extends AbstractPostingList{
                 postingList.wroteControl = true;
             }
             
-            
             this.noPostings = postingList.noPostings;
             
             this.reset();
         }
         
+        /** Resets the iterator. */
         public void reset(){
             this.dataOffset = 0;
             this.controlOffset = 0;
@@ -240,8 +195,7 @@ public class VarByteLongPostingList extends AbstractPostingList{
             
             this.currentData = this.data.getLong(dataOffset);
             this.currentControl = this.control.getLong(controlOffset);
-            
-            //
+
             this.count = 1;
         }
         
@@ -272,14 +226,19 @@ public class VarByteLongPostingList extends AbstractPostingList{
         }
         
         @Override
-        int nextNonNegativeIntIntern() {            
+        int nextNonNegativeIntIntern() {
+            // Get the number of bytes (bits to simplify shifting) to read.
             int dataCount = (int) (((currentControl) & 3) + 1) * 8;
             
             int possibleBits = 64 - internalControlOffset;
             
             int returnValue = (int) ((this.currentData & ((1L << dataCount) - 1)));
             
-            if(dataCount > possibleBits){                
+            // Check if the integer value is partiioned onto two long values.
+            if(dataCount <= possibleBits){
+                this.currentData >>>= dataCount;
+                this.internalControlOffset += dataCount;
+            } else {
                 this.dataOffset++;
                 this.currentData = this.data.getLong(this.dataOffset);
 
@@ -288,9 +247,6 @@ public class VarByteLongPostingList extends AbstractPostingList{
                 this.internalControlOffset = dataCount - possibleBits;
                 
                 this.currentData >>>= this.internalControlOffset;
-            } else {
-                this.currentData >>>= dataCount;
-                this.internalControlOffset += dataCount;
             }
             
             if(this.internalControlOffset == 64){
@@ -307,14 +263,6 @@ public class VarByteLongPostingList extends AbstractPostingList{
                 this.controlOffset++;
                 this.currentControl = this.control.getLong(this.controlOffset);
             }
-            
-            /*internalOffset = (internalOffset + 2) & 63;
-            controlDataLongLocal >>= 2;
-            
-            if(internalOffset == 0){
-                controlOffset++;
-                controlDataLongLocal = this.controlData.getLong(this.controlOffset);
-            }*/
             
             return returnValue;
         }

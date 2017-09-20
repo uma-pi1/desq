@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package de.uni_mannheim.desq.mining;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -15,6 +10,7 @@ public class IntegerPostingList extends AbstractPostingList{
 
     private IntArrayList data;
 
+    /** Sets up an empty posting list. */
     public IntegerPostingList() {
         data = new IntArrayList();
     }
@@ -48,16 +44,19 @@ public class IntegerPostingList extends AbstractPostingList{
 
         private IntArrayList data;
         
+        /** Sets up an empty iterator. */
         public Iterator(){
             this.data = null;
             this.offset = 0;
         }
         
+        /** Sets up an iterator for the given posting list. */
         public Iterator(IntegerPostingList postingList) {
             this.data = postingList.data;
             this.offset = 0;
         }
         
+        /** Resets the posting list. */
         public void reset(){
             this.offset = 0;
         }

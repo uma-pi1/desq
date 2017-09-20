@@ -16,6 +16,7 @@ public class EliasGammaPostingList extends AbstractPostingList{
     
     private boolean wroteData;
     
+    /** Sets up a new empty posting list */
     public EliasGammaPostingList() {
         data = new LongArrayList();
         this.currentData = 0;
@@ -26,14 +27,22 @@ public class EliasGammaPostingList extends AbstractPostingList{
 
     @Override
     public void addNonNegativeIntIntern(int value){
+        assert value >= 0;
         
+        // Add '1' to value to encode the seperator '0'.
         value += 1;
         
+        // Get number of bits used by the integer value.
         int length = 32 - Integer.numberOfLeadingZeros(value);
-        int totalLength = 2 * length - 1;
         
-        if(freeBits >= totalLength){            
-            this.currentData |= ((long) value) << (freeBits -= totalLength);
+        // Calculate length when the integer value is Elias Gamma encoded.
+        int lengthEncoded = 2 * length - 1;
+        
+        // Check if the integer value, being Elias Gamma encoded, fits into the current data long value.
+        if(freeBits >= lengthEncoded){
+            
+            // Add value to the current data long in the correct position.
+            this.currentData |= ((long) value) << (freeBits -= lengthEncoded);
             
             if(freeBits == 0){
                 freeBits = 64;
@@ -46,31 +55,37 @@ public class EliasGammaPostingList extends AbstractPostingList{
                 this.currentData = 0;
             }
         } else {
+            
+            // Check if the data bits fit into the current long value.
             if(length - 1 >= freeBits){
+                // Calculate part that is moved to the next long value.
                 int toAdd = (length - 1) - freeBits;
                 freeBits = 64;
                 
-                if(wroteData){
+                if(!wroteData){
+                    data.add(currentData);
+                } else {
                     data.set(data.size() - 1, currentData);
                     wroteData = false;
-                } else {
-                    data.add(currentData);
                 }
                 
+                // Add second part to the next long value.
                 currentData = ((long) value) << (freeBits -= (length + toAdd));
-            } else {                
-                int toAdd = totalLength - freeBits;
+            } else {
+                // Calculate position in the next long value.
+                int toAdd = lengthEncoded - freeBits;
                 
                 if(wroteData){
-                    data.set(data.size() - 1, currentData |= ((long) value) >>> (totalLength - freeBits));
+                    data.set(data.size() - 1, currentData |= ((long) value) >>> (lengthEncoded - freeBits));
                     wroteData = false;
                 } else {
-                    data.add(currentData |= ((long) value) >>> (totalLength - freeBits));
+                    data.add(currentData |= ((long) value) >>> (lengthEncoded - freeBits));
                 }
                 
                 freeBits = 64;
                 
-                currentData =((long) value) << (freeBits -= toAdd);
+                // Move data to the correct position in the new long value.
+                currentData = ((long) value) << (freeBits -= toAdd);
             }
         }  
     }
@@ -121,6 +136,7 @@ public class EliasGammaPostingList extends AbstractPostingList{
         
         private int internalOffset;
         
+        /** Sets up new empty iterator. */
         public Iterator(){
             this.data = null;
             this.index = null;
@@ -132,6 +148,7 @@ public class EliasGammaPostingList extends AbstractPostingList{
             this.noPostings = 0;
         }
         
+        /** Sets up new iterator for the given posting list. */
         public Iterator(EliasGammaPostingList postingList){
             this.data = postingList.data;
             
@@ -184,14 +201,19 @@ public class EliasGammaPostingList extends AbstractPostingList{
         }
         
         @Override
-        int nextNonNegativeIntIntern() {                    
-            int leadingZeros = Long.numberOfLeadingZeros(this.currentData) - this.internalOffset;
+        int nextNonNegativeIntIntern() {
+            // Count the number of zeros.
+            int zeros = Long.numberOfLeadingZeros(this.currentData) - this.internalOffset;
             
-            int length = (leadingZeros * 2) + 1;
+            // Calculate the length of the encoded integer value.
+            int lengthEncoded = (zeros * 2) + 1;
             
             int returnValue = 0;
             
-            if((this.internalOffset += length) <= 64){
+            // Check if the whole encoded value is in the current data long value.
+            if((this.internalOffset += lengthEncoded) <= 64){
+                
+                // Read the encoded value.
                 returnValue = (int) (this.currentData >>> (64 - this.internalOffset));
                 
                 if(internalOffset == 64){
@@ -200,17 +222,20 @@ public class EliasGammaPostingList extends AbstractPostingList{
                     this.internalOffset = 0;
                 }
             } else {
+                // Read the next long value.
                 offset++;
                 long tmp = this.data.getLong(offset);
                 
+                // Check if the data starts in the current long value, otherwise continue counting zeros.
                 if((int)(this.currentData << (this.internalOffset - 64)) != 0){
                     this.internalOffset -= 64;
                     
                     returnValue = (int) (this.currentData << this.internalOffset | (tmp >>> 64 - this.internalOffset));
                 } else {
-                    int dataLength = Long.numberOfLeadingZeros(tmp);
+                    // Count zeros of the next long value and add them to the previously counted.
+                    int additionalZeros = Long.numberOfLeadingZeros(tmp);
 
-                    this.internalOffset = (dataLength + (dataLength + leadingZeros)) + 1;
+                    this.internalOffset = (additionalZeros + (additionalZeros + zeros)) + 1;
                     
                     returnValue = (int)(tmp >>> (64 - this.internalOffset));
                 }
@@ -218,6 +243,7 @@ public class EliasGammaPostingList extends AbstractPostingList{
                 this.currentData = tmp;
             }
             
+            // 'Delete' the read data
             if(this.internalOffset != 0){
                 this.currentData &= ((long)1 << 64 - this.internalOffset) - 1;
             }
@@ -246,10 +272,8 @@ public class EliasGammaPostingList extends AbstractPostingList{
                 return false;
             }
 
-            int b;
-            do {
-                b = this.nextNonNegativeIntIntern();
-            } while (b!=0);
+            while(this.nextNonNegativeIntIntern() != 0) {};
+
             count++;
             return true;
         }
