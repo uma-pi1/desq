@@ -1,8 +1,10 @@
 package de.uni_mannheim.desq.examples.spark
 
+import java.util
+
 import de.uni_mannheim.desq.Desq._
 import de.uni_mannheim.desq.mining.spark.{DesqCount, DesqDataset, DesqMiner}
-import de.uni_mannheim.desq.dictionary.{Dictionary}
+import de.uni_mannheim.desq.dictionary.Dictionary
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -15,28 +17,20 @@ object DesqItemsetExample {
     */
   def runItemsetMiner[T](
                           rawData: T,
-                          itemDef:String = ".",
-                          minSupport: Int,
-                          minSize: Int = 2,
+            //              itemDef:String = ".",
+                          generalize: Boolean = true,
+                          minSupport: Double = 0.1,
+                          size: String = "2,",
                           extDict: Option[Dictionary]
                         )(implicit sc: SparkContext): (DesqMiner, DesqDataset) ={
-    //Init Desq for Itemset Mining
-    val patternExpression = "[.*(" + itemDef + ")]{" + minSize + ",}"
-    // .* - arbitrary distance between items (= distance in itemsets is irrelevant)
-    // (.) - captured item
-    // [...]{n,} at least n-times (= n-tuple)
-    val sigma = minSupport
-    val confDesq = DesqCount.createConf(patternExpression, sigma)
-    confDesq.setProperty("desq.mining.prune.irrelevant.inputs", true)
-    confDesq.setProperty("desq.mining.use.two.pass", true)
 
-    //Manage data
+    // --- Manage data
     var data: DesqDataset = null
     rawData match{
       case dds: DesqDataset => //Use existing DesqDataset as basis
         data = DesqDataset.buildItemsets(dds)
       case file: String => //Read from delimited file
-          data = DesqDataset.buildItemsets(sc.textFile(file).map(s => s.split(" ")),extDict)
+        data = DesqDataset.buildItemsets(sc.textFile(file).map(s => s.split(" ")),extDict)
       case rdd: RDD[Array[Any]] =>
         data = DesqDataset.buildItemsets(rdd,extDict)
       case _ =>
@@ -44,8 +38,36 @@ object DesqItemsetExample {
         return (null,null)
     }
 
-    ExampleUtils.runVerbose(data,confDesq)
+    // --- Init Desq for Itemset Mining
+    val itemDef = if (generalize) ".^" else "."
+    val patternExpression = "[.*(" + itemDef + ")]{" + size + "}"
+    // .* - arbitrary distance between items (= distance in itemsets is irrelevant)
+    // (.) - captured item
+    // [...]{n,} at least n-times (= n-tuple)
+    // ^ - generalized output for matched item
+    val sigma = (minSupport * data.sequences.count()).toLong //ToDo: calculation running already? -> persist?
+    val confDesq = DesqCount.createConf(patternExpression, sigma)
+    confDesq.setProperty("desq.mining.prune.irrelevant.inputs", true)
+    confDesq.setProperty("desq.mining.use.two.pass", true)
 
+    //Run Miner
+    val (miner, result) = ExampleUtils.runVerbose(data,confDesq)
+
+    //Print some dictionary data
+    var sids_unique:List[String] = List()
+    for (sids <- result.toSids.collect().toIterable) {
+      for (sid <- sids) {
+        if (!sids_unique.contains(sid)) {
+          sids_unique = sids_unique.::(sid)
+        }
+      }
+    }
+    println("\nRelevant Dictionary Entries:")
+    for(sid <- sids_unique){
+      println(data.dict.toJson(data.dict.fidOf(sid)))
+    }
+
+    (miner, result)
   }
 
 
@@ -60,11 +82,14 @@ object DesqItemsetExample {
     val data = "data-local/fimi_retail/retail.dat" //"data-local/nyt-1991-data"
     //val data = 1
 
+    val dict = Option.apply(Dictionary.loadFrom("data-local/fimi_retail/dict.json",sc))
+
+
     runItemsetMiner(
       rawData =     data,
-      itemDef =     ".",
-      minSupport =  1000,
-      minSize =     2,
-      extDict =     None)
+      generalize =  true,
+      minSupport =  0.05,
+      size    =     "2,3",
+      extDict =     dict)
   }
 }

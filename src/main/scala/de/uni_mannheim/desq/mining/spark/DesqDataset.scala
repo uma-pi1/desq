@@ -277,6 +277,36 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
     else
       strings.take(maxSequences).foreach(println)
   }
+
+  /** Returning just Sids without weight -> easier handling for generic itemset creation
+    * copy of toSidsWeightPairs()
+    * created by sulbrich 22.09.2017) */
+  def toSids: RDD[Array[String]] = {
+    val dictBroadcast = broadcastDictionary()
+    val usesFids = this.usesFids // to localize
+
+    sequences.mapPartitions(rows => {
+      new Iterator[Array[String]] {
+        val dict:Dictionary = dictBroadcast.value
+
+        override def hasNext: Boolean = rows.hasNext
+
+        override def next(): Array[String] = {
+          val s = rows.next()
+          val itemSids = new Array[String](s.size())
+          for (i <- Range(0,s.size())) {
+            if (usesFids) {
+              itemSids(i) = dict.sidOfFid(s.getInt(i))
+            } else {
+              itemSids(i) = dict.sidOfGid(s.getInt(i))
+            }
+          }
+          itemSids
+        }
+      }
+    })
+
+  }
 }
 
 object DesqDataset {
@@ -349,6 +379,10 @@ object DesqDataset {
     * @return the created DesqDataset
     */
   def build[T](rawData: RDD[T], parse: (T, DictionaryBuilder) => _): DesqDataset = {
+    build[T](rawData, parse, None)
+  }
+
+  def build[T](rawData: RDD[T], parse: (T, DictionaryBuilder) => _, extDict: Option[Dictionary]): DesqDataset = {
     // construct the dictionary
     val dict = rawData.mapPartitions(rows => {
       val dictBuilder = new DefaultDictionaryBuilder()
@@ -359,6 +393,36 @@ object DesqDataset {
       Iterator.single(dictBuilder.getDictionary)
     }).treeReduce((d1, d2) => { d1.mergeWith(d2); d1 }, 3)
     dict.recomputeFids()
+
+    //Add provided hierarchy if provided via external dict
+    if (extDict.isDefined){
+      val dictBuilder = new DefaultDictionaryBuilder(dict)
+      val items = dict.sids().iterator()
+      while(items.hasNext){
+        val sid = items.next()
+        addParents(dict.fidOf(sid), sid, extDict.get, dictBuilder)
+      }
+      dictBuilder.newSequence(0)
+      dict.recomputeFids()
+
+      def addParents(childFid: Int,childSid: String, dict:Dictionary, dictBuilder: DefaultDictionaryBuilder): Unit = {
+        //iterate over all parents derived from dict
+        if (dict.containsSid(childSid)) { //sid contained in hierarchy dict?
+          val parents = dict.parentsOf(dict.fidOf(childSid))
+          if (!parents.isEmpty) { //are there parents?
+            for (parent <- parents.toIntArray) {
+              val parentSid = dict.sidOfFid(parent) //derive sid of parent
+              //add parent to new dict
+              val result = dictBuilder.addParent(childFid, parentSid) //(Left: ParentFid, Right: True if new Item)
+              if (result.getRight) {
+                //parent is new -> recursion!
+                addParents(result.getLeft.toInt, parentSid, dict, dictBuilder)
+              }
+            }
+          }
+        }
+      }
+    }
 
     // now convert the sequences (lazily)
     val dictBroadcast = rawData.context.broadcast(dict)
@@ -380,40 +444,9 @@ object DesqDataset {
     val result = new DesqDataset(sequences, dict, true)
     result.dictBroadcast = dictBroadcast
     result
+
   }
 
-
-  /** Convert standard desq sequences to itemsets
-    * Sort sequences of item in canonical order and remove duplicates
-    * Created by sulbrich on 13.09.2017
-    */
-  def buildItemsets(sourceDataset: DesqDataset): DesqDataset = {
-    val dict:Dictionary = sourceDataset.dict
-
-    //Define Parser
-    val parse = (elements: (Array[String],Long), seqBuilder: DictionaryBuilder) => {
-      var lastElement:String = ""
-      val stringElements = elements._1
-
-      seqBuilder.newSequence(1)
-
-      //Sort by Frequencies
-      scala.util.Sorting.stableSort[String](stringElements, (e1:String, e2:String) => {
-        dict.fidOf(String.valueOf(e1)) > dict.fidOf(String.valueOf(e2)) //Sort by f(requency)id descending
-      })
-
-      //Store sorted elements just once (itemset) in sequence
-      for (e <- stringElements) {
-        if (!lastElement.equals(e)){
-          seqBuilder.appendItem(e)
-          lastElement = e
-        }
-      }
-    }
-
-    //Build new DesqDataset
-    build[(Array[String],Long)](sourceDataset.toSidsWeightPairs(), parse)
-  }
 
   /** Convert any data to itemsets
     * Sort sequences of item in canonical order and remove duplicates
@@ -427,45 +460,57 @@ object DesqDataset {
   def buildItemsets[T:scala.reflect.ClassTag](data: RDD[Array[T]], extDict: Option[Dictionary]): DesqDataset = {
     //Define Parser
     val parse = (elements: Array[T], seqBuilder: DictionaryBuilder) => {
-      var lastElement:T = None.asInstanceOf[T]
-      var dict:Dictionary = null
-      if (extDict.isEmpty){
-        seqBuilder match {
-          case dsb: DefaultSequenceBuilder =>
-            dict = dsb.getDict
-          case _ =>
-            dict = new Dictionary //Fallback: Empty dictionary TODO: better handling?
-        }
-      }else{ //external Dict provided
-        dict = extDict.get
-      }
-
       seqBuilder.newSequence(1)
 
-      //Sort by Frequencies if dict provided, else alphabetical (for consistent duplicate removal)
-      scala.util.Sorting.stableSort[T](elements, (e1: T, e2: T) => {
-        if(dict.size() > 0) {
-          dict.fidOf(String.valueOf(e1)) > dict.fidOf(String.valueOf(e2)) //Sort by f(requency)id descending
-        }else{
-          String.valueOf(e1) > String.valueOf(e2)  //Fallback: Alphabetical sort
-        }
-      })
+      var lastElement:T = None.asInstanceOf[T]
+
+      //Sort by Frequencies if sequence creation, else alphabetical (for consistent duplicate removal)
+      seqBuilder match {
+        case dsb: DefaultSequenceBuilder =>
+          val dict = dsb.getDict
+          scala.util.Sorting.stableSort[T](elements, (e1: T, e2: T) => {
+            dict.fidOf(String.valueOf(e1)) > dict.fidOf(String.valueOf(e2))
+          })
+        case _: DefaultDictionaryBuilder =>
+          scala.util.Sorting.stableSort[T] (elements, (e1: T, e2: T) => {
+          String.valueOf (e1) > String.valueOf (e2) //Fallback: Alphabetical sort (must have toString() implemented!)
+          })
+      }
 
       //Store sorted elements just once (itemset) in sequence
       //For itemsets dfreq = cfreq -> duplicate removal in any case (dict and sequence construction)
       for (e <- elements) {
         if (!lastElement.equals(e)){
+          //add Item
           seqBuilder.appendItem(String.valueOf(e))
+
+          /*
+          val sid = String.valueOf(e)
+          val fid = seqBuilder.appendItem(sid).getLeft.toInt
+
+          //During dictionary construction: add provided hierarchy if provided via external dict
+          if (extDict.isDefined && seqBuilder.isInstanceOf[DefaultDictionaryBuilder]){
+            val dictBuilder = seqBuilder.asInstanceOf[DefaultDictionaryBuilder]
+            addParents(fid, sid, extDict.get, dictBuilder)
+          }
+          */
+
+          //remember element to skip adjacent duplicates
           lastElement = e
         }
       }
     }
 
     //Build new DesqDataset
-    build[Array[T]](data, parse)
+    build[Array[T]](data, parse, extDict)
   }
 
   def buildItemsets[T:scala.reflect.ClassTag](data: RDD[Array[T]]): DesqDataset = {
     buildItemsets(data, None)
+  }
+
+  /** Convert standard desq sequences to itemsets    */
+  def buildItemsets(sourceDataset: DesqDataset): DesqDataset = {
+    buildItemsets(sourceDataset.toSids, Option.apply(sourceDataset.dict))
   }
 }
