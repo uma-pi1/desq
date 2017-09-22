@@ -18,6 +18,13 @@ public class DefaultDictionaryBuilder implements DictionaryBuilder {
 
     public DefaultDictionaryBuilder(Dictionary initialDictionary) {
         this.dict = initialDictionary;
+
+        //Initialize MaxGid (added by sulbrich)
+        int gid;
+        for (int i = 0; i < this.dict.gids.size(); i++){
+           gid = this.dict.gids.getInt(i);
+           if (maxGidSoFar < gid) maxGidSoFar = gid;
+        }
     }
 
     public DefaultDictionaryBuilder() {
