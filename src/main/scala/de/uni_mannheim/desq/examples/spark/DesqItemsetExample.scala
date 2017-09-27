@@ -22,7 +22,7 @@ object DesqItemsetExample {
                           extDict: Option[Dictionary]
                         )(implicit sc: SparkContext): (DesqMiner, DesqDataset) ={
 
-    // --- Manage data
+    // Manage data
     var data: DesqDataset = null
     rawData match{
       case dds: DesqDataset => //Use existing DesqDataset as basis
@@ -36,10 +36,10 @@ object DesqItemsetExample {
         return (null,null)
     }
 
+    // Init Desq Miner
     val confDesq = DesqCount.createConf(query, minSupport)
     confDesq.setProperty("desq.mining.prune.irrelevant.inputs", true)
     confDesq.setProperty("desq.mining.use.two.pass", true)
-
 
 
     //Run Miner
@@ -75,16 +75,23 @@ object DesqItemsetExample {
 
     //val data = DesqDataset.buildFromStrings(sc.textFile("data-local/fimi_retail/retail.dat").map(s => s.split(" ")))
     //val data = "data-local/fimi_retail/retail.dat" //"data-local/nyt-1991-data"
-    val data = sc.textFile("data/icdm16-example/data.del").map(s => s.split("\t"))
+    //val data = sc.textFile("data/icdm16-example/data.del").map(s => s.split("\t"))
 
     //val dict = Option.apply(Dictionary.loadFrom("data-local/fimi_retail/dict.json",sc))
-    val dict = Option.apply(Dictionary.loadFrom("data/icdm16-example/dict.json",sc))
+
+    //icdm16-example
+    //val dict = Option.apply(Dictionary.loadFrom("data/icdm16-example/dict.json",sc))
+    //val data = DesqDataset.loadFromDelFile(delFile = "data/icdm16-example/data.del", dict = dict.get)
+
+    //itemset-example
+    val dict = Option.apply(Dictionary.loadFrom("data/itemset-example/dict.json",sc))
+    val data = "data/itemset-example/data.dat"
 
 
     runItemsetMiner(
       rawData =     data,
-      query =       "[.*(.)]{2,3}",
-      minSupport =  2,
-      extDict =     dict)
+      query =       "[(.).*-.*(.)]", //"[.*(.)]{2,3}"
+      minSupport =  1,
+      extDict =    dict)
   }
 }
