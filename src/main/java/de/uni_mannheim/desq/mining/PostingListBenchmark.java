@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package de.uni_mannheim.desq.mining;
 
 import com.google.common.base.Stopwatch;
@@ -11,8 +6,6 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -30,78 +23,43 @@ public class PostingListBenchmark {
     private AbstractPostingList postingList;
     private AbstractIterator iterator;
     
-    //private PostingList postingList;
-    //private PostingList.Iterator iterator;
+    private PostingList currentPostingList;
+    private PostingList.Iterator currentIterator;
     
     public PostingListBenchmark(String testDataFile){
         
         this.postingList = null;
         this.iterator = null;
         
-        // ------- Without test file --------
-        /*Random random = new Random();
-        
-        int numberOfElements = 100000000;
-        int postingSize = 100;
-        
-        testData = new int[numberOfElements + (numberOfElements / postingSize)];
-                
-        for(int i = 0; i < numberOfElements; i++){
-            testData[i] = random.nextInt(127);
-            
-            if(i % postingSize == 0){
-                testData[i] = 0;
-            }
-        }*/
-        
-        // ------- With test file --------
         readData(testDataFile);
     }
     
-    public void runTest(Class posting, Class it, int iterations){
+    public void runTest(Class posting, Class it, int iterations, boolean currentImplementation){
+        
+        System.out.println("\nResults: ");
+        System.out.println("------------------------------------------------------------------------");
+        
         try {
+            if(!currentImplementation){
+                this.postingList = (AbstractPostingList)posting.newInstance();
+                this.iterator = (AbstractIterator)it.newInstance();
         
-            this.postingList = (AbstractPostingList)posting.newInstance();
-            this.iterator = (AbstractIterator)it.newInstance();
-        
+                this.addData(iterations);
+                this.readData(iterations);
+            } else {
+                this.currentPostingList = (PostingList)posting.newInstance();
+                this.currentIterator = (PostingList.Iterator)it.newInstance();
+                
+                this.addDataCurrent(iterations);
+                this.readDataCurrent(iterations);
+            }
         } catch (InstantiationException ex) {
             Logger.getLogger(PostingListBenchmark.class.getName()).log(Level.SEVERE, null, ex);
         } catch (IllegalAccessException ex) {
             Logger.getLogger(PostingListBenchmark.class.getName()).log(Level.SEVERE, null, ex);
         }
 
-        //this.postingList = new PostingList();
-        //this.iterator = new PostingList.Iterator();
-        
-        System.out.println("\nResults: ");
-        System.out.println("------------------------------------------------------------------------");
-        
-        this.addData(iterations);
-        
-        this.readData(iterations);
-    }
-    
-    public void createData(String filePath){
-        PrintWriter writer = null;
-        
-        try{
-            writer = new PrintWriter(filePath, "UTF-8");
-            writer.println("Started writer");
-        } catch (IOException e) {
-            System.out.println("Failed to setup PrintWriter!");
-        }
-        
-        Random random = new Random();
-        
-        for(int i = 0; i < 100000000; i++){
-            writer.println("" + random.nextInt(127));
-            
-            if(i % 100 == 0){
-                writer.println("" + -1);
-            }
-        }
-        
-        writer.flush();
+
     }
     
     public void addData(int count){
@@ -136,11 +94,41 @@ public class PostingListBenchmark {
         System.out.println("Posting list size          | " + postingList.noBytes() + " bytes.");
         System.out.println("------------------------------------------------------------------------");
     }
+
+    public void addDataCurrent(int count){
+        int average = 0;
+        
+        for(int i = 0; i < count; i++){
+            this.start();
+            this.currentPostingList.clear();
+            this.currentPostingList.newPosting();
+
+            for(int k = 0; k < testData.length; k++){
+                if(testData[k] == -1){
+                    currentPostingList.newPosting();
+                } else if (testData[k] >= 0){
+                    currentPostingList.addNonNegativeInt(testData[k]);
+                }
+            }
+
+            this.stop();
+            if(i < 1){
+                System.out.println("Time without allocation    | " + stopwatch.elapsed(TimeUnit.MILLISECONDS) + " ms");
+                System.out.println("------------------------------------------------------------------------");
+            } else {
+                average += stopwatch.elapsed(TimeUnit.MILLISECONDS);
+            }
+        }
+        
+        average /= (double)(count-1);
+        
+        System.out.println("Time adding data           | " + average + " ms");
+        System.out.println("------------------------------------------------------------------------");
+        System.out.println("Posting list size          | " + currentPostingList.noBytes() + " bytes.");
+        System.out.println("------------------------------------------------------------------------");
+    }
     
     public void readData(int count){     
-        
-        int countData = 0;
-        int countPostings = 0;
         int average = 0;
         
         for(int i = 0; i < count; i++){
@@ -150,16 +138,12 @@ public class PostingListBenchmark {
             this.start();
 
             do{
-                countPostings++;
                 while(iterator.hasNext()){
                     sum += iterator.nextNonNegativeInt();
-                    countData++;
                 }
             } while(iterator.nextPosting());
 
             this.stop();
-            
-            //System.out.println(stopwatch.elapsed(TimeUnit.MILLISECONDS));
             average += stopwatch.elapsed(TimeUnit.MILLISECONDS);
         }
         
@@ -167,8 +151,31 @@ public class PostingListBenchmark {
 
         System.out.println("Time reading data          | " + average + " ms");
         System.out.println("------------------------------------------------------------------------\n");
-        //System.out.println("Data read: " + countData);
-        //System.out.println("Postings read: " + countPostings);
+    }
+    
+    public void readDataCurrent(int count){     
+        int average = 0;
+        
+        for(int i = 0; i < count; i++){
+            this.currentIterator.reset(currentPostingList);
+            int sum = 0;
+                        
+            this.start();
+
+            do{
+                while(currentIterator.hasNext()){
+                    sum += currentIterator.nextNonNegativeInt();
+                }
+            } while(currentIterator.nextPosting());
+
+            this.stop();
+            average += stopwatch.elapsed(TimeUnit.MILLISECONDS);
+        }
+        
+        average /= (double)count;
+
+        System.out.println("Time reading data          | " + average + " ms");
+        System.out.println("------------------------------------------------------------------------\n");
     }
     
     private boolean readData(String file){
@@ -217,8 +224,15 @@ public class PostingListBenchmark {
         if(args.length == 0){
             args = new String[3];
 
-            args[0] = "testdata_r4.txt";
-            args[1] = "bitwisepostinglist";
+            // Adjust this parameters if you want to run the test manually
+            
+            // data set
+            args[0] = "testdata_m2.txt";
+            
+            // used posting list
+            args[1] = "postinglist";
+            
+            // number of iterations
             args[2] = "2";
         }
         
@@ -233,29 +247,30 @@ public class PostingListBenchmark {
         PostingListBenchmark benchmark = new PostingListBenchmark(args[0]);
         
         switch(args[1].toLowerCase()){
+            case "postinglist":
+                benchmark.runTest(PostingList.class, PostingList.Iterator.class, iterations, true);
+                break;
             case "bitwisepostinglist":
-                benchmark.runTest(BitwiseLongPostingList.class, BitwiseLongPostingList.Iterator.class, iterations);
+                benchmark.runTest(BitwiseLongPostingList.class, BitwiseLongPostingList.Iterator.class, iterations, false);
                 break;
             case "eliasgammapostinglist":
-                benchmark.runTest(EliasGammaPostingList.class, EliasGammaPostingList.Iterator.class, iterations);
+                benchmark.runTest(EliasGammaPostingList.class, EliasGammaPostingList.Iterator.class, iterations, false);
                 break;
             case "integerpostinglist":
-                benchmark.runTest(IntegerPostingList.class, IntegerPostingList.Iterator.class, iterations);
+                benchmark.runTest(IntegerPostingList.class, IntegerPostingList.Iterator.class, iterations, false);
                 break;
             case "newpostinglist":
-                benchmark.runTest(NewPostingList.class, NewPostingList.Iterator.class, iterations);
+                benchmark.runTest(NewPostingList.class, NewPostingList.Iterator.class, iterations, false);
                 break;
             case "varbytepostinglist":
-                benchmark.runTest(VarBytePostingList.class, VarBytePostingList.Iterator.class, iterations);
+                benchmark.runTest(VarBytePostingList.class, VarBytePostingList.Iterator.class, iterations, false);
                 break;
             case "varbytelongpostinglist":
-                benchmark.runTest(VarByteLongPostingList.class, VarByteLongPostingList.Iterator.class, iterations);
+                benchmark.runTest(VarByteLongPostingList.class, VarByteLongPostingList.Iterator.class, iterations, false);
                 break;
             case "varbytelongadvancedpostinglist":
-                benchmark.runTest(VarByteLongAdvancedPostingList.class, VarByteLongAdvancedPostingList.Iterator.class, iterations);
+                benchmark.runTest(VarByteLongAdvancedPostingList.class, VarByteLongAdvancedPostingList.Iterator.class, iterations, false);
                 break;
         }
-        
-        //benchmark.createData("creator_test.txt");
     }
 }
