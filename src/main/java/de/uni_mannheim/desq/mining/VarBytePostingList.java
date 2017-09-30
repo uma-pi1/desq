@@ -99,7 +99,7 @@ public class VarBytePostingList extends AbstractPostingList{
 
     @Override
     public int noBytes() {
-        return data.size();
+        return data.size() + controlData.size() * 8;
     }
 
     @Override
