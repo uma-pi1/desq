@@ -104,8 +104,8 @@ public class ExampleUtils {
 
     /** Runs a miner on NYT data. */
     public static DesqMiner runNyt(DesqProperties minerConf) throws IOException {
-        Dictionary dict = Dictionary.loadFrom("data-local/nyt-1991-dict.avro.gz");
-        File dataFile = new File("data-local/nyt-1991-data.del");
+        Dictionary dict = Dictionary.loadFrom("data/icdm16-example/nyt-1991-dict.avro.gz");
+        File dataFile = new File("data/icdm16-example/nyt-1991-data.del");
         SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), true);
         dataReader.setDictionary(dict);
         return runWithStats(dataReader, minerConf);
@@ -134,10 +134,10 @@ public class ExampleUtils {
 
     /** Runs a miner on Proteins data */
     public static DesqMiner runProtein(DesqProperties minerConf) throws IOException {
-        Dictionary dict = Dictionary.loadFrom("data-local/sma-protein/protein-dict.avro.gz");
+        Dictionary dict = Dictionary.loadFrom("data/icdm16-example/protein-dict.avro.gz");
         dict.recomputeFids();
         dict.freeze();
-        File dataFile = new File("data-local/sma-protein/protein-data-gid.del");
+        File dataFile = new File("data/icdm16-example/protein-data-gid.del");
         SequenceReader dataReader = new DelSequenceReader(new FileInputStream(dataFile), false);
         dataReader.setDictionary(dict);
         return runVerbose(dataReader, minerConf);

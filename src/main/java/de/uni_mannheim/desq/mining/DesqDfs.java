@@ -46,13 +46,18 @@ public final class DesqDfs extends MemoryDesqMiner {
 	private final ArrayList<State.ItemStateIterator> itemStateIterators = new ArrayList<>();
 
     /** An iterator over a projected database (a posting list) for reuse */
-	//private final PostingList.Iterator projectedDatabaseIt = new PostingList.Iterator();
+	
+        //------------------- Choose posting list iterator ----------------------
+        
+        private final PostingList.Iterator projectedDatabaseIt = new PostingList.Iterator();
         //private final AbstractIterator projectedDatabaseIt = new BitwiseLongPostingList.Iterator();
         //private final AbstractIterator projectedDatabaseIt = new VarBytePostingList.Iterator();
         //private final AbstractIterator projectedDatabaseIt = new IntegerPostingList.Iterator();
         //private final AbstractIterator projectedDatabaseIt = new NewPostingList.Iterator();
         //private final AbstractIterator projectedDatabaseIt = new VarByteLongPostingList.Iterator();
-        private final AbstractIterator projectedDatabaseIt = new EliasGammaPostingList.Iterator();
+        //private final AbstractIterator projectedDatabaseIt = new EliasGammaPostingList.Iterator();
+        //private final AbstractIterator projectedDatabaseIt = new VarByteLongPostingList.Iterator();
+        //private final AbstractIterator projectedDatabaseIt = new VarByteLongAdvancedPostingList.Iterator();
         
 	/** The root node of the search tree. */
 	private final DesqDfsTreeNode root;
@@ -247,12 +252,7 @@ pos: 	do { // loop over positions; used for tail recursion optimization
 
 			// get iterator over next output item/state pairs; reuse existing ones if possible
 			// in two-pass, only iterates over states that we saw in the first pass (the other ones can safely be skipped)
-                        //int itemFid = 0;
-                        //try{
-                            final int itemFid = currentInputSequence.getInt(pos);
-                        /*} catch(Exception e){
-                            projectedDatabaseIt.printData();
-                        }*/
+                        int itemFid = currentInputSequence.getInt(pos);
 			final BitSet validToStates = useTwoPass
 					? currentDfaStateSequence[currentInputSequence.size() - (pos + 1)].getFstStates() // only states from first pass
 					: null; // all states
@@ -345,6 +345,9 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 				do {
 					// process next input sequence
+                                        //if(projectedDatabaseIt.classNo() == 54437){
+                                          //  System.out.println("test");
+                                        //}
 					currentInputId += projectedDatabaseIt.nextNonNegativeInt();
 					currentInputSequence = inputSequences.get(currentInputId);
 					if (useTwoPass) {

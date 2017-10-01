@@ -12,13 +12,27 @@ import java.io.FileInputStream;
 import java.io.IOException;
 
 public class DesqDfsExample {
-	public static void nyt() throws IOException {
+	public static void nyt(int testcase) throws IOException {
 		int sigma = 10;
 		int gamma = 1;
 		int lambda = 3;
 		boolean generalize = false;
-		String patternExp = DesqDfs.patternExpressionFor(gamma, lambda, generalize);
+                
+                String patternExp = "";
+        
+                switch(testcase){
+                    case 1:
+                        patternExp = DesqDfs.patternExpressionFor(gamma, lambda, generalize);
+                        break;
+                    case 2:
+                        patternExp = "([.^ . .]|[. .^ .]|[. . .^])";
+                        break;
+                }
+                
+		//String patternExp = DesqDfs.patternExpressionFor(gamma, lambda, generalize);
 		//patternExp = "([.^ . .]|[. .^ .]|[. . .^])";
+                //patternExp = "(.){3}";
+                //patternExp = ".?(.).?";
                 //patternExp = "(.^){0,3}";
                 //patternExp = "(.^ JJ@ NN@)";
                 //patternExp = "(JJ@ JJ@ NN@)";
@@ -74,9 +88,18 @@ public class DesqDfsExample {
         ExampleUtils.runNetflixDeep(conf);
     }
 
-    public static void protein() throws IOException {
-		//String patternExpression = "([S|T]).*(.).*([R|K])";
-		String patternExpression = "([S=|T=]).*(.).*([R=|K=])";
+    public static void protein(int testcase) throws IOException {
+                String patternExpression = "";
+        
+                switch(testcase){
+                    case 1:
+                        patternExpression = "([S|T]).*(.).*([R|K])";
+                        break;
+                    case 2:
+                        patternExpression = "([S=|T=]).*(.).*([R=|K=])";
+                        break;
+                }
+
 		int sigma = 500;
 
 		DesqProperties conf = DesqDfs.createConf(patternExpression, sigma);
@@ -119,11 +142,24 @@ public class DesqDfsExample {
 	}
 
 	public static void main(String[] args) throws IOException {
-		//icdm16();
-		//nyt();
-		//netflixFlat();
-        //netflixDeep();
-		protein();
-		//ryan();
+	
+            String testcase = "r4";
+            
+            switch(testcase){
+                case "r1":
+                    nyt(1);
+                    break;
+                case "r2":
+                    nyt(2);
+                    break;
+                case "r3":
+                    protein(1);
+                    break;
+                case "r4":
+                    protein(2);
+                    break;
+                default:
+                    System.out.println("Wrong testcase!");
+            }
 	}
 }

@@ -41,8 +41,11 @@ final class DesqDfsTreeNode {
 
 	/** The projected database associated with this node. Computed while expanding this node's parent,
 	 * and cleared after this node has been expanded. */
-	//PostingList projectedDatabase;
-        AbstractPostingList projectedDatabase;
+	
+        //---------------- Choose posting list ------------------
+        
+        PostingList projectedDatabase;
+        //AbstractPostingList projectedDatabase;
         
 	/** The children of this node by item fid. Computed while expanding this node's parent. */
 	Int2ObjectOpenHashMap<DesqDfsTreeNode> childrenByFid = new Int2ObjectOpenHashMap<>();
@@ -94,13 +97,17 @@ final class DesqDfsTreeNode {
 		currentInputId = -1;
 		reachedFinalCompleteState = false;
 		reachedNonFinalCompleteState = false;
-		//projectedDatabase = new PostingList();
+                
+                // ------------- Choose posting list -------------------
+                
+		projectedDatabase = new PostingList();
 		//projectedDatabase = new BitwiseLongPostingList();
                 //projectedDatabase = new VarBytePostingList();
                 //projectedDatabase = new IntegerPostingList();
                 //projectedDatabase = new NewPostingList();
                 //projectedDatabase = new VarByteLongPostingList();
-                projectedDatabase = new EliasGammaPostingList();
+                //projectedDatabase = new EliasGammaPostingList();
+                //projectedDatabase = new VarByteLongAdvancedPostingList();
                 currentSnapshots.clear();
 
 		// clear the children
