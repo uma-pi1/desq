@@ -188,6 +188,8 @@
 				<configuration>
 					<source>1.8</source>
 					<target>1.8</target>
+					<!-- the following actually enables incremental compile (see: https://issues.apache.org/jira/browse/MCOMPILER-209) -->
+					<useIncrementalCompilation>false</useIncrementalCompilation>
 				</configuration>
 				<executions>
 					<execution>
