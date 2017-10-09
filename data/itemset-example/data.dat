@@ -1,7 +1,7 @@
-a1 a2 - a1 a2 b
-a1 b11 a2
-b11 b11 a1 b12
+c a1 a2 a1 a2 b1
+c a1 b11 a2
+c b11 b11 a1 b12
 c a1 b11 d
 c a1 b12 d e
 c b12 b11 b2 e f
-a1 - b
+c a1 b1
