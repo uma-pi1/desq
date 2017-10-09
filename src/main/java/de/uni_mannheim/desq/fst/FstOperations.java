@@ -12,6 +12,127 @@ public final class FstOperations {
 	private FstOperations() {
 	}
 
+	/** Returns an FST that unions all FST permutations */
+	public static Fst permute(List<Fst> fsts, HashMap<Fst,int[]> frequencies, Fst dotKleene) {
+		//init frequencies
+		int concatinatorSize = 0;
+		Fst concatenator = null;
+		for (Map.Entry<Fst,int[]> entry: frequencies.entrySet()){
+			if(fsts.contains(entry.getKey())){
+				if(entry.getValue().length == 1) { //only min -> find all occurrences (kleene *) in all combinations (use as concatenator)
+					concatenator = (concatenator != null)
+							? concatenate(concatenator, kleene(entry.getKey().shallowCopy()))
+							: kleene(entry.getKey().shallowCopy());
+					concatinatorSize++;
+					int min = entry.getValue()[0];
+					if (min == 0){
+						//entry in concatenator is sufficient
+						fsts.remove(entry.getKey());
+					}else if (min > 1){
+						fsts.addAll(addExactly(entry.getKey(),min-1));
+					}
+				}else if (entry.getValue().length == 2){
+					int min = entry.getValue()[0];
+					int max = entry.getValue()[1];
+					if(max >= min){
+						int dif = max - min;
+						//Remove existing entry if min = 0 (will be replaced with optionals)
+						if(min < 1) fsts.remove(entry.getKey());
+						//Fill up min with mandatory matches
+						else if(min > 1) fsts.addAll(addExactly(entry.getKey(),min-1));
+						//Difference between min and max represented with optionals
+						if(dif > 0) fsts.addAll(addExactly(
+								optional(entry.getKey().shallowCopy()),
+								min-1));
+					}
+				}
+			}
+		}
+
+		//Ensure that concatenator is optional and can repeat itself -> kleene *
+		if(concatenator != null && concatinatorSize > 1){
+			concatenator = kleene(concatenator);
+			//concatenator = concatenate(kleene(concatenator),dotKleene.shallowCopy());
+			//concatenator = concatenate(dotKleene.shallowCopy(),concatenator);
+		}
+
+		//start recursion
+		Fst permuted = (fsts.size() > 0) ? permute(null, fsts, concatenator) : null;
+
+		//add concatenator at beginning and end as well (if defined)
+		if (concatenator != null) {
+			concatenator.exportGraphViz("concatenator_raw.pdf");
+			if(permuted != null) {
+				permuted = concatenate(concatenator.shallowCopy(), permuted);
+				permuted = concatenate(permuted, concatenator.shallowCopy());
+			}else{
+				permuted = concatenator;
+			}
+		}
+		permuted.exportGraphViz("permuted_raw.pdf");
+
+		//optimize permutation
+		//permuted.optimize();
+		//permuted.updateStates();
+		permuted.exportGraphViz("permuted_optimized.pdf");
+		return permuted;
+	}
+
+	private static ArrayList<Fst> addExactly(Fst a, int n){
+		ArrayList<Fst> fstList = new ArrayList<>();
+		for (int i = 0; i < n; ++i) {
+			fstList.add(a.shallowCopy());
+		}
+		return fstList;
+	}
+
+	/** Recursive method to permute all elements - each recursion: define prefix + remaining elements */
+	private static Fst permute(Fst prefixFst, List<Fst> fsts, Fst concatenator) {
+		assert fsts.size() > 0;
+		if(fsts.size() > 1){
+			Fst unionFst = null;
+			for (Fst fst: fsts){
+				//create copy of to be added fst (avoid wrong state transitions)
+				Fst addedFst = fst.shallowCopy();
+				//add concatenator (eg "[A.*]*.*")to Fst (A.*B.* -> A.*[A.*]*B.*)
+				if (concatenator != null) addedFst = concatenate(addedFst, concatenator.shallowCopy());
+				//copy remaining fsts into list (as shallow copy)
+				List<Fst> partFsts = new ArrayList<>();
+				for (Fst copy: fsts){
+					if (copy != fst){ partFsts.add(copy.shallowCopy());	}
+				}
+				//handle new prefix
+				Fst newPrefixFst = null;
+				if(prefixFst != null) {
+					//Within recursion: concatenate elements (prefix + new first element)
+					newPrefixFst = concatenate(prefixFst.shallowCopy(), addedFst);
+				}else{
+					//First Recursion Step (no existing prefix yet)
+					newPrefixFst = addedFst;
+				}
+				//recursions combined by union
+				if(unionFst != null) {
+					//union further recursion paths
+					unionFst = union(unionFst, permute(newPrefixFst, partFsts, concatenator));
+				}else{
+					//First loop iteration(first element of union)
+					unionFst = permute(newPrefixFst, partFsts, concatenator);
+				}
+			}
+			unionFst.updateStates();
+			return unionFst;
+		}else{
+			//end recursion (last concatenation)
+			if(prefixFst != null) {
+				Fst lastConcat = concatenate(prefixFst.shallowCopy(), fsts.get(0).shallowCopy());
+				lastConcat.updateStates();
+				return lastConcat;
+			}else{
+				return fsts.get(0).shallowCopy();
+			}
+		}
+	}
+
     /** Returns an FST that is concatenation of two FSTs */
 	public static Fst concatenate(Fst a, Fst b) {
 		for (State state : a.getFinalStates()) {
@@ -87,7 +208,7 @@ public final class FstOperations {
 		Fst aMax = repeatExactly(a.shallowCopy(), min - 1);
 		return concatenate(aMax, aPlus);
 	}
-	
+
 	public static Fst repeatMinMax(Fst a, int min, int max) {
 		if(min == max) {
 			return repeatExactly(a, min);

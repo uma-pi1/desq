@@ -315,6 +315,14 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
     dict.cfreqOf(dict.fidOf(itemsetSeparatorGid))
   }
 
+  def containsItemsets(): Boolean = {
+    itemsetSeparatorGid > 0 && getCfreqOfSeparator() == 0
+  }
+
+  def containsSequencesOfItemsets(): Boolean = {
+    itemsetSeparatorGid > 0 && getCfreqOfSeparator() > 0
+  }
+
 }
 
 object DesqDataset {
@@ -448,6 +456,7 @@ object DesqDataset {
         if (e.toString == itemsetSeparatorSid){
           //new itemset
           hashSet.clear()
+          //add separator itself
           seqBuilder.appendItem(e.toString)
         }else if (!hashSet.contains(e)){
           //add new item to current itemset

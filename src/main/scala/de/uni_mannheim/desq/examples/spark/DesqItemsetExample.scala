@@ -46,6 +46,7 @@ object DesqItemsetExample {
     val (miner, result) = ExampleUtils.runVerbose(data,confDesq)
 
 
+
     //Print some information
     println("\nSeparatorGid: " + data.itemsetSeparatorGid + "(" + data.getCfreqOfSeparator() + ")")
 
@@ -90,8 +91,9 @@ object DesqItemsetExample {
 
     runItemsetMiner(
       rawData =     data,
-      query =       "[(.).*-.*(.)]", //"[.*(.)]{2,3}"
+      //query =       "unordered{(A* b11)}", //"[.*(.)]{2,3}" "[(a1).*-.*(A^|B)]" "unordered{(a1 b11)}" "unordered{(a1 [b12 | b11])}" "unordered{(a1 [ b1= | b11 b12])}"
+      query =       "unordered{(A* b11)}", // "unordered{(A+)}" "unordered{(A* b11)}" "(A)*.*(b11).*(A)*.*" "[[(A).*]*]*.* (b11).* [[(A).*]*]*.*" "[(A).*]* (b11).* [(A).*]*"
       minSupport =  1,
-      extDict =    dict)
+      extDict =     dict)
   }
 }
