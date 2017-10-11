@@ -125,7 +125,7 @@ public final class PatExToFst {
 		
 		@Override
 		public Fst visitConcatExpression(ConcatExpressionContext ctx) {
-			//only calle if pattern "repeatexp concatexp" matches (actual concatination)
+			//only call if pattern "repeatexp concatexp" matches (actual concatination)
 			if(unordered){
 				//set Id for unordered Concat processing (to handle nested concats)
 				if(concatId < 0){
@@ -161,9 +161,8 @@ public final class PatExToFst {
 				parentIsConcat = true;
 				//add last element of concat to list
 				concatElements.get(localConcatId).add(visit(ctx.repeatexp()));
+				//remove concat from stack
 				concatStack.pop();
-
-				//visit(ctx.repeatexp())
 
 				//optional: create pdfs to trace fsts of the concat
 				int idx = 0;
@@ -173,7 +172,7 @@ public final class PatExToFst {
 				}
 
 				//Permute all combinations: E1E2...En
-				Fst union = FstOperations.permute(concatElements.get(localConcatId), concatFrequencies.get(localConcatId), getDotKleene());
+				Fst union = FstOperations.permute(concatElements.get(localConcatId), concatFrequencies.get(localConcatId));
 				union.updateStates();
 
 				//Clear backlog
@@ -424,14 +423,16 @@ public final class PatExToFst {
 		@Override
 		public Fst visitUnordered(UnorderedContext ctx) {
 			if (unordered){
-				logger.warn("Nesting of unordered{E} not supported/has no effect." +
+				logger.warn("Nesting of unordered{E} has no effect." +
 						"Pattern expression: " + expression);
+				return visit(ctx.unionexp());
+			}else {
+				unordered = true;
+				Fst nfa = visit(ctx.unionexp());
+				unordered = false;
+				nfa.exportGraphViz("unordered.pdf");
+				return nfa;
 			}
-			unordered = true;
-			Fst nfa = visit(ctx.unionexp());
-			unordered = false;
-			nfa.exportGraphViz("unordered.pdf");
-			return nfa;
 		}
 
 		private Fst getDotKleene() {
