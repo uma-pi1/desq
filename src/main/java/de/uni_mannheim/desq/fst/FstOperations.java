@@ -13,8 +13,8 @@ public final class FstOperations {
 	}
 
 	/** Returns an FST that unions all FST permutations */
-	public static Fst permute(List<Fst> fsts, HashMap<Fst,int[]> frequencies, Fst dotKleene) {
-		//init frequencies
+	public static Fst permute(List<Fst> fsts, HashMap<Fst,int[]> frequencies) {
+		//handle frequencies
 		int concatinatorSize = 0;
 		Fst concatenator = null;
 		for (Map.Entry<Fst,int[]> entry: frequencies.entrySet()){
@@ -48,12 +48,9 @@ public final class FstOperations {
 				}
 			}
 		}
-
 		//Ensure that concatenator is optional and can repeat itself -> kleene *
 		if(concatenator != null && concatinatorSize > 1){
 			concatenator = kleene(concatenator);
-			//concatenator = concatenate(kleene(concatenator),dotKleene.shallowCopy());
-			//concatenator = concatenate(dotKleene.shallowCopy(),concatenator);
 		}
 
 		//start recursion
@@ -66,6 +63,7 @@ public final class FstOperations {
 				permuted = concatenate(concatenator.shallowCopy(), permuted);
 				permuted = concatenate(permuted, concatenator.shallowCopy());
 			}else{
+				//If nothing to permute (only concatenor left) -> just return concatenator
 				permuted = concatenator;
 			}
 		}
@@ -74,7 +72,7 @@ public final class FstOperations {
 		//optimize permutation
 		//permuted.optimize();
 		//permuted.updateStates();
-		permuted.exportGraphViz("permuted_optimized.pdf");
+		//permuted.exportGraphViz("permuted_optimized.pdf");
 		return permuted;
 	}
 
