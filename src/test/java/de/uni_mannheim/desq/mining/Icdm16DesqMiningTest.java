@@ -20,7 +20,7 @@ import java.util.List;
 public class Icdm16DesqMiningTest extends DesqMiningTest {
     public static Collection<Object[]> baseData() {
         List<Object[]> parameters = new ArrayList<>();
-        for (String patternExpression : new String[] { "[c|d] ([A^|B=^]+) e", "(a1)..", "(a1)..$", ".(a1)", "^.(a1)", "(A)*"  })
+        for (String patternExpression : new String[] { "[c|d] ([A^|B=^]+) e", "(a1)..", "(a1)..$", ".(a1)", "^.(a1)", "(A)*", "[(a2).*]* (a1).* [(a2).*]*"})
             for (Long sigma : new Long[] {1L,2L,3L})
                 parameters.add(new Object[] { sigma, patternExpression });
 

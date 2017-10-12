@@ -39,7 +39,7 @@ object DesqItemsetExample {
     // Init Desq Miner
     val confDesq = DesqCount.createConf(query, minSupport)
     confDesq.setProperty("desq.mining.prune.irrelevant.inputs", true)
-    confDesq.setProperty("desq.mining.use.two.pass", true)
+    confDesq.setProperty("desq.mining.use.two.pass", false)
 
 
     //Run Miner
