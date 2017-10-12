@@ -17,7 +17,8 @@ public class DesqCountExample {
 	}
 
 	public static void icdm16() throws IOException {
-		String patternExpression = "[[c|d]([A^|B=^]+)e]";
+		//String patternExpression = "[[c|d]([A^|B=^]+)e]";
+		String patternExpression = "(A)*";
 		//String patternExpression = "(A^) .* (A^) .* (A)";
 		//String patternExpression = "(a1)..$";
 		int sigma = 2;
