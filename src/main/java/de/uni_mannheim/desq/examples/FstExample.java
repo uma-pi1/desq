@@ -25,7 +25,7 @@ public class FstExample {
 		dict.incFreqs(dataReader);
 		dict.recomputeFids();
 		
-		String patternExpression = "[c|d]([A^|B=^]+)e";
+		String patternExpression = "(A)+";
 		//String patternExpression = DesqMiner.patternExpressionFor(0, 3, true);
 		//String patternExpression = "([A|B]c*[d|e])";
 		//String patternExpression = "([A|B]c+[d|e])";
@@ -42,6 +42,7 @@ public class FstExample {
 
 		// and minimize it
 		fst.minimize();
+		fst.annotate();
 		System.out.println("Minimized FST");
 		fst.print();
 		fst.exportGraphViz("fst-example-minimized.gv");
