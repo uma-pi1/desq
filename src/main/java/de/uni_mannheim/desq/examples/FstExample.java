@@ -25,7 +25,8 @@ public class FstExample {
 		dict.incFreqs(dataReader);
 		dict.recomputeFids();
 		
-		String patternExpression = "[c|d]([A^|B=^]+)e";
+		//String patternExpression = "[c|d]([A^|B=^]+)e";
+		String patternExpression = "(A)*";
 		//String patternExpression = DesqMiner.patternExpressionFor(0, 3, true);
 		//String patternExpression = "([A|B]c*[d|e])";
 		//String patternExpression = "([A|B]c+[d|e])";
