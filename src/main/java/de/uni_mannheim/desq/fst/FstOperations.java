@@ -308,6 +308,7 @@ public final class FstOperations {
 			fst.initialState.isFinal = false;
 			for(State state : fst.getFinalStates()) {
 				state.isFinal = true;
+				newInitialStates.add(state);
 			}
 		}
 

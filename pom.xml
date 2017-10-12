@@ -82,23 +82,20 @@
 		</dependency>
 
 		<!-- used for shortest-path computation -->
-		<dependency>
+<!--		<dependency>
 			<groupId>net.sf.jung</groupId>
 			<artifactId>jung2</artifactId>
 			<version>2.0.1</version>
-			<type>pom</type>
-		</dependency>
+		</dependency> -->
 		<dependency>
 			<groupId>net.sf.jung</groupId>
 			<artifactId>jung-graph-impl</artifactId>
 			<version>2.0.1</version>
-			<scope>compile</scope>
 		</dependency>
 		<dependency>
 			<groupId>net.sf.jung</groupId>
 			<artifactId>jung-algorithms</artifactId>
 			<version>2.0.1</version>
-			<scope>compile</scope>
 		</dependency>
 	</dependencies>
 
@@ -191,6 +188,8 @@
 				<configuration>
 					<source>1.8</source>
 					<target>1.8</target>
+					<!-- the following actually enables incremental compile (see: https://issues.apache.org/jira/browse/MCOMPILER-209) -->
+					<useIncrementalCompilation>false</useIncrementalCompilation>
 				</configuration>
 				<executions>
 					<execution>
