@@ -13,6 +13,7 @@ public class PatExUtils {
         Fst fst = p.translate();
         fst.minimize(); //TODO: move to translate
         fst.annotate();
+        fst.exportGraphViz("minimized.pdf");
         return fst;
     }
 
