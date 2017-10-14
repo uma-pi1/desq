@@ -13,39 +13,37 @@ public final class FstOperations {
 	}
 
 	/** Returns an FST that unions all FST permutations */
-	public static Fst permute(List<Fst> fsts, HashMap<Fst,int[]> frequencies) {
+	public static Fst permute(HashMap<Fst,int[]> inputFsts) {
+		ArrayList<Fst> fsts = new ArrayList<>();
 		//handle frequencies
 		int concatinatorSize = 0;
 		Fst concatenator = null;
-		for (Map.Entry<Fst,int[]> entry: frequencies.entrySet()){
-			if(fsts.contains(entry.getKey())){
-				if(entry.getValue().length == 1) { //only min -> find all occurrences (kleene *) in all combinations (use as concatenator)
+		for (Map.Entry<Fst,int[]> entry: inputFsts.entrySet()){
+			if(entry.getValue() != null){
+				//min occurances
+				int min = entry.getValue()[0];
+				if (min > 0){
+					fsts.addAll(addExactly(entry.getKey(),min));
+				}
+				if(entry.getValue().length == 1) {
+					//no max -> find all occurrences (kleene *) in all combinations -> use as concatenator
 					concatenator = (concatenator != null)
 							? concatenate(concatenator, kleene(entry.getKey().shallowCopy()))
 							: kleene(entry.getKey().shallowCopy());
 					concatinatorSize++;
-					int min = entry.getValue()[0];
-					if (min == 0){
-						//entry in concatenator is sufficient
-						fsts.remove(entry.getKey());
-					}else if (min > 1){
-						fsts.addAll(addExactly(entry.getKey(),min-1));
-					}
+
 				}else if (entry.getValue().length == 2){
-					int min = entry.getValue()[0];
+					//min and max provided
 					int max = entry.getValue()[1];
 					if(max >= min){
 						int dif = max - min;
-						//Remove existing entry if min = 0 (will be replaced with optionals)
-						if(min < 1) fsts.remove(entry.getKey());
-						//Fill up min with mandatory matches
-						else if(min > 1) fsts.addAll(addExactly(entry.getKey(),min-1));
 						//Difference between min and max represented with optionals
-						if(dif > 0) fsts.addAll(addExactly(
-								optional(entry.getKey().shallowCopy()),
-								min-1));
+						if(dif > 0) fsts.addAll(addExactly(optional(entry.getKey().shallowCopy()), dif));
 					}
 				}
+			}else{
+				//No frequencies -> add just once
+				fsts.add(entry.getKey());
 			}
 		}
 		//Ensure that concatenator is optional and can repeat itself -> kleene *
@@ -58,7 +56,7 @@ public final class FstOperations {
 
 		//add concatenator at beginning and end as well (if defined)
 		if (concatenator != null) {
-			concatenator.exportGraphViz("concatenator_raw.pdf");
+			//concatenator.exportGraphViz("concatenator.pdf");
 			if(permuted != null) {
 				permuted = concatenate(concatenator.shallowCopy(), permuted);
 				permuted = concatenate(permuted, concatenator.shallowCopy());
@@ -67,7 +65,7 @@ public final class FstOperations {
 				permuted = concatenator;
 			}
 		}
-		permuted.exportGraphViz("permuted_raw.pdf");
+		//permuted.exportGraphViz("permuted.pdf");
 
 		//optimize permutation
 		//permuted.optimize();
@@ -117,14 +115,14 @@ public final class FstOperations {
 					unionFst = permute(newPrefixFst, partFsts, concatenator);
 				}
 			}
-			unionFst.updateStates();
+			//unionFst.updateStates();
 			return unionFst;
 		}else{
 			//end recursion (last concatenation)
 			if(prefixFst != null) {
-				Fst lastConcat = concatenate(prefixFst.shallowCopy(), fsts.get(0).shallowCopy());
-				lastConcat.updateStates();
-				return lastConcat;
+				//Fst lastConcat = concatenate(prefixFst.shallowCopy(), fsts.get(0).shallowCopy());
+				//lastConcat.updateStates();
+				return concatenate(prefixFst.shallowCopy(), fsts.get(0).shallowCopy());
 			}else{
 				return fsts.get(0).shallowCopy();
 			}

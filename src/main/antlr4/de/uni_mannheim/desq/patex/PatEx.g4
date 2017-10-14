@@ -33,7 +33,7 @@ simpleexp
 	itemexp							#itemExpression
 	| '[' unionexp ']'				#parens
 	| '(' unionexp ')'  			#capture
-	| 'unordered{' unionexp '}'     #unordered
+	| '<' concatexp '>'             #unordered
 ;
 
 itemexp 
@@ -81,5 +81,5 @@ fragment SQUOTE : '\'';
 fragment DQUOTE : '"';
 fragment HASH : '#';
 //fragment CHAR: ~('#' | '\'' | '\"' | '|' | '?' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
-fragment CHAR: ~('#' | '\'' | '"' | '|' | '?' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
+fragment CHAR: ~('#' | '\'' | '"' | '|' | '?' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '<' | '>' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
 WS  : [ \t\r\n]+ -> skip; // skip spaces, tabs, newlines
