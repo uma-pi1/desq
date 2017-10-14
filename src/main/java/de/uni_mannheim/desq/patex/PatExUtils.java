@@ -3,14 +3,19 @@ package de.uni_mannheim.desq.patex;
 import de.uni_mannheim.desq.dictionary.BasicDictionary;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.fst.Fst;
+import de.uni_mannheim.desq.mining.DesqMinerContext;
 
 /**
  * Created by rgemulla on 10.01.2017.
  */
 public class PatExUtils {
     public static Fst toFst(BasicDictionary dict, String patternExpression) {
+        return toFst(dict, patternExpression, false);
+    }
+
+    public static Fst toFst(BasicDictionary dict, String patternExpression, boolean itemsetPatEx) {
         PatExToFst p = new PatExToFst(patternExpression, dict);
-        Fst fst = p.translate();
+        Fst fst = p.translate(itemsetPatEx);
         fst.minimize(); //TODO: move to translate
         fst.annotate();
         fst.exportGraphViz("minimized.pdf");

@@ -35,33 +35,22 @@ object DesqItemsetExample {
         println("ERROR: Unsupported input type")
         return (null,null)
     }
+    println("\nDictionary:")
+    data.dict.writeJson(System.out);
+    println("\nSeparatorGid: " + data.itemsetSeparatorGid + "(" + data.getCfreqOfSeparator() + ")")
 
+    println("\nFirst 10 Input Sequences:")
+    data.print(10);
+
+    println("\nInit/Run Miner for query: " + query);
     // Init Desq Miner
     val confDesq = DesqCount.createConf(query, minSupport)
     confDesq.setProperty("desq.mining.prune.irrelevant.inputs", true)
-    confDesq.setProperty("desq.mining.use.two.pass", false)
+    confDesq.setProperty("desq.mining.is.itemset", data.containsItemsets());
 
 
     //Run Miner
     val (miner, result) = ExampleUtils.runVerbose(data,confDesq)
-
-
-
-    //Print some information
-    println("\nSeparatorGid: " + data.itemsetSeparatorGid + "(" + data.getCfreqOfSeparator() + ")")
-
-    println("Relevant Dictionary Entries:")
-    var sids_unique:List[String] = List()
-    for (sids <- result.toSids.collect().toIterable) {
-      for (sid <- sids) {
-        if (!sids_unique.contains(sid)) {
-          sids_unique = sids_unique.::(sid)
-        }
-      }
-    }
-    for(sid <- sids_unique){
-      println(data.dict.toJson(data.dict.fidOf(sid)))
-    }
 
     (miner, result)
   }
@@ -92,7 +81,7 @@ object DesqItemsetExample {
     runItemsetMiner(
       rawData =     data,
       //query =       "unordered{(A* b11)}", //"[.*(.)]{2,3}" "[(a1).*-.*(A^|B)]" "unordered{(a1 b11)}" "unordered{(a1 [b12 | b11])}" "unordered{(a1 [ b1= | b11 b12])}"
-      query =       "unordered{(A* B)}", // "unordered{(A+)}" "unordered{(A* b11)}" "(A)*.*(b11).*(A)*.*" "[[(A).*]*]*.* (b11).* [[(A).*]*]*.*" "[(A).*]* (b11).* [(A).*]*"
+      query =       "c <[d|e] <(A)* (B) >>", // "unordered{(A+)}" "unordered{(A* b11)}" "(A)*.*(b11).*(A)*.*" "[[(A).*]*]*.* (b11).* [[(A).*]*]*.*" "[(A).*]* (b11).* [(A).*]*"
       minSupport =  1,
       extDict =     dict)
   }
