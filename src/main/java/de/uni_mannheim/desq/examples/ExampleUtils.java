@@ -175,4 +175,35 @@ public class ExampleUtils {
         dataReader.setDictionary(dict);
         return runVerbose(dataReader, minerConf);
     }
+
+    /** Runs a miner on ICDM16 example data - treating it as itemset data. */
+    public static DesqMiner runIcdm16Itemset(DesqProperties minerConf) throws IOException {
+        URL dictFile = ExampleUtils.class.getResource("/icdm16-example/dict.json");
+        URL dataFile = ExampleUtils.class.getResource("/icdm16-example/data.del");
+
+        // load the dictionary
+        Dictionary dict = Dictionary.loadFrom(dictFile);
+
+        // update hierarchy
+        SequenceReader dataReader = new DelSequenceReader(dataFile.openStream(), false);
+        dict.incFreqs(dataReader);
+        dict.recomputeFids();
+        System.out.println("Dictionary with statitics:");
+        dict.writeJson(System.out);
+        System.out.println();
+
+        // print sequences
+        System.out.println("Input sequences:");
+        dataReader = new DelSequenceReader(dataFile.openStream(), false);
+        dataReader.setDictionary(dict);
+        IntList inputSequence = new IntArrayList();
+        while (dataReader.readAsFids(inputSequence)) {
+            System.out.println(dict.sidsOfFids(inputSequence));
+        }
+        System.out.println();
+
+        dataReader = new DelSequenceReader(dataFile.openStream(), false);
+        dataReader.setDictionary(dict);
+        return runVerbose(dataReader, minerConf);
+    }
 }

@@ -68,7 +68,7 @@ public final class PatExToFst {
 					"Pattern expression: " + expression);
 		}
 
-		fst.exportGraphViz("complete.pdf");
+		//fst.exportGraphViz("complete.pdf");
 
 		return fst;
 	}
@@ -76,11 +76,11 @@ public final class PatExToFst {
 	public class Visitor extends PatExBaseVisitor<Fst> {
 		
 		private boolean capture = false;
-		private boolean unordered = false;  //flag if within unordered{...} symbol
+		private boolean unordered = false;  //Flag if within unordered symbol <...>
 		private int unorderedConcatId = -1; //unordered: currently active concat ID (handover in concatExpression)
 		private int maxConcatId = -1; //unordered: watermark for easy generation of new concat id
 		private ArrayList<HashMap<Fst,int[]>> unorderedConcatElements = new ArrayList<>(); //unordered: elements of concat with frequencies
-		private boolean itemsetPatEx = false; //TODO: how to decide?
+		private boolean itemsetPatEx = false; //Flag: true if target dataset is itemset
 
 		public Visitor(boolean itemsetPatEx){
 			super();
@@ -162,8 +162,7 @@ public final class PatExToFst {
 				int localConcatId = unorderedConcatId;
 				//add last element of concat to list
 				unorderedConcatElements.get(localConcatId).putIfAbsent(visit(ctx.repeatexp()),null);
-				//optional: create pdfs to trace fsts of the concat
-				/*
+				/*//optional: create pdfs to trace fsts of the concat
 				int idx = 0;
 				for (Fst fst: concatElements.get(localConcatId)){
 					fst.exportGraphViz("unorderedList_" + localConcatId + "_" + idx + ".pdf");
