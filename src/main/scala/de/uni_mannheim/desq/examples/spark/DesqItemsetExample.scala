@@ -5,6 +5,7 @@ import java.util
 import de.uni_mannheim.desq.Desq._
 import de.uni_mannheim.desq.mining.spark.{DesqCount, DesqDataset, DesqMiner}
 import de.uni_mannheim.desq.dictionary.Dictionary
+import de.uni_mannheim.desq.mining.DesqDfs
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -46,7 +47,8 @@ object DesqItemsetExample {
     // Init Desq Miner
     val confDesq = DesqCount.createConf(query, minSupport)
     confDesq.setProperty("desq.mining.prune.irrelevant.inputs", true)
-    confDesq.setProperty("desq.mining.is.itemset", data.containsItemsets());
+    confDesq.setProperty("desq.mining.use.two.pass", false)
+    confDesq.setProperty("desq.mining.is.itemset", data.containsItemsets())
 
 
     //Run Miner
@@ -70,18 +72,18 @@ object DesqItemsetExample {
     //val dict = Option.apply(Dictionary.loadFrom("data-local/fimi_retail/dict.json",sc))
 
     //icdm16-example
-    //val dict = Option.apply(Dictionary.loadFrom("data/icdm16-example/dict.json",sc))
-    //val data = DesqDataset.loadFromDelFile(delFile = "data/icdm16-example/data.del", dict = dict.get)
+    val dict = Option.apply(Dictionary.loadFrom("data/icdm16-example/dict.json",sc))
+    val data = DesqDataset.loadFromDelFile(delFile = "data/icdm16-example/data.del", dict = dict.get)
 
     //itemset-example
-    val dict = Option.apply(Dictionary.loadFrom("data/itemset-example/dict.json",sc))
-    val data = "data/itemset-example/data.dat"
+    //val dict = Option.apply(Dictionary.loadFrom("data/itemset-example/dict.json",sc))
+    //val data = "data/itemset-example/data.dat"
 
 
     runItemsetMiner(
       rawData =     data,
       //query =       "unordered{(A* b11)}", //"[.*(.)]{2,3}" "[(a1).*-.*(A^|B)]" "unordered{(a1 b11)}" "unordered{(a1 [b12 | b11])}" "unordered{(a1 [ b1= | b11 b12])}"
-      query =       "c <[d|e] <(A)* (B) >>", // "unordered{(A+)}" "unordered{(A* b11)}" "(A)*.*(b11).*(A)*.*" "[[(A).*]*]*.* (b11).* [[(A).*]*]*.*" "[(A).*]* (b11).* [(A).*]*"
+      query =       "c <[d|e] <(A)* (B) >>", //
       minSupport =  1,
       extDict =     dict)
   }
