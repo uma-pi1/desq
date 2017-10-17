@@ -20,26 +20,24 @@ public final class FstOperations {
 		Fst concatenator = null;
 		for (Map.Entry<Fst,int[]> entry: inputFsts.entrySet()){
 			if(entry.getValue() != null){
-				//min occurances
+				//min occurrences
 				int min = entry.getValue()[0];
+				int max = entry.getValue()[1];
 				if (min > 0){
 					fsts.addAll(addExactly(entry.getKey(),min));
 				}
-				if(entry.getValue().length == 1) {
+				if(max == 0) {
 					//no max -> find all occurrences (kleene *) in all combinations -> use as concatenator
 					concatenator = (concatenator != null)
 							? concatenate(concatenator, kleene(entry.getKey().shallowCopy()))
 							: kleene(entry.getKey().shallowCopy());
 					concatinatorSize++;
 
-				}else if (entry.getValue().length == 2){
+				}else if (max > min){
 					//min and max provided
-					int max = entry.getValue()[1];
-					if(max >= min){
-						int dif = max - min;
-						//Difference between min and max represented with optionals
-						if(dif > 0) fsts.addAll(addExactly(optional(entry.getKey().shallowCopy()), dif));
-					}
+					int dif = max - min;
+					//Difference between min and max represented with optionals
+					fsts.addAll(addExactly(optional(entry.getKey().shallowCopy()), dif));
 				}
 			}else{
 				//No frequencies -> add just once
