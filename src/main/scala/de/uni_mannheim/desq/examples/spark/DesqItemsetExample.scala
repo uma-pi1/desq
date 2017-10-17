@@ -87,4 +87,5 @@ object DesqItemsetExample {
       minSupport =  1,
       extDict =     dict)
   }
+
 }

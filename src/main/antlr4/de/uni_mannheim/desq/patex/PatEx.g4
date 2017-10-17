@@ -19,14 +19,14 @@ concatexp
 ;
 repeatexp
 :
-	repeatexp '?'					#optionalExpression
-	|repeatexp '*'					#starExpression
-	|repeatexp '+'					#plusExpression
-	|repeatexp '{' INT '}'          #repeatExactlyExpression
-	|repeatexp '{' ',' INT '}'      #repeatMaxExpression
-    |repeatexp '{' INT ',' '}'      #repeatMinExpression
-	|repeatexp '{' INT ',' INT '}'  #repeatMinMaxExpression
-	| simpleexp						#simpleExpression
+	repeatexp '?'					    #optionalExpression
+	|repeatexp '!'? '*'					#starExpression
+	|repeatexp '!'? '+'					#plusExpression
+	|repeatexp '!'? '{' INT '}'         #repeatExactlyExpression
+	|repeatexp '!'? '{' ',' INT '}'     #repeatMaxExpression
+    |repeatexp '!'? '{' INT ',' '}'     #repeatMinExpression
+	|repeatexp '!'? '{' INT ',' INT '}' #repeatMinMaxExpression
+	| simpleexp						    #simpleExpression
 ;
 simpleexp
 :
@@ -81,5 +81,5 @@ fragment SQUOTE : '\'';
 fragment DQUOTE : '"';
 fragment HASH : '#';
 //fragment CHAR: ~('#' | '\'' | '\"' | '|' | '?' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
-fragment CHAR: ~('#' | '\'' | '"' | '|' | '?' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '<' | '>' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
+fragment CHAR: ~('#' | '\'' | '"' | '|' | '?' | '!' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '<' | '>' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
 WS  : [ \t\r\n]+ -> skip; // skip spaces, tabs, newlines

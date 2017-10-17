@@ -10,7 +10,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 object DesqCountExample {
   def icdm16()(implicit sc: SparkContext) {
     //val patternExpression = "[c|d]([A^|B=^]+)e"
-    val patternExpression = "[c|d]<(A)+ (B)+ A{2,}>e"
+    val patternExpression = "[c|d] < (A)+ (B)+ A!+ > e"
     val sigma = 1
     val conf = DesqCount.createConf(patternExpression, sigma)
     ExampleUtils.runIcdm16(conf)
