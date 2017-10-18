@@ -4,19 +4,28 @@ grammar PatEx;
 
 patex
 :
-	start='^'? expr=unionexp end='$'?				#union
+	start='^'? expr=unionexp end='$'?	#union
 ;
 
 unionexp
 :
-	concatexp '|' unionexp			#unionExpression
-	| concatexp						#concat
+    concatexp '|' unionexp	            #unionExpression
+    | concatexp					        #concat
 ;
+
+
 concatexp
 :
-	repeatexp concatexp      		#concatExpression
-	| repeatexp						#repeatExpression
+	unorderedexp concatexp      	    #concatExpression
+	| unorderedexp					    #unordered
 ;
+
+unorderedexp
+:
+    repeatexp '&' unorderedexp          #unorderedExpression
+    | repeatexp						    #repeat
+;
+
 repeatexp
 :
 	repeatexp '?'					    #optionalExpression
@@ -30,16 +39,16 @@ repeatexp
 ;
 simpleexp
 :
-	itemexp							#itemExpression
-	| '[' unionexp ']'				#parens
-	| '(' unionexp ')'  			#capture
-	| '<' concatexp '>'             #unordered
+	itemexp							    #itemExpression
+	| '[' unionexp ']'				    #parens
+	| '(' unionexp ')'  			    #capture
+	//| '<' concatexp '>'                 #unordered
 ;
 
 itemexp 
 :
-	'.' '^'?                        #wildCard
-	| item '='? '^'?                #nonWildCard
+	'.' '^'?                            #wildCard
+	| item '='? '^'?                    #nonWildCard
 ;
 
 item
@@ -81,5 +90,5 @@ fragment SQUOTE : '\'';
 fragment DQUOTE : '"';
 fragment HASH : '#';
 //fragment CHAR: ~('#' | '\'' | '\"' | '|' | '?' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
-fragment CHAR: ~('#' | '\'' | '"' | '|' | '?' | '!' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '<' | '>' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
+fragment CHAR: ~('#' | '\'' | '"' | '|' | '?' | '!' | '&' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '<' | '>' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
 WS  : [ \t\r\n]+ -> skip; // skip spaces, tabs, newlines

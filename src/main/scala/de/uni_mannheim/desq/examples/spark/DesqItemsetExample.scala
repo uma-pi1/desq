@@ -83,7 +83,7 @@ object DesqItemsetExample {
     runItemsetMiner(
       rawData =     data,
       //query =       "unordered{(A* b11)}", //"[.*(.)]{2,3}" "[(a1).*-.*(A^|B)]" "unordered{(a1 b11)}" "unordered{(a1 [b12 | b11])}" "unordered{(a1 [ b1= | b11 b12])}"
-      query =       "c <[d|e] <(A)* (B) >>", //
+      query =       "c [d|e]&(A)&(B)&A{2}", //
       minSupport =  1,
       extDict =     dict)
   }
