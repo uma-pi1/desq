@@ -10,12 +10,8 @@ import de.uni_mannheim.desq.mining.DesqMinerContext;
  */
 public class PatExUtils {
     public static Fst toFst(BasicDictionary dict, String patternExpression) {
-        return toFst(dict, patternExpression, false);
-    }
-
-    public static Fst toFst(BasicDictionary dict, String patternExpression, boolean itemsetPatEx) {
         PatExToFst p = new PatExToFst(patternExpression, dict);
-        Fst fst = p.translate(itemsetPatEx);
+        Fst fst = p.translate();
         fst.minimize(); //TODO: move to translate
         fst.annotate();
         fst.exportGraphViz("minimized.pdf");
