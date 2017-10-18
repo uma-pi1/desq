@@ -28,12 +28,13 @@ public class ConvertPatternExpression {
         dict.writeJson(System.out);
         System.out.println();
 
-        String patternExpression = "[c|d a1] ([A^ | B=^]+) e";
+        String patternExpression = "[c|d a1] ([A^ | B=^]{1,5}) e";
         System.out.println(patternExpression);
 
         String patternExpressionSid = PatExUtils.toSidPatEx(dict, patternExpression);
         String patternExpressionGid = PatExUtils.toGidPatEx(dict, patternExpression);
         String patternExpressionFid = PatExUtils.toFidPatEx(dict, patternExpression);
+        String patternExpressionItemset = PatExUtils.toItemsetPatex(dict, patternExpression);
 
         System.out.println(patternExpressionGid);
         System.out.println(PatExUtils.toGidPatEx(dict, patternExpressionSid));
@@ -49,6 +50,8 @@ public class ConvertPatternExpression {
         System.out.println(PatExUtils.toSidPatEx(dict, patternExpressionSid));
         System.out.println(PatExUtils.toSidPatEx(dict, patternExpressionGid));
         System.out.println(PatExUtils.toSidPatEx(dict, patternExpressionFid));
+
+        System.out.println(patternExpressionItemset);
 
     }
 }

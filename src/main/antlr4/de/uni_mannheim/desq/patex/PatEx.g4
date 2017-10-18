@@ -42,7 +42,6 @@ simpleexp
 	itemexp							    #itemExpression
 	| '[' unionexp ']'				    #parens
 	| '(' unionexp ')'  			    #capture
-	//| '<' concatexp '>'                 #unordered
 ;
 
 itemexp 

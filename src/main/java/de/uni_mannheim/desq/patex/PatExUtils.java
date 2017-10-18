@@ -33,6 +33,11 @@ public class PatExUtils {
         return p.translate();
     }
 
+    public static  String toItemsetPatex(BasicDictionary dict, String patternExpression) {
+        PatExToItemsetPatEx p = new PatExToItemsetPatEx(dict, patternExpression);
+        return p.translate();
+    }
+
     static int asFid(BasicDictionary dict, PatExParser.ItemContext ctx) {
         // parse item
         String label = ctx.getText();

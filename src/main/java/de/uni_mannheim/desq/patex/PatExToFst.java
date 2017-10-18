@@ -4,7 +4,8 @@ import de.uni_mannheim.desq.dictionary.BasicDictionary;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.fst.*;
 import de.uni_mannheim.desq.patex.PatExParser.*;
-import org.antlr.v4.runtime.ANTLRInputStream;
+import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.apache.log4j.Logger;
@@ -36,7 +37,7 @@ public final class PatExToFst {
 
 	public Fst translate() {
 		transitionCache.clear();
-		ANTLRInputStream input = new ANTLRInputStream(expression);
+		CharStream input = CharStreams.fromString(expression);
 
 		// Lexer
 		PatExLexer lexer = new PatExLexer(input);
