@@ -76,8 +76,9 @@ public final class PatExToFst {
 	public class Visitor extends PatExBaseVisitor<Fst> {
 
 		private static final String unorderedMarker = "!";
+		private static final String unorderedConcatenator = "&";
 		private boolean capture = false;
-		private boolean unordered = false;  //Flag if within unordered symbol <...>
+		//private boolean unordered = false;  //Flag if within unordered symbol <...>
 		private int unorderedConcatId = -1; //unordered: currently active concat ID (handover in concatExpression)
 		private int maxConcatId = -1; //unordered: watermark for easy generation of new concat id
 		private ArrayList<HashMap<Fst,int[]>> unorderedConcatElements = new ArrayList<>(); //unordered: elements of concat with frequencies
@@ -122,7 +123,6 @@ public final class PatExToFst {
 		public Fst visitUnionExpression(UnionExpressionContext ctx) {
 			return FstOperations.union(visit(ctx.concatexp()), visit(ctx.unionexp()));
 		}
-
 		
 		@Override
 		public Fst visitConcat(ConcatContext ctx) {
@@ -132,8 +132,24 @@ public final class PatExToFst {
 		
 		@Override
 		public Fst visitConcatExpression(ConcatExpressionContext ctx) {
-			//only call if pattern "repeatexp concatexp" matches (actual concatination)
-			if(unorderedConcatId < 0 && (unordered || itemsetPatEx)){
+			//only call if pattern "repeatexp concatexp" matches (actual concatenation)
+			//check if unordered
+			/*if (itemsetPatEx){
+				if (unorderedConcatId < 0){ //new concatenation
+					unorderedConcatId = ++maxConcatId;
+					unorderedConcatElements.add(unorderedConcatId, new HashMap<>());
+				}
+				//remember unorderedConcatId locally (will be removed by child)
+				int localConcatId = unorderedConcatId;
+				//add current step/fst to backlog (might be added by the nested repeatexp() call already)
+				unorderedConcatElements.get(localConcatId).putIfAbsent(visit(ctx.unorderedexp()),null);
+				//iterate further in concatenation, and handover unorderedConcatId to next concat step (was un-set by child to avoid inheritance)
+				unorderedConcatId = localConcatId;
+				return visit(ctx.concatexp());
+			}else{*/
+				return FstOperations.concatenate(visit(ctx.unorderedexp()), visit(ctx.concatexp()));
+			//}
+			/*if(unorderedConcatId < 0 && (unordered || itemsetPatEx)){
 				//no active "unordered" concatenation but unordered flag set -> new "unordered" concatenation
 				unordered = false; //stop inheritance
 				unorderedConcatId = ++maxConcatId;
@@ -144,43 +160,68 @@ public final class PatExToFst {
 			if(unorderedConcatId > -1){
 				//remember unorderedConcatId locally
 				int localConcatId = unorderedConcatId;
-				//add current step/fst to backlog (mitght be added by the nested repeatexp() call already)
+				//add current step/fst to backlog (might be added by the nested repeatexp() call already)
 				unorderedConcatElements.get(localConcatId).putIfAbsent(visit(ctx.repeatexp()),null);
 				//iterate further in concatenation, and handover unorderedConcatId to next concat step (was un-set by child to avoid inheritance)
 				unorderedConcatId = localConcatId;
 				return visit(ctx.concatexp());
 			}else {
 				return FstOperations.concatenate(visit(ctx.repeatexp()), visit(ctx.concatexp()));
-			}
+			}*/
+		}
+
+		@Override
+		public Fst visitUnordered(UnorderedContext ctx){
+			//only called for last element of concatexp (end of recursion, if there was one)
+			/*if(itemsetPatEx && unorderedConcatId > -1) {
+				//remember concat processing id locally, add repeatxp to backlog and permute all
+				int localConcatId = unorderedConcatId;
+				unorderedConcatElements.get(localConcatId).putIfAbsent(visit(ctx.unorderedexp()),null);
+				Fst permuted = FstOperations.permute(unorderedConcatElements.get(localConcatId));
+				unorderedConcatElements.get(localConcatId).clear();
+				//return union of Fst permutations (results of concatexp)
+				return permuted;
+			}else {*/
+				return visit(ctx.unorderedexp());
+			//}
 		}
 
 		
+
+
 		@Override
-		public Fst visitRepeatExpression(RepeatExpressionContext ctx) {
-			//only called for last element of concatexp (end of recursion, if there was one)
+		public Fst visitUnorderedExpression(UnorderedExpressionContext ctx) {
+			//only called for format concatexp & unorederedexp -> collect unordered items
+			if (unorderedConcatId < 0) { //new concatenation
+				unorderedConcatId = ++maxConcatId;
+				unorderedConcatElements.add(unorderedConcatId, new HashMap<>());
+			}
+			//remember unorderedConcatId locally (will be removed by childs)
+			int localConcatId = unorderedConcatId;
+			//add current step/fst to backlog (might be added by the nested repeatexp() call already)
+			unorderedConcatElements.get(localConcatId).putIfAbsent(visit(ctx.repeatexp()), null);
+			//iterate further in concatenation, and handover unorderedConcatId to next concat step (was un-set by child to avoid inheritance)
+			unorderedConcatId = localConcatId;
+			return visit(ctx.unorderedexp());
+		}
+
+		@Override
+		public Fst visitRepeat(RepeatContext ctx) {
+			//only as last element of union expression (end of recursion, if there was one)
 			if(unorderedConcatId > -1) {
-				//remember concat processing id locally
+				//remember concat processing id locally, add repeatexp to backlog and permute all
 				int localConcatId = unorderedConcatId;
-				//add last element of concat to list
 				unorderedConcatElements.get(localConcatId).putIfAbsent(visit(ctx.repeatexp()),null);
-				/*//optional: create pdfs to trace fsts of the concat
-				int idx = 0;
-				for (Fst fst: concatElements.get(localConcatId)){
-					fst.exportGraphViz("unorderedList_" + localConcatId + "_" + idx + ".pdf");
-					idx++;
-				}*/
-				//Permute all combinations: E1E2...En
-				Fst union = FstOperations.permute(unorderedConcatElements.get(localConcatId));
-				//Clear backlog
+				Fst permuted = FstOperations.permute(unorderedConcatElements.get(localConcatId));
 				unorderedConcatElements.get(localConcatId).clear();
 				//return union of Fst permutations (results of concatexp)
-				return union;
+				return permuted;
 			}else {
 				return visit(ctx.repeatexp());
 			}
 		}
 
-		
+
 		@Override
 		public Fst visitOptionalExpression(OptionalExpressionContext ctx) {
 			if(unorderedConcatId > -1) unorderedConcatId = -1;
@@ -394,7 +435,8 @@ public final class PatExToFst {
 			fst.updateStates();
 			return fst;
 		}
-		@Override
+
+		/*@Override
 		public Fst visitUnordered(UnorderedContext ctx) {
 			unordered = true;
 			if (itemsetPatEx) {
@@ -402,7 +444,7 @@ public final class PatExToFst {
 						"Pattern expression: " + expression);
 			}
 			return visit(ctx.concatexp()); //children should remove unordered flag (no inheritance to all children)
-		}
+		}*/
 
 		private Fst getDotKleene() {
 			Fst fst = new Fst();
