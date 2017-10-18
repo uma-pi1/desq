@@ -54,7 +54,7 @@ public final class FstOperations {
 
 		//add concatenator at beginning and end as well (if defined)
 		if (concatenator != null) {
-			//concatenator.exportGraphViz("concatenator.pdf");
+			concatenator.exportGraphViz("concatenator.pdf");
 			if(permuted != null) {
 				permuted = concatenate(concatenator.shallowCopy(), permuted);
 				permuted = concatenate(permuted, concatenator.shallowCopy());

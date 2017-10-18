@@ -96,7 +96,7 @@ public final class DesqCount extends DesqMiner {
 		// create FST
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
 
-		this.fst = PatExUtils.toFst(ctx.dict, patternExpression, ctx.conf.getBoolean("desq.mining.is.itemset"));
+		this.fst = PatExUtils.toFst(ctx.dict, patternExpression);
 
 		// create two pass auxiliary variables (if needed)
 		if (useTwoPass) { // two-pass
