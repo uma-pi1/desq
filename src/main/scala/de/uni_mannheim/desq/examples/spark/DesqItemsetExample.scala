@@ -6,6 +6,7 @@ import de.uni_mannheim.desq.Desq._
 import de.uni_mannheim.desq.mining.spark.{DesqCount, DesqDataset, DesqMiner}
 import de.uni_mannheim.desq.dictionary.Dictionary
 import de.uni_mannheim.desq.mining.DesqDfs
+import de.uni_mannheim.desq.patex.PatExToItemsetPatEx
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -13,43 +14,91 @@ import org.apache.spark.{SparkConf, SparkContext}
   * Created by sulbrich on 18.09.2017
   */
 object DesqItemsetExample {
+
+  /** run on small icdm16 dataset **/
+  def icdm16(compare: Boolean = false)(implicit sc: SparkContext) {
+
+    val patternExpression = "[c|d|e] (A)!*&(B)+&a1!+ [d|e]"
+    val sigma = 1
+    val conf = DesqCount.createConf(patternExpression, sigma)
+    if(compare){
+      println("\n ==== sequence query =====")
+      ExampleUtils.runIcdm16(conf)
+    }
+    println("\n ==== itemset query =====")
+    ExampleUtils.runIcdm16(conf,asItemset = true)
+  }
+
+  /** run itemset query on fimi-retail data**/
+  def fimi_retail()(implicit sc: SparkContext) {
+
+    val patEx = "(38)"
+    val minSupport = 1000
+
+    val data = "data-local/fimi_retail/retail.dat"
+    val dict = Option.apply(Dictionary.loadFrom("data-local/fimi_retail/dict.json",sc))
+
+    runItemsetMiner(
+      rawData =     data,
+      patEx =       patEx,
+      minSupport =  minSupport,
+      extDict =     dict)
+  }
+
+  /** run itemset query on nyt91 data**/
+  def nyt91()(implicit sc: SparkContext) {
+
+    val patEx = "(..)"
+    val minSupport = 1000
+
+    val data = DesqDataset.load("data-local/nyt-1991-data")
+
+    runItemsetMiner(
+      rawData =     data,
+      patEx =       patEx,
+      minSupport =  minSupport,
+      extDict =     None)
+  }
+
   /**
     * Prototype of DESQ API for Itemset Mining
     */
   def runItemsetMiner[T](
                           rawData: T,
-                          query:String = "[.*(.^)]{2,3}",
+                          patEx:String,
                           minSupport: Int = 1000,
                           extDict: Option[Dictionary]
                         )(implicit sc: SparkContext): (DesqMiner, DesqDataset) ={
 
-    // Manage data
+    // Manage different data inputs (DesqDataset, FilePath, RDD)
     var data: DesqDataset = null
     rawData match{
-      case dds: DesqDataset => //Use existing DesqDataset as basis
+      case dds: DesqDataset => //Build from existing DesqDataset
         data = DesqDataset.buildItemsets(dds)
-      case file: String => //Read from space delimited file
+      case file: String => //Build from space delimited file
         data = DesqDataset.buildItemsets(sc.textFile(file).map(s => s.split(" ")), extDict = extDict)
-      case rdd: RDD[Array[Any]] =>
+      case rdd: RDD[Array[Any]] => //Build from RDD
         data = DesqDataset.buildItemsets(rdd,extDict = extDict)
       case _ =>
         println("ERROR: Unsupported input type")
         return (null,null)
     }
-    println("\nDictionary:")
-    data.dict.writeJson(System.out);
+
+    //Convert PatEx
+    val itemsetPatEx = new PatExToItemsetPatEx(data.dict, patEx).translate()
+
+    //Print some information
+    println("\nConverted PatEx: " + patEx +"  ->  " + itemsetPatEx)
+    println("\nDictionary size: " + data.dict.size())
+    //data.dict.writeJson(System.out)
     println("\nSeparatorGid: " + data.itemsetSeparatorGid + "(" + data.getCfreqOfSeparator() + ")")
-
     println("\nFirst 10 Input Sequences:")
-    data.print(10);
+    data.print(10)
 
-    println("\nInit/Run Miner for query: " + query);
     // Init Desq Miner
-    val confDesq = DesqCount.createConf(query, minSupport)
+    val confDesq = DesqCount.createConf(itemsetPatEx, minSupport)
     confDesq.setProperty("desq.mining.prune.irrelevant.inputs", true)
     confDesq.setProperty("desq.mining.use.two.pass", false)
-    confDesq.setProperty("desq.mining.is.itemset", data.containsItemsets())
-
 
     //Run Miner
     val (miner, result) = ExampleUtils.runVerbose(data,confDesq)
@@ -57,35 +106,15 @@ object DesqItemsetExample {
     (miner, result)
   }
 
-
-
   def main(args: Array[String]) {
     //Init SparkConf
     val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
     initDesq(conf)
     implicit val sc:SparkContext = new SparkContext(conf)
 
-    //val data = DesqDataset.buildFromStrings(sc.textFile("data-local/fimi_retail/retail.dat").map(s => s.split(" ")))
-    //val data = "data-local/fimi_retail/retail.dat" //"data-local/nyt-1991-data"
-    //val data = sc.textFile("data/icdm16-example/data.del").map(s => s.split("\t"))
-
-    //val dict = Option.apply(Dictionary.loadFrom("data-local/fimi_retail/dict.json",sc))
-
-    //icdm16-example
-    val dict = Option.apply(Dictionary.loadFrom("data/icdm16-example/dict.json",sc))
-    val data = DesqDataset.loadFromDelFile(delFile = "data/icdm16-example/data.del", dict = dict.get)
-
-    //itemset-example
-    //val dict = Option.apply(Dictionary.loadFrom("data/itemset-example/dict.json",sc))
-    //val data = "data/itemset-example/data.dat"
-
-
-    runItemsetMiner(
-      rawData =     data,
-      //query =       "unordered{(A* b11)}", //"[.*(.)]{2,3}" "[(a1).*-.*(A^|B)]" "unordered{(a1 b11)}" "unordered{(a1 [b12 | b11])}" "unordered{(a1 [ b1= | b11 b12])}"
-      query =       "c [d|e]&(A)&(B)&A{2}", //
-      minSupport =  1,
-      extDict =     dict)
+    icdm16(compare = true)
+    //fimi_retail
+    //nyt91
   }
 
 }

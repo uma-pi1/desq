@@ -5,7 +5,9 @@ import java.util.concurrent.TimeUnit
 
 import com.google.common.base.Stopwatch
 import de.uni_mannheim.desq.dictionary.Dictionary
-import de.uni_mannheim.desq.mining.spark.{DesqDataset, DesqMiner, DesqMinerContext}
+import de.uni_mannheim.desq.mining.spark.{DesqCount, DesqDataset, DesqMiner, DesqMinerContext}
+import de.uni_mannheim.desq.patex.PatExToItemsetPatEx
+import de.uni_mannheim.desq.patex.PatExToPatEx
 import de.uni_mannheim.desq.util.DesqProperties
 import org.apache.spark.SparkContext
 
@@ -38,15 +40,23 @@ object ExampleUtils {
     print("Mining (persist)... ")
     val persistTime = Stopwatch.createStarted
     result.sequences.cache()
-    val (count, support) = result.sequences.map(ws => (1, ws.weight)).reduce((cs1, cs2) => (cs1._1+cs2._1, cs1._2+cs2._2))
-    persistTime.stop
-    println(persistTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
-    println("Total time: " + (prepTime.elapsed(TimeUnit.MILLISECONDS)
-      + miningTime.elapsed(TimeUnit.MILLISECONDS) + persistTime.elapsed(TimeUnit.MILLISECONDS)) + "ms")
+    if (result.sequences.count() > 0) { //isEmpty causes spark warning "block locks were not released by TID" because of take(1)
+      val (count, support) = result.sequences.map(ws => (1, ws.weight)).reduce((cs1, cs2) => (cs1._1 + cs2._1, cs1._2 + cs2._2))
+      persistTime.stop
+      println(persistTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
-    println("Number of patterns: " + count)
-    println("Total frequency of all patterns: " + support)
+      println("Total time: " + (prepTime.elapsed(TimeUnit.MILLISECONDS)
+        + miningTime.elapsed(TimeUnit.MILLISECONDS) + persistTime.elapsed(TimeUnit.MILLISECONDS)) + "ms")
+
+      println("Number of patterns: " + count)
+      println("Total frequency of all patterns: " + support)
+    }else{
+      persistTime.stop
+      println(persistTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+
+      println("No results!")
+    }
 
     (miner, result)
   }
@@ -75,14 +85,28 @@ object ExampleUtils {
 
   /** Runs a miner on ICDM16 example data. */
   @throws[IOException]
-  def runIcdm16(minerConf: DesqProperties)(implicit sc: SparkContext): (DesqMiner, DesqDataset) = {
+  def runIcdm16(minerConf: DesqProperties, asItemset: Boolean = false)(implicit sc: SparkContext): (DesqMiner, DesqDataset) = {
     val dictFile = this.getClass.getResource("/icdm16-example/dict.json")
     val dataFile = this.getClass.getResource("/icdm16-example/data.del")
 
     // load the dictionary & update hierarchy
-    val dict = Dictionary.loadFrom(dictFile)
+    var dict = Dictionary.loadFrom(dictFile)
     val delFile = sc.parallelize(Source.fromURL(dataFile).getLines.toSeq)
-    val data = DesqDataset.loadFromDelFile(delFile, dict, usesFids = false).copyWithRecomputedCountsAndFids()
+    var data = DesqDataset.loadFromDelFile(delFile, dict, usesFids = false).copyWithRecomputedCountsAndFids()
+
+    //Convert to Itemsets?
+    if(asItemset){
+      //Convert data + dict
+      data = DesqDataset.buildItemsets(data)
+      dict = data.dict
+
+      //Convert PatEx
+      val patEx = minerConf.getString("desq.mining.pattern.expression")
+      val itemsetPatEx = new PatExToItemsetPatEx(dict,patEx).translate()
+      minerConf.setProperty("desq.mining.pattern.expression", itemsetPatEx)
+      System.out.println("\nConverted PatEx: " + patEx +"  ->  " + itemsetPatEx)
+    }
+
     println("\nDictionary with frequencies:")
     dict.writeJson(System.out)
     println()
@@ -96,6 +120,7 @@ object ExampleUtils {
     result.sequences.unpersist()
     (miner, result)
   }
+
 
   /** Runs a miner on NYT example data. */
   @throws[IOException]

@@ -136,7 +136,6 @@ public final class DesqCount extends DesqMiner {
 		conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
 		conf.setProperty("desq.mining.use.lazy.dfa", false);
 		conf.setProperty("desq.mining.use.two.pass", true);
-		conf.setProperty("desq.mining.is.itemset", false);
 		return conf;
 	}
 
