@@ -17,6 +17,7 @@ public class PatExToItemsetPatEx {
 
     private BasicDictionary dict;
     private String patternExpression;
+    private Boolean capture = false;
     private static final String unorderedConcat = "&";
     private static final String unorderedMarker= "!";
 
@@ -38,23 +39,16 @@ public class PatExToItemsetPatEx {
     }
 
     class Visitor extends PatExBaseVisitor<String> {
-        @Override
-        public String visitChildren(RuleNode node) {
-            String result = "";
-            int n = node.getChildCount();
-            for(int i = 0; i < n; ++i) {
-                ParseTree c = node.getChild(i);
-                String childResult = c.accept(this);
-                result += childResult;
-            }
-            return result;
-        }
+
+        // -- Handle Concatenations
 
         @Override
         public String visitConcatExpression(ConcatExpressionContext ctx) {
             //E1 E2 -> E1&E2
             return  visit(ctx.unorderedexp()) + unorderedConcat + visit(ctx.concatexp());
         }
+
+        // -- Handle Repeats
 
         @Override
         public String visitRepeatMinMaxExpression(RepeatMinMaxExpressionContext ctx) {
@@ -87,10 +81,25 @@ public class PatExToItemsetPatEx {
             return addUnorderedMarker(visit(ctx.repeatexp()),ctx.children);
         }
 
+        // -- Handle capture and gaps
+
         @Override
-        public String visitTerminal(TerminalNode node) {
-            return node.getText();
+        public String visitCapture(CaptureContext ctx) {
+            //add parentheses only on itemlevel
+            capture = true;
+            String patEx = visit(ctx.unionexp());
+            capture = false;
+            return patEx;
         }
+
+        @Override
+        public String visitItemExpression(ItemExpressionContext ctx) {
+            //Ensure that capture parentheses are added on item level as well as uncaptured adjacent gaps
+            String item = (capture) ? "(" + visit(ctx.itemexp()) + ")" : visit(ctx.itemexp());
+            return "[" + item + ".*]";
+        }
+
+        // -- Helper methods
 
         private String addUnorderedMarker(String repeatexp, List<ParseTree> children){
             if(children.get(1).getText().equals(unorderedMarker)){
@@ -110,6 +119,24 @@ public class PatExToItemsetPatEx {
             }
             return result;
 
+        }
+
+        // -- Default Rule Node and TerminalNode handling (copied from PatExToPatEx)
+        @Override
+        public String visitChildren(RuleNode node) { //default behavior for visit (if none is implemented)
+            String result = "";
+            int n = node.getChildCount();
+            for(int i = 0; i < n; ++i) {
+                ParseTree c = node.getChild(i);
+                String childResult = c.accept(this);
+                result += childResult;
+            }
+            return result;
+        }
+
+        @Override //return the text of leaf nodes
+        public String visitTerminal(TerminalNode node) {
+            return node.getText();
         }
 
     }
