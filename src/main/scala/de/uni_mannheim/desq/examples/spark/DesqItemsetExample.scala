@@ -18,7 +18,7 @@ object DesqItemsetExample {
   /** run on small icdm16 dataset **/
   def icdm16(compare: Boolean = false)(implicit sc: SparkContext) {
 
-    val patternExpression = "[c|d|e] (A)!*&(B)+&a1!+ [d|e]"
+    val patternExpression = "(.)? . c" //"[c|d|e] (A)!*&(B)+&a1!+ [d|e]" "[c|d] (A)+ B"
     val sigma = 1
     val conf = DesqCount.createConf(patternExpression, sigma)
     if(compare){
@@ -112,7 +112,8 @@ object DesqItemsetExample {
     initDesq(conf)
     implicit val sc:SparkContext = new SparkContext(conf)
 
-    icdm16(compare = true)
+    icdm16()
+    //icdm16(compare = true)
     //fimi_retail
     //nyt91
   }
