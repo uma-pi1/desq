@@ -118,7 +118,6 @@ public class PatExToItemsetPatEx {
                 result += children.get(i).getText();
             }
             return result;
-
         }
 
         // -- Default Rule Node and TerminalNode handling (copied from PatExToPatEx)

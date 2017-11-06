@@ -13,7 +13,7 @@ public final class FstOperations {
 	}
 
 	/** Returns an FST that unions all FST permutations */
-	public static Fst permute(HashMap<Fst,int[]> inputFsts) {
+	public static Fst handlePermute(HashMap<Fst,int[]> inputFsts) {
 		ArrayList<Fst> fsts = new ArrayList<>();
 		//handle frequencies
 		int concatinatorSize = 0;
@@ -59,16 +59,10 @@ public final class FstOperations {
 				permuted = concatenate(concatenator.shallowCopy(), permuted);
 				permuted = concatenate(permuted, concatenator.shallowCopy());
 			}else{
-				//If nothing to permute (only concatenor left) -> just return concatenator
+				//If nothing to permute (only concatenor left) -> return concatenator
 				permuted = concatenator;
 			}
 		}
-		//permuted.exportGraphViz("permuted.pdf");
-
-		//optimize permutation
-		//permuted.optimize();
-		//permuted.updateStates();
-		//permuted.exportGraphViz("permuted_optimized.pdf");
 		return permuted;
 	}
 
@@ -84,6 +78,7 @@ public final class FstOperations {
 	private static Fst permute(Fst prefixFst, List<Fst> fsts, Fst concatenator) {
 		assert fsts.size() > 0;
 		if(fsts.size() > 1){
+			//more than one item -> permute (recursion step)
 			Fst unionFst = null;
 			for (Fst fst: fsts){
 				//create copy of to be added fst (avoid wrong state transitions)
@@ -96,34 +91,25 @@ public final class FstOperations {
 					if (copy != fst){ partFsts.add(copy.shallowCopy());	}
 				}
 				//handle new prefix
-				Fst newPrefixFst = null;
-				if(prefixFst != null) {
-					//Within recursion: concatenate elements (prefix + new first element)
-					newPrefixFst = concatenate(prefixFst.shallowCopy(), addedFst);
-				}else{
-					//First Recursion Step (no existing prefix yet)
-					newPrefixFst = addedFst;
-				}
+				Fst newPrefixFst = (prefixFst != null)
+						//Within recursion: concat items (prefix + new first item)
+						? concatenate(prefixFst.shallowCopy(), addedFst)
+						//Or first recursion step (no existing prefix yet)
+						: addedFst;
+
 				//recursions combined by union
-				if(unionFst != null) {
-					//union further recursion paths
-					unionFst = union(unionFst, permute(newPrefixFst, partFsts, concatenator));
-				}else{
-					//First loop iteration(first element of union)
-					unionFst = permute(newPrefixFst, partFsts, concatenator);
-				}
+				unionFst = (unionFst != null)
+						//union further recursion paths
+						? union(unionFst, permute(newPrefixFst, partFsts, concatenator))
+						//First loop iteration(first element of union)
+						: permute(newPrefixFst, partFsts, concatenator);
 			}
-			//unionFst.updateStates();
 			return unionFst;
 		}else{
 			//end recursion (last concatenation)
-			if(prefixFst != null) {
-				//Fst lastConcat = concatenate(prefixFst.shallowCopy(), fsts.get(0).shallowCopy());
-				//lastConcat.updateStates();
-				return concatenate(prefixFst.shallowCopy(), fsts.get(0).shallowCopy());
-			}else{
-				return fsts.get(0).shallowCopy();
-			}
+			return (prefixFst != null)
+					? concatenate(prefixFst.shallowCopy(), fsts.get(0).shallowCopy())
+					: fsts.get(0).shallowCopy(); //only one item, no permutation
 		}
 	}
 

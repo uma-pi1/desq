@@ -22,19 +22,19 @@ concatexp
 
 unorderedexp
 :
-    repeatexp '&' unorderedexp          #unorderedExpression
+    repeatexp '&' unorderedexp           #unorderedExpression
     | repeatexp						    #repeat
 ;
 
 repeatexp
 :
 	repeatexp '?'					    #optionalExpression
-	|repeatexp '!'? '*'					#starExpression
-	|repeatexp '!'? '+'					#plusExpression
-	|repeatexp '!'? '{' INT '}'         #repeatExactlyExpression
-	|repeatexp '!'? '{' ',' INT '}'     #repeatMaxExpression
-    |repeatexp '!'? '{' INT ',' '}'     #repeatMinExpression
-	|repeatexp '!'? '{' INT ',' INT '}' #repeatMinMaxExpression
+	|repeatexp SET? '*'					#starExpression
+	|repeatexp SET? '+'					#plusExpression
+	|repeatexp SET? '{' INT '}'         #repeatExactlyExpression
+	|repeatexp SET? '{' ',' INT '}'     #repeatMaxExpression
+    |repeatexp SET? '{' INT ',' '}'     #repeatMinExpression
+	|repeatexp SET? '{' INT ',' INT '}' #repeatMinMaxExpression
 	| simpleexp						    #simpleExpression
 ;
 simpleexp
@@ -58,6 +58,8 @@ item
     | SID
     | QSID
 ;
+
+SET : '!';
 
 // an integer
 INT : [0-9]+ ;
@@ -89,5 +91,5 @@ fragment SQUOTE : '\'';
 fragment DQUOTE : '"';
 fragment HASH : '#';
 //fragment CHAR: ~('#' | '\'' | '\"' | '|' | '?' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
-fragment CHAR: ~('#' | '\'' | '"' | '|' | '?' | '!' | '&' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '<' | '>' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
+fragment CHAR: ~('#' | '\'' | '"' | '|' | '?' | '!' | '&' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
 WS  : [ \t\r\n]+ -> skip; // skip spaces, tabs, newlines

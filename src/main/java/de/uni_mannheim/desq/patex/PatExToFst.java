@@ -139,11 +139,14 @@ public final class PatExToFst {
 				unorderedConcatId = ++maxConcatId;
 				unorderedConcatElements.add(unorderedConcatId, new HashMap<>());
 			}
-			//remember unorderedConcatId locally (will be removed by childs)
+			//remember concatId locally (will be removed by visiting childs)
 			int localConcatId = unorderedConcatId;
-			//add current step/fst to backlog (might be added by the nested repeatexp() call already)
-			unorderedConcatElements.get(localConcatId).putIfAbsent(visit(ctx.repeatexp()), null);
-			//iterate further in concatenation, and handover unorderedConcatId to next concat step (was un-set by child to avoid inheritance)
+			//add current fst to backlog
+			// (might be added by child already with repeat spec.)
+			unorderedConcatElements.get(localConcatId).putIfAbsent(
+					visit(ctx.repeatexp()), null
+			);
+			//handover Id to next recursive step
 			unorderedConcatId = localConcatId;
 			return visit(ctx.unorderedexp());
 		}
@@ -154,8 +157,10 @@ public final class PatExToFst {
 			if(unorderedConcatId > -1) {
 				//remember concat processing id locally, add repeatexp to backlog and permute all
 				int localConcatId = unorderedConcatId;
-				unorderedConcatElements.get(localConcatId).putIfAbsent(visit(ctx.repeatexp()),null);
-				Fst permuted = FstOperations.permute(unorderedConcatElements.get(localConcatId));
+				unorderedConcatElements.get(localConcatId).putIfAbsent(
+						visit(ctx.repeatexp()),null
+				);
+				Fst permuted = FstOperations.handlePermute(unorderedConcatElements.get(localConcatId));
 				unorderedConcatElements.get(localConcatId).clear();
 				//return union of Fst permutations (results of concatexp)
 				return permuted;
@@ -177,7 +182,7 @@ public final class PatExToFst {
 			int min = Integer.parseInt(ctx.INT(0).getText());
 			int max = Integer.parseInt(ctx.INT(1).getText());
 			//Check if unordered marker exists
-			boolean isUnordered = ctx.getChild(1).getText().equals(unorderedMarker);
+			boolean isUnordered =  ctx.SET() != null;
 			if(unorderedConcatId > -1 && isUnordered){ //direct child of unordered concatenation
 				return handleUnorderedRepeat(min,max,ctx.repeatexp());
 			}else {
@@ -195,7 +200,7 @@ public final class PatExToFst {
 		public Fst visitRepeatExactlyExpression(RepeatExactlyExpressionContext ctx) {
 			int n = Integer.parseInt(ctx.INT().getText());
 			//Check if unordered marker exists
-			boolean isUnordered = ctx.getChild(1).getText().equals(unorderedMarker);
+			boolean isUnordered =  ctx.SET() != null;
 			if(unorderedConcatId > -1 && isUnordered){ //direct child of unordered concatenation
 				return handleUnorderedRepeat(n,0,ctx.repeatexp());
 			}else {
@@ -211,7 +216,7 @@ public final class PatExToFst {
 		public Fst visitRepeatMaxExpression(RepeatMaxExpressionContext ctx) {
 			int max = Integer.parseInt(ctx.INT().getText());
 			//Check if unordered marker exists
-			boolean isUnordered = ctx.getChild(1).getText().equals(unorderedMarker);
+			boolean isUnordered =  ctx.SET() != null;
 			if(unorderedConcatId > -1 && isUnordered){ //direct child of unordered concatenation
 				return handleUnorderedRepeat(0,max,ctx.repeatexp());
 			}else {
@@ -228,7 +233,7 @@ public final class PatExToFst {
 		public Fst visitRepeatMinExpression(RepeatMinExpressionContext ctx) {
 			int min = Integer.parseInt(ctx.INT().getText());
 			//Check if unordered marker exists
-			boolean isUnordered = ctx.getChild(1).getText().equals(unorderedMarker);
+			boolean isUnordered =  ctx.SET() != null;
 			if(unorderedConcatId > -1 && isUnordered){ //direct child of unordered concatenation
 				return handleUnorderedRepeat(min,0,ctx.repeatexp());
 			}else {
@@ -251,7 +256,7 @@ public final class PatExToFst {
 		@Override
 		public Fst visitPlusExpression(PlusExpressionContext ctx) {
 			//Check if unordered marker exists
-			boolean isUnordered = ctx.getChild(1).getText().equals(unorderedMarker);
+			boolean isUnordered =  ctx.SET() != null;
 			if(unorderedConcatId > -1 && isUnordered){ //direct child of unordered concatenation
 				return handleUnorderedRepeat(1,0,ctx.repeatexp());
 			}else {
@@ -267,7 +272,7 @@ public final class PatExToFst {
 		@Override
 		public Fst visitStarExpression(StarExpressionContext ctx) {
 			//Check if unordered marker exists
-			boolean isUnordered = ctx.getChild(1).getText().equals(unorderedMarker);
+			boolean isUnordered =  ctx.SET() != null;
 			if(unorderedConcatId > -1 && isUnordered){ //direct child of unordered concatenation
 				return handleUnorderedRepeat(0,0,ctx.repeatexp());
 			}else {
@@ -380,7 +385,9 @@ public final class PatExToFst {
 			unorderedConcatId = -1; //stop inheritance
 			Fst fst = visit(visit);
 			if (optimizeRepeats) fst.optimize();
-			int[] freq = {(n != null) ? n : 0, (m != null) ? m : 0}; //frequencies handled during concatenation
+			//add frequencies (handled in permutation)
+			int[] freq = {(n != null) ? n : 0, (m != null) ? m : 0};
+			//Adding FST + repeat specification to backlog
 			unorderedConcatElements.get(localConcatId).put(fst,freq);
 			return fst;
 		}
