@@ -9,7 +9,7 @@ public class DefaultSequenceBuilder implements SequenceBuilder {
     private long currentWeight = 0;
     private IntList currentGids = new IntArrayList();
     private MutablePair<Integer,Boolean> pair = new MutablePair<>(null, false);
-    private Dictionary dict;
+    protected Dictionary dict;
 
     public DefaultSequenceBuilder(Dictionary dict) {
         this.dict = dict;
@@ -47,10 +47,5 @@ public class DefaultSequenceBuilder implements SequenceBuilder {
     /** The returned list is reused so make sure to create a copy it if it needs to be retained. */
     public IntList getCurrentGids() {
         return currentGids;
-    }
-
-    /**Enable to call Dictionary via SequenceBuilder (added by sulbrich)  */
-    public Dictionary getDict() {
-        return dict;
     }
 }
