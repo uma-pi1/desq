@@ -37,26 +37,22 @@ object ExampleUtils {
     miningTime.stop
     println(miningTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
 
-    print("Mining (persist)... ")
+    println("Mining (persist)... ")
     val persistTime = Stopwatch.createStarted
     result.sequences.cache()
 
     if (result.sequences.count() > 0) { //isEmpty causes spark warning "block locks were not released by TID" because of take(1)
       val (count, support) = result.sequences.map(ws => (1, ws.weight)).reduce((cs1, cs2) => (cs1._1 + cs2._1, cs1._2 + cs2._2))
       persistTime.stop
-      println(persistTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
-
-      println("Total time: " + (prepTime.elapsed(TimeUnit.MILLISECONDS)
-        + miningTime.elapsed(TimeUnit.MILLISECONDS) + persistTime.elapsed(TimeUnit.MILLISECONDS)) + "ms")
-
       println("Number of patterns: " + count)
       println("Total frequency of all patterns: " + support)
     }else{
-      persistTime.stop
-      println(persistTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
-
       println("No results!")
     }
+    println("Persist time: " + persistTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+    println("Total time: " + (prepTime.elapsed(TimeUnit.MILLISECONDS)
+      + miningTime.elapsed(TimeUnit.MILLISECONDS) + persistTime.elapsed(TimeUnit.MILLISECONDS)) + "ms")
+
 
     (miner, result)
   }
@@ -133,5 +129,69 @@ object ExampleUtils {
       runMiner(data, minerConf)
     else
       runVerbose(data, minerConf)
+  }
+
+  def runPerformanceEval(minerConf: DesqProperties, inputData: DesqDataset, inputDict: Dictionary, asItemset: Boolean = false)
+                        (implicit sc: SparkContext): (DesqMiner, DesqDataset) = {
+    //Calculating some KPIs before starting measurements
+    println("\n#Dictionary entries: " + inputDict.size())
+    println("\n#Input sequences: " + inputData.sequences.count())
+    val sum = inputData.sequences.map(a => a.size).reduce((a, b) => a + b)
+
+    println("\nAvg length of input sequences: " + sum/inputData.sequences.count())
+
+    // ------- Actual Processing  -------------
+    val totalTime = Stopwatch.createStarted
+
+    //Convert Data?
+    print("Converting data ( " + asItemset.toString + " )... ")
+    val dataTransformationTime = Stopwatch.createStarted
+    val data = if(asItemset) DesqDataset.buildItemsets(inputData, inputDict) else inputData
+    val dict = if(asItemset) data.dict else inputDict
+    dataTransformationTime.stop
+    println(dataTransformationTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+
+    //Convert PatEx?
+    print("Converting PatEx ( " + asItemset.toString + " )... ")
+    val patExTransformationTime = Stopwatch.createStarted
+    if(asItemset){
+      val patEx = minerConf.getString("desq.mining.pattern.expression")
+      val itemsetPatEx = new PatExToItemsetPatEx(dict,patEx).translate()
+      minerConf.setProperty("desq.mining.pattern.expression", itemsetPatEx)
+      System.out.print( patEx + "  ->  " + itemsetPatEx + " ")
+    }
+    patExTransformationTime.stop
+    println(patExTransformationTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+
+    // -------- Execute mining ------------ (based on runVerbose and runMiner)
+    val ctx = new DesqMinerContext(minerConf)
+    val miner = DesqMiner.create(ctx)
+
+    print("Mining (RDD construction)... ")
+    val miningTime = Stopwatch.createStarted
+    val result = miner.mine(data)
+    miningTime.stop
+    println(miningTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+
+    println("Mining (persist)... ") //entails FST generation as well!!!!
+    val persistTime = Stopwatch.createStarted
+    result.sequences.cache()
+
+
+    if (result.sequences.count() > 0) { //isEmpty causes spark warning "block locks were not released by TID" because of take(1)
+      val (count, support) = result.sequences.map(ws => (1, ws.weight)).reduce((cs1, cs2) => (cs1._1 + cs2._1, cs1._2 + cs2._2))
+
+      println("Number of patterns: " + count)
+      println("Total frequency of all patterns: " + support)
+    }else{
+      println("No results!")
+    }
+    persistTime.stop
+    println("Persist time: " + persistTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+    totalTime.stop
+    println("Total time: " + totalTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+
+    result.sequences.unpersist()
+    (miner, result)
   }
 }

@@ -10,6 +10,7 @@ import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectSet;
 import org.apache.log4j.Logger;
+import java.util.concurrent.TimeUnit;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -93,10 +94,13 @@ public final class DesqCount extends DesqMiner {
 		prefix = new Sequence();
 		outputSequences.defaultReturnValue(-1L);
 
-		// create FST
+		// create FST (and measure)
+		System.out.print("Generating FST ...");
+		long fstStartTime = System.nanoTime();
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
-
 		this.fst = PatExUtils.toFst(ctx.dict, patternExpression);
+		long fstTime = System.nanoTime() - fstStartTime;
+		System.out.println(TimeUnit.NANOSECONDS.toMillis(fstTime) + "ms");
 
 		// create two pass auxiliary variables (if needed)
 		if (useTwoPass) { // two-pass

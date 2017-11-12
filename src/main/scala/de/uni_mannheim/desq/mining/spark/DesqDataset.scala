@@ -513,4 +513,8 @@ object DesqDataset {
     buildItemsets(sourceDataset.toSids, extDict = Option.apply(sourceDataset.dict))
   }
 
+  def buildItemsets(sourceDataset: DesqDataset, extDict: Dictionary): DesqDataset = {
+    buildItemsets(sourceDataset.toSids, extDict = Option.apply(extDict))
+  }
+
 }

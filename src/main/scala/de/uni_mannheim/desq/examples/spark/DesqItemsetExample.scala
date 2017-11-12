@@ -10,6 +10,8 @@ import de.uni_mannheim.desq.patex.PatExToItemsetPatEx
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 
+import scala.io.Source
+
 /**
   * Created by sulbrich on 18.09.2017
   */
@@ -29,20 +31,53 @@ object DesqItemsetExample {
     ExampleUtils.runIcdm16(conf,asItemset = true)
   }
 
+  def evalIdcm16()(implicit sc: SparkContext){
+    val patternExpression = "[c|d] (A){3} B"
+    val sigma = 1
+    val conf = DesqCount.createConf(patternExpression, sigma)
+
+    val dictFile = this.getClass.getResource("/icdm16-example/dict.json")
+    val dataFile = this.getClass.getResource("/icdm16-example/data.del")
+
+    // load the dictionary & update hierarchy
+    var dict = Dictionary.loadFrom(dictFile)
+    val delFile = sc.parallelize(Source.fromURL(dataFile).getLines.toSeq)
+    var data = DesqDataset.loadFromDelFile(delFile, dict, usesFids = false).copyWithRecomputedCountsAndFids()
+
+    println("\n ==== sequence query =====")
+    ExampleUtils.runPerformanceEval(conf,data,dict);
+
+    println("\n ==== itemset query =====")
+    ExampleUtils.runPerformanceEval(conf,data,dict,asItemset = true)
+  }
+
   /** run itemset query on fimi-retail data**/
-  def fimi_retail()(implicit sc: SparkContext) {
+  def fimi_retail(eval: Boolean = false)(implicit sc: SparkContext) {
 
-    val patEx = "(38)"
-    val minSupport = 1000
+    val patEx = "(39)&(41)!{0,7}"
+    val minSupport = 100
 
-    val data = "data-local/fimi_retail/retail.dat"
-    val dict = Option.apply(Dictionary.loadFrom("data-local/fimi_retail/dict.json",sc))
+    if(eval) {
+      val conf = DesqCount.createConf(patEx, minSupport)
 
-    runItemsetMiner(
-      rawData =     data,
-      patEx =       patEx,
-      minSupport =  minSupport,
-      extDict =     dict)
+      val data = DesqDataset.buildFromStrings(sc.textFile("data-local/fimi_retail/retail.dat").map(s => s.split(" ")))
+      //val dict = Dictionary.loadFrom("data-local/fimi_retail/dict.json", sc)
+
+      println("\n ==== sequence query =====")
+      ExampleUtils.runPerformanceEval(conf, data, data.dict);
+
+      println("\n ==== itemset query =====")
+      ExampleUtils.runPerformanceEval(conf, data, data.dict, asItemset = true)
+    }else {
+      val data = "data-local/fimi_retail/retail.dat"
+      val dict = Option.apply(Dictionary.loadFrom("data-local/fimi_retail/dict.json", sc))
+
+      runItemsetMiner(
+        rawData = data,
+        patEx = patEx,
+        minSupport = minSupport,
+        extDict = dict)
+    }
   }
 
   /** run itemset query on nyt91 data**/
@@ -74,7 +109,7 @@ object DesqItemsetExample {
     var data: DesqDataset = null
     rawData match{
       case dds: DesqDataset => //Build from existing DesqDataset
-        data = DesqDataset.buildItemsets(dds)
+        data = if(extDict.isDefined) DesqDataset.buildItemsets(dds,extDict.get) else DesqDataset.buildItemsets(dds)
       case file: String => //Build from space delimited file
         data = DesqDataset.buildItemsets(sc.textFile(file).map(s => s.split(" ")), extDict = extDict)
       case rdd: RDD[Array[Any]] => //Build from RDD
@@ -113,8 +148,10 @@ object DesqItemsetExample {
     implicit val sc:SparkContext = new SparkContext(conf)
 
     //icdm16()
-    icdm16(compare = true)
-    //fimi_retail
+    //icdm16(compare = true)
+    //evalIdcm16
+    fimi_retail(true)
+    //fimi_retail()
     //nyt91
   }
 

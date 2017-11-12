@@ -16,8 +16,8 @@ public final class FstOperations {
 	public static Fst handlePermute(HashMap<Fst,int[]> inputFsts) {
 		ArrayList<Fst> fsts = new ArrayList<>();
 		//handle frequencies
-		int concatinatorSize = 0;
-		Fst concatenator = null;
+		int connectorSize = 0;
+		Fst connector = null;
 		for (Map.Entry<Fst,int[]> entry: inputFsts.entrySet()){
 			if(entry.getValue() != null){
 				//min occurrences
@@ -27,11 +27,11 @@ public final class FstOperations {
 					fsts.addAll(addExactly(entry.getKey(),min));
 				}
 				if(max == 0) {
-					//no max -> find all occurrences (kleene *) in all combinations -> use as concatenator
-					concatenator = (concatenator != null)
-							? concatenate(concatenator, kleene(entry.getKey().shallowCopy()))
+					//no max -> find all occurrences (kleene *) in all combinations -> use as connector
+					connector = (connector != null)
+							? concatenate(connector, kleene(entry.getKey().shallowCopy()))
 							: kleene(entry.getKey().shallowCopy());
-					concatinatorSize++;
+					connectorSize++;
 
 				}else if (max > min){
 					//min and max provided
@@ -44,23 +44,23 @@ public final class FstOperations {
 				fsts.add(entry.getKey());
 			}
 		}
-		//Ensure that concatenator is optional and can repeat itself -> kleene *
-		if(concatenator != null && concatinatorSize > 1){
-			concatenator = kleene(concatenator);
+		//Ensure that connector is optional and can repeat itself -> kleene *
+		if(connector != null && connectorSize > 1){
+			connector = kleene(connector);
 		}
 
 		//start recursion
-		Fst permuted = (fsts.size() > 0) ? permute(null, fsts, concatenator) : null;
+		Fst permuted = (fsts.size() > 0) ? permute(null, fsts, connector) : null;
 
-		//add concatenator at beginning and end as well (if defined)
-		if (concatenator != null) {
-			concatenator.exportGraphViz("concatenator.pdf");
+		//add connector at beginning and end as well (if defined)
+		if (connector != null) {
+			connector.exportGraphViz("connector.pdf");
 			if(permuted != null) {
-				permuted = concatenate(concatenator.shallowCopy(), permuted);
-				permuted = concatenate(permuted, concatenator.shallowCopy());
+				permuted = concatenate(connector.shallowCopy(), permuted);
+				permuted = concatenate(permuted, connector.shallowCopy());
 			}else{
-				//If nothing to permute (only concatenor left) -> return concatenator
-				permuted = concatenator;
+				//If nothing to permute (only concatenor left) -> return connector
+				permuted = connector;
 			}
 		}
 		return permuted;
@@ -75,7 +75,7 @@ public final class FstOperations {
 	}
 
 	/** Recursive method to permute all elements - each recursion: define prefix + remaining elements */
-	private static Fst permute(Fst prefixFst, List<Fst> fsts, Fst concatenator) {
+	private static Fst permute(Fst prefixFst, List<Fst> fsts, Fst connector) {
 		assert fsts.size() > 0;
 		if(fsts.size() > 1){
 			//more than one item -> permute (recursion step)
@@ -83,8 +83,8 @@ public final class FstOperations {
 			for (Fst fst: fsts){
 				//create copy of to be added fst (avoid wrong state transitions)
 				Fst addedFst = fst.shallowCopy();
-				//add concatenator (eg "[A.*]*.*")to Fst (A.*B.* -> A.*[A.*]*B.*)
-				if (concatenator != null) addedFst = concatenate(addedFst, concatenator.shallowCopy());
+				//add connector (eg "[A.*]*.*")to Fst (A.*B.* -> A.*[A.*]*B.*)
+				if (connector != null) addedFst = concatenate(addedFst, connector.shallowCopy());
 				//copy remaining fsts into list (as shallow copy)
 				List<Fst> partFsts = new ArrayList<>();
 				for (Fst copy: fsts){
@@ -100,9 +100,9 @@ public final class FstOperations {
 				//recursions combined by union
 				unionFst = (unionFst != null)
 						//union further recursion paths
-						? union(unionFst, permute(newPrefixFst, partFsts, concatenator))
+						? union(unionFst, permute(newPrefixFst, partFsts, connector))
 						//First loop iteration(first element of union)
-						: permute(newPrefixFst, partFsts, concatenator);
+						: permute(newPrefixFst, partFsts, connector);
 			}
 			return unionFst;
 		}else{
