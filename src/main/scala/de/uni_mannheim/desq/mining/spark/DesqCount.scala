@@ -16,7 +16,7 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     val usesFids = data.usesFids
     val minSupport = conf.getLong("desq.mining.min.support")
 
-    // build RDD to perform the minig
+    // build RDD to perform the mining
     val patterns = data.sequences.mapPartitions(rows => {
       // for each row, get output of FST and produce (output sequence, 1) pair
       new Iterator[(Sequence,Long)] {
