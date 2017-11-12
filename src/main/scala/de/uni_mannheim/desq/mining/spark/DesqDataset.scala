@@ -436,13 +436,14 @@ object DesqDataset {
     * @param extDict: If external dict provided: use it as basis to enhance hierarchy; else use SequenceBuilder->Dict or none
     */
   def buildItemsets[T]( rawData: RDD[Array[T]],
-                        //parse: (T, DictionaryBuilder) => _,
                         itemsetSeparatorSid: String = "-",
                         extDict: Option[Dictionary]
                       ): DesqDataset = {
 
     //Handle basic dictionary: separator + optional external dict for hierarchies
-    val baseDictBuilder = if(extDict.isDefined) new DefaultDictionaryBuilder(extDict.get) else new DefaultDictionaryBuilder()
+    val baseDictBuilder =
+      if(extDict.isDefined) new DefaultDictionaryBuilder(extDict.get)
+      else new DefaultDictionaryBuilder()
     baseDictBuilder.appendItem(itemsetSeparatorSid)
     val baseDict = baseDictBuilder.getDictionary
     val itemsetSeparatorGid = baseDict.gidOf(itemsetSeparatorSid)
@@ -461,7 +462,7 @@ object DesqDataset {
         }else if (!hashSet.contains(e)){
           //add new item to current itemset
           seqBuilder.appendItem(e.toString)
-          //remember element to skip adjacent duplicates
+          //remember element to skip duplicates
           hashSet.add(e)
         }
       }

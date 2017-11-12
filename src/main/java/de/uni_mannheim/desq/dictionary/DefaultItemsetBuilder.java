@@ -12,11 +12,13 @@ public class DefaultItemsetBuilder extends DefaultSequenceBuilder{
 
     @Override
     public IntList getCurrentGids() {
-        IntList sortedGids = super.getCurrentGids();
+        IntList gids = super.getCurrentGids();
         //Sort - but change order only if no separator
-        sortedGids.sort((g1, g2) -> (
-                (g1 == separatorGid || g2 == separatorGid ) ? 0 : getDict().fidOf(g1) - getDict().fidOf(g2)
+        gids.sort((g1, g2) -> (
+                (g1 == separatorGid || g2 == separatorGid )
+                        ? 0 //no change of order
+                        : dict.fidOf(g2) - dict.fidOf(g1) //descending
         ));
-        return sortedGids;
+        return gids;
     }
 }
