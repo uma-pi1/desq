@@ -54,7 +54,7 @@ object DesqItemsetExample {
   /** run/eval itemset query on fimi-retail data and stores metrics in CSVs in data-local/ **/
   def fimi_retail(eval: Boolean = false)(implicit sc: SparkContext) {
 
-    val patEx = "(39)&(41) .!*&(.)!{2,5}"//"(39)&(41)!{0,7}&.!*"
+    val patEx = "(39)&(41)&.!* (.)!{2,5}&.!* "//"(39)&(41)!{0,7}&.!*"
     val minSupport = 500
 
     if(eval) { // Run evaluation with logging of metrics
