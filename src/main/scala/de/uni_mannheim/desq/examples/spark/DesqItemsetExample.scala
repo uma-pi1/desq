@@ -5,7 +5,6 @@ import java.util
 import de.uni_mannheim.desq.Desq._
 import de.uni_mannheim.desq.mining.spark.{DesqCount, DesqDataset, DesqMiner}
 import de.uni_mannheim.desq.dictionary.Dictionary
-import de.uni_mannheim.desq.mining.DesqDfs
 import de.uni_mannheim.desq.patex.PatExToItemsetPatEx
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
@@ -28,50 +27,57 @@ object DesqItemsetExample {
       ExampleUtils.runIcdm16(conf)
     }
     println("\n ==== itemset query =====")
-    ExampleUtils.runIcdm16(conf,asItemset = true)
+    ExampleUtils.runIcdm16(conf, asItemset = true)
   }
 
+  /** run eval on icdm16 */
   def evalIdcm16()(implicit sc: SparkContext){
-    val patternExpression = "[c|d] (A){3} B"
+    val patternExpression = "[c|d] (A)+ B"
     val sigma = 1
-    val conf = DesqCount.createConf(patternExpression, sigma)
+    //val conf = DesqCount.createConf(patternExpression, sigma)
 
     val dictFile = this.getClass.getResource("/icdm16-example/dict.json")
     val dataFile = this.getClass.getResource("/icdm16-example/data.del")
 
     // load the dictionary & update hierarchy
-    var dict = Dictionary.loadFrom(dictFile)
+    val dict = Dictionary.loadFrom(dictFile)
     val delFile = sc.parallelize(Source.fromURL(dataFile).getLines.toSeq)
-    var data = DesqDataset.loadFromDelFile(delFile, dict, usesFids = false).copyWithRecomputedCountsAndFids()
+    val data = DesqDataset.loadFromDelFile(delFile, dict, usesFids = false).copyWithRecomputedCountsAndFids()
 
     println("\n ==== sequence query =====")
-    ExampleUtils.runPerformanceEval(conf,data,dict);
+    ExampleUtils.runPerformanceEval(patternExpression,sigma,data)
 
     println("\n ==== itemset query =====")
-    ExampleUtils.runPerformanceEval(conf,data,dict,asItemset = true)
+    ExampleUtils.runPerformanceEval(patternExpression,sigma,data,asItemset = true)
   }
 
-  /** run itemset query on fimi-retail data**/
+  /** run/eval itemset query on fimi-retail data and stores metrics in CSVs in data-local/ **/
   def fimi_retail(eval: Boolean = false)(implicit sc: SparkContext) {
 
-    val patEx = "(39)&(41)!{0,7}"
-    val minSupport = 100
+    val patEx = "(39)&(41) .!*&(.)!{2,5}"//"(39)&(41)!{0,7}&.!*"
+    val minSupport = 500
 
-    if(eval) {
-      val conf = DesqCount.createConf(patEx, minSupport)
+    if(eval) { // Run evaluation with logging of metrics
+      //val conf = DesqCount.createConf(patEx, minSupport) //do not reuse config across multiple runs!
 
-      val data = DesqDataset.buildFromStrings(sc.textFile("data-local/fimi_retail/retail.dat").map(s => s.split(" ")))
-      //val dict = Dictionary.loadFrom("data-local/fimi_retail/dict.json", sc)
+      println("\n ==== Evaluate sequence query =====")
+      ExampleUtils.runPerformanceEval(
+        patEx, minSupport,
+        DesqDataset.buildFromStrings(sc.textFile("data-local/fimi_retail/retail.dat").map(s => s.split(" "))),
+        logFile = "data-local/testSeq.csv"
+      )
 
-      println("\n ==== sequence query =====")
-      ExampleUtils.runPerformanceEval(conf, data, data.dict);
-
-      println("\n ==== itemset query =====")
-      ExampleUtils.runPerformanceEval(conf, data, data.dict, asItemset = true)
+      println("\n ==== Evaluate itemset query =====")
+      ExampleUtils.runPerformanceEval(
+        patEx, minSupport,
+        DesqDataset.buildFromStrings(sc.textFile("data-local/fimi_retail/retail.dat").map(s => s.split(" "))),
+        asItemset = true, logFile = "data-local/testItemset.csv"
+      )
     }else {
       val data = "data-local/fimi_retail/retail.dat"
       val dict = Option.apply(Dictionary.loadFrom("data-local/fimi_retail/dict.json", sc))
 
+      println("\n ==== FIMI - Retail: Itemset query =====")
       runItemsetMiner(
         rawData = data,
         patEx = patEx,
@@ -84,7 +90,7 @@ object DesqItemsetExample {
   def nyt91()(implicit sc: SparkContext) {
 
     val patEx = "(..)"
-    val minSupport = 1000
+    val minSupport = 10000
 
     val data = DesqDataset.load("data-local/nyt-1991-data")
 
@@ -96,7 +102,7 @@ object DesqItemsetExample {
   }
 
   /**
-    * Prototype of DESQ API for Itemset Mining
+    * Generic method to run Queries on ItemSet Data
     */
   def runItemsetMiner[T](
                           rawData: T,
@@ -120,14 +126,14 @@ object DesqItemsetExample {
     }
 
     //Convert PatEx
-    val itemsetPatEx = new PatExToItemsetPatEx(data.dict, patEx).translate()
+    val itemsetPatEx = new PatExToItemsetPatEx(patEx).translate()
 
     //Print some information
     println("\nConverted PatEx: " + patEx +"  ->  " + itemsetPatEx)
     println("\nDictionary size: " + data.dict.size())
     //data.dict.writeJson(System.out)
     println("\nSeparatorGid: " + data.itemsetSeparatorGid + "(" + data.getCfreqOfSeparator() + ")")
-    println("\nFirst 10 Input Sequences:")
+    println("\nFirst 10 (of " + data.sequences.count() + ") Input Sequences:")
     data.print(10)
 
     // Init Desq Miner
@@ -150,8 +156,10 @@ object DesqItemsetExample {
     //icdm16()
     //icdm16(compare = true)
     //evalIdcm16
-    fimi_retail(true)
+
     //fimi_retail()
+    fimi_retail(eval = true)
+
     //nyt91
   }
 

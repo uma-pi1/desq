@@ -54,12 +54,12 @@ public final class FstOperations {
 
 		//add connector at beginning and end as well (if defined)
 		if (connector != null) {
-			connector.exportGraphViz("connector.pdf");
+			//connector.exportGraphViz("connector.pdf");
 			if(permuted != null) {
 				permuted = concatenate(connector.shallowCopy(), permuted);
 				permuted = concatenate(permuted, connector.shallowCopy());
 			}else{
-				//If nothing to permute (only concatenor left) -> return connector
+				//If nothing to permute (only connector left) -> return connector
 				permuted = connector;
 			}
 		}
@@ -76,33 +76,40 @@ public final class FstOperations {
 
 	/** Recursive method to permute all elements - each recursion: define prefix + remaining elements */
 	private static Fst permute(Fst prefixFst, List<Fst> fsts, Fst connector) {
+		HashSet<String> usedFst = new HashSet<>();
+
 		assert fsts.size() > 0;
 		if(fsts.size() > 1){
 			//more than one item -> permute (recursion step)
 			Fst unionFst = null;
 			for (Fst fst: fsts){
-				//create copy of to be added fst (avoid wrong state transitions)
-				Fst addedFst = fst.shallowCopy();
-				//add connector (eg "[A.*]*.*")to Fst (A.*B.* -> A.*[A.*]*B.*)
-				if (connector != null) addedFst = concatenate(addedFst, connector.shallowCopy());
-				//copy remaining fsts into list (as shallow copy)
-				List<Fst> partFsts = new ArrayList<>();
-				for (Fst copy: fsts){
-					if (copy != fst){ partFsts.add(copy.shallowCopy());	}
-				}
-				//handle new prefix
-				Fst newPrefixFst = (prefixFst != null)
-						//Within recursion: concat items (prefix + new first item)
-						? concatenate(prefixFst.shallowCopy(), addedFst)
-						//Or first recursion step (no existing prefix yet)
-						: addedFst;
+				if(!usedFst.contains(fst.toPatternExpression())) {
+					usedFst.add(fst.toPatternExpression());
+					//create copy of to be added fst (avoid wrong state transitions)
+					Fst addedFst = fst.shallowCopy();
+					//add connector (eg "[A.*]*.*")to Fst (A.*B.* -> A.*[A.*]*B.*)
+					if (connector != null) addedFst = concatenate(addedFst, connector.shallowCopy());
+					//copy remaining fsts into list (as shallow copy)
+					List<Fst> partFsts = new ArrayList<>();
+					for (Fst copy : fsts) {
+						if (copy != fst) {
+							partFsts.add(copy.shallowCopy());
+						}
+					}
+					//handle new prefix
+					Fst newPrefixFst = (prefixFst != null)
+							//Within recursion: concat items (prefix + new first item)
+							? concatenate(prefixFst.shallowCopy(), addedFst)
+							//Or first recursion step (no existing prefix yet)
+							: addedFst;
 
-				//recursions combined by union
-				unionFst = (unionFst != null)
-						//union further recursion paths
-						? union(unionFst, permute(newPrefixFst, partFsts, connector))
-						//First loop iteration(first element of union)
-						: permute(newPrefixFst, partFsts, connector);
+					//recursions combined by union
+					unionFst = (unionFst != null)
+							//union further recursion paths
+							? union(unionFst, permute(newPrefixFst, partFsts, connector))
+							//First loop iteration(first element of union)
+							: permute(newPrefixFst, partFsts, connector);
+				}
 			}
 			return unionFst;
 		}else{

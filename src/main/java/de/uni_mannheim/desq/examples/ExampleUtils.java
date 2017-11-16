@@ -49,7 +49,7 @@ public class ExampleUtils {
         miningTime.stop();
         System.out.println(miningTime.elapsed(TimeUnit.MILLISECONDS) + "ms");
 
-        System.out.println("Total time: " +
+        System.out.println("TotalRuntime time: " +
                 (prepTime.elapsed(TimeUnit.MILLISECONDS) + ioTime.elapsed(TimeUnit.MILLISECONDS)
                         + miningTime.elapsed(TimeUnit.MILLISECONDS)) + "ms");
 
@@ -72,7 +72,7 @@ public class ExampleUtils {
 
         // print results
         System.out.println("Number of patterns: " + result.getCount());
-        System.out.println("Total frequency of all patterns: " + result.getTotalFrequency());
+        System.out.println("TotalRuntime frequency of all patterns: " + result.getTotalFrequency());
         return miner;
     }
 

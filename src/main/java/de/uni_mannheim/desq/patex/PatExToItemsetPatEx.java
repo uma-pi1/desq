@@ -1,7 +1,5 @@
 package de.uni_mannheim.desq.patex;
 
-import de.uni_mannheim.desq.dictionary.BasicDictionary;
-import de.uni_mannheim.desq.dictionary.Dictionary;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -15,16 +13,13 @@ import java.util.List;
 /** Replaces the ordered versions of frequency and concatenation with unordered equivalent */
 public class PatExToItemsetPatEx {
 
-    private BasicDictionary dict;
     private String patternExpression;
     private Boolean capture = false;
     private static final String unorderedConcat = "&";
     private static final String unorderedMarker= "!";
 
 
-    /** For potential optimizations based on FIDs, the dictionary is needed  {@link Dictionary}. */
-    public PatExToItemsetPatEx(BasicDictionary dict, String patternExpression) {
-        this.dict = dict;
+    public PatExToItemsetPatEx(String patternExpression) {
         this.patternExpression = patternExpression;
     }
 
@@ -41,7 +36,6 @@ public class PatExToItemsetPatEx {
     class Visitor extends PatExBaseVisitor<String> {
 
         // -- Handle Concatenations
-
         @Override
         public String visitConcatExpression(ConcatExpressionContext ctx) {
             //E1 E2 -> E1&E2
@@ -49,7 +43,6 @@ public class PatExToItemsetPatEx {
         }
 
         // -- Handle Repeats
-
         @Override
         public String visitRepeatMinMaxExpression(RepeatMinMaxExpressionContext ctx) {
             // E{n,m] -> E!{n,m}
@@ -112,25 +105,25 @@ public class PatExToItemsetPatEx {
         }
 
         private String reconstructChildren(int startIdx, List<ParseTree> children){
-            String result = "";
+            StringBuilder builder = new StringBuilder();
             int n = children.size();
             for(int i = startIdx; i < n; ++i) {
-                result += children.get(i).getText();
+                builder.append(children.get(i).getText());
             }
-            return result;
+            return builder.toString();
         }
 
         // -- Default Rule Node and TerminalNode handling (copied from PatExToPatEx)
         @Override
         public String visitChildren(RuleNode node) { //default behavior for visit (if none is implemented)
-            String result = "";
+            StringBuilder builder = new StringBuilder();
             int n = node.getChildCount();
             for(int i = 0; i < n; ++i) {
                 ParseTree c = node.getChild(i);
                 String childResult = c.accept(this);
-                result += childResult;
+                builder.append(childResult);
             }
-            return result;
+            return builder.toString();
         }
 
         @Override //return the text of leaf nodes

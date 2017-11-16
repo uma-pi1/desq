@@ -94,13 +94,9 @@ public final class DesqCount extends DesqMiner {
 		prefix = new Sequence();
 		outputSequences.defaultReturnValue(-1L);
 
-		// create FST (and measure)
-		System.out.print("Generating FST ...");
-		long fstStartTime = System.nanoTime();
+		// create FST
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
 		this.fst = PatExUtils.toFst(ctx.dict, patternExpression);
-		long fstTime = System.nanoTime() - fstStartTime;
-		System.out.println(TimeUnit.NANOSECONDS.toMillis(fstTime) + "ms");
 
 		// create two pass auxiliary variables (if needed)
 		if (useTwoPass) { // two-pass

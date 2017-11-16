@@ -444,7 +444,7 @@ object DesqDataset {
     val baseDictBuilder =
       if(extDict.isDefined) new DefaultDictionaryBuilder(extDict.get)
       else new DefaultDictionaryBuilder()
-    baseDictBuilder.appendItem(itemsetSeparatorSid)
+    baseDictBuilder.appendItem(itemsetSeparatorSid) //only added if not existing
     val baseDict = baseDictBuilder.getDictionary
     val itemsetSeparatorGid = baseDict.gidOf(itemsetSeparatorSid)
 
