@@ -2,19 +2,33 @@ package de.uni_mannheim.desq.patex;
 
 import de.uni_mannheim.desq.dictionary.BasicDictionary;
 import de.uni_mannheim.desq.dictionary.Dictionary;
+import de.uni_mannheim.desq.experiments.MetricLogger;
+import de.uni_mannheim.desq.experiments.MetricLogger.Metric;
 import de.uni_mannheim.desq.fst.Fst;
-import de.uni_mannheim.desq.mining.DesqMinerContext;
 
 /**
  * Created by rgemulla on 10.01.2017.
  */
 public class PatExUtils {
     public static Fst toFst(BasicDictionary dict, String patternExpression) {
+        MetricLogger log = MetricLogger.getInstance();
+        System.out.print("Generating FST ...");
+        log.start(Metric.FstGenerationRuntime);
+
         PatExToFst p = new PatExToFst(patternExpression, dict);
         Fst fst = p.translate();
+
+        System.out.println(log.stop(Metric.FstGenerationRuntime));
+        //fst.exportGraphViz("raw_" + fst.toString() + ".pdf");
+
+        System.out.print("Minimizing FST ...");
+        log.start(Metric.FstMinimizationRuntime);
         fst.minimize(); //TODO: move to translate
+        System.out.println(log.stop(Metric.FstMinimizationRuntime));
+        //fst.exportGraphViz("minimized_" + fst.toString() + ".pdf");
+
         fst.annotate();
-        //fst.exportGraphViz("minimized.pdf");
+
         return fst;
     }
 
@@ -34,7 +48,7 @@ public class PatExUtils {
     }
 
     public static  String toItemsetPatex(BasicDictionary dict, String patternExpression) {
-        PatExToItemsetPatEx p = new PatExToItemsetPatEx(dict, patternExpression);
+        PatExToItemsetPatEx p = new PatExToItemsetPatEx(patternExpression);
         return p.translate();
     }
 

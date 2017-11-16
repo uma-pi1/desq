@@ -5,9 +5,10 @@ import java.util.concurrent.TimeUnit
 
 import com.google.common.base.Stopwatch
 import de.uni_mannheim.desq.dictionary.Dictionary
+import de.uni_mannheim.desq.experiments.MetricLogger
+import de.uni_mannheim.desq.experiments.MetricLogger.Metric
 import de.uni_mannheim.desq.mining.spark.{DesqCount, DesqDataset, DesqMiner, DesqMinerContext}
-import de.uni_mannheim.desq.patex.PatExToItemsetPatEx
-import de.uni_mannheim.desq.patex.PatExToPatEx
+import de.uni_mannheim.desq.patex.{PatExToItemsetPatEx, PatExToPatEx, PatExToSequentialPatEx}
 import de.uni_mannheim.desq.util.DesqProperties
 import org.apache.spark.SparkContext
 
@@ -45,12 +46,12 @@ object ExampleUtils {
       val (count, support) = result.sequences.map(ws => (1, ws.weight)).reduce((cs1, cs2) => (cs1._1 + cs2._1, cs1._2 + cs2._2))
       persistTime.stop
       println("Number of patterns: " + count)
-      println("Total frequency of all patterns: " + support)
+      println("TotalRuntime frequency of all patterns: " + support)
     }else{
       println("No results!")
     }
-    println("Persist time: " + persistTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
-    println("Total time: " + (prepTime.elapsed(TimeUnit.MILLISECONDS)
+    println("PersistRuntime time: " + persistTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+    println("TotalRuntime time: " + (prepTime.elapsed(TimeUnit.MILLISECONDS)
       + miningTime.elapsed(TimeUnit.MILLISECONDS) + persistTime.elapsed(TimeUnit.MILLISECONDS)) + "ms")
 
 
@@ -98,7 +99,7 @@ object ExampleUtils {
 
       //Convert PatEx
       val patEx = minerConf.getString("desq.mining.pattern.expression")
-      val itemsetPatEx = new PatExToItemsetPatEx(dict,patEx).translate()
+      val itemsetPatEx = new PatExToItemsetPatEx(patEx).translate()
       minerConf.setProperty("desq.mining.pattern.expression", itemsetPatEx)
       System.out.println("\nConverted PatEx: " + patEx +"  ->  " + itemsetPatEx)
     }
@@ -131,50 +132,63 @@ object ExampleUtils {
       runVerbose(data, minerConf)
   }
 
-  def runPerformanceEval(minerConf: DesqProperties, inputData: DesqDataset, inputDict: Dictionary, asItemset: Boolean = false)
+  /** Runs a miner on given data and logs metrics via MetricLogger*/
+  def runPerformanceEval(patEx: String, minSupport: Long, inputData: DesqDataset,
+                         asItemset: Boolean = false, logFile: String = "")
                         (implicit sc: SparkContext): (DesqMiner, DesqDataset) = {
-    //Calculating some KPIs before starting measurements
-    println("\n#Dictionary entries: " + inputDict.size())
-    println("\n#Input sequences: " + inputData.sequences.count())
-    val sum = inputData.sequences.map(a => a.size).reduce((a, b) => a + b)
+    val log = MetricLogger.getInstance()
+    log.reset()
 
-    println("\nAvg length of input sequences: " + sum/inputData.sequences.count())
+    //Calculating some KPIs before starting measurements
+    println("#Dictionary entries: %s".format(log.add(Metric.NumberDictionaryItems, inputData.dict.size())))
+
+    println("#Input sequences: "
+      + log.add(Metric.NumberInputSequences, inputData.sequences.count()))
+
+    val sum = inputData.sequences.map(a => a.size).reduce((a, b) => a + b)
+    println("Avg length of input sequences: "
+      + log.add(Metric.AvgLengthInputSequences, sum/inputData.sequences.count()))
 
     // ------- Actual Processing  -------------
-    val totalTime = Stopwatch.createStarted
+    log.start(Metric.TotalRuntime)
 
-    //Convert Data?
+      //Convert Data?
     print("Converting data ( " + asItemset.toString + " )... ")
-    val dataTransformationTime = Stopwatch.createStarted
-    val data = if(asItemset) DesqDataset.buildItemsets(inputData, inputDict) else inputData
-    val dict = if(asItemset) data.dict else inputDict
-    dataTransformationTime.stop
-    println(dataTransformationTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+    log.start(Metric.DataTransformationRuntime)
+    val data = if(asItemset) DesqDataset.buildItemsets(inputData, inputData.dict) else inputData
+    println(log.stop(Metric.DataTransformationRuntime))
+    //if(asItemset) println("Avg length of itemsets: " + (data.sequences.map(a => a.size).reduce((a, b) => a + b)/data.sequences.count()))
 
-    //Convert PatEx?
+    //Convert PatEx
     print("Converting PatEx ( " + asItemset.toString + " )... ")
-    val patExTransformationTime = Stopwatch.createStarted
-    if(asItemset){
-      val patEx = minerConf.getString("desq.mining.pattern.expression")
-      val itemsetPatEx = new PatExToItemsetPatEx(dict,patEx).translate()
-      minerConf.setProperty("desq.mining.pattern.expression", itemsetPatEx)
-      System.out.print( patEx + "  ->  " + itemsetPatEx + " ")
+    log.start(Metric.PatExTransformationRuntime)
+
+    System.out.print( patEx )
+
+    val convPatEx = if(asItemset){
+      val itemsetPatEx  = new PatExToItemsetPatEx(patEx).translate()
+      print("  ->  " + itemsetPatEx)
+      //new PatExToSequentialPatEx(itemsetPatEx).translate()
+      itemsetPatEx
+    }else{
+      //new PatExToSequentialPatEx(patEx).translate()
+      patEx
     }
-    patExTransformationTime.stop
-    println(patExTransformationTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+    //print("  ->  " + convPatEx + " ")
+    println(" ... " + log.stop(Metric.PatExTransformationRuntime))
 
     // -------- Execute mining ------------ (based on runVerbose and runMiner)
+    val minerConf = DesqCount.createConf(convPatEx, minSupport)
     val ctx = new DesqMinerContext(minerConf)
     val miner = DesqMiner.create(ctx)
 
     print("Mining (RDD construction)... ")
-    val miningTime = Stopwatch.createStarted
+    log.start(Metric.RDDConstructionRuntime)
     val result = miner.mine(data)
-    miningTime.stop
-    println(miningTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
+    println(log.stop(Metric.RDDConstructionRuntime))
 
     println("Mining (persist)... ") //entails FST generation as well!!!!
-    val persistTime = Stopwatch.createStarted
+    log.start(Metric.PersistRuntime)
     result.sequences.cache()
 
 
@@ -182,15 +196,15 @@ object ExampleUtils {
       val (count, support) = result.sequences.map(ws => (1, ws.weight)).reduce((cs1, cs2) => (cs1._1 + cs2._1, cs1._2 + cs2._2))
 
       println("Number of patterns: " + count)
-      println("Total frequency of all patterns: " + support)
+      println("Frequency of all patterns: " + support)
     }else{
       println("No results!")
     }
-    persistTime.stop
-    println("Persist time: " + persistTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
-    totalTime.stop
-    println("Total time: " + totalTime.elapsed(TimeUnit.MILLISECONDS) + "ms")
-
+    println("PersistRuntime: " + log.stop(Metric.PersistRuntime))
+    println("TotalRuntime: " + log.stop(Metric.TotalRuntime))
+    if(logFile != ""){
+      log.writeResult(logFile)
+    }
     result.sequences.unpersist()
     (miner, result)
   }

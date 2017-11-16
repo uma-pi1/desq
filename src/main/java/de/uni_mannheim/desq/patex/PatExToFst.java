@@ -2,6 +2,7 @@ package de.uni_mannheim.desq.patex;
 
 import de.uni_mannheim.desq.dictionary.BasicDictionary;
 import de.uni_mannheim.desq.dictionary.Dictionary;
+import de.uni_mannheim.desq.experiments.MetricLogger;
 import de.uni_mannheim.desq.fst.*;
 import de.uni_mannheim.desq.patex.PatExParser.*;
 import org.antlr.v4.runtime.CharStream;
@@ -36,6 +37,7 @@ public final class PatExToFst {
 	}
 
 	public Fst translate() {
+		MetricLogger log = MetricLogger.getInstance();
 		transitionCache.clear();
 		CharStream input = CharStreams.fromString(expression);
 
@@ -49,13 +51,17 @@ public final class PatExToFst {
 		PatExParser parser = new PatExParser(tokens);
 
 		// Parse tree
+		log.start(MetricLogger.Metric.FstGenerationParseTreeRuntime);
 		ParseTree tree = parser.patex();
+		log.stop(MetricLogger.Metric.FstGenerationParseTreeRuntime);
 
 		// Visitor for parse tree
 		Visitor visitor = new Visitor();
 
 		// Create FST from the syntax tree
+		log.start(MetricLogger.Metric.FstGenerationWalkRuntime);
 		Fst fst = visitor.visit(tree);
+		log.stop(MetricLogger.Metric.FstGenerationWalkRuntime);
 
 		fst.updateStates();
 		fst.optimize();
