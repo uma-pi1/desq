@@ -14,7 +14,8 @@ import java.util.concurrent.TimeUnit;
 
 public class MetricLogger {
     private static MetricLogger instance;
-    private Map<Metric,Long> metrics;
+    private int currentIteration;
+    private Map<Metric,Map<Integer, Long>> metrics;
 
     public enum Metric { //Define metrics and their order
         //Parameters
@@ -36,29 +37,40 @@ public class MetricLogger {
     }
 
     private MetricLogger() {
+        this.currentIteration = -1;
         this.metrics = new HashMap<>();
+        //Init iterartion lists
+        for(Metric m: Metric.values()){
+            metrics.put(m,new HashMap<>());
+        }
     }
 
     //reset everything
-    public void reset(){
-        this.metrics = new HashMap<>();
+    public static void reset(){
+        instance = null;
+    }
+
+    //next iteration
+    public void nextIteration(){
+        this.currentIteration++;
     }
 
     // Time measurements
     public void start(Metric metric){
-        metrics.put(metric, System.nanoTime());
+        metrics.get(metric).put(currentIteration,System.nanoTime());
     }
 
 
     public String stop(Metric metric){
-        long time = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - metrics.get(metric));
-        metrics.put(metric, time);
+        long time = TimeUnit.NANOSECONDS.toMillis(
+                System.nanoTime() - metrics.get(metric).get(currentIteration));
+        metrics.get(metric).put(currentIteration, time);
         return time  + "ms";
     }
 
     // Other numeric metrics
     public Long add(Metric metric, Long value){
-        metrics.put(metric,value);
+        metrics.get(metric).put(currentIteration,value);
         return value;
     }
     /*public Integer add(Metric metric, Integer value){
@@ -68,14 +80,26 @@ public class MetricLogger {
 
 
     public void writeResult(String file){
-        String header = "Metric, Value";
-        List<String> lines = new ArrayList<>();
+        StringBuilder headerBuilder = new StringBuilder();
+        headerBuilder.append("Metric");
+        for(int i = 0; i <= currentIteration; i++){
+            headerBuilder.append(", Iteration");
+            headerBuilder.append(i);
+        }
 
-        lines.add(header);
+        //Construct lines
+        List<String> lines = new ArrayList<>();
+        lines.add(headerBuilder.toString());
         //collect data
         for(Metric m: Metric.values()){
             if(metrics.containsKey(m)) {
-                lines.add(m.toString() + "," + metrics.get(m).toString());
+                StringBuilder lineBuilder = new StringBuilder();
+                lineBuilder.append(m.toString());
+                for(Long value: metrics.get(m).values()){
+                    lineBuilder.append(",");
+                    lineBuilder.append(value);
+                }
+                lines.add(lineBuilder.toString());
             }
         }
 

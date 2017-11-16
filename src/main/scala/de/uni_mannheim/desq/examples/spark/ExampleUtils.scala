@@ -134,78 +134,82 @@ object ExampleUtils {
 
   /** Runs a miner on given data and logs metrics via MetricLogger*/
   def runPerformanceEval(patEx: String, minSupport: Long, inputData: DesqDataset,
-                         asItemset: Boolean = false, logFile: String = "")
-                        (implicit sc: SparkContext): (DesqMiner, DesqDataset) = {
+                         asItemset: Boolean = false, logFile: String = "", iterations: Int = 2)
+                        (implicit sc: SparkContext) = {
+
+    MetricLogger.reset() //Force re-init of logger
     val log = MetricLogger.getInstance()
-    log.reset()
 
-    //Calculating some KPIs before starting measurements
-    println("#Dictionary entries: %s".format(log.add(Metric.NumberDictionaryItems, inputData.dict.size())))
+    for(i <- 1 to iterations){
+      log.nextIteration()
 
-    println("#Input sequences: "
-      + log.add(Metric.NumberInputSequences, inputData.sequences.count()))
+      //Calculating some KPIs before starting measurements
+      println("#Dictionary entries: %s".format(log.add(Metric.NumberDictionaryItems, inputData.dict.size())))
 
-    val sum = inputData.sequences.map(a => a.size).reduce((a, b) => a + b)
-    println("Avg length of input sequences: "
-      + log.add(Metric.AvgLengthInputSequences, sum/inputData.sequences.count()))
+      println("#Input sequences: "
+        + log.add(Metric.NumberInputSequences, inputData.sequences.count()))
 
-    // ------- Actual Processing  -------------
-    log.start(Metric.TotalRuntime)
+      val sum = inputData.sequences.map(a => a.size).reduce((a, b) => a + b)
+      println("Avg length of input sequences: "
+        + log.add(Metric.AvgLengthInputSequences, sum/inputData.sequences.count()))
 
-      //Convert Data?
-    print("Converting data ( " + asItemset.toString + " )... ")
-    log.start(Metric.DataTransformationRuntime)
-    val data = if(asItemset) DesqDataset.buildItemsets(inputData, inputData.dict) else inputData
-    println(log.stop(Metric.DataTransformationRuntime))
-    //if(asItemset) println("Avg length of itemsets: " + (data.sequences.map(a => a.size).reduce((a, b) => a + b)/data.sequences.count()))
+      // ------- Actual Processing  -------------
+      log.start(Metric.TotalRuntime)
 
-    //Convert PatEx
-    print("Converting PatEx ( " + asItemset.toString + " )... ")
-    log.start(Metric.PatExTransformationRuntime)
+        //Convert Data?
+      print("Converting data ( " + asItemset.toString + " )... ")
+      log.start(Metric.DataTransformationRuntime)
+      val data = if(asItemset) DesqDataset.buildItemsets(inputData, inputData.dict) else inputData
+      println(log.stop(Metric.DataTransformationRuntime))
+      //if(asItemset) println("Avg length of itemsets: " + (data.sequences.map(a => a.size).reduce((a, b) => a + b)/data.sequences.count()))
 
-    System.out.print( patEx )
+      //Convert PatEx
+      print("Converting PatEx ( " + asItemset.toString + " )... ")
+      log.start(Metric.PatExTransformationRuntime)
 
-    val convPatEx = if(asItemset){
-      val itemsetPatEx  = new PatExToItemsetPatEx(patEx).translate()
-      print("  ->  " + itemsetPatEx)
-      //new PatExToSequentialPatEx(itemsetPatEx).translate()
-      itemsetPatEx
-    }else{
-      //new PatExToSequentialPatEx(patEx).translate()
-      patEx
+      System.out.print( patEx )
+
+      val convPatEx = if(asItemset){
+        val itemsetPatEx  = new PatExToItemsetPatEx(patEx).translate()
+        print("  ->  " + itemsetPatEx)
+        //new PatExToSequentialPatEx(itemsetPatEx).translate()
+        itemsetPatEx
+      }else{
+        //new PatExToSequentialPatEx(patEx).translate()
+        patEx
+      }
+      //print("  ->  " + convPatEx + " ")
+      println(" ... " + log.stop(Metric.PatExTransformationRuntime))
+
+      // -------- Execute mining ------------ (based on runVerbose and runMiner)
+      val minerConf = DesqCount.createConf(convPatEx, minSupport)
+      val ctx = new DesqMinerContext(minerConf)
+      val miner = DesqMiner.create(ctx)
+
+      print("Mining (RDD construction)... ")
+      log.start(Metric.RDDConstructionRuntime)
+      val result = miner.mine(data)
+      println(log.stop(Metric.RDDConstructionRuntime))
+
+      println("Mining (persist)... ") //entails FST generation as well!!!!
+      log.start(Metric.PersistRuntime)
+      result.sequences.cache()
+
+
+      if (result.sequences.count() > 0) { //isEmpty causes spark warning "block locks were not released by TID" because of take(1)
+        val (count, support) = result.sequences.map(ws => (1, ws.weight)).reduce((cs1, cs2) => (cs1._1 + cs2._1, cs1._2 + cs2._2))
+
+        println("Number of patterns: " + count)
+        println("Frequency of all patterns: " + support)
+      }else{
+        println("No results!")
+      }
+      println("PersistRuntime: " + log.stop(Metric.PersistRuntime))
+      println("TotalRuntime: " + log.stop(Metric.TotalRuntime))
+      if(logFile != ""){
+        log.writeResult(logFile)
+      }
+      result.sequences.unpersist()
     }
-    //print("  ->  " + convPatEx + " ")
-    println(" ... " + log.stop(Metric.PatExTransformationRuntime))
-
-    // -------- Execute mining ------------ (based on runVerbose and runMiner)
-    val minerConf = DesqCount.createConf(convPatEx, minSupport)
-    val ctx = new DesqMinerContext(minerConf)
-    val miner = DesqMiner.create(ctx)
-
-    print("Mining (RDD construction)... ")
-    log.start(Metric.RDDConstructionRuntime)
-    val result = miner.mine(data)
-    println(log.stop(Metric.RDDConstructionRuntime))
-
-    println("Mining (persist)... ") //entails FST generation as well!!!!
-    log.start(Metric.PersistRuntime)
-    result.sequences.cache()
-
-
-    if (result.sequences.count() > 0) { //isEmpty causes spark warning "block locks were not released by TID" because of take(1)
-      val (count, support) = result.sequences.map(ws => (1, ws.weight)).reduce((cs1, cs2) => (cs1._1 + cs2._1, cs1._2 + cs2._2))
-
-      println("Number of patterns: " + count)
-      println("Frequency of all patterns: " + support)
-    }else{
-      println("No results!")
-    }
-    println("PersistRuntime: " + log.stop(Metric.PersistRuntime))
-    println("TotalRuntime: " + log.stop(Metric.TotalRuntime))
-    if(logFile != ""){
-      log.writeResult(logFile)
-    }
-    result.sequences.unpersist()
-    (miner, result)
   }
 }
