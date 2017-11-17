@@ -1,4 +1,4 @@
-target/
+/target
 /data-local
 /.idea
 /.settings
@@ -10,10 +10,8 @@ target/
 /tmp
 /classpath
 /output.txt
-fst-example.gv
-fst-example.pdf
-fst-example-minimized.gv
-fst-example-minimized.pdf
 *.iml
 /*.pdf
 /*.gv
+/.ensime
+/.ensime_cache
