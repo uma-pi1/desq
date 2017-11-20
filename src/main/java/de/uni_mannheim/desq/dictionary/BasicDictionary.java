@@ -375,8 +375,11 @@ public class BasicDictionary {
                 return largestRootFid;
             }
         }
-
-        // every dictionary has at least one root, so we shouldn't reach this place
+        if(lastFid() == -1){ //Empty Dictionary
+            largestRootFid = -1;
+            return largestRootFid;
+        }
+        // every non-empty dictionary has at least one root, so we shouldn't reach this place
         throw new IllegalStateException();
     }
 
