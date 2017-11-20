@@ -113,16 +113,14 @@ object DesqItemsetExample {
 
     // Manage different data inputs (DesqDataset, FilePath, RDD)
     var data: DesqDataset = null
-    rawData match{
+    rawData match {
       case dds: DesqDataset => //Build from existing DesqDataset
-        data = if(extDict.isDefined) DesqDataset.buildItemsets(dds,extDict.get) else DesqDataset.buildItemsets(dds)
+        data = if (extDict.isDefined) DesqDataset.buildItemsets(dds, None, Option.apply(extDict.get)) else DesqDataset.buildItemsets(dds)
       case file: String => //Build from space delimited file
-        data = DesqDataset.buildItemsets(sc.textFile(file).map(s => s.split(" ")), extDict = extDict)
-      case rdd: RDD[Array[Any]] => //Build from RDD
-        data = DesqDataset.buildItemsets(rdd,extDict = extDict)
+        data = DesqDataset.buildFromStrings(sc.textFile(file).map(s => s.split(" ")), None, extDict = extDict)
       case _ =>
         println("ERROR: Unsupported input type")
-        return (null,null)
+        return (null, null)
     }
 
     //Convert PatEx
@@ -132,7 +130,7 @@ object DesqItemsetExample {
     println("\nConverted PatEx: " + patEx +"  ->  " + itemsetPatEx)
     println("\nDictionary size: " + data.dict.size())
     //data.dict.writeJson(System.out)
-    println("\nSeparatorGid: " + data.itemsetSeparatorGid + "(" + data.getCfreqOfSeparator() + ")")
+    println("\nSeparatorGid: " + data.itemsetSeparatorGid + "(" + data.getCfreqOfSeparator + ")")
     println("\nFirst 10 (of " + data.sequences.count() + ") Input Sequences:")
     data.print(10)
 
