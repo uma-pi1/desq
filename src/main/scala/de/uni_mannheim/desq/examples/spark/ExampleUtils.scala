@@ -8,7 +8,7 @@ import de.uni_mannheim.desq.dictionary.Dictionary
 import de.uni_mannheim.desq.experiments.MetricLogger
 import de.uni_mannheim.desq.experiments.MetricLogger.Metric
 import de.uni_mannheim.desq.mining.spark.{DesqCount, DesqDataset, DesqMiner, DesqMinerContext}
-import de.uni_mannheim.desq.patex.{PatExToItemsetPatEx, PatExToPatEx, PatExToSequentialPatEx}
+import de.uni_mannheim.desq.patex.{PatExToItemsetPatEx, PatExToSequentialPatEx}
 import de.uni_mannheim.desq.util.DesqProperties
 import org.apache.spark.SparkContext
 
@@ -135,23 +135,27 @@ object ExampleUtils {
   /** Runs a miner on given data and logs metrics via MetricLogger*/
   def runPerformanceEval(patEx: String, minSupport: Long, inputData: DesqDataset,
                          asItemset: Boolean = false, logFile: String = "", iterations: Int = 2)
-                        (implicit sc: SparkContext) = {
+                        (implicit sc: SparkContext): Unit = {
 
     MetricLogger.reset() //Force re-init of logger
     val log = MetricLogger.getInstance()
 
-    for(i <- 1 to iterations){
-      log.nextIteration()
+    for(i <- 0 until iterations) {
+      println("\n == Iteration " + i + " ==" )
+      log.startIteration()
+
+      //copy data to prevent interference between iterations
+      var data = inputData.copy()
 
       //Calculating some KPIs before starting measurements
-      println("#Dictionary entries: %s".format(log.add(Metric.NumberDictionaryItems, inputData.dict.size())))
+      println("#Dictionary entries: %s".format(log.add(Metric.NumberDictionaryItems, data.dict.size().toLong)))
 
       println("#Input sequences: "
-        + log.add(Metric.NumberInputSequences, inputData.sequences.count()))
+        + log.add(Metric.NumberInputSequences, data.sequences.count()))
 
-      val sum = inputData.sequences.map(a => a.size).reduce((a, b) => a + b)
+      val sum = data.sequences.map(a => a.size).reduce((a, b) => a + b)
       println("Avg length of input sequences: "
-        + log.add(Metric.AvgLengthInputSequences, sum/inputData.sequences.count()))
+        + log.add(Metric.AvgLengthInputSequences, sum/data.sequences.count()))
 
       // ------- Actual Processing  -------------
       log.start(Metric.TotalRuntime)
@@ -159,7 +163,8 @@ object ExampleUtils {
         //Convert Data?
       print("Converting data ( " + asItemset.toString + " )... ")
       log.start(Metric.DataTransformationRuntime)
-      val data = if(asItemset) DesqDataset.buildItemsets(inputData, inputData.dict) else inputData
+      //val data =
+      if(asItemset) data = DesqDataset.buildItemsets(data)
       println(log.stop(Metric.DataTransformationRuntime))
       //if(asItemset) println("Avg length of itemsets: " + (data.sequences.map(a => a.size).reduce((a, b) => a + b)/data.sequences.count()))
 
