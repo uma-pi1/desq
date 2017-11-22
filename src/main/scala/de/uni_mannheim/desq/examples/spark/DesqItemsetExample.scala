@@ -87,18 +87,28 @@ object DesqItemsetExample {
   }
 
   /** run itemset query on nyt91 data**/
-  def nyt91()(implicit sc: SparkContext) {
+  def nyt91(eval: Boolean = false)(implicit sc: SparkContext) {
 
-    val patEx = "(..)"
-    val minSupport = 10000
-
+    val patEx = "(.)!{3}&.!*" // PATTY: n-grams of (max?) length 3 (Up to 4 per sentence???)
+    //val patEx = "(..)"
+    val minSupport = 100000
     val data = DesqDataset.load("data-local/nyt-1991-data")
 
-    runItemsetMiner(
-      rawData =     data,
-      patEx =       patEx,
-      minSupport =  minSupport,
-      extDict =     None)
+    if(eval){
+      ExampleUtils.runPerformanceEval(
+        patEx, minSupport,
+        data,
+        asItemset = true, //"each sentence viewed as a shopping transaction"
+        logFile = "data-local/logPATTYItemset.csv",
+        iterations = 2
+      )
+    }else {
+      runItemsetMiner(
+        rawData = data,
+        patEx = patEx,
+        minSupport = minSupport,
+        extDict = None)
+    }
   }
 
   /**
@@ -142,6 +152,12 @@ object DesqItemsetExample {
     //Run Miner
     val (miner, result) = ExampleUtils.runVerbose(data,confDesq)
 
+    /*//Print relevant dict entries:
+    println("Patterns (SIDs):")
+    for((result, weight) <- result.toSidsWeightPairs()){
+      println("[" + result.mkString(" ") + "]@" + weight)
+    }*/
+
     (miner, result)
   }
 
@@ -156,9 +172,9 @@ object DesqItemsetExample {
     //evalIdcm16
 
     //fimi_retail()
-    fimi_retail(eval = true)
+    //fimi_retail(eval = true)
 
-    //nyt91
+    nyt91(eval = true)
   }
 
 }

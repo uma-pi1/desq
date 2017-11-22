@@ -208,7 +208,7 @@ public final class PatExToFst {
 			//Check if unordered marker exists
 			boolean isUnordered =  ctx.SET() != null;
 			if(unorderedConcatId > -1 && isUnordered){ //direct child of unordered concatenation
-				return handleUnorderedRepeat(n,0,ctx.repeatexp());
+				return handleUnorderedRepeat(n,n,ctx.repeatexp());
 			}else {
 				if(isUnordered) addUnorderedWarning();
 				//Standard behavior:

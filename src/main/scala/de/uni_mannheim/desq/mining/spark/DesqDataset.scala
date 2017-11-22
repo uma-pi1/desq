@@ -454,15 +454,16 @@ object DesqDataset {
     val isItemset = itemsetSeparator.isDefined
 
     // --- Dictionary
-    //Handle basic dictionary: optional separator / external dict for hierarchies
+    // - Handle basic dictionary: optional separator / external dict for hierarchies
     val baseDictBuilder =
-      if(extDict.isDefined) new DefaultDictionaryBuilder(extDict.get)
+      if(extDict.isDefined) new DefaultDictionaryBuilder(extDict.get.deepCopy())
       else new DefaultDictionaryBuilder()
     //add separator if defined
     if(isItemset) baseDictBuilder.appendItem(itemsetSeparator.get) //only added if not existing
 
     var dictBroadcast = rawData.context.broadcast(baseDictBuilder.getDictionary)
 
+    // - Create actual dictionary
     val dict = rawData.mapPartitions(rows => {
       val dictBuilder = new DefaultDictionaryBuilder(dictBroadcast.value)
       while (rows.hasNext) {

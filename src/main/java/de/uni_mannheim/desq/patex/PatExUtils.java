@@ -12,19 +12,17 @@ import de.uni_mannheim.desq.fst.Fst;
 public class PatExUtils {
     public static Fst toFst(BasicDictionary dict, String patternExpression) {
         MetricLogger log = MetricLogger.getInstance();
-        System.out.print("Generating FST ...");
         log.start(Metric.FstGenerationRuntime);
 
         PatExToFst p = new PatExToFst(patternExpression, dict);
         Fst fst = p.translate();
 
-        System.out.println(log.stop(Metric.FstGenerationRuntime));
+        log.stop(Metric.FstGenerationRuntime);
         //fst.exportGraphViz("raw_" + fst.toString() + ".pdf");
 
-        System.out.print("Minimizing FST ...");
         log.start(Metric.FstMinimizationRuntime);
         fst.minimize(); //TODO: move to translate
-        System.out.println(log.stop(Metric.FstMinimizationRuntime));
+        log.stop(Metric.FstMinimizationRuntime);
         //fst.exportGraphViz("minimized_" + fst.toString() + ".pdf");
 
         fst.annotate();
