@@ -4,7 +4,7 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 import com.google.common.base.Stopwatch
-import de.uni_mannheim.desq.dictionary.Dictionary
+import de.uni_mannheim.desq.dictionary.{Dictionary, ItemsetBuilderFactory}
 import de.uni_mannheim.desq.experiments.MetricLogger
 import de.uni_mannheim.desq.experiments.MetricLogger.Metric
 import de.uni_mannheim.desq.mining.spark.{DesqCount, DesqDataset, DesqMiner, DesqMinerContext}
@@ -94,7 +94,7 @@ object ExampleUtils {
     //Convert to Itemsets?
     if(asItemset){
       //Convert data + dict
-      data = DesqDataset.buildItemsets(data)
+      data = DesqDataset.buildFromStrings(data.toSids,Option.apply(data.dict), Option.apply(new ItemsetBuilderFactory()))
       dict = data.dict
 
       //Convert PatEx
@@ -164,7 +164,7 @@ object ExampleUtils {
       print("Converting data ( " + asItemset.toString + " )... ")
       log.start(Metric.DataTransformationRuntime)
       //val data =
-      if(asItemset) data = DesqDataset.buildItemsets(data)
+      if(asItemset) data = DesqDataset.buildFromStrings(data.toSids,Option.apply(data.dict),Option.apply(new ItemsetBuilderFactory()))
       println(log.stop(Metric.DataTransformationRuntime))
       //if(asItemset) println("Avg length of itemsets: " + (data.sequences.map(a => a.size).reduce((a, b) => a + b)/data.sequences.count()))
 
