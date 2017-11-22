@@ -85,6 +85,7 @@ public class DefaultDictionaryBuilder implements DictionaryBuilder {
     }
 
     /** Returns the dictionary built so far (including item counts). */
+    @Override
     public Dictionary getDictionary() {
         return dict;
     }

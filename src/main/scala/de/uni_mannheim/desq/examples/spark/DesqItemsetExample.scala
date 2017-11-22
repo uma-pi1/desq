@@ -4,9 +4,8 @@ import java.util
 
 import de.uni_mannheim.desq.Desq._
 import de.uni_mannheim.desq.mining.spark.{DesqCount, DesqDataset, DesqMiner}
-import de.uni_mannheim.desq.dictionary.Dictionary
+import de.uni_mannheim.desq.dictionary.{Dictionary, ItemsetBuilderFactory}
 import de.uni_mannheim.desq.patex.PatExToItemsetPatEx
-import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.io.Source
@@ -125,9 +124,9 @@ object DesqItemsetExample {
     var data: DesqDataset = null
     rawData match {
       case dds: DesqDataset => //Build from existing DesqDataset
-        data = if (extDict.isDefined) DesqDataset.buildItemsets(dds, None, Option.apply(extDict.get)) else DesqDataset.buildItemsets(dds)
+        data = DesqDataset.buildFromStrings(dds.toSids, extDict,Option.apply(new ItemsetBuilderFactory()))
       case file: String => //Build from space delimited file
-        data = DesqDataset.buildFromStrings(sc.textFile(file).map(s => s.split(" ")), None, extDict = extDict)
+        data = DesqDataset.buildFromStrings(sc.textFile(file).map(s => s.split(" ")), extDict, Option.apply(new ItemsetBuilderFactory()))
       case _ =>
         println("ERROR: Unsupported input type")
         return (null, null)
@@ -140,7 +139,7 @@ object DesqItemsetExample {
     println("\nConverted PatEx: " + patEx +"  ->  " + itemsetPatEx)
     println("\nDictionary size: " + data.dict.size())
     //data.dict.writeJson(System.out)
-    println("\nSeparatorGid: " + data.itemsetSeparatorGid + "(" + data.getCfreqOfSeparator + ")")
+    //println("\nSeparatorGid: " + data.itemsetSeparatorGid + "(" + data.getCfreqOfSeparator + ")")
     println("\nFirst 10 (of " + data.sequences.count() + ") Input Sequences:")
     data.print(10)
 
@@ -172,9 +171,9 @@ object DesqItemsetExample {
     //evalIdcm16
 
     //fimi_retail()
-    //fimi_retail(eval = true)
+    fimi_retail(eval = true)
 
-    nyt91(eval = true)
+    //nyt91(eval = true)
   }
 
 }
