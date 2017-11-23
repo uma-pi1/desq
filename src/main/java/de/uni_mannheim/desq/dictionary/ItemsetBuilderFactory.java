@@ -1,6 +1,8 @@
 package de.uni_mannheim.desq.dictionary;
 
-public class ItemsetBuilderFactory implements BuilderFactory {
+import de.uni_mannheim.desq.util.DesqProperties;
+
+public class ItemsetBuilderFactory extends DefaultBuilderFactory {
     private String itemsetSeparatorSid;
 
     public ItemsetBuilderFactory(String itemsetSeparatorSid){
@@ -8,7 +10,7 @@ public class ItemsetBuilderFactory implements BuilderFactory {
     }
 
     public ItemsetBuilderFactory(){
-        this.itemsetSeparatorSid = "/";
+        this("/");
     }
 
     @Override
@@ -24,6 +26,13 @@ public class ItemsetBuilderFactory implements BuilderFactory {
     @Override
     public DictionaryBuilder createDictionaryBuilder(Dictionary initialDict) {
         return new ItemsetDictionaryBuilder(initialDict, itemsetSeparatorSid);
+    }
+
+    @Override
+    public DesqProperties getProperties(){
+        DesqProperties p = super.getProperties();
+        p.setProperty("desq.dataset.itemset.separator.sid",itemsetSeparatorSid);
+        return p;
     }
 
 }

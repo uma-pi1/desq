@@ -2,6 +2,9 @@ package de.uni_mannheim.desq.dictionary;
 
 import it.unimi.dsi.fastutil.ints.IntList;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class DefaultItemsetBuilder extends DefaultSequenceBuilder{
     private int separatorGid = 0;
 
@@ -22,12 +25,16 @@ public class DefaultItemsetBuilder extends DefaultSequenceBuilder{
 
         //removing duplicates
         int prevGid = -1;
-        for(int idx = 0; idx < gids.size(); idx++) {
-            if(prevGid == gids.getInt(idx)){
+        int itemCount = gids.size();
+        for(int idx = 0; idx < itemCount;) {
+            int currentGid = gids.getInt(idx);
+            if(prevGid == currentGid){
                 //remove adjacent duplicate!
-                gids.removeInt(idx);
+                gids.remove(idx);
+                itemCount--;
             }else{
-                prevGid = gids.getInt(idx);
+                prevGid = currentGid;
+                idx++;
             }
         }
         return gids;

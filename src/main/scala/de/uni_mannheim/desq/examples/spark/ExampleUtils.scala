@@ -113,6 +113,9 @@ object ExampleUtils {
     data.print()
     println()
 
+    System.out.println("\nDataset properties:")
+    data.context.prettyPrint()
+
     val (miner, result) = runVerbose(data, minerConf)
     result.sequences.unpersist()
     (miner, result)

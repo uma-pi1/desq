@@ -1,5 +1,7 @@
 package de.uni_mannheim.desq.dictionary;
 
+import de.uni_mannheim.desq.util.DesqProperties;
+
 public class DefaultBuilderFactory implements BuilderFactory {
 
     @Override
@@ -15,6 +17,13 @@ public class DefaultBuilderFactory implements BuilderFactory {
     @Override
     public DictionaryBuilder createDictionaryBuilder(Dictionary initialDict) {
         return new DefaultDictionaryBuilder(initialDict);
+    }
+
+    @Override
+    public DesqProperties getProperties(){
+        DesqProperties p = new DesqProperties();
+        p.setProperty("desq.dataset.builder.factory.class",this.getClass().getCanonicalName());
+        return p;
     }
 
 }

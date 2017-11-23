@@ -167,11 +167,11 @@ object DesqItemsetExample {
     implicit val sc:SparkContext = new SparkContext(conf)
 
     //icdm16()
-    //icdm16(compare = true)
+    icdm16(compare = true)
     //evalIdcm16
 
     //fimi_retail()
-    fimi_retail(eval = true)
+    //fimi_retail(eval = true)
 
     //nyt91(eval = true)
   }

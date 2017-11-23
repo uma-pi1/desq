@@ -51,9 +51,8 @@ public class ItemsetDictionaryBuilder extends DefaultDictionaryBuilder{
     //Ensure that itemset separator is part of the dictionary
     private void addSeparator(){
         if(!this.dict.containsSid(itemsetSeparatorSid)){
-            newSequence();
             appendItem(itemsetSeparatorSid);
-            newSequence();
+            newSequence(0);
         }
     }
 
