@@ -22,7 +22,8 @@ import org.apache.spark.rdd.RDD
 /**
   * Created by rgemulla on 12.09.2016.
   */
-class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, val usesFids: Boolean = false) {
+class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, val usesFids: Boolean = false,
+                  val context: DesqProperties = new DesqProperties()) {
   private var dictBroadcast: Broadcast[Dictionary] = _
 
   // -- building ------------------------------------------------------------------------------------------------------
@@ -358,13 +359,8 @@ object DesqDataset {
   // -- building ------------------------------------------------------------------------------------------------------
 
   /** Builds a DesqDataset from an RDD of string arrays. Every array corresponds to one sequence, every element to
-    * one item. The generated hierarchy is flat, if no base dictionary is provided (containing hierarchy information)
-    * If a ItemSet Separator is provided, the DesqDataset will contain ItemSets*/
-  /*def buildFromStrings(rawData: RDD[Array[String]]): DesqDataset= {
-    buildFromStrings(rawData, None, None)
-  }*/
-
-
+    * one item. The generated hierarchy is flat, if no initial dictionary is provided (containing hierarchy information)
+    */
   def buildFromStrings(rawData: RDD[Array[String]],
                        initialDict: Option[Dictionary] = None,
                        builderFactory: Option[BuilderFactory] = None
@@ -378,21 +374,6 @@ object DesqDataset {
     build[Array[String]](rawData, parse, initialDict, builderFactory)
   }
 
-  /*
-  /**
-    * Build an item set DesqDataset based on an existing DesqDataset
-    * Optionally provide an external basis dict, default is to reuse the dict of the provided DesqDataset
-    */
-  def buildItemsets(sourceDataset: DesqDataset, itemSetSeparator: Option[String], extDict: Option[Dictionary]): DesqDataset = {
-    buildFromStrings(sourceDataset.toSids,
-      if (itemSetSeparator.isDefined) itemSetSeparator else Option.apply("/"),
-      if (extDict.isDefined) extDict else Option.apply(sourceDataset.dict.deepCopy())
-    )
-  }
-
-  def buildItemsets(sourceDataset: DesqDataset): DesqDataset = {
-    buildItemsets(sourceDataset,None, None)
-  }*/
 
   /** Builds a DesqDataset from arbitrary input data. The dataset is linked to the original data and parses it again
     * when used. For improved performance, save the dataset once created.
@@ -400,6 +381,8 @@ object DesqDataset {
     * @param rawData the input data as an RDD
     * @param parse method that takes an input element, parses it, and registers the resulting items (and their parents)
     *              with the provided DictionaryBuilder. Used to construct the dictionary and to translate the data.
+    * @param initialDict An optional dictionary to be used as base dictionary
+    * @param builderFactory A optional BuilderFactory providing Sequence and Dictionary Builder, default is DefaultBuilderFactory
     * @tparam T type of input data elements
     * @return the created DesqDataset
     */
@@ -412,11 +395,11 @@ object DesqDataset {
     val factoryBroadcast = rawData.context.broadcast(factory)
 
     // --- Dictionary
-    // - Handle basic dictionary: optional separator / external dict for hierarchies
+    // - Handle basic dictionary: external dictionary for e.g. hierarchies
     val baseDict =
-      if(initialDict.isDefined) factory.createDictionaryBuilder(initialDict.get.deepCopy()).getDictionary
-      else factory.createDictionaryBuilder().getDictionary
-
+      if(initialDict.isDefined) initialDict.get.deepCopy
+      else new Dictionary()
+    baseDict.clearFreqs()
     var dictBroadcast = rawData.context.broadcast(baseDict)
 
     // - Create actual dictionary
@@ -428,6 +411,7 @@ object DesqDataset {
       dictBuilder.newSequence(0) // flush last sequence
       Iterator.single(dictBuilder.getDictionary)
     }).treeReduce((d1, d2) => { d1.mergeWith(d2); d1 }, 3)
+    dictBroadcast.unpersist()
     dict.recomputeFids()
 
     // --- now convert the sequences (lazily)
@@ -447,10 +431,8 @@ object DesqDataset {
     })
 
     // return the dataset
-    val result = new DesqDataset(sequences, dict, true)
-    //TODO: handover specs (e.g factory and separator)
+    val result = new DesqDataset(sequences, dict, true, factory.getProperties)
     result.dictBroadcast = dictBroadcast
     result
-
   }
 }

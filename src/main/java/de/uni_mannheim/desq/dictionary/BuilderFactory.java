@@ -1,5 +1,7 @@
 package de.uni_mannheim.desq.dictionary;
 
+import de.uni_mannheim.desq.util.DesqProperties;
+
 public interface BuilderFactory {
 
     /**
@@ -23,6 +25,10 @@ public interface BuilderFactory {
      */
     DictionaryBuilder createDictionaryBuilder(Dictionary initialDict);
 
-
+    /**
+     * Provide DesqProperties which are stored as context of the DesqDataset
+     * @return the DesqProperties which are stored as context of the DesqDataset
+     */
+    DesqProperties getProperties();
 
 }
