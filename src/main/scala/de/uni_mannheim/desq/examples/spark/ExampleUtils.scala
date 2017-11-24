@@ -94,7 +94,7 @@ object ExampleUtils {
     //Convert to Itemsets?
     if(asItemset){
       //Convert data + dict
-      data = DesqDataset.buildFromStrings(data.toSids,Option.apply(data.dict), Option.apply(new ItemsetBuilderFactory()))
+      data = DesqDataset.buildFromStrings(data.toSids, Option.apply(new ItemsetBuilderFactory(data.dict)))
       dict = data.dict
 
       //Convert PatEx
@@ -167,7 +167,7 @@ object ExampleUtils {
       print("Converting data ( " + asItemset.toString + " )... ")
       log.start(Metric.DataTransformationRuntime)
       //val data =
-      if(asItemset) data = DesqDataset.buildFromStrings(data.toSids,Option.apply(data.dict),Option.apply(new ItemsetBuilderFactory()))
+      if(asItemset) data = DesqDataset.buildFromStrings(data.toSids, Option.apply(new ItemsetBuilderFactory(data.dict)))
       println(log.stop(Metric.DataTransformationRuntime))
       //if(asItemset) println("Avg length of itemsets: " + (data.sequences.map(a => a.size).reduce((a, b) => a + b)/data.sequences.count()))
 

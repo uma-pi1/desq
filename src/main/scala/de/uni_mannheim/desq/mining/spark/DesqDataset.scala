@@ -47,11 +47,11 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
     val dictBroadcast = broadcastDictionary()
     val totalItemFreqs = sequences.mapPartitions(rows => {
       new Iterator[(Int, (Long,Long))] {
-        val dict = dictBroadcast.value
-        val itemCfreqs = new Int2LongOpenHashMap()
-        var currentItemCfreqsIterator = itemCfreqs.int2LongEntrySet().fastIterator()
-        var currentWeight = 0L
-        val ancItems = new IntAVLTreeSet()
+        private val dict = dictBroadcast.value
+        private val itemCfreqs = new Int2LongOpenHashMap()
+        private var currentItemCfreqsIterator = itemCfreqs.int2LongEntrySet().fastIterator()
+        private var currentWeight = 0L
+        private val ancItems = new IntAVLTreeSet()
 
         override def hasNext: Boolean = {
           while (!currentItemCfreqsIterator.hasNext && rows.hasNext) {
@@ -362,7 +362,6 @@ object DesqDataset {
     * one item. The generated hierarchy is flat, if no initial dictionary is provided (containing hierarchy information)
     */
   def buildFromStrings(rawData: RDD[Array[String]],
-                       initialDict: Option[Dictionary] = None,
                        builderFactory: Option[BuilderFactory] = None
                       ): DesqDataset = {
     val parse = (strings: Array[String], seqBuilder: DictionaryBuilder) => {
@@ -371,7 +370,7 @@ object DesqDataset {
         seqBuilder.appendItem(string)
       }
     }
-    build[Array[String]](rawData, parse, initialDict, builderFactory)
+    build[Array[String]](rawData, parse, builderFactory)
   }
 
 
@@ -381,13 +380,12 @@ object DesqDataset {
     * @param rawData the input data as an RDD
     * @param parse method that takes an input element, parses it, and registers the resulting items (and their parents)
     *              with the provided DictionaryBuilder. Used to construct the dictionary and to translate the data.
-    * @param initialDict An optional dictionary to be used as base dictionary
     * @param builderFactory A optional BuilderFactory providing Sequence and Dictionary Builder, default is DefaultBuilderFactory
     * @tparam T type of input data elements
     * @return the created DesqDataset
     */
   def build[T](rawData: RDD[T], parse: (T, DictionaryBuilder) => _,
-               initialDict: Option[Dictionary] = None,
+               //initialDict: Option[Dictionary] = None,
                builderFactory: Option[BuilderFactory] = None
               ): DesqDataset = {
 
@@ -395,27 +393,18 @@ object DesqDataset {
     val factoryBroadcast = rawData.context.broadcast(factory)
 
     // --- Dictionary
-    // - Handle basic dictionary: external dictionary for e.g. hierarchies
-    val baseDict =
-      if(initialDict.isDefined) initialDict.get.deepCopy
-      else new Dictionary()
-    baseDict.clearFreqs()
-    var dictBroadcast = rawData.context.broadcast(baseDict)
-
-    // - Create actual dictionary
     val dict = rawData.mapPartitions(rows => {
-      val dictBuilder = factoryBroadcast.value.createDictionaryBuilder(dictBroadcast.value)
+      val dictBuilder = factoryBroadcast.value.createDictionaryBuilder()
       while (rows.hasNext) {
         parse.apply(rows.next(), dictBuilder)
       }
       dictBuilder.newSequence(0) // flush last sequence
       Iterator.single(dictBuilder.getDictionary)
     }).treeReduce((d1, d2) => { d1.mergeWith(d2); d1 }, 3)
-    dictBroadcast.unpersist()
     dict.recomputeFids()
 
     // --- now convert the sequences (lazily)
-   dictBroadcast = rawData.context.broadcast(dict)
+    val dictBroadcast = rawData.context.broadcast(dict)
     val sequences = rawData.mapPartitions(rows => new Iterator[WeightedSequence] {
       private val dict = dictBroadcast.value
       private val seqBuilder = factoryBroadcast.value.createSequenceBuilder(dict)
