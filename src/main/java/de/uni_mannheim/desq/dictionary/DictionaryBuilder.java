@@ -10,7 +10,7 @@ import scala.Option;
  *
  * Users of a builder can process arbitrary datasets by registering every input sequence, every encountered item,
  * as well as all of its ancestors using the appropriate methods. For building datasets in Spark, see
- * {@link de.uni_mannheim.desq.mining.spark.DesqDataset#build(RDD, Function2, Option, Option)}
+ * {@link de.uni_mannheim.desq.mining.spark.DesqDataset#build(RDD, Function2, Option)}
  */
 public interface DictionaryBuilder {
     /** Informs the builder that a new input sequence is being processed. Must also be called before the first

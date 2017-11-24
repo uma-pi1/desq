@@ -41,10 +41,7 @@ public class ItemsetDictionaryBuilder extends DefaultDictionaryBuilder{
             return super.appendItem(sid);
         }else {
             //Duplicate SID -> avoid currentFids.add(fid)!
-            MutablePair<Integer, Boolean> pair = new MutablePair<>();
-            pair.setLeft(dict.fidOf(sid));
-            pair.setRight(false);
-            return pair;
+            return new MutablePair<>(dict.fidOf(sid),false);
         }
     }
 

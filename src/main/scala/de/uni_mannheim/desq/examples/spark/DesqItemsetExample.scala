@@ -1,7 +1,5 @@
 package de.uni_mannheim.desq.examples.spark
 
-import java.util
-
 import de.uni_mannheim.desq.Desq._
 import de.uni_mannheim.desq.mining.spark.{DesqCount, DesqDataset, DesqMiner}
 import de.uni_mannheim.desq.dictionary.{Dictionary, ItemsetBuilderFactory}
@@ -98,8 +96,7 @@ object DesqItemsetExample {
         patEx, minSupport,
         data,
         asItemset = true, //"each sentence viewed as a shopping transaction"
-        logFile = "data-local/logPATTYItemset.csv",
-        iterations = 2
+        logFile = "data-local/logPATTYItemset.csv"
       )
     }else {
       runItemsetMiner(
@@ -122,11 +119,12 @@ object DesqItemsetExample {
 
     // Manage different data inputs (DesqDataset, FilePath, RDD)
     var data: DesqDataset = null
+    val factory = if(extDict.isDefined) new ItemsetBuilderFactory(extDict.get) else new ItemsetBuilderFactory()
     rawData match {
       case dds: DesqDataset => //Build from existing DesqDataset
-        data = DesqDataset.buildFromStrings(dds.toSids, extDict,Option.apply(new ItemsetBuilderFactory()))
+        data = DesqDataset.buildFromStrings(dds.toSids, Option.apply(factory))
       case file: String => //Build from space delimited file
-        data = DesqDataset.buildFromStrings(sc.textFile(file).map(s => s.split(" ")), extDict, Option.apply(new ItemsetBuilderFactory()))
+        data = DesqDataset.buildFromStrings(sc.textFile(file).map(s => s.split(" ")), Option.apply(factory))
       case _ =>
         println("ERROR: Unsupported input type")
         return (null, null)
