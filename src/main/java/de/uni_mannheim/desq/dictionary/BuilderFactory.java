@@ -13,7 +13,7 @@ public interface BuilderFactory {
 
     /**
      * create a plain DictionaryBuilder
-     * @return the Dicitionary Builder
+     * @return the Dictionary Builder
      */
     DictionaryBuilder createDictionaryBuilder();
 

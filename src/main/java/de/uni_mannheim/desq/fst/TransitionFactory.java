@@ -47,4 +47,18 @@ public class TransitionFactory {
         return new TransitionCapturedGeneralizedItem(dict, toState, itemFid, itemLabel);
     }
 
+    /** Creates a transition for item expression of form: -A or -A= */
+    public static final Transition uncapturedNegatedItem(final BasicDictionary dict, final State toState,
+                                                  final int itemFid, final String itemLabel,
+                                                  final boolean skipDescendants) {
+        return new TransitionUncapturedNegatedItem(dict, toState, itemFid, itemLabel, skipDescendants);
+    }
+
+    /** Creates a transition for item expression of form: (-A) or (-A=) */
+    public static final Transition capturedNegatedItem(final BasicDictionary dict, final State toState,
+                                                final int itemFid, final String itemLabel,
+                                                final boolean skipDescendants) {
+        return new TransitionCapturedNegatedItem(dict, toState, itemFid, itemLabel, skipDescendants);
+    }
+
 }

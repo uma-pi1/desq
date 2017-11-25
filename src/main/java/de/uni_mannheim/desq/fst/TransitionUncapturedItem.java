@@ -103,7 +103,7 @@ class TransitionUncapturedItem extends Transition {
 
     @Override
     public String itemExpression() {
-        return itemLabel + (matchDescendants ? "" : "=");
+        return itemLabel + (matchDescendants ? "" : "=)");
     }
 
     @Override

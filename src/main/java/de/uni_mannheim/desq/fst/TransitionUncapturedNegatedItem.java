@@ -5,68 +5,63 @@ import it.unimi.dsi.fastutil.ints.AbstractIntIterator;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
-/** A captured item, optionally with descendants: either (A) or (A=) */
-final class TransitionCapturedItem extends Transition {
+/** A captured negated item, optionally with descendants: either (A) or (A=) */
+final class TransitionUncapturedNegatedItem extends Transition {
     private final int itemFid;
-    private final boolean matchDescendants;
+    private final boolean skipDescendants;
     private final String itemLabel;
 
     // helper
-    final IntSet matchedFids;
+    final IntSet skippedFids;
 
-    /** Matches all descendents of given item */
-    public TransitionCapturedItem(final BasicDictionary dict, final State toState, final int fid,
-                                  final String itemLabel, boolean matchDescendants) {
+    /** Matches every item, except the given item */
+    public TransitionUncapturedNegatedItem(final BasicDictionary dict, final State toState, final int fid,
+                                           final String itemLabel, boolean skipDescendants) {
         super(dict,toState);
         this.itemFid = fid;
         this.itemLabel = itemLabel;
-        this.matchDescendants = matchDescendants;
-        this.matchedFids = TransitionUncapturedItem.getMatchedFids(dict, fid, matchDescendants);
+        this.skipDescendants = skipDescendants;
+        this.skippedFids = TransitionUncapturedItem.getMatchedFids(dict, fid, skipDescendants);
     }
 
     /** Shallow copy */
-    private TransitionCapturedItem(TransitionCapturedItem other) {
+    private TransitionUncapturedNegatedItem(TransitionUncapturedNegatedItem other) {
         super(other.dict, other.toState);
         this.itemFid = other.itemFid;
         this.itemLabel = other.itemLabel;
-        this.matchDescendants = other.matchDescendants;
-        this.matchedFids = other.matchedFids;
+        this.skipDescendants = other.skipDescendants;
+        this.skippedFids = other.skippedFids;
     }
 
     @Override
     public boolean hasOutput() {
-        return true;
+        return false;
     }
 
     @Override
     public boolean matches(int fid) {
-        return matchedFids.contains(fid);
+        return !skippedFids.contains(fid);
     }
 
     @Override
     public boolean matchesAll() {
-        return matchedFids.size() == dict.size();
+        return skippedFids.isEmpty();
     }
 
     @Override
     public boolean fires(int inputFid, int largestFrequentItemFid) {
-        return inputFid <= largestFrequentItemFid && matches(inputFid);
+        return matches(inputFid);
     }
 
     @Override
     public boolean firesAll(int largestFrequentItemFid) {
-        return largestFrequentItemFid <= dict.lastFid() && matchesAll();
+        return matchesAll();
     }
 
     @Override
     public IntIterator matchedFidIterator() {
-        return matchedFids.iterator();
-    }
-
-    @Override
-    public IntIterator firedFidIterator(final int largestFrequentItemFid) {
         return new AbstractIntIterator() {
-            IntIterator matchedFidIt = matchedFidIterator();
+            IntIterator allFidIt = dict.fidIterator();
             int nextFid = move();
 
             @Override
@@ -83,9 +78,9 @@ final class TransitionCapturedItem extends Transition {
             }
 
             private int move() {
-                while (matchedFidIt.hasNext()) {
-                    nextFid = matchedFidIt.nextInt();
-                    if (nextFid <= largestFrequentItemFid)
+                while (allFidIt.hasNext()) {
+                    nextFid = allFidIt.nextInt();
+                    if (!skippedFids.contains(nextFid))
                         return nextFid;
                 }
                 return (nextFid = -1);
@@ -94,28 +89,33 @@ final class TransitionCapturedItem extends Transition {
     }
 
     @Override
+    public IntIterator firedFidIterator(final int largestFrequentItemFid) {
+        return matchedFidIterator();
+    }
+
+    @Override
     public boolean canProduce(int outputFid) {
-        return matchedFids.contains(outputFid);
+        return false;
     }
 
 
     @Override
     public SingleItemStateIterator consume(final int fid, final ItemStateIteratorCache itCache) {
         final SingleItemStateIterator it = itCache.single;
-        it.hasNext = matchedFids.contains(fid);
-        it.itemState.itemFid = fid;
+        it.hasNext = !skippedFids.contains(fid);
+        it.itemState.itemFid = 0;
         it.itemState.state = toState;
         return it;
     }
 
     @Override
-    public TransitionCapturedItem shallowCopy() {
-        return new TransitionCapturedItem(this);
+    public TransitionUncapturedNegatedItem shallowCopy() {
+        return new TransitionUncapturedNegatedItem(this);
     }
 
     @Override
     public String itemExpression() {
-        return "(" + itemLabel + (matchDescendants ? ")" : "=)");
+        return "(-" + itemLabel + (skipDescendants ? ")" : "=)");
     }
 
     @Override
