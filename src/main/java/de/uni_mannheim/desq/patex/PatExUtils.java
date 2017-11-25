@@ -23,7 +23,7 @@ public class PatExUtils {
         log.start(Metric.FstMinimizationRuntime);
         fst.minimize(); //TODO: move to translate
         log.stop(Metric.FstMinimizationRuntime);
-        //fst.exportGraphViz("minimized_" + fst.toString() + ".pdf");
+        fst.exportGraphViz("minimized_" + fst.toString() + ".pdf");
 
         fst.annotate();
 

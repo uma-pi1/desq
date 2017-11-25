@@ -48,6 +48,7 @@ itemexp
 :
 	'.' '^'?                            #wildCard
 	| item '='? '^'?                    #nonWildCard
+	| NEG item '='?                     #negatedItem
 ;
 
 item
@@ -59,7 +60,8 @@ item
     | QSID
 ;
 
-SET : '!';
+SET : '!'; //defines a set / unordered repeat expression
+NEG : '-'; //negates an item
 
 // an integer
 INT : [0-9]+ ;
@@ -91,5 +93,5 @@ fragment SQUOTE : '\'';
 fragment DQUOTE : '"';
 fragment HASH : '#';
 //fragment CHAR: ~('#' | '\'' | '\"' | '|' | '?' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
-fragment CHAR: ~('#' | '\'' | '"' | '|' | '?' | '!' | '&' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
+fragment CHAR: ~('#' | '\'' | '"' | '|' | '?' | '!' | '&' | '-' | '*' | '+' | '{' | '}' | '[' | ']' | '(' | ')' | '^' | '=' | '.'| ' ' | ',' | '\t' | '\r' | '\n') ;
 WS  : [ \t\r\n]+ -> skip; // skip spaces, tabs, newlines

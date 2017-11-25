@@ -386,6 +386,41 @@ public final class PatExToFst {
 			return fst;
 		}
 
+		@Override
+		public Fst visitNegatedItem(NegatedItemContext ctx){
+			String label = ctx.item().getText();
+			int fid = PatExUtils.asFid(dict, ctx.item());
+			boolean force = false;
+			if(ctx.getChildCount() == 3){
+				force = ctx.getChild(2).getText().equals("=");
+			}
+			// build the two-state FST
+			Fst fst = new Fst();
+
+			// see if we have a cached transition
+			String transitionKey = "-" + Integer.toString(fid) + force + capture;
+			Transition t;
+			if (transitionCache.containsKey(transitionKey)) {
+				// if so, use a shallow copy of this one (to share data structures)
+				Transition cachedT = transitionCache.get(transitionKey);
+				t = cachedT.shallowCopy();
+				t.setToState(new State(true));
+				//System.out.println(transitionKey);
+			} else {
+				// otherwise compute it
+				if (capture) {
+					t = TransitionFactory.capturedNegatedItem(dict, new State(true), fid, label, !force);
+				} else {
+					t = TransitionFactory.uncapturedNegatedItem(dict, new State(true), fid, label, !force);
+				}
+
+				transitionCache.put(transitionKey, t); // remember for reuse
+			}
+			fst.getInitialState().addTransition(t);
+			fst.updateStates();
+			return fst;
+		}
+
 		private Fst handleUnorderedRepeat(Integer n, Integer m, RepeatexpContext visit){
 			int localConcatId = unorderedConcatId; // remember id locally
 			unorderedConcatId = -1; //stop inheritance

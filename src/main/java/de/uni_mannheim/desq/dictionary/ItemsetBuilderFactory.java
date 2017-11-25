@@ -35,12 +35,6 @@ public class ItemsetBuilderFactory extends DefaultBuilderFactory {
                 : new ItemsetDictionaryBuilder(initialDictionary, itemsetSeparatorSid);
     }
 
-    /*
-    @Override
-    public DictionaryBuilder createDictionaryBuilder(Dictionary initialDict) {
-        return new ItemsetDictionaryBuilder(initialDict, itemsetSeparatorSid);
-    }*/
-
     @Override
     public DesqProperties getProperties(){
         DesqProperties p = super.getProperties();
