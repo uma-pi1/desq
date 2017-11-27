@@ -1,54 +1,92 @@
 package de.uni_mannheim.desq.dictionary;
 
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 
-public class DefaultItemsetBuilder extends DefaultSequenceBuilder{
-    private String separatorSid;
-    private HashSet<String> currentSids = new HashSet<>();
+public class DefaultItemsetBuilder implements SequenceBuilder{
+    private int separatorGid;
+    private long currentWeight = 0;
+    private IntList currentGids = new IntArrayList();
+    private List<IntList> gidSets = new ArrayList<>();
+    private MutablePair<Integer,Boolean> pair = new MutablePair<>(null, false);
+    protected Dictionary dict;
 
     public DefaultItemsetBuilder(Dictionary dict, String separatorSid) {
-        super(dict);
-        this.separatorSid = separatorSid;
+        this.dict = dict;
+        this.separatorGid = dict.gidOf(separatorSid);
+    }
+
+    @Override
+    public void newSequence() {
+        newSequence(1);
     }
 
     @Override
     public void newSequence(long weight) {
-        super.newSequence(weight);
-        currentSids.clear();
+        currentWeight = weight;
+        gidSets.clear();
+        //Initialize new set within sequence
+        initNewSet();
+    }
+
+    @Override
+    public Pair<Integer, Boolean> addParent(int childFid, String parentSid) {
+        throw new UnsupportedOperationException();
     }
 
     //Remove duplicates during append
     @Override
     public Pair<Integer,Boolean> appendItem(String sid) {
-        if(sid.equals(separatorSid)){
-            //New itemset within sequence
-            currentSids.clear();
-            //Keep the separator itself
-            return super.appendItem(sid);
-        }else if(!currentSids.contains(sid)){
-            //No duplicate Sid -> Add as usual
-            currentSids.add(sid);
-            return super.appendItem(sid);
-        }else {
+        int gid = dict.gidOf(sid);
+        if (gid<0) throw new IllegalStateException("unknown sid " + sid);
+
+        if((gid != separatorGid) && currentGids.contains(gid)){
             //Duplicate Sid -> do not add
-            return new MutablePair<>(dict.gidOf(sid),false);
+            pair.setLeft(gid);
+            return pair;
+        }else{
+            if(gid == separatorGid)
+                initNewSet();
+            else //only add items (easier sorting later)
+                currentGids.add(gid);
+            pair.setLeft(gid);
+            return pair;
         }
     }
 
     @Override
     public IntList getCurrentGids() {
-        IntList gids = super.getCurrentGids();
-        int separatorGid = dict.gidOf(separatorSid);
-        //Sort before returning - but change order only if no separator
-        gids.sort((g1, g2) -> (
-                (g1 == separatorGid || g2 == separatorGid )
-                        ? 0 //no change of order
-                        : dict.fidOf(g2) - dict.fidOf(g1) //descending
-        ));
-        return gids;
+        //Return sets as one line
+        //Sort each set and add separator again
+        IntList seqOfSets = new IntArrayList();
+        for(IntList set: gidSets){
+            set.sort((g1, g2) -> (
+                    dict.fidOf(g2) - dict.fidOf(g1) //descending
+            ));
+            if(!seqOfSets.isEmpty()) seqOfSets.add(separatorGid);
+            seqOfSets.addAll(set);
+        }
+        return seqOfSets;
+    }
+
+    @Override
+    public long getCurrentWeight() {
+        return currentWeight;
+    }
+
+    @Override
+    public Dictionary getDictionary() {
+        return dict;
+    }
+
+    private void initNewSet(){
+        currentGids = new IntArrayList();
+        gidSets.add(currentGids);
     }
 }

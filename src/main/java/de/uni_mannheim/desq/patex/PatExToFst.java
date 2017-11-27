@@ -16,10 +16,10 @@ import java.util.*;
 
 public final class PatExToFst {
 	private static final Logger logger = Logger.getLogger(PatExToFst.class);
-	String expression;
-	BasicDictionary dict;
-	Map<String,Transition> transitionCache = new HashMap<>(); // caches transition
-	boolean optimizeRepeats;
+	private String expression;
+	private BasicDictionary dict;
+	private Map<String,Transition> transitionCache = new HashMap<>(); // caches transition
+	private boolean optimizeRepeats;
 
 	/** If the pattern expression contains string item identifiers, the dict needs to be of type {@link Dictionary}.
 	 *
@@ -78,7 +78,6 @@ public final class PatExToFst {
 
 	public class Visitor extends PatExBaseVisitor<Fst> {
 
-		private static final String unorderedMarker = "!";
 		private boolean capture = false;
 		private int unorderedConcatId = -1; //unordered: currently active concat ID (handover in concatExpression)
 		private int maxConcatId = -1; //unordered: watermark for easy generation of new concat id
@@ -192,7 +191,6 @@ public final class PatExToFst {
 			if(unorderedConcatId > -1 && isUnordered){ //direct child of unordered concatenation
 				return handleUnorderedRepeat(min,max,ctx.repeatexp());
 			}else {
-				if(isUnordered) addUnorderedWarning();
 				//Standard behavior:
 				Fst fst = visit(ctx.repeatexp());
 				if (optimizeRepeats) fst.optimize();
@@ -210,7 +208,6 @@ public final class PatExToFst {
 			if(unorderedConcatId > -1 && isUnordered){ //direct child of unordered concatenation
 				return handleUnorderedRepeat(n,n,ctx.repeatexp());
 			}else {
-				if(isUnordered) addUnorderedWarning();
 				//Standard behavior:
 				Fst fst = visit(ctx.repeatexp());
 				if (optimizeRepeats) fst.optimize();
@@ -226,7 +223,6 @@ public final class PatExToFst {
 			if(unorderedConcatId > -1 && isUnordered){ //direct child of unordered concatenation
 				return handleUnorderedRepeat(0,max,ctx.repeatexp());
 			}else {
-				if(isUnordered) addUnorderedWarning();
 				//Standard behavior:
 				Fst fst = visit(ctx.repeatexp());
 				if (optimizeRepeats) fst.optimize();
@@ -243,7 +239,6 @@ public final class PatExToFst {
 			if(unorderedConcatId > -1 && isUnordered){ //direct child of unordered concatenation
 				return handleUnorderedRepeat(min,0,ctx.repeatexp());
 			}else {
-				if(isUnordered) addUnorderedWarning();
 				//Standard behavior:
 				Fst fst = visit(ctx.repeatexp());
 				if (optimizeRepeats) fst.optimize();
@@ -266,7 +261,6 @@ public final class PatExToFst {
 			if(unorderedConcatId > -1 && isUnordered){ //direct child of unordered concatenation
 				return handleUnorderedRepeat(1,0,ctx.repeatexp());
 			}else {
-				if(isUnordered) addUnorderedWarning();
 				//Standard behavior:
 				Fst fst = visit(ctx.repeatexp());
 				if (optimizeRepeats) fst.optimize();
@@ -282,7 +276,6 @@ public final class PatExToFst {
 			if(unorderedConcatId > -1 && isUnordered){ //direct child of unordered concatenation
 				return handleUnorderedRepeat(0,0,ctx.repeatexp());
 			}else {
-				if(isUnordered) addUnorderedWarning();
 				//Standard behavior:
 				Fst fst = visit(ctx.repeatexp());
 				return FstOperations.kleene(fst);
@@ -431,11 +424,6 @@ public final class PatExToFst {
 			//Adding FST + repeat specification to backlog
 			unorderedConcatElements.get(localConcatId).put(fst,freq);
 			return fst;
-		}
-
-		private void addUnorderedWarning(){
-			logger.warn("Unordered frequency !{n,m} used outside of unordered concatenation (&) -> Treated like sequential '{n,m}'." +
-					"Pattern expression: " + expression);
 		}
 	}
 }

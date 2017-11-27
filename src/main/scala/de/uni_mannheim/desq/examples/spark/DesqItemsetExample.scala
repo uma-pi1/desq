@@ -2,7 +2,7 @@ package de.uni_mannheim.desq.examples.spark
 
 import de.uni_mannheim.desq.Desq._
 import de.uni_mannheim.desq.mining.spark.{DesqCount, DesqDataset, DesqMiner}
-import de.uni_mannheim.desq.dictionary.{Dictionary, ItemsetBuilderFactory}
+import de.uni_mannheim.desq.dictionary.{DefaultBuilderFactory, Dictionary, ItemsetBuilderFactory}
 import de.uni_mannheim.desq.patex.PatExToItemsetPatEx
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -46,7 +46,11 @@ object DesqItemsetExample {
     ExampleUtils.runPerformanceEval(patternExpression,sigma,data)
 
     println("\n ==== itemset query =====")
-    ExampleUtils.runPerformanceEval(patternExpression,sigma,data,asItemset = true)
+    val factory = new ItemsetBuilderFactory(data.dict)
+    val itemsetData = DesqDataset.buildFromStrings(data.toSids, Option.apply(factory))
+    ExampleUtils.runPerformanceEval(patternExpression,sigma,
+      itemsetData,
+      Option.apply(new PatExToItemsetPatEx(patternExpression)))
   }
 
   /** run/eval itemset query on fimi-retail data and stores metrics in CSVs in data-local/ **/
@@ -66,10 +70,11 @@ object DesqItemsetExample {
       )
 
       println("\n ==== Evaluate itemset query =====")
+      val factory = Option.apply(new ItemsetBuilderFactory())
       ExampleUtils.runPerformanceEval(
         patEx, minSupport,
-        DesqDataset.buildFromStrings(sc.textFile("data-local/fimi_retail/retail.dat").map(s => s.split(" "))),
-        asItemset = true, logFile = "data-local/testItemset.csv"
+        DesqDataset.buildFromStrings(sc.textFile("data-local/fimi_retail/retail.dat").map(s => s.split(" ")),factory),
+        patExTranslator = Option.apply(new PatExToItemsetPatEx(patEx)), logFile = "data-local/testItemset.csv"
       )
     }else {
       val data = "data-local/fimi_retail/retail.dat"
@@ -95,16 +100,70 @@ object DesqItemsetExample {
     if(eval){
       ExampleUtils.runPerformanceEval(
         patEx, minSupport,
-        data,
-        asItemset = true, //"each sentence viewed as a shopping transaction"
+        DesqDataset.buildFromStrings(data.toSids, Option.apply(
+          new ItemsetBuilderFactory(data.dict)
+        )),
+        Option.apply(new PatExToItemsetPatEx(patEx)), //"each sentence viewed as a shopping transaction"
         logFile = "data-local/logPATTYItemset.csv"
       )
     }else {
       runItemsetMiner(
         rawData = data,
         patEx = patEx,
+        minSupport = minSupport
+      )
+    }
+  }
+
+  def sequenceOfItemsets(eval: Boolean = false)(implicit sc: SparkContext): Unit = {
+    val patEx = "[c|d] / (B)"
+    val minSupport = 1
+
+    val dict = Dictionary.loadFrom("data/itemset-example/dict.json")
+
+    if(eval){
+      println("\n ==== Evaluate sequence query =====")
+      val defFactory = Option.apply(new DefaultBuilderFactory(dict))
+      ExampleUtils.runPerformanceEval(
+        patEx, minSupport,
+        DesqDataset.buildFromStrings(sc.textFile("data/itemset-example/data.dat").map(s => s.split(" ")),defFactory),
+        logFile = "data-local/ItemsetEx_Seq.csv"
+      )
+
+      println("\n ==== Evaluate itemset query =====")
+      val itemsetFactory = Option.apply(new ItemsetBuilderFactory(dict))
+      ExampleUtils.runPerformanceEval(
+        patEx, minSupport,
+        DesqDataset.buildFromStrings(sc.textFile("data/itemset-example/data.dat").map(s => s.split(" ")),itemsetFactory ),
+        Option.apply(new PatExToItemsetPatEx(patEx)),
+        logFile = "data-local/ItemsetEx_SeqOfItemset.csv"
+      )
+
+      println("\n ==== Evaluate sequence of itemsets query =====")
+      val seqItemsetFactory = Option.apply(new ItemsetBuilderFactory("/",dict))
+      ExampleUtils.runPerformanceEval(
+        patEx, minSupport,
+        DesqDataset.buildFromStrings(sc.textFile("data/itemset-example/data.dat").map(s => s.split(" ")),seqItemsetFactory ),
+        Option.apply(new PatExToItemsetPatEx(patEx, "/")),
+        logFile = "data-local/ItemsetEx_SeqOfItemset.csv"
+      )
+    }else{
+      println("\n === ItemsetExample - Itemset Query ===")
+      runItemsetMiner(
+        rawData = "data/itemset-example/data.dat",
+        patEx = patEx,
         minSupport = minSupport,
-        extDict = None)
+        extDict = Option.apply(Dictionary.loadFrom("data/itemset-example/dict.json"))
+      )
+
+      println("\n === ItemsetExample - Sequence of Itemsets Query ===")
+      runItemsetMiner(
+        rawData = "data/itemset-example/data.dat",
+        patEx = patEx,
+        minSupport = minSupport,
+        extDict = Option.apply(Dictionary.loadFrom("data/itemset-example/dict.json")),
+        itemsetSeparator = Option.apply("/")
+      )
     }
   }
 
@@ -115,12 +174,20 @@ object DesqItemsetExample {
                           rawData: T,
                           patEx:String,
                           minSupport: Int = 1000,
-                          extDict: Option[Dictionary]
+                          extDict: Option[Dictionary] = None,
+                          itemsetSeparator: Option[String] = None
                         )(implicit sc: SparkContext): (DesqMiner, DesqDataset) ={
 
     // Manage different data inputs (DesqDataset, FilePath, RDD)
     var data: DesqDataset = null
-    val factory = if(extDict.isDefined) new ItemsetBuilderFactory(extDict.get) else new ItemsetBuilderFactory()
+    val factory =
+      if(extDict.isDefined && itemsetSeparator.isDefined)
+        new ItemsetBuilderFactory(itemsetSeparator.get, extDict.get)
+      else if (extDict.isDefined)
+        new ItemsetBuilderFactory(extDict.get)
+      else if (itemsetSeparator.isDefined)
+        new ItemsetBuilderFactory(itemsetSeparator.get)
+      else new ItemsetBuilderFactory()
     rawData match {
       case dds: DesqDataset => //Build from existing DesqDataset
         data = DesqDataset.buildFromStrings(dds.toSids, Option.apply(factory))
@@ -132,7 +199,13 @@ object DesqItemsetExample {
     }
 
     //Convert PatEx
-    val itemsetPatEx = new PatExToItemsetPatEx(patEx).translate()
+    val itemsetPatEx =
+      if (itemsetSeparator.isDefined)
+        //sequence of itemsets
+        new PatExToItemsetPatEx(patEx, itemsetSeparator.get).translate()
+      else
+        //itemset
+        new PatExToItemsetPatEx(patEx).translate()
 
     //Print some information
     println("\nConverted PatEx: " + patEx +"  ->  " + itemsetPatEx)
@@ -166,13 +239,15 @@ object DesqItemsetExample {
     implicit val sc:SparkContext = new SparkContext(conf)
 
     //icdm16()
-    icdm16(compare = true)
+    //icdm16(compare = true)
     //evalIdcm16
 
     //fimi_retail()
     //fimi_retail(eval = true)
 
     //nyt91(eval = true)
+
+    sequenceOfItemsets()
   }
 
 }
