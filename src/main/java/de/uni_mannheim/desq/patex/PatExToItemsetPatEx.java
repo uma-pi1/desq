@@ -11,16 +11,18 @@ import de.uni_mannheim.desq.patex.PatExParser.*;
 import java.util.List;
 
 /** Replaces the ordered versions of frequency and concatenation with unordered equivalent */
-public class PatExToItemsetPatEx {
-
+public class PatExToItemsetPatEx implements PatExTranslator<String>{
     private String patternExpression;
-    private Boolean capture = false;
-    private static final String unorderedConcat = "&";
-    private static final String unorderedMarker= "!";
+    private String itemsetSeparatorSid;
 
 
-    public PatExToItemsetPatEx(String patternExpression) {
+    public PatExToItemsetPatEx(String patternExpression){
         this.patternExpression = patternExpression;
+    }
+
+    public PatExToItemsetPatEx(String patternExpression, String itemsetSeparatorSid) {
+        this(patternExpression);
+        this.itemsetSeparatorSid = itemsetSeparatorSid;
     }
 
     public String translate() {
@@ -34,12 +36,18 @@ public class PatExToItemsetPatEx {
     }
 
     class Visitor extends PatExBaseVisitor<String> {
+        private Boolean capture = false;
+        private static final String unorderedConcat = "&";
+        private static final String unorderedMarker = "!";
+        private static final String negate = "-";
 
         // -- Handle Concatenations
         @Override
         public String visitConcatExpression(ConcatExpressionContext ctx) {
-            //E1 E2 -> E1&E2
-            return  visit(ctx.unorderedexp()) + unorderedConcat + visit(ctx.concatexp());
+            //E1 E2 -> E1&E2 - but keep sequence if sequence of itemsets
+            return  visit(ctx.unorderedexp())
+                    + ((itemsetSeparatorSid == null) ? unorderedConcat : " ")
+                    + visit(ctx.concatexp());
         }
 
         // -- Handle Repeats
@@ -87,13 +95,14 @@ public class PatExToItemsetPatEx {
 
         @Override
         public String visitItemExpression(ItemExpressionContext ctx) {
-            //Ensure that capture parentheses are added on item level as well as uncaptured adjacent gaps
+            //Ensure that capture parentheses are added on item level
             String item = (capture) ? "(" + visit(ctx.itemexp()) + ")" : visit(ctx.itemexp());
-            return "[" + item + ".*]";
+            //Handle uncaptured adjacent gaps (with and without item separator)
+            item += (itemsetSeparatorSid == null) ? ".*" : negate + itemsetSeparatorSid + "*";
+            return "[" + item + "]";
         }
 
         // -- Helper methods
-
         private String addUnorderedMarker(String repeatexp, List<ParseTree> children){
             if(children.get(1).getText().equals(unorderedMarker)){
                 //already marked as unordered

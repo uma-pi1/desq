@@ -22,7 +22,7 @@ concatexp
 
 unorderedexp
 :
-    repeatexp '&' unorderedexp           #unorderedExpression
+    repeatexp '&' unorderedexp          #unorderedExpression
     | repeatexp						    #repeat
 ;
 

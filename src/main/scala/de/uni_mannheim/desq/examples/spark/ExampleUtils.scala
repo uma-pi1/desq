@@ -8,7 +8,7 @@ import de.uni_mannheim.desq.dictionary.{Dictionary, ItemsetBuilderFactory}
 import de.uni_mannheim.desq.experiments.MetricLogger
 import de.uni_mannheim.desq.experiments.MetricLogger.Metric
 import de.uni_mannheim.desq.mining.spark.{DesqCount, DesqDataset, DesqMiner, DesqMinerContext}
-import de.uni_mannheim.desq.patex.{PatExToItemsetPatEx, PatExToSequentialPatEx}
+import de.uni_mannheim.desq.patex.{PatExToItemsetPatEx, PatExToSequentialPatEx, PatExTranslator}
 import de.uni_mannheim.desq.util.DesqProperties
 import org.apache.spark.SparkContext
 
@@ -91,10 +91,11 @@ object ExampleUtils {
     val delFile = sc.parallelize(Source.fromURL(dataFile).getLines.toSeq)
     var data = DesqDataset.loadFromDelFile(delFile, dict, usesFids = false).copyWithRecomputedCountsAndFids()
 
-    //Convert to Itemsets?
+    //Convert to (sequence of itemsets)?
     if(asItemset){
       //Convert data + dict
-      data = DesqDataset.buildFromStrings(data.toSids, Option.apply(new ItemsetBuilderFactory(data.dict)))
+      val factory = new ItemsetBuilderFactory(data.dict)
+      data = DesqDataset.buildFromStrings(data.toSids, Option.apply(factory))
       dict = data.dict
 
       //Convert PatEx
@@ -137,7 +138,8 @@ object ExampleUtils {
 
   /** Runs a miner on given data and logs metrics via MetricLogger*/
   def runPerformanceEval(patEx: String, minSupport: Long, inputData: DesqDataset,
-                         asItemset: Boolean = false, logFile: String = "", iterations: Int = 2)
+                         patExTranslator: Option[PatExTranslator[String]] = None,
+                         logFile: String = "", iterations: Int = 2)
                         (implicit sc: SparkContext): Unit = {
 
     MetricLogger.reset() //Force re-init of logger
@@ -146,11 +148,20 @@ object ExampleUtils {
     for(i <- 0 until iterations) {
       println("\n == Iteration " + i + " ==" )
       log.startIteration()
+      val data = inputData.copy()
 
-      //copy data to prevent interference between iterations
-      var data = inputData.copy()
+      // ------- Actual Processing  -------------
+      log.start(Metric.TotalRuntime)
 
-      //Calculating some KPIs before starting measurements
+      //Convert Data?
+      print("Loading data (" + data.context.getString("desq.dataset.builder.factory.class","No Builder") + ") ... ")
+      log.start(Metric.DataTransformationRuntime)
+      //cache data to  force data load
+      data.sequences.cache()
+      println(log.stop(Metric.DataTransformationRuntime))
+
+
+      //Calculating some KPIs (impact on total runtime only)
       println("#Dictionary entries: %s".format(log.add(Metric.NumberDictionaryItems, data.dict.size().toLong)))
 
       println("#Input sequences: "
@@ -160,33 +171,21 @@ object ExampleUtils {
       println("Avg length of input sequences: "
         + log.add(Metric.AvgLengthInputSequences, sum/data.sequences.count()))
 
-      // ------- Actual Processing  -------------
-      log.start(Metric.TotalRuntime)
-
-        //Convert Data?
-      print("Converting data ( " + asItemset.toString + " )... ")
-      log.start(Metric.DataTransformationRuntime)
-      //val data =
-      if(asItemset) data = DesqDataset.buildFromStrings(data.toSids, Option.apply(new ItemsetBuilderFactory(data.dict)))
-      println(log.stop(Metric.DataTransformationRuntime))
-      //if(asItemset) println("Avg length of itemsets: " + (data.sequences.map(a => a.size).reduce((a, b) => a + b)/data.sequences.count()))
-
       //Convert PatEx
-      print("Converting PatEx ( " + asItemset.toString + " )... ")
+      print("Converting PatEx ( " + patExTranslator.isDefined + " )... ")
       log.start(Metric.PatExTransformationRuntime)
 
       System.out.print( patEx )
 
-      val convPatEx = if(asItemset){
-        val itemsetPatEx  = new PatExToItemsetPatEx(patEx).translate()
-        print("  ->  " + itemsetPatEx)
+      val convPatEx = if(patExTranslator.isDefined){
+        val tempPatEx  = patExTranslator.get.translate()
+        print("  ->  " + tempPatEx)
         //new PatExToSequentialPatEx(itemsetPatEx).translate()
-        itemsetPatEx
+        tempPatEx
       }else{
         //new PatExToSequentialPatEx(patEx).translate()
         patEx
       }
-      //print("  ->  " + convPatEx + " ")
       println(" ... " + log.stop(Metric.PatExTransformationRuntime))
 
       // -------- Execute mining ------------ (based on runVerbose and runMiner)
