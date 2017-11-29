@@ -75,10 +75,6 @@ public class MetricLogger {
         metrics.get(metric).put(currentIteration,value);
         return value;
     }
-    /*public Integer add(Metric metric, Integer value){
-        metrics.put(metric,value.longValue());
-        return value;
-    }*/
 
     public void writeResult(String file){
         writeResult(file,";");
@@ -101,7 +97,7 @@ public class MetricLogger {
             StringBuilder lineBuilder = new StringBuilder();
             lineBuilder.append(m.toString());
             Map<Integer,Long> iterations = metrics.get(m);
-            //for(Long value: metrics.get(m).values()){
+
             for(int i = 0; i <= currentIteration; i++){
                 lineBuilder.append(separator);
                 if(iterations.containsKey(i)){
@@ -116,7 +112,9 @@ public class MetricLogger {
         //Save the data
         Path path = Paths.get(file);
         try {
-            Files.write(path, lines, Charset.forName("UTF-8"), StandardOpenOption.CREATE);
+            Files.write(path, lines, Charset.forName("UTF-8"),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING);
         }catch (IOException ex){
            System.out.println("Exception: " + ex.getLocalizedMessage());
         }

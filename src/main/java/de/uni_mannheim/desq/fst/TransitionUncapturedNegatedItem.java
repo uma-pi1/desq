@@ -115,7 +115,7 @@ final class TransitionUncapturedNegatedItem extends Transition {
 
     @Override
     public String itemExpression() {
-        return "(-" + itemLabel + (skipDescendants ? ")" : "=)");
+        return "-" + itemLabel + (skipDescendants ? "" : "=");
     }
 
     @Override

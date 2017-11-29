@@ -36,7 +36,7 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
   /** Creates a copy of this DesqDataset with a deep copy of its dictionary. Useful when changes should be
     * performed to a dictionary that has been broadcasted before (and hence cannot/should not be changed). */
   def copy(): DesqDataset = {
-    new DesqDataset(sequences, dict.deepCopy(), usesFids)
+    new DesqDataset(sequences, dict.deepCopy(), usesFids, context)
   }
 
   /** Returns a copy of this dataset with a new dictionary, containing updated counts and fid identifiers. The
