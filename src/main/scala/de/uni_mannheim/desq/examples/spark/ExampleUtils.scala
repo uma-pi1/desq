@@ -148,28 +148,32 @@ object ExampleUtils {
     for(i <- 0 until iterations) {
       println("\n == Iteration " + i + " ==" )
       log.startIteration()
-      val data = inputData.copy()
+      //unpersist sequences to ensure data load is executed again
+      inputData.sequences.unpersist()
+      val cachedSequences = inputData.sequences
+      cachedSequences.cache()
 
       // ------- Actual Processing  -------------
       log.start(Metric.TotalRuntime)
 
       //Convert Data?
-      print("Loading data (" + data.context.getString("desq.dataset.builder.factory.class","No Builder") + ") ... ")
+      print("Loading data (" + inputData.context.getString("desq.dataset.builder.factory.class","No Builder") + ") ... ")
       log.start(Metric.DataTransformationRuntime)
-      //cache data to  force data load
-      data.sequences.cache()
+      //cache data and execute count to force data load
+      val count = cachedSequences.count
       println(log.stop(Metric.DataTransformationRuntime))
 
 
       //Calculating some KPIs (impact on total runtime only)
-      println("#Dictionary entries: %s".format(log.add(Metric.NumberDictionaryItems, data.dict.size().toLong)))
+      println("#Dictionary entries: %s".format(log.add(Metric.NumberDictionaryItems, inputData.dict.size().toLong)))
+
 
       println("#Input sequences: "
-        + log.add(Metric.NumberInputSequences, data.sequences.count()))
+        + log.add(Metric.NumberInputSequences, count))
 
-      val sum = data.sequences.map(a => a.size).reduce((a, b) => a + b)
+      val sum = cachedSequences.map(a => a.size).reduce((a, b) => a + b)
       println("Avg length of input sequences: "
-        + log.add(Metric.AvgLengthInputSequences, sum/data.sequences.count()))
+        + log.add(Metric.AvgLengthInputSequences, sum/count))
 
       //Convert PatEx
       print("Converting PatEx ( " + patExTranslator.isDefined + " )... ")
@@ -195,16 +199,16 @@ object ExampleUtils {
 
       print("Mining (RDD construction)... ")
       log.start(Metric.RDDConstructionRuntime)
-      val result = miner.mine(data)
+      val result = miner.mine(inputData)
       println(log.stop(Metric.RDDConstructionRuntime))
 
-      println("Mining (persist)... ") //entails FST generation as well!!!!
+      println("Mining (persist)... ") //entails FST generation as well
       log.start(Metric.PersistRuntime)
-      result.sequences.cache()
+      val cachedResult = result.sequences.cache()
 
 
-      if (result.sequences.count() > 0) { //isEmpty causes spark warning "block locks were not released by TID" because of take(1)
-        val (count, support) = result.sequences.map(ws => (1, ws.weight)).reduce((cs1, cs2) => (cs1._1 + cs2._1, cs1._2 + cs2._2))
+      if (cachedResult.count() > 0) { //isEmpty causes spark warning "block locks were not released by TID" because of take(1)
+        val (count, support) = cachedResult.map(ws => (1, ws.weight)).reduce((cs1, cs2) => (cs1._1 + cs2._1, cs1._2 + cs2._2))
 
         println("Number of patterns: " + count)
         println("Frequency of all patterns: " + support)
@@ -213,10 +217,13 @@ object ExampleUtils {
       }
       println("PersistRuntime: " + log.stop(Metric.PersistRuntime))
       println("TotalRuntime: " + log.stop(Metric.TotalRuntime))
-      if(logFile != ""){
-        log.writeResult(logFile)
-      }
-      result.sequences.unpersist()
+
+      cachedSequences.unpersist()
+      cachedResult.unpersist()
+
+    }
+    if(logFile != ""){
+      log.writeResult(logFile)
     }
   }
 }
