@@ -254,7 +254,7 @@ object DesqItemsetExample {
       dataPath = "data-local/fimi_retail/retail_sequences.dat",
       dictPath = "data-local/fimi_retail/dict.json",
       logPrefix = "data-local/Fimi_Seq_",
-      patEx = "(-/) /{1,5} (-/)",
+      patEx = "(-/) /{1,2} (-/)",
       minSupport = 100
 
     )
