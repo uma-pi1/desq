@@ -13,7 +13,7 @@ public final class FstOperations {
 	}
 
 	/** Returns an FST that unions all FST permutations */
-	public static Fst handlePermute(HashMap<Fst,int[]> inputFsts) {
+	public static Fst handlePermute(HashMap<Fst,int[]> inputFsts, boolean optimizePermutations) {
 		ArrayList<Fst> fsts = new ArrayList<>();
 		//handle frequencies
 		int connectorSize = 0;
@@ -50,7 +50,7 @@ public final class FstOperations {
 		}
 
 		//start recursion
-		Fst permuted = (fsts.size() > 0) ? permute(null, fsts, connector) : null;
+		Fst permuted = (fsts.size() > 0) ? permute(null, fsts, connector, optimizePermutations) : null;
 
 		//add connector at beginning and end as well (if defined)
 		if (connector != null) {
@@ -75,7 +75,7 @@ public final class FstOperations {
 	}
 
 	/** Recursive method to permute all elements - each recursion: define prefix + remaining elements */
-	private static Fst permute(Fst prefixFst, List<Fst> fsts, Fst connector) {
+	private static Fst permute(Fst prefixFst, List<Fst> fsts, Fst connector, boolean optimizePermutations) {
 		HashSet<String> usedFst = new HashSet<>();
 
 		assert fsts.size() > 0;
@@ -83,8 +83,10 @@ public final class FstOperations {
 			//more than one item -> permute (recursion step)
 			Fst unionFst = null;
 			for (Fst fst: fsts){
-				if(!usedFst.contains(fst.toPatternExpression())) {
-					usedFst.add(fst.toPatternExpression());
+				String fstPatEx = "";
+				if(optimizePermutations) fstPatEx = fst.toPatternExpression();
+				if(!optimizePermutations || !usedFst.contains(fstPatEx)) {
+					if(optimizePermutations) usedFst.add(fstPatEx);
 					//create copy of to be added fst (avoid wrong state transitions)
 					Fst addedFst = fst.shallowCopy();
 					//add connector (eg "[A.*]*.*")to Fst (A.*B.* -> A.*[A.*]*B.*)
@@ -106,9 +108,9 @@ public final class FstOperations {
 					//recursions combined by union
 					unionFst = (unionFst != null)
 							//union further recursion paths
-							? union(unionFst, permute(newPrefixFst, partFsts, connector))
+							? union(unionFst, permute(newPrefixFst, partFsts, connector, optimizePermutations))
 							//First loop iteration(first element of union)
-							: permute(newPrefixFst, partFsts, connector);
+							: permute(newPrefixFst, partFsts, connector, optimizePermutations);
 				}
 			}
 			return unionFst;

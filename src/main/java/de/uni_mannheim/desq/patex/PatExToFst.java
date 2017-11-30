@@ -20,20 +20,22 @@ public final class PatExToFst {
 	private BasicDictionary dict;
 	private Map<String,Transition> transitionCache = new HashMap<>(); // caches transition
 	private boolean optimizeRepeats;
+	private boolean optimizePermutations;
 
 	/** If the pattern expression contains string item identifiers, the dict needs to be of type {@link Dictionary}.
 	 *
 	 * @param optimizeRepeats if true, the FST is optimized before any repeat experssion (e.g., {0,10) is used.
 	 *                           Can save substantial computational cost for large FSTs.
 	 */
-	public PatExToFst(String expression, BasicDictionary dict, boolean optimizeRepeats) {
+	public PatExToFst(String expression, BasicDictionary dict, boolean optimizeRepeats, boolean optimizePermutations) {
 		this.expression = expression;
 		this.dict = dict;
 		this.optimizeRepeats = optimizeRepeats;
+		this.optimizePermutations = optimizePermutations;
 	}
 
 	public PatExToFst(String expression, BasicDictionary dict) {
-		this(expression, dict, true);
+		this(expression, dict, true, true);
 	}
 
 	public Fst translate() {
@@ -165,7 +167,7 @@ public final class PatExToFst {
 				unorderedConcatElements.get(localConcatId).putIfAbsent(
 						visit(ctx.repeatexp()),null
 				);
-				Fst permuted = FstOperations.handlePermute(unorderedConcatElements.get(localConcatId));
+				Fst permuted = FstOperations.handlePermute(unorderedConcatElements.get(localConcatId),optimizePermutations);
 				unorderedConcatElements.get(localConcatId).clear();
 				//return union of Fst permutations (results of concatexp)
 				return permuted;
