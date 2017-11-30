@@ -96,7 +96,7 @@ public final class DesqCount extends DesqMiner {
 
 		// create FST
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
-		this.fst = PatExUtils.toFst(ctx.dict, patternExpression);
+		this.fst = PatExUtils.toFst(ctx, patternExpression);
 
 		// create two pass auxiliary variables (if needed)
 		if (useTwoPass) { // two-pass
@@ -136,6 +136,7 @@ public final class DesqCount extends DesqMiner {
 		conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
 		conf.setProperty("desq.mining.use.lazy.dfa", false);
 		conf.setProperty("desq.mining.use.two.pass", true);
+		conf.setProperty("desq.mining.optimize.permutations",true);
 		return conf;
 	}
 

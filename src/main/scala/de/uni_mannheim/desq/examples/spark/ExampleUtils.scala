@@ -194,6 +194,9 @@ object ExampleUtils {
 
       // -------- Execute mining ------------ (based on runVerbose and runMiner)
       val minerConf = DesqCount.createConf(convPatEx, minSupport)
+      minerConf.setProperty("desq.mining.prune.irrelevant.inputs", true)
+      minerConf.setProperty("desq.mining.use.two.pass", false)
+      minerConf.setProperty("desq.mining.optimize.permutations", true)
       val ctx = new DesqMinerContext(minerConf)
       val miner = DesqMiner.create(ctx)
 

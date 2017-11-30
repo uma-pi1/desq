@@ -224,6 +224,7 @@ object DesqItemsetExample {
     val confDesq = DesqCount.createConf(itemsetPatEx, minSupport)
     confDesq.setProperty("desq.mining.prune.irrelevant.inputs", true)
     confDesq.setProperty("desq.mining.use.two.pass", false)
+    confDesq.setProperty("desq.mining.optimize.permutations", false)
 
     //Run Miner
     val (miner, result) = ExampleUtils.runVerbose(data,confDesq)
@@ -253,7 +254,7 @@ object DesqItemsetExample {
       dataPath = "data-local/fimi_retail/retail_sequences.dat",
       dictPath = "data-local/fimi_retail/dict.json",
       logPrefix = "data-local/Fimi_Seq_",
-      patEx = "(-/) /{1,2} (-/)",
+      patEx = "(-/) /{1,5} (-/)",
       minSupport = 100
 
     )

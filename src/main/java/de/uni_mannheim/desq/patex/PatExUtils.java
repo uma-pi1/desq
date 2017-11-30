@@ -5,16 +5,20 @@ import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.experiments.MetricLogger;
 import de.uni_mannheim.desq.experiments.MetricLogger.Metric;
 import de.uni_mannheim.desq.fst.Fst;
+import de.uni_mannheim.desq.mining.DesqMinerContext;
 
 /**
  * Created by rgemulla on 10.01.2017.
  */
 public class PatExUtils {
-    public static Fst toFst(BasicDictionary dict, String patternExpression) {
+    public static Fst toFst(DesqMinerContext ctx, String patternExpression) {
         MetricLogger log = MetricLogger.getInstance();
         log.start(Metric.FstGenerationRuntime);
 
-        PatExToFst p = new PatExToFst(patternExpression, dict);
+        PatExToFst p = new PatExToFst(patternExpression, ctx.dict,
+                true,
+                ctx.conf.getBoolean("desq.mining.optimize.permutations",true)
+        );
         Fst fst = p.translate();
 
         log.stop(Metric.FstGenerationRuntime);
