@@ -145,7 +145,7 @@ object DesqItemsetExample {
       )
 
       println("\n ==== Evaluate sequence of itemsets query =====")
-      val seqItemsetFactory = Option.apply(new ItemsetBuilderFactory("/",dict))
+      val seqItemsetFactory = Option.apply(new ItemsetBuilderFactory(dict,"/"))
       ExampleUtils.runPerformanceEval(
         patEx, minSupport,
         DesqDataset.buildFromStrings(sc.textFile(dataPath).map(s => s.split(" ")),seqItemsetFactory ),
@@ -187,7 +187,7 @@ object DesqItemsetExample {
     var data: DesqDataset = null
     val factory =
       if(extDict.isDefined && itemsetSeparator.isDefined)
-        new ItemsetBuilderFactory(itemsetSeparator.get, extDict.get)
+        new ItemsetBuilderFactory(extDict.get, itemsetSeparator.get)
       else if (extDict.isDefined)
         new ItemsetBuilderFactory(extDict.get)
       else if (itemsetSeparator.isDefined)

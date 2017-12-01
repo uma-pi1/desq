@@ -22,11 +22,12 @@ public class MetricLogger {
         //Parameters
         StartTimestamp,
         NumberDictionaryItems, NumberInputSequences, AvgLengthInputSequences,
-        NumberPatExItems, NumberDistinctPatExItems,
+        NumberPatExItems, NumberDistinctPatExItems, NumberResultPatterns,
         //Runtime Metrics
-        DataTransformationRuntime, PatExTransformationRuntime,
+        DataLoadRuntime, PatExTransformationRuntime,
         RDDConstructionRuntime,
-        PersistRuntime, FstGenerationRuntime, FstGenerationParseTreeRuntime, FstGenerationWalkRuntime, FstMinimizationRuntime,
+        MiningRuntime, MiningPrepRuntime, MiningReadRuntime, MiningMineRuntime,
+        FstGenerationRuntime, FstGenerationParseTreeRuntime, FstGenerationWalkRuntime, FstMinimizationRuntime,
         TotalRuntime
     }
 
@@ -73,6 +74,11 @@ public class MetricLogger {
     // Other numeric metrics
     public Long add(Metric metric, Long value){
         metrics.get(metric).put(currentIteration,value);
+        return value;
+    }
+
+    public int add(Metric metric, int value){
+        metrics.get(metric).put(currentIteration, (long) value);
         return value;
     }
 

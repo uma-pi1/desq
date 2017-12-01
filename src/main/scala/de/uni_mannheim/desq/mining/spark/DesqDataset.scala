@@ -4,6 +4,7 @@ import java.net.URI
 import java.util.Calendar
 import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
+import de.uni_mannheim.desq.Desq.initDesq
 import de.uni_mannheim.desq.avro.AvroDesqDatasetDescriptor
 import de.uni_mannheim.desq.dictionary._
 import de.uni_mannheim.desq.io.DelSequenceReader
@@ -15,7 +16,7 @@ import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter}
 import org.apache.hadoop.fs.permission.FsPermission
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.io.NullWritable
-import org.apache.spark.SparkContext
+import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 
@@ -82,7 +83,7 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
 
     // if we are not using fids, we are done
     if (!usesFids) {
-      return new DesqDataset(sequences, newDict, false)
+      return new DesqDataset(sequences, newDict, false, context)
     }
 
     // otherwise we need to relabel the fids
@@ -103,7 +104,7 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
         }
       }
     })
-    val newData = new DesqDataset(newSequences, newDict, true)
+    val newData = new DesqDataset(newSequences, newDict, true, context)
     newData.dictBroadcast = newDictBroadcast
     newData
   }
@@ -423,5 +424,14 @@ object DesqDataset {
     val result = new DesqDataset(sequences, dict, true, factory.getProperties)
     result.dictBroadcast = dictBroadcast
     result
+  }
+
+  def loadDesqDatasetForJava( dataPath: String,
+                              factory: BuilderFactory): DesqDataset ={
+    //Init SparkConf
+    val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
+    initDesq(conf)
+    implicit val sc:SparkContext =  SparkContext.getOrCreate(conf)
+    DesqDataset.buildFromStrings(sc.textFile(dataPath).map(s => s.split(" ")),Option.apply(factory))
   }
 }
