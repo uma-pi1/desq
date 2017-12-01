@@ -1,14 +1,18 @@
 package de.uni_mannheim.desq.examples;
 
 import com.google.common.base.Stopwatch;
+import de.uni_mannheim.desq.dictionary.BuilderFactory;
+import de.uni_mannheim.desq.dictionary.DefaultBuilderFactory;
 import de.uni_mannheim.desq.dictionary.Dictionary;
+import de.uni_mannheim.desq.dictionary.ItemsetBuilderFactory;
+import de.uni_mannheim.desq.experiments.PerformanceEvaluator;
 import de.uni_mannheim.desq.io.CountPatternWriter;
 import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.MemoryPatternWriter;
 import de.uni_mannheim.desq.io.SequenceReader;
-import de.uni_mannheim.desq.mining.DesqMiner;
-import de.uni_mannheim.desq.mining.DesqMinerContext;
-import de.uni_mannheim.desq.mining.WeightedSequence;
+import de.uni_mannheim.desq.mining.*;
+import de.uni_mannheim.desq.mining.spark.DesqDataset;
+import de.uni_mannheim.desq.patex.PatExToItemsetPatEx;
 import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
@@ -174,5 +178,57 @@ public class ExampleUtils {
         dataReader = new DelSequenceReader(dataFile.openStream(), false);
         dataReader.setDictionary(dict);
         return runVerbose(dataReader, minerConf);
+    }
+
+    /** Run Performance Evaluation, assuming space delimited SIDs file */
+    public static void runItemsetPerfEval(DesqProperties minerConf,
+                                          String dataPath, String dictPath,
+                                          String itemsetSeparator,
+                                          String logPrefix,
+                                          int iterations
+    ) throws IOException{
+        //Init dict
+        Dictionary dict = Dictionary.loadFrom(dictPath);
+        BuilderFactory factory;
+        String logFile;
+
+        // ------ RUN EVALUATIONS -----
+
+        // --- Sequences
+        System.out.println("\n ==== Evaluate sequence query =====");
+        factory = new DefaultBuilderFactory(dict);
+        logFile = (logPrefix == null) ? null : logPrefix + "Sequence.csv";
+        new PerformanceEvaluator(
+                minerConf,
+                DesqDataset.loadDesqDatasetForJava(dataPath,factory).copyWithRecomputedCountsAndFids(),
+                logFile,
+                null
+        ).run(iterations);
+
+        // --- Itemsets
+        System.out.println("\n ==== Evaluate itemset query =====");
+        factory = new ItemsetBuilderFactory(dict);
+        logFile = (logPrefix == null) ? null : logPrefix + "Itemset.csv";
+        new PerformanceEvaluator(
+                minerConf,
+                DesqDataset.loadDesqDatasetForJava(dataPath,factory).copyWithRecomputedCountsAndFids(),
+                logFile,
+                new PatExToItemsetPatEx(minerConf.getString("desq.mining.pattern.expression"))
+        ).run(iterations);
+
+        // --- Sequence of itemsets
+        if(itemsetSeparator != null) {
+            System.out.println("\n ==== Evaluate sequence of itemsets query =====");
+            factory = new ItemsetBuilderFactory(dict, itemsetSeparator);
+            logFile = (logPrefix == null) ? null : logPrefix + "SeqItemsets.csv";
+            new PerformanceEvaluator(
+                    minerConf,
+                    DesqDataset.loadDesqDatasetForJava(dataPath, factory).copyWithRecomputedCountsAndFids(),
+                    logFile,
+                    new PatExToItemsetPatEx(
+                            minerConf.getString("desq.mining.pattern.expression"),
+                            itemsetSeparator)
+            ).run(iterations);
+        }
     }
 }

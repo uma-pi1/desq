@@ -6,7 +6,7 @@ public class ItemsetBuilderFactory extends DefaultBuilderFactory {
     private static final String defaultItemsetSeparator = "/";
     private String itemsetSeparatorSid;
 
-    public ItemsetBuilderFactory(String itemsetSeparatorSid, Dictionary initialDictionary){
+    public ItemsetBuilderFactory(Dictionary initialDictionary, String itemsetSeparatorSid){
         super(initialDictionary);
         this.itemsetSeparatorSid = itemsetSeparatorSid;
     }
@@ -16,7 +16,7 @@ public class ItemsetBuilderFactory extends DefaultBuilderFactory {
     }
 
     public ItemsetBuilderFactory(Dictionary initialDictionary){
-        this(defaultItemsetSeparator, initialDictionary);
+        this(initialDictionary, defaultItemsetSeparator);
     }
 
     public ItemsetBuilderFactory(){

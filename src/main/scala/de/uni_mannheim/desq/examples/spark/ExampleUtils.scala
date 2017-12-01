@@ -158,10 +158,10 @@ object ExampleUtils {
 
       //Convert Data?
       print("Loading data (" + inputData.context.getString("desq.dataset.builder.factory.class","No Builder") + ") ... ")
-      log.start(Metric.DataTransformationRuntime)
+      log.start(Metric.DataLoadRuntime)
       //cache data and execute count to force data load
       val count = cachedSequences.count
-      println(log.stop(Metric.DataTransformationRuntime))
+      println(log.stop(Metric.DataLoadRuntime))
 
 
       //Calculating some KPIs (impact on total runtime only)
@@ -206,7 +206,7 @@ object ExampleUtils {
       println(log.stop(Metric.RDDConstructionRuntime))
 
       println("Mining (persist)... ") //entails FST generation as well
-      log.start(Metric.PersistRuntime)
+      log.start(Metric.MiningRuntime)
       val cachedResult = result.sequences.cache()
 
 
@@ -218,7 +218,7 @@ object ExampleUtils {
       }else{
         println("No results!")
       }
-      println("PersistRuntime: " + log.stop(Metric.PersistRuntime))
+      println("MiningRuntime: " + log.stop(Metric.MiningRuntime))
       println("TotalRuntime: " + log.stop(Metric.TotalRuntime))
 
       cachedSequences.unpersist()
