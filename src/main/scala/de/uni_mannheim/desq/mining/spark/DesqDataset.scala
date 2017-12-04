@@ -426,12 +426,13 @@ object DesqDataset {
     result
   }
 
-  def loadDesqDatasetForJava( dataPath: String,
+  def loadDesqDatasetForJava( sc: SparkContext,
+                              dataPath: String,
                               factory: BuilderFactory): DesqDataset ={
     //Init SparkConf
-    val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
+    /*val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
     initDesq(conf)
-    implicit val sc:SparkContext =  SparkContext.getOrCreate(conf)
-    DesqDataset.buildFromStrings(sc.textFile(dataPath).map(s => s.split(" ")),Option.apply(factory))
+    val sc:SparkContext = SparkContext.getOrCreate(conf)*/
+    DesqDataset.buildFromStrings(sc.textFile(dataPath).map(s => s.split(" ")),Option.apply(factory)).copyWithRecomputedCountsAndFids()
   }
 }

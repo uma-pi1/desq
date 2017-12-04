@@ -51,7 +51,7 @@ public class EvaluatePerfOnFimi {
                 "data-local/fimi_retail/dict.json",
                 null,
                 "data-local/Fimi_",
-                2
+                10
         );
     }
 

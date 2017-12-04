@@ -10,7 +10,6 @@ import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectSet;
 import org.apache.log4j.Logger;
-import java.util.concurrent.TimeUnit;
 
 import java.util.ArrayList;
 import java.util.BitSet;
