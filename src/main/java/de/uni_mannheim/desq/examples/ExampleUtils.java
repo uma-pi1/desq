@@ -16,6 +16,7 @@ import de.uni_mannheim.desq.patex.PatExToItemsetPatEx;
 import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+import org.apache.spark.SparkContext;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -200,7 +201,7 @@ public class ExampleUtils {
         logFile = (logPrefix == null) ? null : logPrefix + "Sequence.csv";
         new PerformanceEvaluator(
                 minerConf,
-                DesqDataset.loadDesqDatasetForJava(dataPath,factory).copyWithRecomputedCountsAndFids(),
+                dataPath, factory,
                 logFile,
                 null
         ).run(iterations);
@@ -211,7 +212,7 @@ public class ExampleUtils {
         logFile = (logPrefix == null) ? null : logPrefix + "Itemset.csv";
         new PerformanceEvaluator(
                 minerConf,
-                DesqDataset.loadDesqDatasetForJava(dataPath,factory).copyWithRecomputedCountsAndFids(),
+                dataPath, factory,
                 logFile,
                 new PatExToItemsetPatEx(minerConf.getString("desq.mining.pattern.expression"))
         ).run(iterations);
@@ -223,7 +224,7 @@ public class ExampleUtils {
             logFile = (logPrefix == null) ? null : logPrefix + "SeqItemsets.csv";
             new PerformanceEvaluator(
                     minerConf,
-                    DesqDataset.loadDesqDatasetForJava(dataPath, factory).copyWithRecomputedCountsAndFids(),
+                    dataPath, factory,
                     logFile,
                     new PatExToItemsetPatEx(
                             minerConf.getString("desq.mining.pattern.expression"),

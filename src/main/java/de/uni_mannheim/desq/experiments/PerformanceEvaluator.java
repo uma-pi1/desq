@@ -1,5 +1,7 @@
 package de.uni_mannheim.desq.experiments;
 
+import de.uni_mannheim.desq.Desq;
+import de.uni_mannheim.desq.dictionary.BuilderFactory;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.io.MemoryPatternWriter;
 import de.uni_mannheim.desq.io.SequenceReader;
@@ -10,6 +12,8 @@ import de.uni_mannheim.desq.experiments.MetricLogger.Metric;
 import de.uni_mannheim.desq.patex.PatExTranslator;
 import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.IntList;
+import org.apache.spark.SparkConf;
+import org.apache.spark.SparkContext;
 
 import java.io.IOException;
 import java.util.List;
@@ -18,22 +22,31 @@ import java.util.concurrent.atomic.LongAdder;
 
 public class PerformanceEvaluator {
     private DesqProperties desqMinerConfigTemplate;
-    private DesqProperties minerConf;
-    private DesqDataset data;
+    //private DesqDataset data;
+    private String dataPath;
+    private BuilderFactory factory;
     private PatExTranslator<String> patExTranslator;
     private String logFile;
     private MetricLogger log;
+    private SparkConf conf;
 
-    public PerformanceEvaluator(DesqProperties desqMinerConfig, DesqDataset data,
+    public PerformanceEvaluator(DesqProperties desqMinerConfig, String dataPath, BuilderFactory factory,
                                 String logFile, PatExTranslator<String> patExTranslator){
         this.desqMinerConfigTemplate = desqMinerConfig;
-        this.data = data;
+        this.dataPath = dataPath;
+        this.factory = factory;
+        //this.data = data;
         if(logFile != null){
             this.logFile = logFile;
         }
         if(patExTranslator != null){
             this.patExTranslator = patExTranslator;
         }
+
+        //init Spark
+        this.conf = new SparkConf().setAppName(getClass().getName()).setMaster("local");
+        Desq.initDesq(conf);
+
     }
 
     public void run(int iterations){
@@ -42,9 +55,6 @@ public class PerformanceEvaluator {
         for(int i = 0; i < iterations; i++) {
             System.out.println("\n == Iteration " + i + " ==" );
             log.startIteration();
-            data.sequences().unpersist(true);
-            //Copy config to ensure changes are not passed to next iteration
-            minerConf = new DesqProperties(desqMinerConfigTemplate);
             runIteration();
         }
         //Output results (optional)
@@ -54,16 +64,20 @@ public class PerformanceEvaluator {
     }
 
     private void runIteration(){
+        //Copy config to ensure changes are not passed to next iteration
+        DesqProperties minerConf = new DesqProperties(desqMinerConfigTemplate);
+        SparkContext sc = SparkContext.getOrCreate(conf);
 
         // ------- Processing  -------------
         log.start(Metric.TotalRuntime);
 
         // ---- Load Data
-        System.out.print("Loading data (" + data.context().getString("desq.dataset.builder.factory.class","No Builder") + ") ... ");
+        System.out.print("Loading data (" + factory.getProperties().getString("desq.dataset.builder.factory.class","No Builder") + ") ... ");
         log.start(Metric.DataLoadRuntime);
-        //cache data
+        // Init data load via DesqDataset (lazy) via Spark
+        DesqDataset data = DesqDataset.loadDesqDatasetForJava(sc, dataPath, factory);
+
         //Gather data (via scala/spark)
-        //List<WeightedSequence> cachedSequences = data.sequences().toJavaRDD().collect();
         List<String[]> cachedSequences = data.toSids().toJavaRDD().collect();
         System.out.println(log.stop(Metric.DataLoadRuntime));
 
@@ -129,12 +143,14 @@ public class PerformanceEvaluator {
 
         System.out.println("TotalRuntime: " + log.stop(Metric.TotalRuntime));
 
+        //Cleanup Spark (used for data load via DesqDataset)
+        sc.stop();
     }
 
     private class StringIteratorSequenceReader extends SequenceReader{
         private Iterator<String[]> it;
 
-        public StringIteratorSequenceReader(Dictionary dict, Iterator<String[]> iterator){
+        private StringIteratorSequenceReader(Dictionary dict, Iterator<String[]> iterator){
             this.dict = dict;
             this.it = iterator;
         }
