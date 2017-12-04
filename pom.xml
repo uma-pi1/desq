@@ -6,6 +6,7 @@
 	<groupId>de.uni_mannheim</groupId>
 	<artifactId>desq</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
+
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<!-- timestamp for version  -->
@@ -94,9 +95,24 @@
 
 	<build>
 		<!-- final artifact name -->
-		<finalName>${project.artifactId}-${timestamp}</finalName>
+		<finalName>${project.artifactId}-${git.branch}-${timestamp}</finalName>
 
 		<plugins>
+			<!-- Git information -->
+			<plugin>
+				<groupId>pl.project13.maven</groupId>
+				<artifactId>git-commit-id-plugin</artifactId>
+				<version>2.2.3</version>
+				<executions>
+					<execution>
+						<id>get-the-git-infos</id>
+						<goals>
+							<goal>revision</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
 			<!-- Avro schemas -->
 			<plugin>
 				<groupId>org.apache.avro</groupId>
@@ -203,10 +219,13 @@
 				<artifactId>maven-assembly-plugin</artifactId>
 				<version>2.6</version>
 				<configuration>
+					<descriptors>
+					</descriptors>
 					<descriptorRefs>
 						<descriptorRef>jar-with-dependencies</descriptorRef>
 					</descriptorRefs>
-
+					<finalName>${project.artifactId}-${git.branch}-${timestamp}-${suffix}</finalName>
+					<appendAssemblyId>false</appendAssemblyId>
 				</configuration>
 				<executions>
 					<execution>
@@ -241,7 +260,7 @@
 							<shadedPattern>shaded.com.google.common</shadedPattern>
 						</relocation>
 					</relocations>
-					<finalName>${project.artifactId}-${timestamp}-jar-with-dependencies</finalName>
+					<finalName>${project.artifactId}-${git.branch}-${timestamp}-${suffix}</finalName>
 				</configuration>
 				<executions>
 					<execution>
@@ -279,6 +298,9 @@
 					<version>2.1.0</version>
 				</dependency>
 			</dependencies>
+			<properties>
+				<suffix>full</suffix>
+			</properties>
 		</profile>
 
 		<!-- build uber-jar with provided scope profile: mvn package -Pprovided -->
@@ -292,7 +314,11 @@
 					<scope>provided</scope>
 				</dependency>
 			</dependencies>
+			<properties>
+				<suffix>spark</suffix>
+			</properties>
 		</profile>
+
 	</profiles>
 
 </project>
