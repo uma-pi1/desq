@@ -1,175 +1,180 @@
 # DESQ
 
-DESQ is a general-purpose system for frequent sequence mining with subsequence constraints. It features a simple and intuitive pattern expression language to express various pattern mining tasks and provides efficient algorithms for mining. DESQ provides two elegant APIs, a Java API and a Scala API. While the Java API only allows for local execution of DESQ, the Scala API can also be used to run DESQ in a distributed setup with Apache Spark.
+DESQ is a general-purpose system for frequent sequence mining with subsequence constraints. It features a simple and intuitive pattern expression language to express various pattern mining tasks and provides efficient algorithms for mining.
 
-## Overview
+We recommend using the Scala API which allows to execute DESQ in a distributed setup with Apache Spark. Additionally, there exists a Java API which is only applicable for sequential processing.
 
-In frequent sequence mining with subsequence constraints we take a collection of input sequences (e.g. a transaction database) and a dictionary as input. Suppose we use the following input sequences together with the corresponding dictionary.
+## Content
 
-**Input Sequences**
+* [Quick Start](#quick-start)  
+* [API](#api)  
+* [Hierarchies](#hierarchies)  
+* [Pattern Expressions](#pattern-expressions)  
+* [Build](#build)  
+* [References](#references)
 
-```
-[c a1 b12 e]
-[a1 b2 e]
-[d a2 a1 a2 b11 e]
-[d a1 B e]
-[e a1 b2 d]
-[c a1 a1 a1 b2 e]
-```
+## Quick Start
 
-**Dictionary**
+Download the [latest realease](https://github.com/rgemulla/desq/releases). There exist three different executables:
 
-```
-├── A
-│   ├── a1
-│   └── a2
-├── B
-│   ├── b1
-│       ├── b11
-│       └── b12
-│   └── b2
-├── c
-├── d
-└── e
-```
+* `desq-master-<releasedate>.jar` contains only DESQ
+* `desq-master-<releasedate>-spark.jar` contains DESQ together with all dependencies apart from the Apache Spark dependency (already contained in the classpath if you deploy the executable to a cluster)
+* `desq-master-<releasedate>-full.jar` contains DESQ together with all dependencies
 
-We are now interested in mining sequences of `B`'s and/or descendants of `A`'s. Furthermore, we restrict attention to sequences that occur consecutively in input sequences starting with `c` or `d` and ending with `e`. We also allow to generalize occurrences of descendants of `A` and `B`. This can be expressed with the pattern expression `[c|d]([A^|B=^]+)e`.
+Run the contained `DesqExample` with the following command:
 
-If we now mine sequences that fulfill the given pattern expression and that have a minimum support of σ ≥ 2, we receive the following output sequences together with their support.
-
-**Output Sequences**
+**Local**
 
 ```
-[a1 B]@2
-[A B]@2
-[A a1 A B]@2
-[A A A B]@2
+java -cp path/to/desq-master-<releasedate>.jar de.uni_mannheim.desq.examples.readme.DesqExample
 ```
 
-If you would like to run this example, download our [latest realease](https://github.com/rgemulla/desq/releases) and execute the following command.
+**Cluster**
 
 ```
-java -cp path/to/desq-<releasedate>-jar-with-dependencies.jar de.uni_mannheim.desq.examples.spark.DesqCountExample
+spark-submit --class de.uni_mannheim.desq.examples.readme.DesqExample path/to/desq-master-<releasedate>-spark.jar
 ```
 
 ## API
 
-DESQ provides support in Java and Scala. While the Java API only allows for local execution of DESQ, the Scala API can also be used to run DESQ in a distributed setup with Apache Spark.
+Consider the following input sequences:
 
-### Scala Example
+```
+Anna lives in Melbourne
+Bob lives in Berlin
+Cathy loves Paris
+Dave loves London
+Eddie lives in New York City
+```
 
-A `DesqMiner` operates with the following objects in the Scala API:
+Suppose we are interested in mining frequent bigrams (i.e. sequences of two adjacent elements) given a minimum support of σ ≥ 2. Thus, we would expect the bigram `lives in` as our result, because it occurs in at least two input sequences (actually in three of them).
 
-* `Dictionary` (representing the dictionary)
-* `DesqDataset` (representing a collection of input or output sequences respectively)
-
-There exist several pre-defined factory methods that allow to create a `DesqDataset` or a `Dictionary` very easily by either loading them from a file or building them from other input data. Both, input and output sequences, are represented as instances of `WeightedSequence` within a `DesqDataset` where input sequences initially have a weight of one.
-
-The following code is a possible implementation of the introductory example.
+DESQ requires the input sequences to be stored as sequences of integers (`readme/sequences.del`). Therefore, DESQ requires an additional dictionary to map identifiers to words (`readme/dictionary.json`).
 
 ```scala
-implicit val sc = new SparkContext(new SparkConf().setAppName(getClass.getName).setMaster("local"))
+val dictionary = Dictionary.loadFrom(this.getClass.getResource("/readme/dictionary.json"))
+val sequences = sc.parallelize(Source.fromURL(this.getClass.getResource("/readme/sequences.del")).getLines.toSeq)
+```
 
-val dictFile = this.getClass.getResource("/icdm16-example/dict.json")
-val dataFile = this.getClass.getResource("/icdm16-example/data.del")
+We can now create a `DesqDataset` containing the dictionary and the parallelized input sequences.
 
-// load dictionary
-
-val dictionary = Dictionary.loadFrom(dictFile)
-
-// load data and update hierarchy
-
-val delFile = sc.parallelize(Source.fromURL(dataFile).getLines.toSeq)
+```scala
 val data = DesqDataset.loadFromDelFile(delFile, dictionary, usesFids = false).copyWithRecomputedCountsAndFids()
-
-// define configuration
-
-val patternExpression = "[c|d]([A^|B=^]+)e"
-val sigma = 2
-
-val conf = DesqCount.createConf(patternExpression, sigma)
-conf.setProperty("desq.mining.miner.class", classOf[DesqCount].getCanonicalName)
-
-// create context and miner
-
-val ctx = new DesqMinerContext(conf)
-val miner = DesqMiner.create(ctx)
-
-// mine
-
-val result = miner.mine(data)
-
-// print result
-
-result.print()
 ```
 
-### Java Example
+As we are interested in mining bigrams (`(..)`) with minimum support of two (`2`), we have to construct an appropriate `DesqProperties` object. For a more detailed overview of the pattern expression language, please take a look at [Pattern Expressions](#pattern-expressions).
 
-A `DesqMiner` operates with the following objects in the Java API:
-
-* `Dictionary` (representing the dictionary)
-* `Sequence` (representing an input sequence)
-* `WeightedSequence` (representing an output sequence)
-
-There exist several pre-defined factory methods that allow to create `Sequence`'s or a `Dictionary` very easily by either loading them from a file or building them from other input data.
-
-The following code is a possible implementation of the introductory example.
-
-```java
-URL dictFile = DesqCountExample.class.getResource("/icdm16-example/dict.json");
-URL dataFile = DesqCountExample.class.getResource("/icdm16-example/data.del");
-
-// load dictionary
-
-Dictionary dict = Dictionary.loadFrom(dictFile);
-
-// load data and update hierarchy
-
-SequenceReader dataReader = new DelSequenceReader(dataFile.openStream(), false);
-dict.incFreqs(dataReader);
-dict.recomputeFids();
-
-// load data
-
-dataReader = new DelSequenceReader(dataFile.openStream(), false);
-dataReader.setDictionary(dict);
-
-// define configuration
-
-MemoryPatternWriter result = new MemoryPatternWriter();
-
-String patternExpression = "[[c|d]([A^|B=^]+)e]";
-int sigma = 2;
-
-DesqProperties conf = DesqCount.createConf(patternExpression, sigma);
-
-// create context and miner
-
-DesqMinerContext ctx = new DesqMinerContext();
-ctx.dict = dataReader.getDictionary();
-ctx.patternWriter = result;
-ctx.conf = conf;
-
-DesqMiner miner = DesqMiner.create(ctx);
-
-// mine
-
-miner.addInputSequences(dataReader);
-miner.mine();
-
-// print result
-
-for (WeightedSequence pattern : result.getPatterns()) {
-    System.out.print(pattern.weight);
-    System.out.print(": ");
-    System.out.println(dataReader.getDictionary().sidsOfFids(pattern));
-}
+```scala
+val properties = DesqCount.createConf("(..)", 2)
 ```
+
+The properties are then used to initialize a `DesqMiner`.
+
+```scala
+val miner = DesqMiner.create(new DesqMinerContext(properties))
+```
+
+Finally, we can run the miner and obtain another `DesqDataset` which now contains the output sequences.
+
+```scala
+val patterns = miner.mine(data)
+```
+
+If we now print the obtained results...
+
+```scala
+patterns.print()
+```
+
+... we indeed receive the expected output:
+
+```
+[lives in]@3
+```
+
+## Hierarchies
+
+It is possible to encode hierarchies (in form of directed-acyclic graphs (DAGs)) in the dictionary. Then, DESQ can exploit these hierarchies which enables the definition of more powerful pattern expressions based on hierarchy constraints.
+
+Again, consider the following input sequences ...
+
+```
+Anna lives in Melbourne
+Bob lives in Berlin
+Cathy loves Paris
+Dave loves London
+Eddie lives in New York City
+```
+
+... but this time together with the following hierarchy encoded in the dictionary:
+
+```
+├── PERSON
+│   ├── Anna
+│   ├── Bob
+│   ├── Cathy
+│   ├── Dave
+│   └── Eddie
+├── CITY
+│   ├── Melbourne
+│   ├── Berlin
+│   ├── Paris
+│   ├── London
+│   └── New York City
+├── VERB
+│   ├── lives
+│   └── loves
+├── PREP
+    └── in
+```
+
+For example, we can now mine verbs (optionally followed by a preposition) that occur between a person and a city. If we are again interested in a minimum support of σ ≥ 2, our appropriate `DesqProperties` object would be constructed as follows.
+
+```scala
+val properties = DesqCount.createConf("PERSON (VERB PREP?) CITY", 2)
+```
+
+Now, we can run the miner and print the obtained results.
+
+```scala
+val miner = DesqMiner.create(new DesqMinerContext(properties))
+val patterns = miner.mine(data)
+patterns.print()
+```
+
+We receive the following output sequences together with their support:
+
+```
+[lives in]@3
+[loves]@2
+```
+
+## Pattern Expressions
+
+Given an appropriate hierarchy it is possible to define even more powerful pattern expressions with DESQ. Generally, pattern expressions are based on regular expressions, but additionally include capture groups (`()`) and generalizations (`^` and `^=`). Thus, pattern expressions specify which subsequences to output (captured) as well as the context in which these subsequences should occur (uncaptured).
+
+**Traditional Constraints**
+
+* `(...)` 3-grams
+* `(.){3,5}` 3-, 4-, and 5-grams
+* `(.).(.).(.)` Skip 3-grams with gap 1
+* `[.*(.)]+` All subsequences
+* `[.*(.)]{3,5}` Length 3–5 subsequences
+* `(.)[.{0,3}(.)]+` Bounded gap of 0–3
+* `(.)[.?.?(.) | .?(.).? | (.).?.?](.)` Serial episodes (len 3, window 5)
+* `(.){5}` Generalized 5-grams
+* `(a|b)[.*(c)]*.*(d)` Subsequences matching regex `[a|b]c*d`
+
+**Customized Constraints**
+
+* `([ADJ|NOUN] NOUN)` Noun modified by adjective or noun
+* `ENTITY (VERB+ NOUN+? PREP?) ENTITY` Relational phrase between entities
+* `DigitalCamera[.{0,3}(.)]{1,4}` Products bought after a digital camera
+* `([S|T]).*(.).*([R|T])` Amino acid sequences that match `[S|T].[R|T]`
 
 ## Build
 
-If you would like to build DESQ, please execute the following steps.
+If you would like to build DESQ, please execute the following steps:
 
 ```
 git clone https://github.com/rgemulla/desq.git
@@ -177,9 +182,7 @@ cd desq
 mvn clean package -DskipTests
 ```
 
-### Build without Apache Spark Dependency (optional)
-
-Building DESQ with `mvn clean package -DskipTests -Pprovided` will build a `desq-<releasedate>-jar-with-dependencies.jar` that does not contain the dependency to Apache Spark. This option might be interesting if you plan to deploy the build on a cluster in which Apache Spark is already available in the classpath as the resulting build size is reduced significantly.
+Optional: Building DESQ with `mvn clean package -DskipTests -Pprovided` builds the `desq-<branch>-<releasedate>-spark.jar` that does not contain the Apache Spark dependency.
 
 ## References
 
