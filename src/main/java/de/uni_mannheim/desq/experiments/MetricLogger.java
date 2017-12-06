@@ -24,10 +24,16 @@ public class MetricLogger {
         NumberDictionaryItems, NumberInputSequences, AvgLengthInputSequences,
         NumberPatExItems, NumberDistinctPatExItems, NumberResultPatterns,
         //Runtime Metrics
-        DataLoadRuntime, PatExTransformationRuntime,
-        RDDConstructionRuntime,
-        MiningRuntime, MiningPrepRuntime, MiningReadRuntime, MiningMineRuntime,
-        FstGenerationRuntime, FstGenerationParseTreeRuntime, FstGenerationWalkRuntime, FstMinimizationRuntime,
+        DataLoadRuntime,
+        PatExTransformationRuntime,
+        MiningRuntime,
+            MiningPrepRuntime,
+                FstGenerationRuntime,
+                    FstGenerationParseTreeRuntime,
+                    FstGenerationWalkRuntime,
+                FstMinimizationRuntime,
+            MiningReadRuntime,
+            MiningMineRuntime,
         TotalRuntime
     }
 
@@ -82,11 +88,11 @@ public class MetricLogger {
         return value;
     }
 
-    public void writeResult(String file){
-        writeResult(file,";");
+    public void writeToFile(String file){
+        writeToFile(file,";");
     }
 
-    public void writeResult(String file, String separator){
+    public void writeToFile(String file, String separator){
         StringBuilder headerBuilder = new StringBuilder();
         headerBuilder.append("Metric");
         for(int i = 0; i <= currentIteration; i++){

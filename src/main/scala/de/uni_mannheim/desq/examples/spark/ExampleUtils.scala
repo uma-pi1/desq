@@ -201,9 +201,9 @@ object ExampleUtils {
       val miner = DesqMiner.create(ctx)
 
       print("Mining (RDD construction)... ")
-      log.start(Metric.RDDConstructionRuntime)
+      //log.start(Metric.RDDConstructionRuntime)
       val result = miner.mine(inputData)
-      println(log.stop(Metric.RDDConstructionRuntime))
+      //println(log.stop(Metric.RDDConstructionRuntime))
 
       println("Mining (persist)... ") //entails FST generation as well
       log.start(Metric.MiningRuntime)
@@ -226,7 +226,7 @@ object ExampleUtils {
 
     }
     if(logFile != ""){
-      log.writeResult(logFile)
+      log.writeToFile(logFile)
     }
   }
 }

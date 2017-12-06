@@ -6,10 +6,12 @@ public class DefaultBuilderFactory implements BuilderFactory {
     protected Dictionary initialDictionary;
 
     public DefaultBuilderFactory(Dictionary initialDictionary){
-        //Use initial Dictionary as base but do not alter the existing
-        this.initialDictionary = initialDictionary.deepCopy();
-        //... and start with zero freqs
-        this.initialDictionary.clearFreqs();
+        if(initialDictionary != null) {
+            //Use initial Dictionary as base but do not alter the existing
+            this.initialDictionary = initialDictionary.deepCopy();
+            //... and start with zero freqs
+            this.initialDictionary.clearFreqs();
+        }
     }
 
     public DefaultBuilderFactory(){ }
