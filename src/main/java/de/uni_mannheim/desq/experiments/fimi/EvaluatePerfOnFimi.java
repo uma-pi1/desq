@@ -10,6 +10,14 @@ import java.io.IOException;
 public class EvaluatePerfOnFimi {
 
     public enum Miner {DesqCount, DesqDfs}
+
+    private static final String retail_itemset_data = "data-local/fimi_retail/retail.dat";
+    private static final String retail_itemset_dict = "data-local/fimi_retail/dict.json";
+    private static final String retail_seqOfItemsets_data = "data-local/fimi_retail/retail_sequences.dat";
+    private static final String retail_seqOfItemsets_dict = "data-local/fimi_retail/dict.json";
+    private static final String click_itemset_data = "data-local/fimi_click/kosarak.dat";
+    private static final String click_seqOfItemsets_data = "data-local/fimi_click/kosarak_sequences.dat";
+
     private static DesqProperties getMinerConf(Miner miner, String patEx, long sigma){
         DesqProperties conf;
         switch (miner){
@@ -31,13 +39,14 @@ public class EvaluatePerfOnFimi {
 
         ExampleUtils.runItemsetPerfEval(
                 getMinerConf(miner,
-                        "(-/) /{1,2} (-/)",
-                        100),
-                "data-local/fimi_retail/retail_sequences.dat",
-                "data-local/fimi_retail/dict.json",
+                        "(-/){1,3} [(/) (-/){1,3}]{1,2}",
+                        5000),
+                click_seqOfItemsets_data,
+                null,
                 "/",
-                "data-local/Fimi_Seq_",
-                2
+                "data-local/log/Fimi_Seq_" + miner + "_",
+                10,
+                50,true, false, true
         );
     }
 
@@ -45,13 +54,14 @@ public class EvaluatePerfOnFimi {
 
         ExampleUtils.runItemsetPerfEval(
                 getMinerConf(miner,
-                        "(.){2,5}",
-                        5000),
+                        "A B (.){1,5}",
+                        100),
                 "data-local/fimi_retail/retail.dat",
                 "data-local/fimi_retail/dict.json",
                 null,
-                "data-local/Fimi_",
-                10
+                "data-local/log/Fimi_" + miner + "_",
+                10,
+                10, true, true, false
         );
     }
 
@@ -63,16 +73,17 @@ public class EvaluatePerfOnFimi {
                 "data/itemset-example/data.dat",
                 "data/itemset-example/dict.json",
                 "/",
-                "data-local/ItemsetEx_",
-                10
+                "data-local/log/ItemsetEx_" + miner + "_",
+                10,
+                10,true, true, true
         );
     }
 
     public static void main(String[] args) throws IOException{
         //runItemsetExample(Miner.DesqCount);
 
-        //runFimi(Miner.DesqDfs);
+        //runFimi(Miner.DesqCount);
 
-        runSequentialFimi(Miner.DesqCount);
+        runSequentialFimi(Miner.DesqDfs);
     }
 }

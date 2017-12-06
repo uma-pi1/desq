@@ -28,7 +28,7 @@ public class ItemsetToSequenceOfItemsetsConverter {
     }
 
     public void convert(){
-        convert(4);
+        convert(10);
     }
     public void convert(int maxSequenceLength){
         Path sourcePath = Paths.get(sourceFile);
@@ -47,7 +47,7 @@ public class ItemsetToSequenceOfItemsetsConverter {
                     //Concatenate itemsets to a sequence of itemsets (length = seqCount or till EoF)
                     if(reader.ready()) {
                         if (idx > 0) lineBuilder.append(separator);
-                        lineBuilder.append(reader.readLine());
+                        lineBuilder.append(reader.readLine().trim());
                     }
                 }
                 //buffer the generated sequence of itemsets for later output
@@ -71,9 +71,13 @@ public class ItemsetToSequenceOfItemsetsConverter {
 
 
     public static void main(String[] args) throws IOException {
+       /* new ItemsetToSequenceOfItemsetsConverter(
+                "data-local/fimi_click/kosarak.dat", // fimi_retail/retail.dat
+                "data-local/fimi_click/kosarak_sequences.dat", //fimi_retail/retail_sequences.dat
+                " / ").convert();*/
         new ItemsetToSequenceOfItemsetsConverter(
-                "data-local/fimi_retail/retail.dat",
-                "data-local/fimi_retail/retail_sequences.dat",
-                "/ ").convert();
+                "data-local/fimi_retail/retail.dat", // fimi_retail/retail.dat
+                "data-local/fimi_retail/retail_sequences.dat", //fimi_retail/retail_sequences.dat
+                " / ").convert();
     }
 }

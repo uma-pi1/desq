@@ -162,7 +162,7 @@ public class ExampleUtils {
         SequenceReader dataReader = new DelSequenceReader(dataFile.openStream(), false);
         dict.incFreqs(dataReader);
         dict.recomputeFids();
-        System.out.println("Dictionary with statitics:");
+        System.out.println("Dictionary with statistics:");
         dict.writeJson(System.out);
         System.out.println();
 
@@ -186,45 +186,56 @@ public class ExampleUtils {
                                           String dataPath, String dictPath,
                                           String itemsetSeparator,
                                           String logPrefix,
-                                          int iterations
+                                          int iterations,
+                                          Integer printResults,
+                                          Boolean runSequence,
+                                          Boolean runItemset,
+                                          Boolean runSeqOfItemsets
     ) throws IOException{
         //Init dict
-        Dictionary dict = Dictionary.loadFrom(dictPath);
+        Dictionary dict = (dictPath != null) ? Dictionary.loadFrom(dictPath) : null;
         BuilderFactory factory;
         String logFile;
 
         // ------ RUN EVALUATIONS -----
 
         // --- Sequences
-        System.out.println("\n ==== Evaluate sequence query =====");
-        factory = new DefaultBuilderFactory(dict);
-        logFile = (logPrefix == null) ? null : logPrefix + "Sequence.csv";
-        new PerformanceEvaluator(
-                minerConf,
-                dataPath, factory,
-                logFile,
-                null
-        ).run(iterations);
+        if(runSequence != null && runSequence) {
+            System.out.println("\n ==== Evaluate sequence query =====");
+            factory = new DefaultBuilderFactory(dict);
+            logFile = (logPrefix == null) ? null : logPrefix + "Sequence.csv";
+            new PerformanceEvaluator(
+                    minerConf,
+                    dataPath, factory,
+                    printResults,
+                    logFile,
+                    null
+            ).run(iterations);
+        }
 
         // --- Itemsets
-        System.out.println("\n ==== Evaluate itemset query =====");
-        factory = new ItemsetBuilderFactory(dict);
-        logFile = (logPrefix == null) ? null : logPrefix + "Itemset.csv";
-        new PerformanceEvaluator(
-                minerConf,
-                dataPath, factory,
-                logFile,
-                new PatExToItemsetPatEx(minerConf.getString("desq.mining.pattern.expression"))
-        ).run(iterations);
+        if(runItemset != null && runItemset) {
+            System.out.println("\n ==== Evaluate itemset query =====");
+            factory = new ItemsetBuilderFactory(dict);
+            logFile = (logPrefix == null) ? null : logPrefix + "Itemset.csv";
+            new PerformanceEvaluator(
+                    minerConf,
+                    dataPath, factory,
+                    printResults,
+                    logFile,
+                    new PatExToItemsetPatEx(minerConf.getString("desq.mining.pattern.expression"))
+            ).run(iterations);
+        }
 
         // --- Sequence of itemsets
-        if(itemsetSeparator != null) {
+        if(runSeqOfItemsets != null && itemsetSeparator != null && runSeqOfItemsets) {
             System.out.println("\n ==== Evaluate sequence of itemsets query =====");
             factory = new ItemsetBuilderFactory(dict, itemsetSeparator);
             logFile = (logPrefix == null) ? null : logPrefix + "SeqItemsets.csv";
             new PerformanceEvaluator(
                     minerConf,
                     dataPath, factory,
+                    printResults,
                     logFile,
                     new PatExToItemsetPatEx(
                             minerConf.getString("desq.mining.pattern.expression"),
