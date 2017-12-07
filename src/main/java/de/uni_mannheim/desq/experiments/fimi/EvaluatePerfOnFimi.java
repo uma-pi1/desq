@@ -29,8 +29,8 @@ public class EvaluatePerfOnFimi {
         }
 
         conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
-        conf.setProperty("desq.mining.use.two.pass", false);
-        conf.setProperty("desq.mining.optimize.permutations", false);
+        conf.setProperty("desq.mining.use.two.pass", false); // has to be set for DesqCount due to bug
+        conf.setProperty("desq.mining.optimize.permutations", true);
 
         return conf;
     }
@@ -45,8 +45,8 @@ public class EvaluatePerfOnFimi {
                 null,
                 "/",
                 "data-local/log/Fimi_Seq_" + miner + "_",
-                10,
-                50,true, false, true
+                1,
+                50,false, false, true
         );
     }
 
@@ -56,11 +56,11 @@ public class EvaluatePerfOnFimi {
                 getMinerConf(miner,
                         "A B (.){1,5}",
                         100),
-                "data-local/fimi_retail/retail.dat",
-                "data-local/fimi_retail/dict.json",
+                retail_itemset_data,
+                retail_itemset_dict,
                 null,
                 "data-local/log/Fimi_" + miner + "_",
-                10,
+                1,
                 10, true, true, false
         );
     }
@@ -82,8 +82,9 @@ public class EvaluatePerfOnFimi {
     public static void main(String[] args) throws IOException{
         //runItemsetExample(Miner.DesqCount);
 
-        //runFimi(Miner.DesqCount);
+        runFimi(Miner.DesqCount);
 
-        runSequentialFimi(Miner.DesqDfs);
+        //runSequentialFimi(Miner.DesqDfs);
+
     }
 }
