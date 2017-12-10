@@ -26,4 +26,9 @@ public class DefaultDictionaryAndSequenceBuilder extends DefaultDictionaryBuilde
         dict.fidsToGids(currentFids, currentGids);
         return currentGids;
     }
+
+    @Override
+    public void setDictionary(Dictionary dict){
+        throw new UnsupportedOperationException("Defining dictionary not supported!");
+    }
 }

@@ -4,12 +4,14 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.spark.broadcast.Broadcast;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
 public class DefaultItemsetBuilder implements SequenceBuilder{
+    private String separatorSid;
     private int separatorGid;
     private long currentWeight = 0;
     private IntList currentGids = new IntArrayList();
@@ -17,10 +19,14 @@ public class DefaultItemsetBuilder implements SequenceBuilder{
     private MutablePair<Integer,Boolean> pair = new MutablePair<>(null, false);
     protected Dictionary dict;
 
-    public DefaultItemsetBuilder(Dictionary dict, String separatorSid) {
-        this.dict = dict;
-        this.separatorGid = dict.gidOf(separatorSid);
+    public DefaultItemsetBuilder(String separatorSid) {
+        this.separatorSid = separatorSid;
     }
+    public void setDictionary(Dictionary dict){
+        this.dict = dict;
+        this.separatorGid = this.dict.gidOf(separatorSid);
+    }
+
 
     @Override
     public void newSequence() {
@@ -46,18 +52,7 @@ public class DefaultItemsetBuilder implements SequenceBuilder{
         int gid = dict.gidOf(sid);
         if (gid<0) throw new IllegalStateException("unknown sid " + sid);
 
-        if((gid != separatorGid) && currentGids.contains(gid)){
-            //Duplicate Sid -> do not add
-            pair.setLeft(gid);
-            return pair;
-        }else{
-            if(gid == separatorGid)
-                initNewSet();
-            else //only add items (easier sorting later)
-                currentGids.add(gid);
-            pair.setLeft(gid);
-            return pair;
-        }
+        return appendItem(gid);
     }
 
     @Override
@@ -67,7 +62,8 @@ public class DefaultItemsetBuilder implements SequenceBuilder{
         IntList seqOfSets = new IntArrayList();
         for(IntList set: gidSets){
             set.sort((g1, g2) -> (
-                    dict.fidOf(g2) - dict.fidOf(g1) //descending
+                    //dict.fidOf(g2) - dict.fidOf(g1) //descending Fids
+                    dict.fidOf(g1) - dict.fidOf(g2) //ascending Fids -> desc frequency
             ));
             if(!seqOfSets.isEmpty()) seqOfSets.add(separatorGid);
             seqOfSets.addAll(set);
@@ -89,4 +85,22 @@ public class DefaultItemsetBuilder implements SequenceBuilder{
         currentGids = new IntArrayList();
         gidSets.add(currentGids);
     }
+
+    //Allow direct entry via GID
+    @Override
+    public Pair<Integer,Boolean> appendItem(int gid) {
+        if((gid != separatorGid) && currentGids.contains(gid)){
+            //Duplicate Sid -> do not add
+            pair.setLeft(gid);
+            return pair;
+        }else{
+            if(gid == separatorGid)
+                initNewSet();
+            else //only add items (easier sorting later)
+                currentGids.add(gid);
+            pair.setLeft(gid);
+            return pair;
+        }
+    }
+
 }

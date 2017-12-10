@@ -24,7 +24,7 @@ import org.apache.spark.rdd.RDD
   * Created by rgemulla on 12.09.2016.
   */
 class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, val usesFids: Boolean = false,
-                  val context: DesqProperties = new DesqProperties()) {
+                  val properties: DesqProperties = new DesqProperties()) {
   private var dictBroadcast: Broadcast[Dictionary] = _
 
   // -- building ------------------------------------------------------------------------------------------------------
@@ -37,7 +37,7 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
   /** Creates a copy of this DesqDataset with a deep copy of its dictionary. Useful when changes should be
     * performed to a dictionary that has been broadcasted before (and hence cannot/should not be changed). */
   def copy(): DesqDataset = {
-    new DesqDataset(sequences, dict.deepCopy(), usesFids, context)
+    new DesqDataset(sequences, dict.deepCopy(), usesFids, new DesqProperties(properties))
   }
 
   /** Returns a copy of this dataset with a new dictionary, containing updated counts and fid identifiers. The
@@ -83,7 +83,7 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
 
     // if we are not using fids, we are done
     if (!usesFids) {
-      return new DesqDataset(sequences, newDict, false, context)
+      return new DesqDataset(sequences, newDict, false, new DesqProperties(properties))
     }
 
     // otherwise we need to relabel the fids
@@ -104,7 +104,7 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
         }
       }
     })
-    val newData = new DesqDataset(newSequences, newDict, true, context)
+    val newData = new DesqDataset(newSequences, newDict, true, new DesqProperties(properties))
     newData.dictBroadcast = newDictBroadcast
     newData
   }
@@ -386,16 +386,15 @@ object DesqDataset {
     * @return the created DesqDataset
     */
   def build[T](rawData: RDD[T], parse: (T, DictionaryBuilder) => _,
-               //initialDict: Option[Dictionary] = None,
                builderFactory: Option[BuilderFactory] = None
               ): DesqDataset = {
 
     val factory = builderFactory.getOrElse(new DefaultBuilderFactory())
-    val factoryBroadcast = rawData.context.broadcast(factory)
+    val dictBuilder = factory.createDictionaryBuilder()
 
     // --- Dictionary
     val dict = rawData.mapPartitions(rows => {
-      val dictBuilder = factoryBroadcast.value.createDictionaryBuilder()
+      //val dictBuilder = factory.createDictionaryBuilder()
       while (rows.hasNext) {
         parse.apply(rows.next(), dictBuilder)
       }
@@ -406,9 +405,12 @@ object DesqDataset {
 
     // --- now convert the sequences (lazily)
     val dictBroadcast = rawData.context.broadcast(dict)
+    val seqBuilder = factory.createSequenceBuilder()
+
     val sequences = rawData.mapPartitions(rows => new Iterator[WeightedSequence] {
       private val dict = dictBroadcast.value
-      private val seqBuilder = factoryBroadcast.value.createSequenceBuilder(dict)
+      //private val seqBuilder = factory.createSequenceBuilder(dict)
+      seqBuilder.setDictionary(dict)
 
       override def hasNext: Boolean = rows.hasNext
 
@@ -424,15 +426,5 @@ object DesqDataset {
     val result = new DesqDataset(sequences, dict, true, factory.getProperties)
     result.dictBroadcast = dictBroadcast
     result
-  }
-
-  def loadDesqDatasetForJava( sc: SparkContext,
-                              dataPath: String,
-                              factory: BuilderFactory): DesqDataset ={
-    //Init SparkConf
-    /*val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
-    initDesq(conf)
-    val sc:SparkContext = SparkContext.getOrCreate(conf)*/
-    DesqDataset.buildFromStrings(sc.textFile(dataPath).map(s => s.split(" ")),Option.apply(factory)).copyWithRecomputedCountsAndFids()
   }
 }

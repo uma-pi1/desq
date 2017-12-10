@@ -1,15 +1,16 @@
 package de.uni_mannheim.desq.dictionary;
 
 import de.uni_mannheim.desq.util.DesqProperties;
+import org.apache.spark.broadcast.Broadcast;
 
 public interface BuilderFactory {
 
     /**
-     * Create a SequenceBuilder which uses an existing dictionary
-     * @param dict dictionary used
+     * Create a SequenceBuilder
+     * Existing dictionary must be handed over via SequenceBuilder.setDictionary(Dictionary)
      * @return the SequenceBuilder
      */
-    SequenceBuilder createSequenceBuilder(Dictionary dict);
+    SequenceBuilder createSequenceBuilder();
 
     /**
      * create a plain DictionaryBuilder

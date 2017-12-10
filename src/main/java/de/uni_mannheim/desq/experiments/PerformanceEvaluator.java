@@ -3,6 +3,7 @@ package de.uni_mannheim.desq.experiments;
 import de.uni_mannheim.desq.Desq;
 import de.uni_mannheim.desq.dictionary.BuilderFactory;
 import de.uni_mannheim.desq.dictionary.Dictionary;
+import de.uni_mannheim.desq.examples.spark.ExampleUtils;
 import de.uni_mannheim.desq.io.MemoryPatternWriter;
 import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.mining.DesqMiner;
@@ -89,17 +90,17 @@ public class PerformanceEvaluator {
         log.start(Metric.TotalRuntime);
 
         // ---- Load Data
-        System.out.print("Loading data (" + factory.getProperties().getString("desq.dataset.builder.factory.class","No Builder") + ") ... ");
+        System.out.print("Loading data (" + factory.getClass().getCanonicalName() + ") ... ");
         log.start(Metric.DataLoadRuntime);
         // Init data load via DesqDataset (lazy) via Spark
-        DesqDataset data = DesqDataset.loadDesqDatasetForJava(sc, dataPath, factory);
+        DesqDataset data = ExampleUtils.buildDesqDatasetFromRawFile(sc, dataPath, factory);
 
         //Gather data (via scala/spark)
         List<String[]> cachedSequences = data.toSids().toJavaRDD().collect();
         System.out.println(log.stop(Metric.DataLoadRuntime));
 
         //Determine Fid of itemset separator (easier analysis later)
-        String itemsetSeparatorSid = data.context().getString("desq.dataset.itemset.separator.sid", null);
+        String itemsetSeparatorSid = data.properties().getString("desq.dataset.itemset.separator.sid", null);
         if(itemsetSeparatorSid != null){
             System.out.println("Itemset Separator FId: " + data.dict().fidOf(itemsetSeparatorSid));
         }

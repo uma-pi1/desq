@@ -17,8 +17,8 @@ public class DefaultBuilderFactory implements BuilderFactory {
     public DefaultBuilderFactory(){ }
 
     @Override
-    public SequenceBuilder createSequenceBuilder(Dictionary dict) {
-        return new DefaultSequenceBuilder(dict);
+    public SequenceBuilder createSequenceBuilder() {
+        return new DefaultSequenceBuilder();
     }
 
     @Override

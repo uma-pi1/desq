@@ -89,4 +89,10 @@ public class DefaultDictionaryBuilder implements DictionaryBuilder {
     public Dictionary getDictionary() {
         return dict;
     }
+
+    //Mod to allow entry via GID //TODO: improve
+    @Override
+    public Pair<Integer,Boolean> appendItem(int gid) {
+        return appendItem(dict.sidOfGid(gid));
+    }
 }

@@ -4,13 +4,18 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 import com.google.common.base.Stopwatch
-import de.uni_mannheim.desq.dictionary.{Dictionary, ItemsetBuilderFactory}
+import de.uni_mannheim.desq.dictionary.{BuilderFactory, Dictionary, DictionaryBuilder, ItemsetBuilderFactory}
 import de.uni_mannheim.desq.experiments.MetricLogger
 import de.uni_mannheim.desq.experiments.MetricLogger.Metric
+import de.uni_mannheim.desq.io.DelSequenceReader
+import de.uni_mannheim.desq.mining.{Sequence, WeightedSequence}
+import de.uni_mannheim.desq.mining.spark.DesqDataset.build
 import de.uni_mannheim.desq.mining.spark.{DesqCount, DesqDataset, DesqMiner, DesqMinerContext}
 import de.uni_mannheim.desq.patex.{PatExToItemsetPatEx, PatExToSequentialPatEx, PatExTranslator}
 import de.uni_mannheim.desq.util.DesqProperties
+import it.unimi.dsi.fastutil.ints.IntArrayList
 import org.apache.spark.SparkContext
+import org.apache.spark.rdd.RDD
 
 import scala.io.Source
 
@@ -115,7 +120,7 @@ object ExampleUtils {
     println()
 
     System.out.println("\nDataset properties:")
-    data.context.prettyPrint()
+    data.properties.prettyPrint()
 
     val (miner, result) = runVerbose(data, minerConf)
     result.sequences.unpersist()
@@ -136,7 +141,8 @@ object ExampleUtils {
       runVerbose(data, minerConf)
   }
 
-  /** Runs a miner on given data and logs metrics via MetricLogger*/
+  /** Runs a miner on given data and logs metrics via MetricLogger (in scala)
+    * For java, see java.[...].ExampleUtils -> runItemsetPerfEval */
   def runPerformanceEval(patEx: String, minSupport: Long, inputData: DesqDataset,
                          patExTranslator: Option[PatExTranslator[String]] = None,
                          logFile: String = "", iterations: Int = 2)
@@ -157,7 +163,7 @@ object ExampleUtils {
       log.start(Metric.TotalRuntime)
 
       //Convert Data?
-      print("Loading data (" + inputData.context.getString("desq.dataset.builder.factory.class","No Builder") + ") ... ")
+      print("Loading data (" + inputData.properties.getString("desq.dataset.builder.factory.class","No Builder") + ") ... ")
       log.start(Metric.DataLoadRuntime)
       //cache data and execute count to force data load
       val count = cachedSequences.count
@@ -228,5 +234,44 @@ object ExampleUtils {
     if(logFile != ""){
       log.writeToFile(logFile)
     }
+  }
+
+  //Helper Methods (for use in Java)
+
+  def buildDesqDatasetFromRawFile(sc: SparkContext,
+                                  dataPath: String,
+                                  factory: BuilderFactory): DesqDataset ={
+    //Init SparkConf
+    /*val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
+    initDesq(conf)
+    val sc:SparkContext = SparkContext.getOrCreate(conf)*/
+    DesqDataset.buildFromStrings(
+      sc.textFile(dataPath).map(s => s.split(" ")),
+      Option.apply(factory)
+    ).copyWithRecomputedCountsAndFids()
+  }
+
+  def buildDesqDatasetFromDelFile( sc: SparkContext,
+                                   delFile: String,
+                                   dict: Dictionary,
+                                   factory: BuilderFactory): DesqDataset ={
+    val file = sc.textFile(delFile) //-> RDD[String]
+
+    val parse = (line: String, seqBuilder: DictionaryBuilder) => {
+      seqBuilder.newSequence(1)
+      val tokens = line.split("[\t ]")
+      for (token <- tokens) {
+        if (!token.isEmpty)
+          seqBuilder.appendItem(token.toInt)
+        }
+
+
+      //val s = new IntArrayList()
+      //DelSequenceReader.parseLine(line, s)
+      //dict.sidsOfGids(s).forEach(sid => seqBuilder.appendItem(sid))
+
+      //s.forEach(gid => seqBuilder.appendItem(gid))
+    }
+    build[String](file, parse, Option.apply(factory)).copyWithRecomputedCountsAndFids()
   }
 }

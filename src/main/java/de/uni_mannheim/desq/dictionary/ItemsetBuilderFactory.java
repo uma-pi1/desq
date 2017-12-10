@@ -24,8 +24,8 @@ public class ItemsetBuilderFactory extends DefaultBuilderFactory {
     }
 
     @Override
-    public SequenceBuilder createSequenceBuilder(Dictionary dict) {
-        return new DefaultItemsetBuilder(dict, itemsetSeparatorSid);
+    public SequenceBuilder createSequenceBuilder() {
+        return new DefaultItemsetBuilder(itemsetSeparatorSid);
     }
 
     @Override
@@ -41,5 +41,4 @@ public class ItemsetBuilderFactory extends DefaultBuilderFactory {
         p.setProperty("desq.dataset.itemset.separator.sid",itemsetSeparatorSid);
         return p;
     }
-
 }

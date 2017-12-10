@@ -5,6 +5,8 @@ import org.apache.spark.rdd.RDD;
 import scala.Function2;
 import scala.Option;
 
+import java.io.Serializable;
+
 /** A DictionaryBuilder is used to make user-defined data formats accessible to Desq. Implementations of this interface can
  * be used to automatically build {@link Dictionary}s (via {@link DefaultDictionaryBuilder}).
  *
@@ -12,7 +14,7 @@ import scala.Option;
  * as well as all of its ancestors using the appropriate methods. For building datasets in Spark, see
  * {@link de.uni_mannheim.desq.mining.spark.DesqDataset#build(RDD, Function2, Option)}
  */
-public interface DictionaryBuilder {
+public interface DictionaryBuilder extends Serializable {
     /** Informs the builder that a new input sequence is being processed. Must also be called before the first
      * and after the last input sequence has been processed. Uses a support of 1. */
     void newSequence();
@@ -27,6 +29,11 @@ public interface DictionaryBuilder {
      *         before (false). Note that the returned pair may be reused if another method of this class is called.
      */
     Pair<Integer,Boolean> appendItem(String sid);
+
+    /** Allow adding GIDs (more efficient transformation of existing datasets)
+     *
+     */
+    Pair<Integer,Boolean> appendItem(int gid);
 
     /** Adds a parent item to the child item with the given fid using the specified sid for the parent. The
      * method must (and must only) be called on items returned from {@link #appendItem(String)} or
