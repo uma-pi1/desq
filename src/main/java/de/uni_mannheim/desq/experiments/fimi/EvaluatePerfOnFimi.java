@@ -3,13 +3,14 @@ package de.uni_mannheim.desq.experiments.fimi;
 import de.uni_mannheim.desq.examples.ExampleUtils;
 import de.uni_mannheim.desq.mining.DesqCount;
 import de.uni_mannheim.desq.mining.DesqDfs;
+import de.uni_mannheim.desq.mining.DesqPatricia;
 import de.uni_mannheim.desq.util.DesqProperties;
 
 import java.io.IOException;
 
 public class EvaluatePerfOnFimi {
 
-    public enum Miner {DesqCount, DesqDfs}
+    public enum Miner {DesqCount, DesqDfs, DesqPatricia}
 
     private static final String retail_itemset_data = "data-local/fimi_retail/retail.dat";
     private static final String retail_itemset_dict = "data-local/fimi_retail/dict.json";
@@ -25,6 +26,8 @@ public class EvaluatePerfOnFimi {
                 conf = DesqCount.createConf(patEx, sigma); break;
             case DesqDfs:
                 conf = DesqDfs.createConf(patEx, sigma); break;
+            case DesqPatricia:
+                conf = DesqPatricia.createConf(patEx, sigma); break;
             default: throw new UnsupportedOperationException("Unsupported Miner");
         }
 
@@ -82,7 +85,7 @@ public class EvaluatePerfOnFimi {
     public static void main(String[] args) throws IOException{
         //runItemsetExample(Miner.DesqCount);
 
-        runFimi(Miner.DesqCount);
+        runFimi(Miner.DesqPatricia);
 
         //runSequentialFimi(Miner.DesqDfs);
 

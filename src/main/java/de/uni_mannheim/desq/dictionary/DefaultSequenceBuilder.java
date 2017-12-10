@@ -12,6 +12,12 @@ public class DefaultSequenceBuilder implements SequenceBuilder {
     protected Dictionary dict;
 
     public DefaultSequenceBuilder(Dictionary dict) {
+        this.setDictionary(dict);
+    }
+
+    public DefaultSequenceBuilder(){ }
+
+    public void setDictionary(Dictionary dict){
         this.dict = dict;
     }
 
@@ -30,9 +36,7 @@ public class DefaultSequenceBuilder implements SequenceBuilder {
     public Pair<Integer, Boolean> appendItem(String sid) {
         int gid = dict.gidOf(sid);
         if (gid<0) throw new IllegalStateException("unknown sid " + sid);
-        currentGids.add(gid);
-        pair.setLeft(gid);
-        return pair;
+        return appendItem(gid);
     }
 
     @Override
@@ -51,5 +55,13 @@ public class DefaultSequenceBuilder implements SequenceBuilder {
 
     public Dictionary getDictionary() {
         return dict;
+    }
+
+    //Allow entry via GID
+    @Override
+    public Pair<Integer,Boolean> appendItem(int gid) {
+        currentGids.add(gid);
+        pair.setLeft(gid);
+        return pair;
     }
 }

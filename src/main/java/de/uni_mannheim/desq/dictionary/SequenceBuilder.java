@@ -10,4 +10,8 @@ public interface SequenceBuilder extends DictionaryBuilder {
 
     /** The returned list is reused so make sure to create a copy it if it needs to be retained. */
     IntList getCurrentGids();
+
+    /** Define dictionary after instantiation (to reuse broadcasted dictionaries in Spark) */
+    void setDictionary(Dictionary dict);
+
 }
