@@ -184,13 +184,15 @@ public class ExampleUtils {
     /** Run Performance Evaluation, assuming space delimited SIDs file */
     public static void runItemsetPerfEval(DesqProperties minerConf,
                                           String dataPath, String dictPath,
+                                          Boolean usesGids,
                                           String itemsetSeparator,
                                           String logPrefix,
                                           int iterations,
-                                          Integer printResults,
+                                          Integer print,
                                           Boolean runSequence,
                                           Boolean runItemset,
-                                          Boolean runSeqOfItemsets
+                                          Boolean runSeqOfItemsets,
+                                          Boolean sortByFidsAsc
     ) throws IOException{
         //Init dict
         Dictionary dict = (dictPath != null) ? Dictionary.loadFrom(dictPath) : null;
@@ -206,8 +208,8 @@ public class ExampleUtils {
             logFile = (logPrefix == null) ? null : logPrefix + "Sequence.csv";
             new PerformanceEvaluator(
                     minerConf,
-                    dataPath, factory,
-                    printResults,
+                    dataPath, usesGids, factory,
+                    print,
                     logFile,
                     null
             ).run(iterations);
@@ -216,12 +218,12 @@ public class ExampleUtils {
         // --- Itemsets
         if(runItemset != null && runItemset) {
             System.out.println("\n ==== Evaluate itemset query =====");
-            factory = new ItemsetBuilderFactory(dict);
+            factory = new ItemsetBuilderFactory(dict).sortByFidsAsc(sortByFidsAsc);
             logFile = (logPrefix == null) ? null : logPrefix + "Itemset.csv";
             new PerformanceEvaluator(
                     minerConf,
-                    dataPath, factory,
-                    printResults,
+                    dataPath, usesGids, factory,
+                    print,
                     logFile,
                     new PatExToItemsetPatEx(minerConf.getString("desq.mining.pattern.expression"))
             ).run(iterations);
@@ -230,12 +232,12 @@ public class ExampleUtils {
         // --- Sequence of itemsets
         if(runSeqOfItemsets != null && itemsetSeparator != null && runSeqOfItemsets) {
             System.out.println("\n ==== Evaluate sequence of itemsets query =====");
-            factory = new ItemsetBuilderFactory(dict, itemsetSeparator);
+            factory = new ItemsetBuilderFactory(dict, itemsetSeparator).sortByFidsAsc(sortByFidsAsc);
             logFile = (logPrefix == null) ? null : logPrefix + "SeqItemsets.csv";
             new PerformanceEvaluator(
                     minerConf,
-                    dataPath, factory,
-                    printResults,
+                    dataPath, usesGids, factory,
+                    print,
                     logFile,
                     new PatExToItemsetPatEx(
                             minerConf.getString("desq.mining.pattern.expression"),

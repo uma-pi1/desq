@@ -1,118 +1,134 @@
 package de.uni_mannheim.desq.mining;
 
 import de.uni_mannheim.desq.fst.*;
-import de.uni_mannheim.desq.fst.graphviz.AutomatonVisualizer;
 import de.uni_mannheim.desq.patex.PatExUtils;
 import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
-import it.unimi.dsi.fastutil.ints.IntListIterator;
-import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
-import org.apache.commons.io.FilenameUtils;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.HashSet;
 
-public final class DesqPatricia extends DesqMiner {
+public final class DesqPatricia extends MemoryDesqMiner {
 	private static final Logger logger = Logger.getLogger(DesqPatricia.class);
+	private static final boolean DEBUG = false;
+	static {
+		if (DEBUG) logger.setLevel(Level.TRACE);
+	}
 
 	// -- parameters for mining ---------------------------------------------------------------------------------------
 
 	/** Minimum support */
-	final long sigma;
+    private final long sigma;
 
-	/** The pattern expression used for mining */
+    /** The pattern expression used for mining */
 	private final String patternExpression;
 
-	/** Whether or not to use the f-list for pruning output sequences that are guaranteed to be infrequent. */
-	private final boolean useFlist;
-
-	/** If true, input sequences that do not match the pattern expression are pruned */
+    /** If true, input sequences that do not match the pattern expression are pruned */
 	private final boolean pruneIrrelevantInputs;
 
-	/** If true, the two-pass algorithm is used */
+    /** If true, the two-pass algorithm for DesqDfs is used */
 	private final boolean useTwoPass;
 
 
 	// -- helper variables --------------------------------------------------------------------------------------------
 
-	/** Stores the final state transducer  */
+    /** Stores the final state transducer for DesqDfs (one-pass) */
 	private final Fst fst;
 
-	/** Stores the largest fid of an item with frequency at least sigma. Used to quickly determine
-	 * whether an item is frequent (if fid <= largestFrequentFid, the item is frequent */
+    /** Stores the largest fid of an item with frequency at least sigma. Zsed to quickly determine
+     * whether an item is frequent (if fid <= largestFrequentFid, the item is frequent */
 	private final int largestFrequentFid;
 
-	/** Sequence id of the next input sequence */
-	private int inputId;
+    /** Stores iterators over output item/next state pairs for reuse. */
+	private final ArrayList<State.ItemStateIterator> itemStateIterators = new ArrayList<>();
 
-	// -- helper variables --------------------------------------------------------------------------------------------
-	/** The input sequence currenlty processed */
-	IntList inputSequence;
+    /** An iterator over a projected database (a posting list) for reuse */
+	private final PostingList.Iterator projectedDatabaseIt = new PostingList.Iterator();
 
-	/** The support of the current input sequence */
-	long inputSupport;
-
-	/** Stores all mined sequences along with their frequency. Each long is composed of a 32-bit integer storing the
-	 * actual count and a 32-bit integer storing the input id of the last input sequence that produced this output.  */
-	//final Object2LongOpenHashMap<Sequence> outputSequences = new Object2LongOpenHashMap<>();
-
-	/** Stores iterators over output item/next state pairs for reuse. Indexed by input position. */
-	final ArrayList<State.ItemStateIterator> itemStateIterators = new ArrayList<>();
-
-	/** Stores the part of the output sequence produced so far. */
-	final Sequence prefix;
+	/** The root node of the search tree. */
+	private final DesqDfsTreeNode root;
 
 	// -- helper variables for pruning and twopass --------------------------------------------------------------------
 
 	/** The DFA corresponding to the FST (pruning) or reverse FST (two-pass). */
 	private final Dfa dfa;
 
-	/** Sequence of EDFA states for current input (two-pass only) */
+    /** For each relevant input sequence, the sequence of states taken by dfa (two-pass only) */
+	private final ArrayList<DfaState[]> dfaStateSequences;
+
+    /** A sequence of EDFA states for reuse (two-pass only) */
 	private final ArrayList<DfaState> dfaStateSequence;
 
-	/** Positions for which dfa reached an initial FST state (two-pass only) */
-	private final IntList dfaInitalPos;
+    /** A sequence of positions for reuse (two-pass only) */
+	private final IntList dfaInitialPos;
+
+	// -- implicit arguments for incStep() ----------------------------------------------------------------------------
+
+	/** The ID of the input sequence we are processing */
+	//int currentInputId;
+
+	/** The items in the input sequence we are processing */
+	//WeightedSequence currentInputSequence;
+
+	/** The state sequence of the accepting DFA run for the current intput sequence (two-pass only). */
+	//DfaState[] currentDfaStateSequence;
+
+	/** The node in the search tree currently being processed */
+	//DesqDfsTreeNode currentNode;
+
+	/** For each state/position pair, whether we have reached this state and position without further output
+	 * already. Index of a pair is <code>pos*fst.numStates() + toState.getId()</code>.
+	 */
+	//BitSet currentSpReachedWithoutOutput = new BitSet();
+
 
 	/**Trie representing the data **/
-	private PatriciaItemTrie trie;
+	private PatriciaItemTrie inputTrie; //stores the input data as patricia trie
+	private PatriciaItemTrie outputTrie; //stores the mined pattern of FST in patricia trie
 
-	private HashSet<IntList> outputSequenceCache;
+
+	//private IntList currentInput;
+	private IntList currentPrefix;
+	//private Long currentSupport;
+	private HashSet<IntList> outputSequenceCache; //caches the mined sequences for one input
 
 
 	// -- construction/clearing ---------------------------------------------------------------------------------------
 
 	public DesqPatricia(DesqMinerContext ctx) {
 		super(ctx);
-		this.sigma = ctx.conf.getLong("desq.mining.min.support");
-		this.useFlist = ctx.conf.getBoolean("desq.mining.use.flist");
-		this.pruneIrrelevantInputs = ctx.conf.getBoolean("desq.mining.prune.irrelevant.inputs");
-		this.useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
+		sigma = ctx.conf.getLong("desq.mining.min.support");
+		largestFrequentFid = ctx.dict.lastFidAbove(sigma);
+		pruneIrrelevantInputs = ctx.conf.getBoolean("desq.mining.prune.irrelevant.inputs");
+        useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
 		boolean useLazyDfa = ctx.conf.getBoolean("desq.mining.use.lazy.dfa");
-
-		// initalize helper variable for FST simulation
-		this.largestFrequentFid = ctx.dict.lastFidAbove(sigma);
-		this.inputId = 0;
-		prefix = new Sequence();
-		//outputSequences.defaultReturnValue(-1L);
 
 		// create FST
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
 		this.fst = PatExUtils.toFst(ctx, patternExpression);
 
+
 		// create two pass auxiliary variables (if needed)
 		if (useTwoPass) { // two-pass
-			// two-pass will always prune irrelevant input sequences, so notify the user when the corresponding
-			// property is not set
+            // two-pass will always prune irrelevant input sequences, so notify the user when the corresponding
+            // property is not set
 			if (!pruneIrrelevantInputs) {
 				logger.warn("property desq.mining.prune.irrelevant.inputs=false will be ignored because " +
 						"desq.mining.use.two.pass=true");
 			}
+
+            // initialize helper variables for two-pass
+			dfaStateSequences = new ArrayList<>();
 			dfaStateSequence = new ArrayList<>();
-			dfaInitalPos = new IntArrayList();
-		} else {
+			dfaInitialPos = new IntArrayList();
+		} else { // invalidate helper variables for two-pass
+            dfaStateSequences = null;
 			dfaStateSequence = null;
-			dfaInitalPos = null;
+			dfaInitialPos = null;
 		}
 
 		// create DFA or reverse DFA (if needed)
@@ -128,8 +144,16 @@ public final class DesqPatricia extends DesqMiner {
 			this.dfa = null;
 		}
 
+		// other auxiliary variables
+		BitSet initialState = new BitSet(fst.numStates());
+		initialState.set(fst.getInitialState().getId());
+		root = new DesqDfsTreeNode(fst, initialState);
+		//currentNode = root;
+
 		// variables for patricia
-		trie = new PatriciaItemTrie();
+		inputTrie = new PatriciaItemTrie();
+		outputTrie = new PatriciaItemTrie();
+		outputSequenceCache = new HashSet<>();
 	}
 
 	public static DesqProperties createConf(String patternExpression, long sigma) {
@@ -137,7 +161,6 @@ public final class DesqPatricia extends DesqMiner {
 		conf.setProperty("desq.mining.miner.class", DesqPatricia.class.getCanonicalName());
 		conf.setProperty("desq.mining.min.support", sigma);
 		conf.setProperty("desq.mining.pattern.expression", patternExpression);
-		conf.setProperty("desq.mining.use.flist", true); /* use frequency by default -> sorted by Fid if itemset*/
 		conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
 		conf.setProperty("desq.mining.use.lazy.dfa", false);
 		conf.setProperty("desq.mining.use.two.pass", true);
@@ -145,55 +168,130 @@ public final class DesqPatricia extends DesqMiner {
 		return conf;
 	}
 
+	public void clear() {
+		inputSequences.clear();
+        inputSequences.trimToSize();
+		if (useTwoPass) {
+			dfaStateSequences.clear();
+            dfaStateSequences.trimToSize();
+		}
+		root.clear();
+		//currentNode = root;
+	}
 
-	// -- processing input sequences ---------------------------------------------------------------------------------
+	// -- processing input sequences ----------------------------------------------------------------------------------
 
 	@Override
-	protected void addInputSequence(IntList sequence, long support, boolean allowBuffering) {
-		assert prefix.isEmpty(); // will be maintained by stepOnePass()
-		this.inputSequence = sequence;
-		this.inputSupport = support;
-		this.outputSequenceCache = new HashSet<>();
-
-		// two-pass version of DesqCount
-		if (useTwoPass) {
-			// run the input sequence through the EDFA and compute the state sequences as well as the positions
-			// at which, we start the FST simulation
-			if (dfa.acceptsReverse(sequence, dfaStateSequence, dfaInitalPos)) {
-				// we now know that the sequence is relevant; process it
-				// look at all initial positions from which a final FST state can be reached
-				for (final int pos : dfaInitalPos) {
-					// for those positions, start with initial state
-					step(pos, fst.getInitialState(), 0);
-				}
-				inputId++;
+	public void addInputSequence(IntList inputSequence, long inputSupport, boolean allowBuffering) {
+        //Represent complete data structure as patricia trie, but prune already (irrelevant input)
+		//Prune infrequent item (sorted by fid ascending!)
+		// pruning input sequences is tricky because they could generate (potentially) frequent generalized items
+		//this only works if sorted! -> one more reason to remove it
+		/*for(int i = 0;i < inputSequence.size(); i++){
+			if(inputSequence.getInt(i) > largestFrequentFid){
+				if(i == 0) return;
+				inputSequence = inputSequence.subList(0,i);
+				break;
 			}
-			dfaStateSequence.clear();
-			dfaInitalPos.clear();
-			return;
-		}
+		}*/
 
-		// one-pass version of DesqCount
-		if (!pruneIrrelevantInputs /*without pruning*/ || dfa.accepts(sequence) /*with pruning*/) {
-			step(0, fst.getInitialState(), 0);
-			inputId++;
+		// one-pass
+		if (!pruneIrrelevantInputs || dfa.accepts(inputSequence)) {
+			// if we reach this place, we either don't want to prune irrelevant inputs or the input is relevant
+			// -> remember it
+			inputTrie.addItems(inputSequence);
 		}
 	}
 
-	// -- mining ------------------------------------------------------------------------------------------------------
+
+    // -- mining ------------------------------------------------------------------------------------------------------
 
 	@Override
 	public void mine() {
-		// patricia trie already built -> traverse it to generate relevant patterns
+		//pruned input data is stored in patricia trie -> traverse the inputTrie and find frequent input sets
+		System.out.println("Node#:" + PatriciaItemTrie.nodeCounter + " - " + inputTrie.getRoot().collectChildren().size());
+		if((inputTrie.getRoot().getSupport() >= sigma) && !inputTrie.getRoot().isLeaf()) {
+			//start recursive trie traversal and write mined patterns in output trie
+			currentPrefix = new IntArrayList();
+			traverseTrieWithFST(0, inputTrie.getRoot(), fst.getInitialState());
+			//input trie not needed anymore -> free space
+			//inputTrie.exportGraphViz("inputTrie.pdf", ctx.dict, 1);
+			inputTrie = null;
 
-		if((trie.getRoot().getSupport() >= sigma) && !trie.getRoot().isLeaf()) {
-			//start recursive trie traversal
-			traverseTrie(new IntArrayList(),trie.getRoot());
+			//lookup the mines patterns from the output trie
+			if((outputTrie.getRoot().getSupport() >= sigma) && !outputTrie.getRoot().isLeaf()) {
+				//start recursive trie traversal
+				traverseOutputTrie(new IntArrayList(), outputTrie.getRoot());
+			}
 		}
-		//trie.exportGraphViz("trie.pdf");
+		System.out.println("Node#:" + PatriciaItemTrie.nodeCounter + " - " + outputTrie.getRoot().collectChildren().size());
+		//outputTrie.exportGraphViz("outputTrie.pdf", ctx.dict, 1);
 	}
 
-	private void traverseTrie(IntList prefix, PatriciaItemTrie.TrieNode node){
+	/**
+	 * Traverse the patricia trie containing input data and run FST in parallel
+	 * Start with FST after root node and hand it over to the children
+	 * Stores each ouput of the FST in the output trie (with support of input trie node)
+	 * Based on expand in DesqDFS
+	 * //@param prefix current Prefix (mined pattern)
+	 * @param itemPos item position in current node
+	 * @param node current trie node
+	 * @param state current state in fst
+	 *
+	 */
+	private void traverseTrieWithFST(int itemPos, PatriciaItemTrie.TrieNode node, State state){
+
+		// print debug information
+		if (DEBUG) {
+			logger.trace("Processing " + node.toString(ctx.dict) + ", itemPos=" + itemPos + ", nodeSupport="
+					+ node.getSupport() + ", state=" + state.getId());
+		}
+
+
+		//Check if Fst at final complete state OR consumed a sequence (of a node) completely
+		if (state.isFinalComplete() || itemPos == node.getItems().size()) {
+			//Check if valid output (not all nodes might represent an end of a sequence)
+			if (!currentPrefix.isEmpty() && state.isFinal() && node.isFinal()) {
+				outputTrie.addItems(currentPrefix, node.getSupport());
+				if (DEBUG) {
+					logger.trace("Output " + ctx.dict.sidsOfFids(currentPrefix) + " @ " + node.getSupport());
+				}
+			}
+			if(!state.isFinalComplete() && !node.isLeaf()){
+				//Just no more items -> proceed to next trie node
+				for(PatriciaItemTrie.TrieNode childNode: node.collectChildren()) {
+					traverseTrieWithFST(0, childNode, state);
+				}
+			}
+			return;
+		}
+
+
+		//Actual processing of items in node
+		State.ItemStateIterator itemStateIt = new State.ItemStateIterator(ctx.dict.isForest());
+		state.consume(node.getItems().getInt(itemPos), itemStateIt);
+		while(itemStateIt.hasNext()) {
+			final ItemState itemState = itemStateIt.next();
+			final State toState = itemState.state;
+			final int outputItemFid = itemState.itemFid;
+			final int nextItemPos = itemPos + 1;
+
+			if(outputItemFid == 0) { // No output
+				//proceed with next input
+				traverseTrieWithFST(nextItemPos, node, toState);
+			} else {
+				// we got an output! -> check whether it is relevant
+				if (largestFrequentFid >= outputItemFid) {
+					// now append this item to the prefix, continue running the FST/Trie, and remove the item once done
+					currentPrefix.add(outputItemFid);
+					traverseTrieWithFST(nextItemPos, node, toState);
+					currentPrefix.removeInt(currentPrefix.size() - 1);
+				}//else: infrequent -> no further processing of FST from this state, check next state (loop)
+			}
+		}
+	}
+
+	private void traverseOutputTrie(IntList prefix, PatriciaItemTrie.TrieNode node){
 		if(node.isLeaf()){
 			//no children -> store result
 			ctx.patternWriter.write(prefix, node.getSupport());
@@ -207,78 +305,23 @@ public final class DesqPatricia extends DesqMiner {
 					//New recursion step -> copy item list per branch and add already child's items
 					IntList newPrefix = new IntArrayList(prefix);
 					newPrefix.addAll(child.getItems());
-					traverseTrie(newPrefix,child);
+					traverseOutputTrie(newPrefix,child);
 				}
 			}
-			if((node.getSupport() - sumSupport) > sigma){
+			if((node.getSupport() - sumSupport) >= sigma){
 				//the node itself is not a leaf, but defines a valid pattern already!
 				ctx.patternWriter.write(prefix, node.getSupport());
 			}
 		}
 	}
 
+   	// -- accessors to internal data structures (use with care) -------------------------------------------------------
 
+	public Fst getFst() {
+		return fst;
+	}
 
-	/** Simulates the FST starting from the given position and state. Maintains the invariant that the current
-	 * output is stored in {@link #prefix}. Recursive version
-	 *
-	 * @param pos position of next input item
-	 * @param state current state of FST
-	 * @param level recursion level (used for reusing iterators without conflict)
-	 */
-	private void step(int pos, State state, int level) {
-		// stop recursing if we reached a final-complete state or consumed the entire input
-		// and output if we stop at a final state
-		if (state.isFinalComplete() || pos == inputSequence.size()) {
-			if (!prefix.isEmpty() && state.isFinal() && !outputSequenceCache.contains(prefix)) {
-				//add only once per input sequence
-				outputSequenceCache.add(prefix);
-				trie.addItems(prefix); //add relevant itemset to trie
-			}
-			return;
-		}
-
-		// get iterator over next output item/state pairs; reuse existing ones if possible
-		// in two-pass, only iterates over states that we saw in the first pass (the other ones can safely be skipped)
-		final int itemFid = inputSequence.getInt(pos);
-		final BitSet validToStates = useTwoPass
-				? dfaStateSequence.get( inputSequence.size()-(pos+1) ).getFstStates() // only states from first pass
-				: null; // all states
-		State.ItemStateIterator itemStateIt;
-		if (level>=itemStateIterators.size()) {
-			itemStateIt = state.consume(itemFid, new State.ItemStateIterator(ctx.dict.isForest()), validToStates);
-			itemStateIterators.add(itemStateIt);
-		} else {
-			itemStateIt = state.consume(itemFid, itemStateIterators.get(level), validToStates);
-		}
-
-
-		// iterate over output item/state pairs
-		while(itemStateIt.hasNext()) {
-			final ItemState itemState = itemStateIt.next();
-			final State toState = itemState.state;
-			final int outputItemFid = itemState.itemFid;
-
-			if(outputItemFid == 0) { // EPS output
-				// we did not get an output
-				// in the two pass algorithm, we don't need to consider empty-output paths that reach the initial state
-				// because we'll start from those positions later on anyway.
-				if (useTwoPass && prefix.isEmpty() && toState == fst.getInitialState()) {
-					continue;
-				}
-
-				// otherwise, continue with the current prefix
-				final int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
-				step(pos + 1, toState, newLevel);
-			} else {
-				// we got an output; check whether it is relevant
-				if (!useFlist || largestFrequentFid >= outputItemFid) {
-					prefix.add(outputItemFid);
-					final int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
-					step(pos + 1, toState, newLevel);
-					prefix.removeInt(prefix.size() - 1);
-				}
-			}
-		}
+	public Dfa getDfa() {
+		return dfa;
 	}
 }

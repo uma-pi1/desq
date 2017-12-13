@@ -3,19 +3,14 @@ package de.uni_mannheim.desq.mining;
 import de.uni_mannheim.desq.fst.*;
 import de.uni_mannheim.desq.patex.PatExUtils;
 import de.uni_mannheim.desq.util.DesqProperties;
-import de.uni_mannheim.desq.util.PrimitiveUtils;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
-import it.unimi.dsi.fastutil.objects.Object2LongMap;
-import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectSet;
 import org.apache.log4j.Logger;
 
-import java.util.ArrayList;
-import java.util.BitSet;
+import java.util.*;
 
-public final class DesqCount extends DesqMiner {
-	private static final Logger logger = Logger.getLogger(DesqCount.class);
+public final class DesqCountPatricia extends DesqMiner {
+	private static final Logger logger = Logger.getLogger(DesqCountPatricia.class);
 
 	// -- parameters for mining ---------------------------------------------------------------------------------------
 
@@ -23,32 +18,31 @@ public final class DesqCount extends DesqMiner {
 	final long sigma;
 
 	/** The pattern expression used for mining */
-	final String patternExpression;
+	private final String patternExpression;
 
 	/** Whether or not to use the f-list for pruning output sequences that are guaranteed to be infrequent. */
-	final boolean useFlist;
+	private final boolean useFlist;
 
 	/** If true, input sequences that do not match the pattern expression are pruned */
-	final boolean pruneIrrelevantInputs;
+	private final boolean pruneIrrelevantInputs;
 
 	/** If true, the two-pass algorithm is used */
-	final boolean useTwoPass;
+	private final boolean useTwoPass;
 
 
 	// -- helper variables --------------------------------------------------------------------------------------------
 
 	/** Stores the final state transducer  */
-	final Fst fst;
+	private final Fst fst;
 
 	/** Stores the largest fid of an item with frequency at least sigma. Used to quickly determine
 	 * whether an item is frequent (if fid <= largestFrequentFid, the item is frequent */
-	final int largestFrequentFid;
+	private final int largestFrequentFid;
 
 	/** Sequence id of the next input sequence */
-	int inputId;
+	private int inputId;
 
 	// -- helper variables --------------------------------------------------------------------------------------------
-
 	/** The input sequence currenlty processed */
 	IntList inputSequence;
 
@@ -57,7 +51,7 @@ public final class DesqCount extends DesqMiner {
 
 	/** Stores all mined sequences along with their frequency. Each long is composed of a 32-bit integer storing the
 	 * actual count and a 32-bit integer storing the input id of the last input sequence that produced this output.  */
-	final Object2LongOpenHashMap<Sequence> outputSequences = new Object2LongOpenHashMap<>();
+	//final Object2LongOpenHashMap<Sequence> outputSequences = new Object2LongOpenHashMap<>();
 
 	/** Stores iterators over output item/next state pairs for reuse. Indexed by input position. */
 	final ArrayList<State.ItemStateIterator> itemStateIterators = new ArrayList<>();
@@ -68,18 +62,23 @@ public final class DesqCount extends DesqMiner {
 	// -- helper variables for pruning and twopass --------------------------------------------------------------------
 
 	/** The DFA corresponding to the FST (pruning) or reverse FST (two-pass). */
-	final Dfa dfa;
+	private final Dfa dfa;
 
 	/** Sequence of EDFA states for current input (two-pass only) */
-	final ArrayList<DfaState> dfaStateSequence;
+	private final ArrayList<DfaState> dfaStateSequence;
 
 	/** Positions for which dfa reached an initial FST state (two-pass only) */
-	final IntList dfaInitalPos;
+	private final IntList dfaInitalPos;
+
+	/**Trie representing the data **/
+	private PatriciaItemTrie trie;
+
+	private HashSet<IntList> outputSequenceCache;
 
 
 	// -- construction/clearing ---------------------------------------------------------------------------------------
 
-	public DesqCount(DesqMinerContext ctx) {
+	public DesqCountPatricia(DesqMinerContext ctx) {
 		super(ctx);
 		this.sigma = ctx.conf.getLong("desq.mining.min.support");
 		this.useFlist = ctx.conf.getBoolean("desq.mining.use.flist");
@@ -91,7 +90,7 @@ public final class DesqCount extends DesqMiner {
 		this.largestFrequentFid = ctx.dict.lastFidAbove(sigma);
 		this.inputId = 0;
 		prefix = new Sequence();
-		outputSequences.defaultReturnValue(-1L);
+		//outputSequences.defaultReturnValue(-1L);
 
 		// create FST
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
@@ -124,14 +123,17 @@ public final class DesqCount extends DesqMiner {
 		} else {
 			this.dfa = null;
 		}
+
+		// variables for patricia
+		trie = new PatriciaItemTrie();
 	}
 
 	public static DesqProperties createConf(String patternExpression, long sigma) {
 		DesqProperties conf = new DesqProperties();
-		conf.setProperty("desq.mining.miner.class", DesqCount.class.getCanonicalName());
+		conf.setProperty("desq.mining.miner.class", DesqCountPatricia.class.getCanonicalName());
 		conf.setProperty("desq.mining.min.support", sigma);
 		conf.setProperty("desq.mining.pattern.expression", patternExpression);
-		conf.setProperty("desq.mining.use.flist", true);
+		conf.setProperty("desq.mining.use.flist", true); /* use frequency by default -> sorted by Fid if itemset*/
 		conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
 		conf.setProperty("desq.mining.use.lazy.dfa", false);
 		conf.setProperty("desq.mining.use.two.pass", true);
@@ -147,6 +149,7 @@ public final class DesqCount extends DesqMiner {
 		assert prefix.isEmpty(); // will be maintained by stepOnePass()
 		this.inputSequence = sequence;
 		this.inputSupport = support;
+		this.outputSequenceCache = new HashSet<>();
 
 		// two-pass version of DesqCount
 		if (useTwoPass) {
@@ -177,44 +180,56 @@ public final class DesqCount extends DesqMiner {
 
 	@Override
 	public void mine() {
-		// by this time, the result is already stored in outputSequences. We only need to filter out the infrequent
-		// ones.
-		for(Object2LongMap.Entry<Sequence> entry : outputSequences.object2LongEntrySet()) {
-			long value = entry.getLongValue();
-			int support = PrimitiveUtils.getLeft(value);
-			if (support >= sigma) {
-				if (ctx.patternWriter != null) {
-					ctx.patternWriter.write(entry.getKey(), support);
+		// patricia trie already built -> traverse it to generate relevant patterns
+
+		if((trie.getRoot().getSupport() >= sigma) && !trie.getRoot().isLeaf()) {
+			//start recursive trie traversal
+			traverseTrie(new IntArrayList(),trie.getRoot());
+		}
+		//trie.exportGraphViz("trie.pdf");
+	}
+
+	private void traverseTrie(IntList prefix, PatriciaItemTrie.TrieNode node){
+		if(node.isLeaf()){
+			//no children -> store result
+			ctx.patternWriter.write(prefix, node.getSupport());
+		}else{
+			int sumSupport = 0;
+			for(PatriciaItemTrie.TrieNode child: node.collectChildren()){
+				//keep track of total child support
+				sumSupport += node.getSupport();
+				//process child trie only if support is above or equal min support
+				if(child.getSupport() >= sigma){
+					//New recursion step -> copy item list per branch and add already child's items
+					IntList newPrefix = new IntArrayList(prefix);
+					newPrefix.addAll(child.getItems());
+					traverseTrie(newPrefix,child);
 				}
+			}
+			if((node.getSupport() - sumSupport) >= sigma){
+				//the node itself is not a leaf, but defines a valid pattern already!
+				ctx.patternWriter.write(prefix, node.getSupport());
 			}
 		}
 	}
 
-	/** Produces all outputs of the given input sequence that would be generated by DesqCount. Note that if you
-	 * use this method, all inputs added previously will be cleared.
-	 *
-	 * @param inputSequence
-	 * @return
-	 */
-	public ObjectSet<Sequence> mine1(IntList inputSequence, long inputSupport) {
-		outputSequences.clear();
-		addInputSequence(inputSequence, inputSupport, true);
-		return outputSequences.keySet();
-	}
+
 
 	/** Simulates the FST starting from the given position and state. Maintains the invariant that the current
-		 * output is stored in {@link #prefix}. Recursive version
-		 *
-		 * @param pos position of next input item
-		 * @param state current state of FST
-		 * @param level recursion level (used for reusing iterators without conflict)
-		 */
+	 * output is stored in {@link #prefix}. Recursive version
+	 *
+	 * @param pos position of next input item
+	 * @param state current state of FST
+	 * @param level recursion level (used for reusing iterators without conflict)
+	 */
 	private void step(int pos, State state, int level) {
 		// stop recursing if we reached a final-complete state or consumed the entire input
 		// and output if we stop at a final state
 		if (state.isFinalComplete() || pos == inputSequence.size()) {
-			if (!prefix.isEmpty() && state.isFinal()) {
-				countSequence(prefix);
+			if (!prefix.isEmpty() && state.isFinal() && !outputSequenceCache.contains(prefix)) {
+				//add only once per input sequence
+				outputSequenceCache.add(prefix);
+				trie.addItems(prefix); //add relevant itemset to trie
 			}
 			return;
 		}
@@ -254,7 +269,6 @@ public final class DesqCount extends DesqMiner {
 			} else {
 				// we got an output; check whether it is relevant
 				if (!useFlist || largestFrequentFid >= outputItemFid) {
-					// now append this item to the prefix, continue running the FST, and remove the item once done
 					prefix.add(outputItemFid);
 					final int newLevel = level + (itemStateIt.hasNext() ? 1 : 0); // no need to create new iterator if we are done on this level
 					step(pos + 1, toState, newLevel);
@@ -263,25 +277,4 @@ public final class DesqCount extends DesqMiner {
 			}
 		}
 	}
-
-	/** Counts the provided output sequence. Avoids double-counting.
-	 *
-	 * TODO: does not work correctly if supports grow beyond integer size
-	 */
-	private void countSequence(Sequence sequence) {
-		long supSid = outputSequences.getLong(sequence);
-
-		// add sequence if never mined before
-		if (supSid == -1) { // return value when key not present
-			outputSequences.put(new Sequence(sequence), PrimitiveUtils.combine((int)inputSupport, inputId)); // need to copy here
-			return;
-		}
-
-		// otherwise increment frequency when if hasn't been mined from the current input sequence already
-		if (PrimitiveUtils.getRight(supSid) != inputId) {
-			int newCount = PrimitiveUtils.getLeft(supSid) + (int)inputSupport;
-			outputSequences.put(sequence, PrimitiveUtils.combine(newCount, inputId));
-		}
-	}
-
 }

@@ -3,8 +3,8 @@ package de.uni_mannheim.desq.dictionary;
 import de.uni_mannheim.desq.util.DesqProperties;
 
 public class ItemsetBuilderFactory extends DefaultBuilderFactory {
-    private static final String defaultItemsetSeparator = "/";
-    private String itemsetSeparatorSid;
+    private String itemsetSeparatorSid = "/";
+    private boolean sortByFidsAsc = true;
 
     public ItemsetBuilderFactory(Dictionary initialDictionary, String itemsetSeparatorSid){
         super(initialDictionary);
@@ -16,16 +16,19 @@ public class ItemsetBuilderFactory extends DefaultBuilderFactory {
     }
 
     public ItemsetBuilderFactory(Dictionary initialDictionary){
-        this(initialDictionary, defaultItemsetSeparator);
+        super(initialDictionary);
     }
 
-    public ItemsetBuilderFactory(){
-        this(defaultItemsetSeparator);
+    public ItemsetBuilderFactory(){ }
+
+    public ItemsetBuilderFactory sortByFidsAsc(boolean b){
+        sortByFidsAsc = b;
+        return this;
     }
 
     @Override
     public SequenceBuilder createSequenceBuilder() {
-        return new DefaultItemsetBuilder(itemsetSeparatorSid);
+        return new DefaultItemsetBuilder(itemsetSeparatorSid, sortByFidsAsc);
     }
 
     @Override
@@ -39,6 +42,7 @@ public class ItemsetBuilderFactory extends DefaultBuilderFactory {
     public DesqProperties getProperties(){
         DesqProperties p = super.getProperties();
         p.setProperty("desq.dataset.itemset.separator.sid",itemsetSeparatorSid);
+        p.setProperty("desq.dataset.sort.by.fid",(sortByFidsAsc) ? "Asc" : "Desc");
         return p;
     }
 }

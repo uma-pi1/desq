@@ -248,12 +248,14 @@ object ExampleUtils {
     DesqDataset.buildFromStrings(
       sc.textFile(dataPath).map(s => s.split(" ")),
       Option.apply(factory)
-    ).copyWithRecomputedCountsAndFids()
+    )//.copyWithRecomputedCountsAndFids()
   }
 
+  /** Load a .del file containing gid
+    * The corresponding dictionary must be provided via factory as initial dictionary!
+    */
   def buildDesqDatasetFromDelFile( sc: SparkContext,
                                    delFile: String,
-                                   dict: Dictionary,
                                    factory: BuilderFactory): DesqDataset ={
     val file = sc.textFile(delFile) //-> RDD[String]
 
@@ -263,15 +265,8 @@ object ExampleUtils {
       for (token <- tokens) {
         if (!token.isEmpty)
           seqBuilder.appendItem(token.toInt)
-        }
-
-
-      //val s = new IntArrayList()
-      //DelSequenceReader.parseLine(line, s)
-      //dict.sidsOfGids(s).forEach(sid => seqBuilder.appendItem(sid))
-
-      //s.forEach(gid => seqBuilder.appendItem(gid))
+      }
     }
-    build[String](file, parse, Option.apply(factory)).copyWithRecomputedCountsAndFids()
+    build[String](file, parse, Option.apply(factory))//.copyWithRecomputedCountsAndFids()
   }
 }
