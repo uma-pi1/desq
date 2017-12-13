@@ -18,9 +18,11 @@ public class DefaultItemsetBuilder implements SequenceBuilder{
     private List<IntList> gidSets = new ArrayList<>();
     private MutablePair<Integer,Boolean> pair = new MutablePair<>(null, false);
     protected Dictionary dict;
+    private boolean sortByFidsAsc = true;
 
-    public DefaultItemsetBuilder(String separatorSid) {
+    public DefaultItemsetBuilder(String separatorSid, boolean sortByFidsAsc) {
         this.separatorSid = separatorSid;
+        this.sortByFidsAsc = sortByFidsAsc;
     }
     public void setDictionary(Dictionary dict){
         this.dict = dict;
@@ -62,8 +64,9 @@ public class DefaultItemsetBuilder implements SequenceBuilder{
         IntList seqOfSets = new IntArrayList();
         for(IntList set: gidSets){
             set.sort((g1, g2) -> (
-                    //dict.fidOf(g2) - dict.fidOf(g1) //descending Fids
-                    dict.fidOf(g1) - dict.fidOf(g2) //ascending Fids -> desc frequency
+                    (sortByFidsAsc)
+                            ? dict.fidOf(g1) - dict.fidOf(g2) //ascending Fids -> desc frequency
+                            : dict.fidOf(g2) - dict.fidOf(g1) //descending Fids
             ));
             if(!seqOfSets.isEmpty()) seqOfSets.add(separatorGid);
             seqOfSets.addAll(set);

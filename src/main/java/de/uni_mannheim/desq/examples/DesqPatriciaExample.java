@@ -1,6 +1,6 @@
 package de.uni_mannheim.desq.examples;
 
-import de.uni_mannheim.desq.mining.DesqCount;
+import de.uni_mannheim.desq.mining.DesqCountPatricia;
 import de.uni_mannheim.desq.mining.DesqPatricia;
 import de.uni_mannheim.desq.patex.PatExToItemsetPatEx;
 import de.uni_mannheim.desq.util.DesqProperties;

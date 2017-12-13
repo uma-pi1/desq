@@ -30,15 +30,25 @@ public class PerformanceEvaluator {
     private String logFile;
     private MetricLogger log;
     private SparkConf conf;
-    private int printResults = 0;
+    private int print = 0;
+    private boolean usesGids;
+    private DesqDataset data; //references the data of current iteration
+    private SparkContext sc;
 
-    public PerformanceEvaluator(DesqProperties desqMinerConfig, String dataPath, BuilderFactory factory,
-                                Integer printResults, String logFile, PatExTranslator<String> patExTranslator){
+    public PerformanceEvaluator(DesqProperties desqMinerConfig,
+                                String dataPath,
+                                Boolean usesGids,
+                                BuilderFactory factory,
+                                Integer print,
+                                String logFile,
+                                PatExTranslator<String> patExTranslator
+    ){
         this.desqMinerConfigTemplate = desqMinerConfig;
         this.dataPath = dataPath;
+        this.usesGids = usesGids;
         this.factory = factory;
-        if(printResults != null){
-            this.printResults = printResults;
+        if(print != null){
+            this.print = print;
         }
 
         if(logFile != null){
@@ -55,24 +65,34 @@ public class PerformanceEvaluator {
     }
 
     public void run(int iterations){
-        MetricLogger.reset(); //Force re-init of logger
+        //Force re-init of logger
+        MetricLogger.reset();
+        //init spark (once per run)
+        sc = SparkContext.getOrCreate(conf);
         log = MetricLogger.getInstance();
         for(int i = 0; i < iterations; i++) {
             System.out.println("\n == Iteration " + i + " ==" );
             log.startIteration();
-            if(i == 0 && printResults > 0) {
+            if(i == 0 && print > 0) {
                 List<WeightedSequence> result = runIteration().getPatterns();
-                //Print up to 10 patterns
-                System.out.println("Result patterns (up to "+ printResults +"):");
+                //Print up to x inputs and patterns
+                System.out.println("Input data (up to "+ print +"):");
+                data.print(print);
+                System.out.println("Result patterns (up to "+ print +"):");
                 int cnt = 0;
                 for(WeightedSequence ws: result){
-                    System.out.println(ws.toString());
-                    if((cnt += 1) >= printResults) break;
+                    System.out.println(data.dict().sidsOfFids(ws) + "@" + ws.weight);
+                    if((cnt += 1) >= print) break;
                 }
             }else{
                 runIteration();
             }
+            //Cleanup Spark (used for data load via DesqDataset)
+            data.broadcastDictionary().destroy();
+            data = null;
         }
+        //Stop Spark after all iterations
+        sc.stop();
 
 
         //Output log in csv (optional)
@@ -84,7 +104,6 @@ public class PerformanceEvaluator {
     private MemoryPatternWriter runIteration(){
         //Copy config to ensure changes are not passed to next iteration
         DesqProperties minerConf = new DesqProperties(desqMinerConfigTemplate);
-        SparkContext sc = SparkContext.getOrCreate(conf);
 
         // ------- Processing  -------------
         log.start(Metric.TotalRuntime);
@@ -93,7 +112,9 @@ public class PerformanceEvaluator {
         System.out.print("Loading data (" + factory.getClass().getCanonicalName() + ") ... ");
         log.start(Metric.DataLoadRuntime);
         // Init data load via DesqDataset (lazy) via Spark
-        DesqDataset data = ExampleUtils.buildDesqDatasetFromRawFile(sc, dataPath, factory);
+        data = (usesGids)
+                ? ExampleUtils.buildDesqDatasetFromDelFile(sc, dataPath, factory)
+                : ExampleUtils.buildDesqDatasetFromRawFile(sc, dataPath, factory);
 
         //Gather data (via scala/spark)
         List<String[]> cachedSequences = data.toSids().toJavaRDD().collect();
@@ -166,9 +187,6 @@ public class PerformanceEvaluator {
         System.out.println("#Result Patterns: " + log.add(Metric.NumberResultPatterns,result.size()));
 
         System.out.println("TotalRuntime: " + log.stop(Metric.TotalRuntime));
-
-        //Cleanup Spark (used for data load via DesqDataset)
-        sc.stop();
 
         return result;
     }
