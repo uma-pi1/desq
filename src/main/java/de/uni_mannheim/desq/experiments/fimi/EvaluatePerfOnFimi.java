@@ -1,10 +1,7 @@
 package de.uni_mannheim.desq.experiments.fimi;
 
 import de.uni_mannheim.desq.examples.ExampleUtils;
-import de.uni_mannheim.desq.mining.DesqCount;
-import de.uni_mannheim.desq.mining.DesqCountPatricia;
-import de.uni_mannheim.desq.mining.DesqDfs;
-import de.uni_mannheim.desq.mining.DesqPatricia;
+import de.uni_mannheim.desq.mining.*;
 import de.uni_mannheim.desq.util.DesqProperties;
 
 import java.io.IOException;
@@ -63,15 +60,15 @@ public class EvaluatePerfOnFimi {
 
         ExampleUtils.runItemsetPerfEval(
                 getMinerConf(miner,
-                        "A B (.){1,3}", //"A B (.){1,5}"
-                        100),
+                        "(.)", //"A B (.){1,5}"
+                        1000),
                 retail_itemset_data,
                 retail_itemset_dict,
                 false,
                 null,
                 "data-local/log/Fimi_" + miner + "_",
-                5,
-                0,
+                1,
+                50,
                 false, true, false,
                 true
         );
@@ -97,7 +94,7 @@ public class EvaluatePerfOnFimi {
     public static void runIcdm16(Miner miner) throws IOException{
         ExampleUtils.runItemsetPerfEval(
                 getMinerConf(miner,
-                        "(.) (.)",
+                        "B (.){1,3}",
                         2),
                 "data/icdm16-example/data.del",
                 "data/icdm16-example/dict.json",
@@ -105,7 +102,7 @@ public class EvaluatePerfOnFimi {
                 "/",
                 "data-local/log/ItemsetEx_" + miner + "_",
                 1,
-                10,
+                50,
                 false, true, false,
                 true
         );
@@ -114,11 +111,10 @@ public class EvaluatePerfOnFimi {
     public static void main(String[] args) throws IOException{
         //runItemsetExample(Miner.DesqCount);
 
-        runFimi(Miner.DesqPatricia);
-
+        //runFimi(Miner.DesqDfs);
         //runSequentialFimi(Miner.DesqDfs);
 
-        //runIcdm16(Miner.DesqPatricia);
+        runIcdm16(Miner.DesqCount);
 
     }
 }
