@@ -10,8 +10,10 @@ import org.apache.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Iterator;
+import java.util.List;
 
-public final class DesqDfsPatricia extends MemoryDesqMiner {
+public final class DesqDfsPatricia extends DesqMiner {
 	private static final Logger logger = Logger.getLogger(DesqDfsPatricia.class);
 	private static final boolean DEBUG = false;
 	static {
@@ -30,7 +32,7 @@ public final class DesqDfsPatricia extends MemoryDesqMiner {
 	private final boolean pruneIrrelevantInputs;
 
     /** If true, the two-pass algorithm for DesqDfs is used */
-	private final boolean useTwoPass;
+	//private final boolean useTwoPass;
 
 
 	// -- helper variables --------------------------------------------------------------------------------------------
@@ -57,32 +59,32 @@ public final class DesqDfsPatricia extends MemoryDesqMiner {
 	private final Dfa dfa;
 
     /** For each relevant input sequence, the sequence of states taken by dfa (two-pass only) */
-	private final ArrayList<DfaState[]> dfaStateSequences;
+	//private final ArrayList<DfaState[]> dfaStateSequences;
 
     /** A sequence of EDFA states for reuse (two-pass only) */
-	private final ArrayList<DfaState> dfaStateSequence;
+	//private final ArrayList<DfaState> dfaStateSequence;
 
     /** A sequence of positions for reuse (two-pass only) */
-	private final IntList dfaInitialPos;
+	//private final IntList dfaInitialPos;
 
 	// -- implicit arguments for incStep() ----------------------------------------------------------------------------
 
-	/** The ID of the input sequence we are processing */
-	int currentInputId;
+	/** The ID of the input trie node we are processing */
+	private int currentInputId;
 
-	/** The items in the input sequence we are processing */
-	WeightedSequence currentInputSequence;
+	/** The items in the input trie we are processing */
+	private PatriciaItemTrie.TrieNode currentInputNode;
 
 	/** The state sequence of the accepting DFA run for the current intput sequence (two-pass only). */
-	DfaState[] currentDfaStateSequence;
+	//DfaState[] currentDfaStateSequence;
 
 	/** The node in the search tree currently being processed */
-	DesqDfsTreeNode currentNode;
+	private DesqDfsTreeNode currentNode;
 
 	/** For each state/position pair, whether we have reached this state and position without further output
 	 * already. Index of a pair is <code>pos*fst.numStates() + toState.getId()</code>.
 	 */
-	BitSet currentSpReachedWithoutOutput = new BitSet();
+	//private BitSet currentSpReachedWithoutOutput = new BitSet();
 
 	/**Trie representing the data **/
 	private PatriciaItemTrie inputTrie; //stores the input data as patricia trie
@@ -94,7 +96,7 @@ public final class DesqDfsPatricia extends MemoryDesqMiner {
 		sigma = ctx.conf.getLong("desq.mining.min.support");
 		largestFrequentFid = ctx.dict.lastFidAbove(sigma);
 		pruneIrrelevantInputs = ctx.conf.getBoolean("desq.mining.prune.irrelevant.inputs");
-        useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
+        //useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
 		boolean useLazyDfa = ctx.conf.getBoolean("desq.mining.use.lazy.dfa");
 
 		// create FST
@@ -102,7 +104,7 @@ public final class DesqDfsPatricia extends MemoryDesqMiner {
 		this.fst = PatExUtils.toFst(ctx, patternExpression);
 
 		// create two pass auxiliary variables (if needed)
-		if (useTwoPass) { // two-pass
+		/*if (useTwoPass) { // two-pass
             // two-pass will always prune irrelevant input sequences, so notify the user when the corresponding
             // property is not set
 			if (!pruneIrrelevantInputs) {
@@ -125,7 +127,8 @@ public final class DesqDfsPatricia extends MemoryDesqMiner {
 			// construct the DFA for the FST (for the first pass)
 			// the DFA is constructed for the reverse FST
 			this.dfa = Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid, true, useLazyDfa);
-		} else if (pruneIrrelevantInputs) {
+		} else if (pruneIrrelevantInputs) {*/
+		if (pruneIrrelevantInputs){
 			// construct the DFA to prune irrelevant inputs
 			// the DFA is constructed for the forward FST
 			this.dfa = Dfa.createDfa(fst, ctx.dict, largestFrequentFid, false, useLazyDfa);
@@ -155,14 +158,12 @@ public final class DesqDfsPatricia extends MemoryDesqMiner {
 	}
 
 	public void clear() {
-		//inputSequences.clear();
-        //inputSequences.trimToSize();
-        inputTrie.getRoot().removeAllChildren();
-        inputTrie = new PatriciaItemTrie();
-		if (useTwoPass) {
+        inputTrie.clear();
+
+		/*if (useTwoPass) {
 			dfaStateSequences.clear();
             dfaStateSequences.trimToSize();
-		}
+		}*/
 		root.clear();
 		currentNode = root;
 	}
@@ -172,7 +173,7 @@ public final class DesqDfsPatricia extends MemoryDesqMiner {
 	@Override
 	public void addInputSequence(IntList inputSequence, long inputSupport, boolean allowBuffering) {
         // two-pass version of DesqDfs
-        if (useTwoPass) {
+        /*if (useTwoPass) {
             // run the input sequence through the DFA and compute the state sequences as well as the positions from
             // which a final FST state is reached
 			if (dfa.acceptsReverse(inputSequence, dfaStateSequence, dfaInitialPos)) {
@@ -188,13 +189,11 @@ public final class DesqDfsPatricia extends MemoryDesqMiner {
 			}
 			dfaStateSequence.clear();
             return;
-		}
-
+		}*/
 		// one-pass version of DesqDfs
 		if (!pruneIrrelevantInputs || dfa.accepts(inputSequence)) {
 			// if we reach this place, we either don't want to prune irrelevant inputs or the input is relevant
             // -> remember it
-		    //super.addInputSequence(inputSequence, inputSupport, allowBuffering);
 			inputTrie.addItems(inputSequence,inputSupport);
 			while (itemStateIterators.size() < inputSequence.size())
 				itemStateIterators.add(new State.ItemStateIterator(ctx.dict.isForest()));
@@ -211,28 +210,31 @@ public final class DesqDfsPatricia extends MemoryDesqMiner {
 		// run the first incStep; start at all positions from which a final FST state can be reached
 		assert currentNode == root;
 
-		currentInputId = inputSequences.size()-1;
-		currentInputSequence = inputSequences.get(currentInputId);
-		if(useTwoPass) {
-			currentDfaStateSequence = dfaStateSequences.get(currentInputId);
-			currentSpReachedWithoutOutput.clear();
-			for (int i = 0; i < dfaInitialPos.size(); i++) {
-				// for those positions, start with the initial state
-				incStep(dfaInitialPos.getInt(i), fst.getInitialState(), 0, true);
+		//currentInputId = inputSequences.size()-1;
+		//currentInputSequence = inputSequences.get(currentInputId);
+		if((inputTrie.getRoot().getSupport() >= sigma) && !inputTrie.getRoot().isLeaf()) {
+			for(PatriciaItemTrie.TrieNode node: inputTrie.getRoot().collectChildren()) {
+			/*if (useTwoPass) {
+				currentDfaStateSequence = dfaStateSequences.get(currentInputId);
+				currentSpReachedWithoutOutput.clear();
+				for (int i = 0; i < dfaInitialPos.size(); i++) {
+					// for those positions, start with the initial state
+					incStep(dfaInitialPos.getInt(i), fst.getInitialState(), 0, true);
+				}
+			} else {*/
+				// and run the first inc step
+				//currentSpReachedWithoutOutput.clear();
+				incStep(0, fst.getInitialState(), 0, true, node);
+				//}
 			}
-		}else {
-			// and run the first inc step
-			currentSpReachedWithoutOutput.clear();
-			incStep(0, fst.getInitialState(), 0, true);
-		}
 
+			//Proceed as in standard DFS
 
-		//Proceed as in standard DFS
-
-		if (inputTrie.getRoot().getSupport() >= sigma) {
-			// the root has already been processed; now recursively grow the patterns
-			root.pruneInfrequentChildren(sigma);
-			expand(new IntArrayList(), root);
+			if (inputTrie.getRoot().getSupport() >= sigma) {
+				// the root has already been processed; now recursively grow the patterns
+				root.pruneInfrequentChildren(sigma);
+				expand(new IntArrayList(), root);
+			}
 		}
 	}
 
@@ -246,21 +248,47 @@ public final class DesqDfsPatricia extends MemoryDesqMiner {
      *
      * @return true if the FST can accept without further output
      */
-	private boolean incStep(int pos, State state, final int level, final boolean expand) {
+	private boolean incStep(int pos, State state, final int level, final boolean expand, PatriciaItemTrie.TrieNode node) {
 		boolean reachedFinalStateWithoutOutput = false;
 
-pos: 	do { // loop over positions; used for tail recursion optimization
+pos: 	do { // loop over positions; used for tail recursion optimization -> on trie not linear anymore -> recursion needs to split
 			// check if we reached a final complete state or consumed entire input and reached a final state
-			if (state.isFinalComplete() | pos == currentInputSequence.size())
-				return state.isFinal();
+			/*if (state.isFinalComplete() | pos == currentInputSequence.size())
+				return state.isFinal();*/
+			if (state.isFinalComplete()){
+				return state.isFinal(); //should be always true
+			}
+
+			if(pos == node.getItems().size()) {
+				//Check if node is leaf (no childs)
+				if(node.isLeaf()) {
+					return state.isFinal();
+				}else{
+					//No more items in node -> proceed to child trie node(s) (if no leaf already)
+					Iterator<PatriciaItemTrie.TrieNode> it = node.collectChildren().iterator();
+					while (it.hasNext()) {
+
+						PatriciaItemTrie.TrieNode child = it.next();
+						if(it.hasNext()) {
+							reachedFinalStateWithoutOutput |= incStep(0, state, level, expand, child);
+						}else{
+							node = child;
+							pos = 0;
+							//Proceed ...
+						}
+					}
+				}
+			}
+
 
 			// get iterator over next output item/state pairs; reuse existing ones if possible
 			// in two-pass, only iterates over states that we saw in the first pass (the other ones can safely be skipped)
-			final int itemFid = currentInputSequence.getInt(pos);
-			final BitSet validToStates = useTwoPass
+			final int itemFid = node.getItems().getInt(pos);
+			/*final BitSet validToStates = useTwoPass
 					? currentDfaStateSequence[currentInputSequence.size() - (pos + 1)].getFstStates() // only states from first pass
 					: null; // all states
-			final State.ItemStateIterator itemStateIt = state.consume(itemFid, itemStateIterators.get(level), validToStates);
+			final State.ItemStateIterator itemStateIt = state.consume(itemFid, itemStateIterators.get(level), validToStates);*/
+			final State.ItemStateIterator itemStateIt = state.consume(itemFid, itemStateIterators.get(level), null);
 
 			// iterate over output item/state pairs and remember whether we hit the final or finalComplete state without producing output
 			// (i.e., no transitions or only transitions with epsilon output)
@@ -281,24 +309,25 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 					// if we saw this state at this position without output (for this input sequence and for the currently
 					// expanded node) before, we do not need to process it again
-					int spIndex = pos * fst.numStates() + toState.getId();
+					//CANNOT PRUNE HERE IF TRIE -> after this node many other sequences can follow
+					/*int spIndex = pos * fst.numStates() + toState.getId() + node.getId();
 					if (!currentSpReachedWithoutOutput.get(spIndex)) {
 						// haven't seen it, so process
-						currentSpReachedWithoutOutput.set(spIndex);
-						if (itemStateIt.hasNext()) {
-							// recurse
-							reachedFinalStateWithoutOutput |= incStep(pos + 1, toState, level + 1, expand);
-							continue itemState;
-						} else {
-							// tail recurse
-							state = toState;
-							pos++;
-							continue pos;
-						}
+						currentSpReachedWithoutOutput.set(spIndex);*/
+					if (itemStateIt.hasNext()) {
+						// recurse
+						reachedFinalStateWithoutOutput |= incStep(pos + 1, toState, level + 1, expand, node);
+						continue itemState;
+					} else {
+						// tail recurse
+						state = toState;
+						pos++;
+						continue pos;
 					}
+				//	}
 				} else if (expand & largestFrequentFid >= outputItemFid) {
 					// we have an output and its frequent, so update the corresponding projected database
-					currentNode.expandWithItem(outputItemFid, currentInputId, currentInputSequence.weight,
+					currentNode.expandWithItem(outputItemFid, node.getId(), node.getSupport(),
 							pos + 1, toState);
 				}
 				continue itemState;
@@ -330,7 +359,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			// we start with the partial support; may be increased when processing the projected database
 			long support = childNode.partialSupport;
 
-			// set the current (parial) output sequence
+			// set the current (partial) output sequence
 			prefix.set(lastPrefixIndex, childNode.itemFid);
 
 			// print debug information
@@ -350,11 +379,11 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				do {
 					// process next input sequence
 					currentInputId += projectedDatabaseIt.nextNonNegativeInt();
-					currentInputSequence = inputSequences.get(currentInputId);
-					if (useTwoPass) {
+					currentInputNode = inputTrie.getNodeById(currentInputId);
+					/*if (useTwoPass) {
 						currentDfaStateSequence = dfaStateSequences.get(currentInputId);
-					}
-					currentSpReachedWithoutOutput.clear();
+					}*/
+					//currentSpReachedWithoutOutput.clear();
 
 					// iterate over state@pos snapshots for this input sequence
 					boolean reachedFinalStateWithoutOutput = false;
@@ -363,12 +392,12 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 						if (stateId < 0) // if >= 0, then there is only one possible FST state and it's not recorded in the posting list
 							stateId = projectedDatabaseIt.nextNonNegativeInt();
 						final int pos = projectedDatabaseIt.nextNonNegativeInt(); // position of next input item
-						reachedFinalStateWithoutOutput |= incStep(pos, fst.getState(stateId), 0, expand);
+						reachedFinalStateWithoutOutput |= incStep(pos, fst.getState(stateId), 0, expand, currentInputNode);
 					} while (projectedDatabaseIt.hasNext());
 
 					// if we reached a final state without output, increment the support of this child node
 					if (reachedFinalStateWithoutOutput) {
-						support += currentInputSequence.weight;
+						support += currentInputNode.getSupport();
 					}
 
 					// now go to next posting (next input sequence)

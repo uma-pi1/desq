@@ -8,7 +8,7 @@ import java.io.IOException;
 
 public class EvaluatePerfOnFimi {
 
-    public enum Miner {DesqCount, DesqDfs, DesqCountPatricia, DesqPatricia}
+    public enum Miner {DesqCount, DesqDfs, DesqCountPatricia, DesqPatricia, DesqDfsPatricia}
 
     private static final String retail_itemset_data = "data-local/fimi_retail/retail.dat";
     private static final String retail_itemset_dict = "data-local/fimi_retail/dict.json";
@@ -28,6 +28,8 @@ public class EvaluatePerfOnFimi {
                 conf = DesqCountPatricia.createConf(patEx, sigma); break;
             case DesqPatricia:
                 conf = DesqPatricia.createConf(patEx, sigma); break;
+            case DesqDfsPatricia:
+                conf = DesqDfsPatricia.createConf(patEx, sigma); break;
             default: throw new UnsupportedOperationException("Unsupported Miner");
         }
 
@@ -60,15 +62,15 @@ public class EvaluatePerfOnFimi {
 
         ExampleUtils.runItemsetPerfEval(
                 getMinerConf(miner,
-                        "(.)", //"A B (.){1,5}"
-                        1000),
+                        "A B (.){1,3}", //"A B (.){1,5}"
+                        100),
                 retail_itemset_data,
                 retail_itemset_dict,
                 false,
                 null,
                 "data-local/log/Fimi_" + miner + "_",
-                1,
-                50,
+                5,
+                0,
                 false, true, false,
                 true
         );
@@ -94,7 +96,7 @@ public class EvaluatePerfOnFimi {
     public static void runIcdm16(Miner miner) throws IOException{
         ExampleUtils.runItemsetPerfEval(
                 getMinerConf(miner,
-                        "B (.){1,3}",
+                        "(.){1,3}",
                         2),
                 "data/icdm16-example/data.del",
                 "data/icdm16-example/dict.json",
@@ -111,10 +113,10 @@ public class EvaluatePerfOnFimi {
     public static void main(String[] args) throws IOException{
         //runItemsetExample(Miner.DesqCount);
 
-        //runFimi(Miner.DesqDfs);
+        runFimi(Miner.DesqDfs);
         //runSequentialFimi(Miner.DesqDfs);
 
-        runIcdm16(Miner.DesqCount);
+        //runIcdm16(Miner.DesqDfsPatricia);
 
     }
 }
