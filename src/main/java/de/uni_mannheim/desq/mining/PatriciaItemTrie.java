@@ -13,15 +13,37 @@ import java.util.*;
 public class PatriciaItemTrie {
 
     private TrieNode root;
-    public static int nodeCounter = 0;
+    private int currentNodeId;
+
+    private List<TrieNode> nodes;
 
     public PatriciaItemTrie() {
         //init root node with empty list
-        this.root = new TrieNode(new IntArrayList(), (long) 0,false, true);
+        this.nodes = new ArrayList<>();
+        this.currentNodeId = -1;
+        this.root = new TrieNode(new IntArrayList(), (long) 0,false, true, ++currentNodeId);
+        nodes.add(currentNodeId, root);
     }
+
 
     public TrieNode getRoot(){
         return root;
+    }
+
+    public TrieNode getNodeById(int id){
+        return nodes.get(id);
+    }
+
+    public int size(){
+        return currentNodeId + 1;
+    }
+
+    public void clear(){
+        nodes.clear();
+        currentNodeId = -1;
+        root.removeAllChildren();
+        root = new TrieNode(new IntArrayList(), (long) 0,false, true, ++currentNodeId);
+        nodes.add(currentNodeId, root);
     }
 
     public void addItems(IntList fids) {
@@ -54,7 +76,7 @@ public class PatriciaItemTrie {
                 if (currentItem != nodeItem) {
                     //node item and input item differ -> split node and extend with remaining!
                     splitNode(currentNode, nodeItem);
-                    currentNode.setFinal(false); //is only subsequence
+                    currentNode.setFinal(false); //is only sub-sequence
                     //and add new node with remaining input items
                     expandTrie(currentNode, createIntList(currentItem, it),support, producer,true);
                     break; //remaining input added -> finished processing
@@ -137,11 +159,13 @@ public class PatriciaItemTrie {
 
     private TrieNode expandTrie(TrieNode startNode, IntList items, long support, Producer producer, boolean isFinal) {
         //Create new node
-        TrieNode newNode = new TrieNode(items, support,isFinal,true);
+        TrieNode newNode = new TrieNode(items, support,isFinal,true, ++currentNodeId);
         //Set producer if provided
         newNode.addProducer(producer);
         //Set pointer in parent node
         startNode.addChild(newNode);
+        //add new node to list
+        nodes.add(currentNodeId, newNode);
         return newNode;
     }
 
@@ -220,11 +244,11 @@ public class PatriciaItemTrie {
         protected boolean isRelevant; //additional information (used by pattern growth to keep track of relevant outputs)
         protected List<Producer> producers;
 
-        public TrieNode(IntList fids, long support, boolean isFinal, boolean isLeaf) {
+        public TrieNode(IntList fids, long support, boolean isFinal, boolean isLeaf, int id) {
             this.support = support;
             this.isLeaf = isLeaf;
             this.isFinal = isFinal;
-            this.id = ++nodeCounter;
+            this.id = id;
             this.producers = new ArrayList<>();
             this.items = fids;
             this.isRelevant = false;

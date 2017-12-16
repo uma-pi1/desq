@@ -127,7 +127,7 @@ public final class DesqPatricia extends DesqMiner {
 	public void mine() {
 		//pruned input data is stored in patricia trie -> traverse the inputTrie and find frequent input sets
 		if (DEBUG) {
-			System.out.println("Node#:" + PatriciaItemTrie.nodeCounter
+			System.out.println("Trie size:" + inputTrie.size()
 					+ "; Root Support: " + inputTrie.getRoot().getSupport()
 					+ "; 1st Level Children: " + inputTrie.getRoot().childrenCount());
 			inputTrie.exportGraphViz("inputTrie.pdf", ctx.dict, 5);
@@ -161,7 +161,7 @@ public final class DesqPatricia extends DesqMiner {
 			}
 		}
 		if (DEBUG) {
-			System.out.println("Node#:" + PatriciaItemTrie.nodeCounter
+			System.out.println("Trie size:" + outputTrie.size()
 					+ "; Root Support: " + outputTrie.getRoot().getSupport()
 					+ "; 1st Level Children: " + outputTrie.getRoot().childrenCount());
 			outputTrie.exportGraphViz("outputTrie.pdf", ctx.dict, 3);
