@@ -23,6 +23,7 @@ public class MetricLogger {
         StartTimestamp,
         NumberDictionaryItems, NumberInputSequences, AvgLengthInputSequences,
         NumberPatExItems, NumberDistinctPatExItems, NumberResultPatterns,
+        NumberNodeMoves, NumberFstMoves,
         //Runtime Metrics
         DataLoadRuntime,
         PatExTransformationRuntime,
@@ -85,6 +86,16 @@ public class MetricLogger {
 
     public int add(Metric metric, int value){
         metrics.get(metric).put(currentIteration, (long) value);
+        return value;
+    }
+
+    public int addToSum(Metric metric, int value){
+        if(metrics.get(metric).containsKey(currentIteration)) {
+            metrics.get(metric).put(currentIteration,
+                    metrics.get(metric).get(currentIteration) + value);
+        }else{
+            add(metric,value);
+        }
         return value;
     }
 

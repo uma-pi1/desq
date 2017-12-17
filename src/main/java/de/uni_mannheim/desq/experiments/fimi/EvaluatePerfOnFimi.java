@@ -113,7 +113,7 @@ public class EvaluatePerfOnFimi {
     public static void main(String[] args) throws IOException{
         //runItemsetExample(Miner.DesqCount);
 
-        runFimi(Miner.DesqDfs);
+        runFimi(Miner.DesqDfsPatricia);
         //runSequentialFimi(Miner.DesqDfs);
 
         //runIcdm16(Miner.DesqDfsPatricia);
