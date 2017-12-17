@@ -1,25 +1,23 @@
 package de.uni_mannheim.desq.mining;
 
-import de.uni_mannheim.desq.experiments.MetricLogger;
-import de.uni_mannheim.desq.fst.*;
+import de.uni_mannheim.desq.fst.Dfa;
+import de.uni_mannheim.desq.fst.Fst;
+import de.uni_mannheim.desq.fst.ItemState;
+import de.uni_mannheim.desq.fst.State;
 import de.uni_mannheim.desq.patex.PatExUtils;
 import de.uni_mannheim.desq.util.DesqProperties;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
-import it.unimi.dsi.fastutil.objects.AbstractObjectIterator;
-import it.unimi.dsi.fastutil.objects.ObjectIterator;
+import it.unimi.dsi.fastutil.ints.IntListIterator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Iterator;
-import java.util.List;
 
-public final class DesqDfsPatricia extends DesqMiner {
-	private static final Logger logger = Logger.getLogger(DesqDfsPatricia.class);
-	private static final boolean DEBUG = false;
+public final class DesqDfsIndexPatricia extends DesqMiner {
+	private static final Logger logger = Logger.getLogger(DesqDfsIndexPatricia.class);
+	private static final boolean DEBUG = true;
 	static {
 		if (DEBUG) logger.setLevel(Level.TRACE);
 	}
@@ -55,7 +53,7 @@ public final class DesqDfsPatricia extends DesqMiner {
 	private final PostingList.Iterator projectedDatabaseIt = new PostingList.Iterator();
 
 	/** The root node of the search tree. */
-	private final DesqDfsPatriciaTreeNode root;
+	private final DesqDfsTreeNode root;
 
 	// -- helper variables for pruning and twopass --------------------------------------------------------------------
 
@@ -77,13 +75,13 @@ public final class DesqDfsPatricia extends DesqMiner {
 	private int currentInputId;
 
 	/** The items in the input trie we are processing */
-	private PatriciaTrieBasic.TrieNode currentInputNode;
+	//private PatriciaItemTrie.TrieNode currentInputNode;
 
 	/** The state sequence of the accepting DFA run for the current intput sequence (two-pass only). */
 	//DfaState[] currentDfaStateSequence;
 
 	/** The node in the search tree currently being processed */
-	private DesqDfsPatriciaTreeNode currentNode;
+	private DesqDfsTreeNode currentNode;
 
 	/** For each state/position pair, whether we have reached this state and position without further output
 	 * already. Index of a pair is <code>pos*fst.numStates() + toState.getId()</code>.
@@ -91,11 +89,12 @@ public final class DesqDfsPatricia extends DesqMiner {
 	//private BitSet currentSpReachedWithoutOutput = new BitSet();
 
 	/**Trie representing the data **/
-	private PatriciaTrieBasic inputTrie; //stores the input data as patricia trie
+	//private PatriciaItemTrie inputTrie; //stores the input data as patricia trie
+	private IndexPatriciaTrie inputTrie;
 
 	// -- construction/clearing ---------------------------------------------------------------------------------------
 
-	public DesqDfsPatricia(DesqMinerContext ctx) {
+	public DesqDfsIndexPatricia(DesqMinerContext ctx) {
 		super(ctx);
 		sigma = ctx.conf.getLong("desq.mining.min.support");
 		largestFrequentFid = ctx.dict.lastFidAbove(sigma);
@@ -143,15 +142,15 @@ public final class DesqDfsPatricia extends DesqMiner {
 		// other auxiliary variables
 		BitSet initialState = new BitSet(fst.numStates());
 		initialState.set(fst.getInitialState().getId());
-		root = new DesqDfsPatriciaTreeNode(fst, initialState);
+		root = new DesqDfsTreeNode(fst, initialState);
 		currentNode = root;
 
-		inputTrie = new PatriciaTrieBasic();
+		inputTrie = new IndexPatriciaTrie(ctx.dict);
 	}
 
 	public static DesqProperties createConf(String patternExpression, long sigma) {
 		DesqProperties conf = new DesqProperties();
-		conf.setProperty("desq.mining.miner.class", DesqDfsPatricia.class.getCanonicalName());
+		conf.setProperty("desq.mining.miner.class", DesqDfsIndexPatricia.class.getCanonicalName());
 		conf.setProperty("desq.mining.min.support", sigma);
 		conf.setProperty("desq.mining.pattern.expression", patternExpression);
 		conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
@@ -198,7 +197,7 @@ public final class DesqDfsPatricia extends DesqMiner {
 		if (!pruneIrrelevantInputs || dfa.accepts(inputSequence)) {
 			// if we reach this place, we either don't want to prune irrelevant inputs or the input is relevant
             // -> remember it
-			inputTrie.addItems(inputSequence,inputSupport);//,largestFrequentFid);
+			inputTrie.addItems(inputSequence,inputSupport);
 			while (itemStateIterators.size() < inputSequence.size())
 				itemStateIterators.add(new State.ItemStateIterator(ctx.dict.isForest()));
 
@@ -210,14 +209,23 @@ public final class DesqDfsPatricia extends DesqMiner {
 	@Override
 	public void mine() {
 
+		if (DEBUG) {
+			System.out.println("Trie size:" + inputTrie.size()
+					+ "; Root Support: " + inputTrie.getSupport(inputTrie.getRootId())
+					+ "; 1st Level Children: " + inputTrie.getChildren(inputTrie.getRootId()).size());
+			inputTrie.exportGraphViz("inputTrie.pdf", 5);
+			fst.exportGraphViz("fst.pdf");
+		}
+
 		//First IncStep (only possible after complete input trie is built)
 		// run the first incStep; start at all positions from which a final FST state can be reached
 		assert currentNode == root;
 
 		//currentInputId = inputSequences.size()-1;
 		//currentInputSequence = inputSequences.get(currentInputId);
-		if((inputTrie.getRoot().getSupport() >= sigma) && !inputTrie.getRoot().isLeaf()) {
-			for(PatriciaTrieBasic.TrieNode node: inputTrie.getRoot().getChildren()) {
+		int rootId = inputTrie.getRootId();
+		if((inputTrie.getSupport(rootId) >= sigma) && !inputTrie.isLeaf(rootId)) {
+			for(int node: inputTrie.getChildren(rootId)) {
 			/*if (useTwoPass) {
 				currentDfaStateSequence = dfaStateSequences.get(currentInputId);
 				currentSpReachedWithoutOutput.clear();
@@ -234,7 +242,7 @@ public final class DesqDfsPatricia extends DesqMiner {
 
 			//Proceed as in standard DFS
 
-			if (inputTrie.getRoot().getSupport() >= sigma) {
+			if (inputTrie.getSupport(rootId) >= sigma) {
 				// the root has already been processed; now recursively grow the patterns
 				root.pruneInfrequentChildren(sigma);
 				expand(new IntArrayList(), root);
@@ -252,7 +260,7 @@ public final class DesqDfsPatricia extends DesqMiner {
      *
      * @return true if the FST can accept without further output
      */
-	private boolean incStep(int pos, State state, final int level, final boolean expand, PatriciaTrieBasic.TrieNode node) {
+	private boolean incStep(int pos, State state, final int level, final boolean expand, int node) {
 		boolean reachedFinalStateWithoutOutput = false;
 
 pos: 	do { // loop over positions; used for tail recursion optimization -> on trie not linear anymore -> recursion needs to split
@@ -263,20 +271,16 @@ pos: 	do { // loop over positions; used for tail recursion optimization -> on tr
 				return state.isFinal(); //should be always true
 			}
 
-			if(pos == node.getItems().size()) {
-				//Check if input trie node is leaf (no children) -> end of processing
-				if(node.isLeaf()) {
+			if(pos == inputTrie.getItems(node).size()) {
+				//Check if node is leaf (no childs)
+				if(inputTrie.isLeaf(node)) {
 					return state.isFinal();
 				}else{
-					//No more items in node -> proceed to child trie node(s)
-					final Iterator<PatriciaTrieBasic.TrieNode> it = node.getChildren().iterator();
-					//ObjectIterator<Int2ObjectMap.Entry<PatriciaTrieBasic.TrieNode>> it = node.getChildrenIterator();
-					//AbstractObjectIterator<PatriciaTrieBasic.TrieNode> it = node.getChildrenIterator(largestFrequentFid);
-					//if (!it.hasNext()) return state.isFinal();
+					//No more items in node -> proceed to child trie node(s) (if no leaf already)
+					IntListIterator it = inputTrie.getChildren(node).iterator();
 					while (it.hasNext()) {
 
-						final PatriciaTrieBasic.TrieNode child = it.next();//.getValue();
-						//MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberNodeMoves,1);
+						int child = it.next();
 						if(it.hasNext()) {
 							reachedFinalStateWithoutOutput |= incStep(0, state, level, expand, child);
 						}else{
@@ -291,7 +295,7 @@ pos: 	do { // loop over positions; used for tail recursion optimization -> on tr
 
 			// get iterator over next output item/state pairs; reuse existing ones if possible
 			// in two-pass, only iterates over states that we saw in the first pass (the other ones can safely be skipped)
-			final int itemFid = node.getItems().getInt(pos);
+			final int itemFid = inputTrie.getItem(node, pos);
 			/*final BitSet validToStates = useTwoPass
 					? currentDfaStateSequence[currentInputSequence.size() - (pos + 1)].getFstStates() // only states from first pass
 					: null; // all states
@@ -318,11 +322,10 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					// if we saw this state at this position without output (for this input sequence and for the currently
 					// expanded node) before, we do not need to process it again
 					//CANNOT PRUNE HERE IF TRIE -> after this node many other sequences can follow
-					//int spIndex = pos * fst.numStates() + toState.getId() + node.getId();
-					//if (!currentSpReachedWithoutOutput.get(spIndex)) {
+					/*int spIndex = pos * fst.numStates() + toState.getId() + node.getId();
+					if (!currentSpReachedWithoutOutput.get(spIndex)) {
 						// haven't seen it, so process
-					//	currentSpReachedWithoutOutput.set(spIndex);
-					//MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberFstMoves,1);
+						currentSpReachedWithoutOutput.set(spIndex);*/
 					if (itemStateIt.hasNext()) {
 						// recurse
 						reachedFinalStateWithoutOutput |= incStep(pos + 1, toState, level + 1, expand, node);
@@ -336,7 +339,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				//	}
 				} else if (expand & largestFrequentFid >= outputItemFid) {
 					// we have an output and its frequent, so update the corresponding projected database
-					currentNode.expandWithItem(outputItemFid, node.getId(), node.getSupport(),
+					currentNode.expandWithItem(outputItemFid, node, inputTrie.getSupport(node),
 							pos + 1, toState);
 				}
 				continue itemState;
@@ -354,13 +357,13 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
      * @param node the node whose children to expand
      */
 
-	private void expand(IntList prefix, DesqDfsPatriciaTreeNode node) {
+	private void expand(IntList prefix, DesqDfsTreeNode node) {
 		// add a placeholder to prefix for the output item of the child being expanded
 		final int lastPrefixIndex = prefix.size();
 		prefix.add(-1);
 
 		// iterate over all children
-		for (final DesqDfsPatriciaTreeNode childNode : node.childrenByFid.values() )  {
+		for (final DesqDfsTreeNode childNode : node.childrenByFid.values() )  {
 			assert childNode.partialSupport + childNode.prefixSupport >= sigma;
 
 			// while we expand the child node, we also compute its actual support to determine whether or not
@@ -388,7 +391,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				do {
 					// process next input sequence
 					currentInputId += projectedDatabaseIt.nextNonNegativeInt();
-					currentInputNode = inputTrie.getNodeById(currentInputId);
+					//currentInputNode = inputTrie.getNodeById(currentInputId);
 					/*if (useTwoPass) {
 						currentDfaStateSequence = dfaStateSequences.get(currentInputId);
 					}*/
@@ -401,12 +404,12 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 						if (stateId < 0) // if >= 0, then there is only one possible FST state and it's not recorded in the posting list
 							stateId = projectedDatabaseIt.nextNonNegativeInt();
 						final int pos = projectedDatabaseIt.nextNonNegativeInt(); // position of next input item
-						reachedFinalStateWithoutOutput |= incStep(pos, fst.getState(stateId), 0, expand, currentInputNode);
+						reachedFinalStateWithoutOutput |= incStep(pos, fst.getState(stateId), 0, expand, currentInputId);
 					} while (projectedDatabaseIt.hasNext());
 
 					// if we reached a final state without output, increment the support of this child node
 					if (reachedFinalStateWithoutOutput) {
-						support += currentInputNode.getSupport();
+						support += inputTrie.getSupport(currentInputId);
 					}
 
 					// now go to next posting (next input sequence)
