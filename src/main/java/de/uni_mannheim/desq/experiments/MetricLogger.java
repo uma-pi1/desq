@@ -23,7 +23,7 @@ public class MetricLogger {
         StartTimestamp,
         NumberDictionaryItems, NumberInputSequences, AvgLengthInputSequences,
         NumberPatExItems, NumberDistinctPatExItems, NumberResultPatterns,
-        NumberNodeMoves, NumberFstMoves,
+        NumberNodeMoves, NumberFstTransitions, NumberExpands,
         //Runtime Metrics
         DataLoadRuntime,
         PatExTransformationRuntime,

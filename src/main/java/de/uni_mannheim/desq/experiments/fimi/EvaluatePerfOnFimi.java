@@ -62,14 +62,14 @@ public class EvaluatePerfOnFimi {
 
         ExampleUtils.runItemsetPerfEval(
                 getMinerConf(miner,
-                        "A B (.){1,3}", //"A B (.){1,5}"
+                        "A B (.){1,3}", //"(.) (.)", //"A B (.){1,3}", //"A B (.){1,5}"
                         100),
-                retail_itemset_data,
-                retail_itemset_dict,
+                retail_itemset_data, retail_itemset_dict,
+                //click_itemset_data, null,
                 false,
                 null,
                 "data-local/log/Fimi_" + miner + "_",
-                5,
+                2,
                 0,
                 false, true, false,
                 true
@@ -96,13 +96,13 @@ public class EvaluatePerfOnFimi {
     public static void runIcdm16(Miner miner) throws IOException{
         ExampleUtils.runItemsetPerfEval(
                 getMinerConf(miner,
-                        "(.){1,3}",
+                        "[c|d] (.){1,3} A",//"(.){1,3}",
                         2),
                 "data/icdm16-example/data.del",
                 "data/icdm16-example/dict.json",
                 true,
                 "/",
-                "data-local/log/ItemsetEx_" + miner + "_",
+                "data-local/log/icdm16Ex_" + miner + "_",
                 1,
                 50,
                 false, true, false,
@@ -116,7 +116,7 @@ public class EvaluatePerfOnFimi {
         runFimi(Miner.DesqDfsPatricia);
         //runSequentialFimi(Miner.DesqDfs);
 
-        //runIcdm16(Miner.DesqDfsPatricia);
+        //runIcdm16(Miner.DesqDfs);
 
     }
 }

@@ -4,6 +4,7 @@ import de.uni_mannheim.desq.Desq;
 import de.uni_mannheim.desq.dictionary.BuilderFactory;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.examples.spark.ExampleUtils;
+import de.uni_mannheim.desq.io.CountPatternWriter;
 import de.uni_mannheim.desq.io.MemoryPatternWriter;
 import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.mining.DesqMiner;
@@ -73,23 +74,25 @@ public class PerformanceEvaluator {
         for(int i = 0; i < iterations; i++) {
             System.out.println("\n == Iteration " + i + " ==" );
             log.startIteration();
+            MemoryPatternWriter result = runIteration();
+            System.out.println("Sum of result pattern weights: " +
+                    result.getPatterns().stream().mapToLong(ws -> ws.weight).sum());
             if(i == 0 && print > 0) {
-                List<WeightedSequence> result = runIteration().getPatterns();
                 //Print up to x inputs and patterns
-                System.out.println("Input data (up to "+ print +"):");
+                System.out.println("Input data (up to " + print + "):");
                 data.print(print);
-                System.out.println("Result patterns (up to "+ print +"):");
+                System.out.println("Result patterns (up to " + print + "):");
                 int cnt = 0;
-                for(WeightedSequence ws: result){
+                for (WeightedSequence ws : result.getPatterns()) {
                     System.out.println(data.dict().sidsOfFids(ws) + "@" + ws.weight);
-                    if((cnt += 1) >= print) break;
+                    if ((cnt += 1) >= print) break;
                 }
-            }else{
-                runIteration();
             }
+
             //Cleanup Spark (used for data load via DesqDataset)
             data.broadcastDictionary().destroy();
             data = null;
+            result.close();
         }
         //Stop Spark after all iterations
         sc.stop();

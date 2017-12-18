@@ -117,9 +117,9 @@ final class DesqDfsPatriciaTreeNode {
 	/** Expands this node with an item.
 	 *
 	 * @param outputFid the item fid of the child
-	 * @param inputId input sequence id
-	 * @param inputSupport support of the input sequence
-	 * @param position position in the input sequence
+	 * @param inputId input trie node id
+	 * @param inputSupport support of the input trie node
+	 * @param position position in the input trie node
 	 * @param state state of the FST
 	 */
 	void expandWithItem(final int outputFid, final int inputId, final long inputSupport,
@@ -188,21 +188,22 @@ final class DesqDfsPatriciaTreeNode {
                                         final long inputSupport, final int position, final int stateId) {
 		assert stateId < fst.numStates();
 		assert child.possibleStates.get(stateId);
-		final int spIndex = position*fst.numStates() + stateId;
+//		final int spIndex = position*fst.numStates() + stateId;
 		if (child.projectedDatabaseCurrentInputId != inputId) {
 			// start a new posting
 			child.projectedDatabase.newPosting();
-			child.currentSnapshots.clear();
+//			child.currentSnapshots.clear();
 			child.prefixSupport += inputSupport;
-			child.currentSnapshots.set(spIndex);
-			child.projectedDatabase.addNonNegativeInt(inputId-child.projectedDatabaseCurrentInputId);
+//			child.currentSnapshots.set(spIndex);
+//			child.projectedDatabase.addNonNegativeInt(inputId-child.projectedDatabaseCurrentInputId);
+			child.projectedDatabase.addNonNegativeInt(inputId);
 			child.projectedDatabaseCurrentInputId = inputId;
 			if (child.possibleState < 0)
 				child.projectedDatabase.addNonNegativeInt(stateId);
 			child.projectedDatabase.addNonNegativeInt(position);
-		} else if (!child.currentSnapshots.get(spIndex)) {
-		//} else {
-			child.currentSnapshots.set(spIndex);
+//		} else if (!child.currentSnapshots.get(spIndex)) {
+		} else {
+//			child.currentSnapshots.set(spIndex);
 			if (child.possibleState < 0)
 				child.projectedDatabase.addNonNegativeInt(stateId);
 			child.projectedDatabase.addNonNegativeInt(position);
