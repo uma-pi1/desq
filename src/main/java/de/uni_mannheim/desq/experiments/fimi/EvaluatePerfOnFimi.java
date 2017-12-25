@@ -34,7 +34,7 @@ public class EvaluatePerfOnFimi {
         }
 
         conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
-        conf.setProperty("desq.mining.use.two.pass", false); // has to be set for DesqCount due to bug
+        conf.setProperty("desq.mining.use.two.pass", true); // has to be set for DesqCount due to bug
         conf.setProperty("desq.mining.optimize.permutations", true);
 
         return conf;
@@ -96,7 +96,8 @@ public class EvaluatePerfOnFimi {
     public static void runIcdm16(Miner miner) throws IOException{
         ExampleUtils.runItemsetPerfEval(
                 getMinerConf(miner,
-                        "[c|d] (.){1,3} A",//"(.){1,3}",
+                        "[c|d] (.){1,3} A",
+                        //"(.){1,3}",
                         2),
                 "data/icdm16-example/data.del",
                 "data/icdm16-example/dict.json",
@@ -116,7 +117,8 @@ public class EvaluatePerfOnFimi {
         runFimi(Miner.DesqDfsPatricia);
         //runSequentialFimi(Miner.DesqDfs);
 
-        //runIcdm16(Miner.DesqDfs);
+        //runIcdm16(Miner.DesqDfsPatricia);
+        //runIcdm16(Miner.DesqCount);
 
     }
 }
