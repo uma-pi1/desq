@@ -4,6 +4,7 @@ import java.util
 import java.util.{Collections, Comparator}
 
 import de.uni_mannheim.desq.dictionary.Dictionary
+import de.uni_mannheim.desq.mining.WeightedSequence
 import de.uni_mannheim.desq.util.DesqProperties
 import org.apache.spark.SparkContext
 import org.junit.runner.RunWith
@@ -25,11 +26,11 @@ class Icdm16TraditionalMiningTest(sigma: Long, gamma: Int, lambda: Int, generali
     override def testDirectoryName = getClass.getSimpleName
 
     /** The data */
-    override def getDataset()(implicit sc: SparkContext): DesqDataset = Icdm16TraditionalMiningTest.getDataset()
+    override def getDataset()(implicit sc: SparkContext): DesqDataset[WeightedSequence] = Icdm16TraditionalMiningTest.getDataset()
 }
 
 object Icdm16TraditionalMiningTest {
-    var dataset: DesqDataset = _
+    var dataset: DesqDataset[WeightedSequence] = _
 
     @Parameterized.Parameters(name = "Icdm16TraditionalMiningTest-{4}-{0}-{1}-{2}-{3}-")
     def data(): util.Collection[Array[Object]] = {
@@ -52,7 +53,7 @@ object Icdm16TraditionalMiningTest {
     }
 
     /** The data */
-    def getDataset()(implicit sc: SparkContext): DesqDataset = {
+    def getDataset()(implicit sc: SparkContext): DesqDataset[WeightedSequence] = {
         if (dataset == null) {
             val dictFile = this.getClass.getResource("/icdm16-example/dict.json")
             val dataFile = this.getClass.getResource("/icdm16-example/data.del")
