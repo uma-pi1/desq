@@ -1,0 +1,7 @@
+Anna lives in Melbourne
+Anna likes Bob
+Bob lives in Berlin
+Cathy loves Paris
+Cathy likes Dave
+Dave loves London
+Eddie lives in New York City

@@ -10,8 +10,9 @@
 {"fid":10,"gid":10,"sid":"Paris","dfreq":0,"cfreq":0,"parentGids":[7],"noChildren":0,"properties":[]}
 {"fid":11,"gid":11,"sid":"London","dfreq":0,"cfreq":0,"parentGids":[7],"noChildren":0,"properties":[]}
 {"fid":12,"gid":12,"sid":"New York City","dfreq":0,"cfreq":0,"parentGids":[7],"noChildren":0,"properties":[]}
-{"fid":13,"gid":13,"sid":"VERB","dfreq":0,"cfreq":0,"parentGids":[],"noChildren":2,"properties":[]}
+{"fid":13,"gid":13,"sid":"VERB","dfreq":0,"cfreq":0,"parentGids":[],"noChildren":3,"properties":[]}
 {"fid":14,"gid":14,"sid":"lives","dfreq":0,"cfreq":0,"parentGids":[13],"noChildren":0,"properties":[]}
-{"fid":15,"gid":15,"sid":"loves","dfreq":0,"cfreq":0,"parentGids":[13],"noChildren":0,"properties":[]}
-{"fid":16,"gid":16,"sid":"PREP","dfreq":0,"cfreq":0,"parentGids":[],"noChildren":1,"properties":[]}
-{"fid":17,"gid":17,"sid":"in","dfreq":0,"cfreq":0,"parentGids":[16],"noChildren":0,"properties":[]}
+{"fid":15,"gid":15,"sid":"likes","dfreq":0,"cfreq":0,"parentGids":[13],"noChildren":0,"properties":[]}
+{"fid":16,"gid":16,"sid":"loves","dfreq":0,"cfreq":0,"parentGids":[13],"noChildren":0,"properties":[]}
+{"fid":17,"gid":17,"sid":"PREP","dfreq":0,"cfreq":0,"parentGids":[],"noChildren":1,"properties":[]}
+{"fid":18,"gid":18,"sid":"in","dfreq":0,"cfreq":0,"parentGids":[17],"noChildren":0,"properties":[]}
