@@ -1,6 +1,6 @@
 package de.uni_mannheim.desq.examples.readme
 
-import de.uni_mannheim.desq.mining.spark.{DesqCount, DesqDataset, DesqMiner, DesqMinerContext}
+import de.uni_mannheim.desq.mining.spark._
 import org.apache.spark.{SparkConf, SparkContext}
 
 object DesqExample {

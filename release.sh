@@ -20,7 +20,7 @@ echo
 
 mvn clean package
 
-# create the -spark jar without cleaning the old jars
+# create the -no-spark jar without cleaning the old jars
 
 mvn package -Pprovided
 
@@ -62,5 +62,5 @@ UPLOAD_ID=$(curl --user $GITHUB_USERNAME:$GITHUB_TOKEN -X POST -d '{
 # upload release assets (https://developer.github.com/v3/repos/releases/#upload-a-release-asset)
 
 curl --user $GITHUB_USERNAME:$GITHUB_TOKEN -H "Content-Type: application/java-archive" --data-binary @$PREFIX-$BRANCH-$TIMESTAMP.jar -X POST "https://uploads.github.com/repos/rgemulla/desq/releases/$UPLOAD_ID/assets?name=$PREFIX-$BRANCH-$TIMESTAMP.jar"
-curl --user $GITHUB_USERNAME:$GITHUB_TOKEN -H "Content-Type: application/java-archive" --data-binary @$PREFIX-$BRANCH-$TIMESTAMP-spark.jar -X POST "https://uploads.github.com/repos/rgemulla/desq/releases/$UPLOAD_ID/assets?name=$PREFIX-$BRANCH-$TIMESTAMP-spark.jar"
+curl --user $GITHUB_USERNAME:$GITHUB_TOKEN -H "Content-Type: application/java-archive" --data-binary @$PREFIX-$BRANCH-$TIMESTAMP-no-spark.jar -X POST "https://uploads.github.com/repos/rgemulla/desq/releases/$UPLOAD_ID/assets?name=$PREFIX-$BRANCH-$TIMESTAMP-no-spark.jar"
 curl --user $GITHUB_USERNAME:$GITHUB_TOKEN -H "Content-Type: application/java-archive" --data-binary @$PREFIX-$BRANCH-$TIMESTAMP-full.jar -X POST "https://uploads.github.com/repos/rgemulla/desq/releases/$UPLOAD_ID/assets?name=$PREFIX-$BRANCH-$TIMESTAMP-full.jar"
