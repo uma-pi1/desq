@@ -93,6 +93,7 @@ public class PerformanceEvaluator {
             data.broadcastDictionary().destroy();
             data = null;
             result.close();
+
         }
         //Stop Spark after all iterations
         sc.stop();

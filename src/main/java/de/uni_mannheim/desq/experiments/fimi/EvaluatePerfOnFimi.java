@@ -30,7 +30,7 @@ public class EvaluatePerfOnFimi {
                 break;
             case DesqCountPatricia:
                 conf = DesqCountPatricia.createConf(patEx, sigma);
-
+                conf.setProperty("desq.mining.use.two.pass", false);
                 break;
             case DesqPatricia:
                 conf = DesqPatricia.createConf(patEx, sigma);

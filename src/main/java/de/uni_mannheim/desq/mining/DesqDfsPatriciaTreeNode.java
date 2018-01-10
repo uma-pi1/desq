@@ -5,16 +5,10 @@ package de.uni_mannheim.desq.mining;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.State;
 import it.unimi.dsi.fastutil.ints.*;
-import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
-import javafx.geometry.Pos;
 
-import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.HashMap;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * DesqDfsTreeNode.java
@@ -47,9 +41,14 @@ final class DesqDfsPatriciaTreeNode {
 
 	/** The partial support of this node = number of distinct input sequences that hit a final complete state and
 	 * for which there are no further expansions. Computed while expanding this node's parent.
-	 *
-	 * CHANGED: contains support of non-final states -> need to hit final state during next expansion!*/
+	 */
 	long partialSupport;
+
+	/** the potential support tracks the sum of support nodes which did not reach a final state yet.
+	 * They must be confirmed during next expansion. This value is just an estimation because sequences may be counted
+	 * multiple times (if child node was already counted)
+	 */
+	long potentialSupport;
 
 	/** The projected database associated with this node. Computed while expanding this node's parent,
 	 * and cleared after this node has been expanded. */
@@ -79,7 +78,7 @@ final class DesqDfsPatriciaTreeNode {
 
 	/** Buffers all snapshots of the current input sequence in the projected database. Used to avoid adding duplicate
 	 * snapshots. Index of a snapshot is <code>position*nodeId*fst.numStates() + stateId</code>. */
-	BitSet currentSnapshots;
+	//BitSet currentSnapshots;
 
 
 	/** Whether a final state was reached already for this input node **/
@@ -91,26 +90,11 @@ final class DesqDfsPatriciaTreeNode {
 	/** keep track of input node supports **/
 	Int2LongOpenHashMap relevantNodeSupports;
 
+	//private Int2ObjectMap<BitSet> currentSnapshotsByInput;
 
-	/** projection */
-	//ArrayList<PostingList> projection;
-	//PostingList[] projection;
-
-	Int2ObjectMap<BitSet> currentSnapshotsByInput;
-
-	BitSet nodesWithOutput; //keep track of nodes producing this output (itemFid)
-
-	// -- Assumptions --
-	// - only Itemsets -> sorted by fid
-	// - no generalization -> no duplicate items
-	// -> an item can only be produced once in a sequence
-	// -> an item cannot re-occur in sub-trie of a child node! -> removing duplicates of a node is sufficient
-
+	//BitSet nodesWithOutput; //keep track of nodes producing this output (itemFid)
 
 	// -- construction and clearing -----------------------------------------------------------------------------------
-	/*DesqDfsPatriciaTreeNode(Fst fst, BitSet possibleStates) {
-		this(fst,possibleStates,0);
-	}*/
 
 	DesqDfsPatriciaTreeNode(Fst fst, BitSet possibleStates, int inputTrieSize) {
 		this.inputTrieSize = inputTrieSize;
@@ -121,6 +105,7 @@ final class DesqDfsPatriciaTreeNode {
 		} else {
 			possibleState = -1;
 		}*/
+		projectedDatabase = new PostingList();
 		//currentSnapshots = new BitSet(fst.numStates()*16);
 		//currentSnapshots = new BitSet(inputTrieSize * fst.numStates() * 2);
 		//currentSnapshotsByInput = new BitSet[inputTrieSize];
@@ -129,8 +114,8 @@ final class DesqDfsPatriciaTreeNode {
 		//projection = new ArrayList<>(inputTrieSize);
 		//projection = new PostingList[inputTrieSize];
 
-		currentSnapshotsByInput = new Int2ObjectOpenHashMap<>();
-		nodesWithOutput = new BitSet();
+		//currentSnapshotsByInput = new Int2ObjectOpenHashMap<>();
+		//nodesWithOutput = new BitSet();
 
 		relevantNodeSupports = new Int2LongOpenHashMap();
 		clear();
@@ -140,20 +125,20 @@ final class DesqDfsPatriciaTreeNode {
 		// clear the posting list
 		itemFid = -1;
 		//prefixSupport = 0;
-		partialSupport = 0;
+		potentialSupport = 0;
 		projectedDatabaseCurrentInputId = -1;
 		currentInputId = -1;
 		//reachedFinalCompleteState = false;
 		//reachedNonFinalCompleteState = false;
-		projectedDatabase = new PostingList();
+		projectedDatabase.clear();
 		reachedFinalStateAtInputId.clear();
 		reachedNonFinalStateAtInputId.clear();
 		//projection.clear();
 		//projection = new PostingList[inputTrieSize];
 		//currentSnapshotsByInput = new BitSet[inputTrieSize];
 		//currentSnapshots.clear();
-		currentSnapshotsByInput.clear();
-		nodesWithOutput.clear();
+		//currentSnapshotsByInput.clear();
+		//nodesWithOutput.clear();
 
 		relevantNodeSupports.clear();
 		// clear the children
@@ -168,10 +153,10 @@ final class DesqDfsPatriciaTreeNode {
 	public void invalidate() {
 		projectedDatabase = null;
 		childrenByFid = null;
-		currentSnapshots = null;
+		//currentSnapshots = null;
 		//projection = null;
-		currentSnapshotsByInput = null;
-		nodesWithOutput = null;
+		//currentSnapshotsByInput = null;
+		//nodesWithOutput = null;
 		relevantNodeSupports = null;
 	}
 
@@ -203,18 +188,18 @@ final class DesqDfsPatriciaTreeNode {
 
 		//Handle supports:
 		if(state.isFinal()){
-			if(!child.reachedFinalStateAtInputId.get(inputNodeId)) {
-				child.finalStateReached(inputNode);
-			}
+			child.finalStateReached(inputNode);
 		}else{
-			//Check if final or not final already reached
-			if(!child.reachedFinalStateAtInputId.get(inputNodeId)
-					&& !child.reachedNonFinalStateAtInputId.get(inputNodeId)) {
-				//store potential support (not yet reached final state) as partial support
+			//If not (non) final already reached...
+			if(!child.reachedNonFinalStateAtInputId.get(inputNodeId)
+					&& !child.reachedFinalStateAtInputId.get(inputNodeId)) {
+				//..remember to avoid multiple processing...
 				child.reachedNonFinalStateAtInputId.set(inputNodeId);
-				if(!child.reachedNonFinalStateAtInputId.intersects(inputNode.descendants))
-					child.partialSupport += inputNode.getSupport();
-				//relevantNodeSupports.put(inputNodeId, inputSupport);
+				//... check that not any ancestor/parent was recorded already...
+				/*if(!child.reachedNonFinalStateAtInputId.intersects(inputNode.ancestors) ||
+						!child.reachedFinalStateAtInputId.intersects(inputNode.ancestors))*/
+					//... and increase the potential support
+					child.potentialSupport += inputNode.getSupport();
 			}
 
 		}
@@ -226,94 +211,49 @@ final class DesqDfsPatriciaTreeNode {
 		}
 
 
-
-		/*
-		if (child.currentInputId == inputId) {
-			// we continue with the same input sequence
-			if (state.isFinalComplete()) {
-				// process final complete state
-				if (child.reachedFinalCompleteState) {
-					// we already recorded a final complete state for this input, so we don't need to record another one
-					return;
-				} else {
-					// otherwise we remember it
-					child.reachedFinalCompleteState = true;
-					if (child.reachedNonFinalCompleteState) {
-						// either in the projected database
-						addToProjectedDatabase(child, inputId, inputSupport, position, stateId);
-					} else {
-						// or as a part of partial support (here we avoid writing unnecessary information to the
-						// projected database)
-						child.partialSupport += inputSupport;
-						child.finalCompletePosition = position;
-						child.finalCompleteStateId = stateId;
-					}
-				}
-			} else {
-				// process non-final complete state
-				if (child.reachedFinalCompleteState & !child.reachedNonFinalCompleteState) {
-					// we hit a non final complete state after a final complete one -> put one entry for the prior final
-					// complete state in the projected database and remove it from the partial support
-					child.partialSupport -= inputSupport;
-					addToProjectedDatabase(child, inputId, inputSupport, child.finalCompletePosition,
-							child.finalCompleteStateId);
-				}
-				child.reachedNonFinalCompleteState = true;
-				addToProjectedDatabase(child, inputId, inputSupport, position, stateId);
-			}
-		} else {
-			// process new input sequence
-			child.currentInputId = inputId;
-			if (state.isFinalComplete()) {
-				child.reachedFinalCompleteState = true;
-				child.reachedNonFinalCompleteState = false;
-				child.partialSupport += inputSupport;
-				child.finalCompleteStateId = stateId;
-				child.finalCompletePosition = position;
-			} else {
-				child.reachedFinalCompleteState = false;
-				child.reachedNonFinalCompleteState = true;
-				addToProjectedDatabase(child, inputId, inputSupport, position, stateId);
-			}
-		}*/
 	}
 
 	public void finalStateReached(PatriciaTrieBasic.TrieNode inputNode){
 		final int inputNodeId = inputNode.getId();
 		final long inputSupport = inputNode.getSupport();
-		//handle a valid final state in FST -> remember it to avoid multiple counts of support
-		reachedFinalStateAtInputId.set(inputNodeId);
 
-		//Check that no ancestor was counted already
-		if(!reachedFinalStateAtInputId.intersects(inputNode.ancestors)) {
-			//add support to prefix support
-			//child.prefixSupport += inputSupport;
-			//Remember support
-			relevantNodeSupports.put(inputNodeId, inputSupport);
-		}
+		if(!reachedFinalStateAtInputId.get(inputNodeId)) {
+			//handle a valid final state in FST -> remember it to avoid multiple processing of it
+			reachedFinalStateAtInputId.set(inputNodeId);
 
-		//check if descendants were counted already and remove the support
-		//Flag in "reachedFinalStateAtInputId" can stay
-		if(reachedFinalStateAtInputId.intersects(inputNode.descendants)){
-			BitSet intersect = (BitSet) reachedFinalStateAtInputId.clone();
-			intersect.and(inputNode.descendants);
-			//correct
-			int bit = 0;
-			while(bit >= 0) {
-				bit = intersect.nextSetBit(bit); //returns -1 if none
-				//Remove support
-				if(bit > 0 && relevantNodeSupports.containsKey(bit)) {
-					relevantNodeSupports.remove(bit);
-					//child.reachedFinalStateAtInputId.set(inputNodeId, false);
+			//Processing only necessary if no parent was processed already
+			if (!reachedFinalStateAtInputId.intersects(inputNode.ancestors)) {
+				//add support to prefix support
+				//child.prefixSupport += inputSupport;
+				//Remember support
+				relevantNodeSupports.put(inputNodeId, inputSupport);
+
+
+				//check if descendants were counted already and remove the support -> need to clean up
+				//Flag in "reachedFinalStateAtInputId" can stay
+				if (reachedFinalStateAtInputId.intersects(inputNode.descendants)) {
+					BitSet intersect = (BitSet) reachedFinalStateAtInputId.clone();
+					intersect.and(inputNode.descendants);
+					//correct them (could be done after expand before recalculating support!)
+					int nodeId = 0;
+					while (nodeId >= 0) {
+						nodeId = intersect.nextSetBit(nodeId); //returns -1 if none
+						//Remove support
+						if (nodeId > 0 && relevantNodeSupports.containsKey(nodeId)) {
+							relevantNodeSupports.remove(nodeId);
+							//child.reachedFinalStateAtInputId.set(inputNodeId, false);
+						}
+					}
 				}
-			}
-		}
 
-		//potentially correct partial (unconfirmed) support
-		if(reachedNonFinalStateAtInputId.get(inputNodeId)){
-			partialSupport -= inputSupport;
-			//But correct only once!
-			reachedNonFinalStateAtInputId.set(inputNodeId, false);
+				//potentially correct partial (unconfirmed) support
+				if (reachedNonFinalStateAtInputId.get(inputNodeId)) {
+					potentialSupport -= inputSupport;
+					//But correct only once! (since it is marked as final it will not be processed again)
+					//reachedNonFinalStateAtInputId.set(inputNodeId, false);
+				}
+
+			}
 		}
 	}
 
@@ -323,14 +263,14 @@ final class DesqDfsPatriciaTreeNode {
 										final int position, final int stateId) {
 		assert stateId < fst.numStates();
 		//assert child.possibleStates.get(stateId);
-		final int spIndex = position*fst.numStates() + stateId;
+		//final int spIndex = position*fst.numStates() + stateId;
 			/*	position * inputTrieSize * fst.numStates()
 						+ inputId * fst.numStates()
 						+ stateId;*/
 		//Ensure that node + pos + state combination is recorded only once
 		//if(!child.currentSnapshots.get(spIndex)){
 			//child.currentSnapshots.set(spIndex);
-		BitSet b = child.currentSnapshotsByInput.get(inputId);
+		/*BitSet b = child.currentSnapshotsByInput.get(inputId);
 		if(b == null){
 			b = new BitSet();
 			child.currentSnapshotsByInput.put(inputId,b);
@@ -338,61 +278,15 @@ final class DesqDfsPatriciaTreeNode {
 			//already recorded
 			return;
 		}
-		b.set(spIndex);
+		b.set(spIndex);*/
 
-		/*BitSet b;
-		if((b= child.currentSnapshotsByInput[inputId]) == null) {
-			b = new BitSet(fst.numStates()  * 4);
-			currentSnapshotsByInput[inputId] = b;
-		}
-		if(!b.get(spIndex)) {
-			b.set(spIndex);*/
-			//Check if first occurrence of this input node id
-			//PostingList p = child.projection[inputId];
-			//PostingList p;
-			/*if(child.projection.size() <= inputId){
-				//Initialize posting list of node
-				p = new PostingList();
-				child.projection.set(inputId, p);
-			}else {*/
-			//try to derive existing posting list
-			/*PostingList p = child.projection[inputId];
-
-			if (p == null) {
-				//Initialize posting list of node
-				p = new PostingList();
-				child.projection[inputId] = p;
-			}*/
-			//}
-			//Add stated id and position as new posting
-			//Not the same approach as in DesqDfs, because input ids may reoccur unordered
+		//Add stated id and position as new posting
+		//Not the same approach as in DesqDfs, because input ids may reoccur unordered
 		child.projectedDatabase.newPosting();
 		child.projectedDatabase.addNonNegativeInt(inputId);
 		child.projectedDatabase.addNonNegativeInt(stateId);
 		child.projectedDatabase.addNonNegativeInt(position);
 
-
-
-		/*
-		final int spIndex = position*fst.numStates() + stateId;
-		if (child.projectedDatabaseCurrentInputId != inputId) {
-			// start a new posting
-			child.projectedDatabase.newPosting();
-			child.currentSnapshots.clear();
-			child.prefixSupport += inputSupport;
-			child.currentSnapshots.set(spIndex);
-			child.projectedDatabase.addNonNegativeInt(inputId-child.projectedDatabaseCurrentInputId);
-			child.projectedDatabaseCurrentInputId = inputId;
-			if (child.possibleState < 0)
-				child.projectedDatabase.addNonNegativeInt(stateId);
-			child.projectedDatabase.addNonNegativeInt(position);
-		} else if (!child.currentSnapshots.get(spIndex)) {
-		//} else {
-			child.currentSnapshots.set(spIndex);
-			if (child.possibleState < 0)
-				child.projectedDatabase.addNonNegativeInt(stateId);
-			child.projectedDatabase.addNonNegativeInt(position);
-		}*/
 	}
 
 	public long getSupport(){
@@ -409,7 +303,7 @@ final class DesqDfsPatriciaTreeNode {
 			Int2ObjectMap.Entry<DesqDfsPatriciaTreeNode> entry = childrenIt.next();
 			final DesqDfsPatriciaTreeNode child = entry.getValue();
 			//if (child.partialSupport + child.prefixSupport < minSupport) {
-			if (child.getSupport() + child.partialSupport < minSupport) {
+			if (child.getSupport() + child.potentialSupport < minSupport) {
 				childrenIt.remove();
 			}
 		}
