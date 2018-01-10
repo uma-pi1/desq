@@ -99,6 +99,9 @@ public final class DesqDfsPatricia extends DesqMiner {
 
 	private IntSet startNodesReachedNodesWithoutOutput = new IntBitSet();
 
+	//private final BitSet visitedIndices = new BitSet();
+	private final Int2ObjectMap<BitSet> visitedIndices = new Int2ObjectOpenHashMap<>();
+
 	// -- construction/clearing ---------------------------------------------------------------------------------------
 
 	public DesqDfsPatricia(DesqMinerContext ctx) {
@@ -157,6 +160,7 @@ public final class DesqDfsPatricia extends DesqMiner {
 		currentNode = root;*/
 
 
+
 	}
 
 	public static DesqProperties createConf(String patternExpression, long sigma) {
@@ -180,6 +184,8 @@ public final class DesqDfsPatricia extends DesqMiner {
 		}*/
 		root.clear();
 		currentNode = root;
+		visitedIndices.clear();
+		//currentSpReachedWithoutOutput.clear();
 	}
 
 	// -- processing input sequences ----------------------------------------------------------------------------------
@@ -260,7 +266,8 @@ public final class DesqDfsPatricia extends DesqMiner {
 				//currentSpReachedWithoutOutput.clear();
 				//nodeReachedAsFinalWithoutOutput.clear();
 
-				incStep(0, fst.getInitialState(), 0, true, node);
+				incStep(0, fst.getInitialState(), 0, true, node, false);
+				//determineSupport(inputTrie.getRoot());
 				//}
 			}
 
@@ -284,7 +291,7 @@ public final class DesqDfsPatricia extends DesqMiner {
      *
      * @return true if the FST can accept without further output
      */
-	private boolean incStep(int pos, State state, final int level, final boolean expand, PatriciaTrieBasic.TrieNode node) {
+	private boolean incStep(int pos, State state, final int level, final boolean expand, PatriciaTrieBasic.TrieNode node, boolean trackWithoutOutput) {
 		//long supportOfReachedFinalStatesWithoutOutput = 0; //only filled by child node recursion
 		boolean reachedFinalStateWithoutOutput = false; //only changed by FST transitions -> refers to same input node!
 
@@ -292,33 +299,67 @@ pos: 	do { // loop over positions; used for tail recursion optimization -> on tr
 			// check if we reached a final complete state or consumed entire input and reached a final state
 			/*if (state.isFinalComplete() | pos == currentInputSequence.size())
 				return state.isFinal();*/
+			/*final int spIndex = pos *fst.numStates() + state.getId();
+										//pos * inputTrie.size() * fst.numStates() + node.getId() * fst.numStates() + state.getId();
+								//if(visitedIndices.get(spIndex)) return false; //already processed during this expand
+			BitSet b = visitedIndices.get(node.getId());
+			if(b == null){
+				b = new BitSet();
+				visitedIndices.put(node.getId(),b);
+			}else if(b.get(spIndex)){
+				return reachedFinalStateWithoutOutput;
+			}
+			b.set(spIndex);
+
 			if (state.isFinalComplete()){
 				//return state.isFinal(); //should be always true
-				reachedNodesWithoutOutput.set(node.getId());
+				if(trackWithoutOutput && !currentNode.reachedFinalStateAtInputId.get(node.getId())) {//!reachedNodesWithoutOutput.get(node.getId())) {
+					//reachedNodesWithoutOutput.set(node.getId());
+					currentNode.reachedFinalStateAtInputId.set(node.getId());
+				}
 				return true;
-			}
-			if(state.isFinal()) {
-				reachedNodesWithoutOutput.set(node.getId());
+			}*/
+
+			if(state.isFinal() && trackWithoutOutput) {
+				//!reachedNodesWithoutOutput.get(node.getId())) {
+					//reachedNodesWithoutOutput.set(node.getId());
+				//currentNode.reachedFinalStateAtInputId.set(node.getId());
+
+				trackWithoutOutput = false; //this node is captured, ignore children
 				reachedFinalStateWithoutOutput |= true; //cannot be overwritten
+				if(!currentNode.reachedFinalStateAtInputId.get(node.getId())){
+					currentNode.finalStateReached(node);
+				}
+			}
+
+			if (state.isFinalComplete()){
+				return reachedFinalStateWithoutOutput;
 			}
 
 			if(pos == node.getItems().size()) {
 				//Check if input trie node is leaf (no children) -> end of processing
 				if(node.isLeaf()) {
+					return reachedFinalStateWithoutOutput;
 					//return state.isFinal();
-					if(state.isFinal()) {
-						reachedNodesWithoutOutput.set(node.getId());
+					/*if(state.isFinal()) {
+						if(trackWithoutOutput){// && !reachedNodesWithoutOutput.get(node.getId())) {
+							reachedNodesWithoutOutput.set(node.getId());
+						}
 						return true;
 					}else{
 						return reachedFinalStateWithoutOutput;
-					}
+					}*/
 				}else{
-					//No more items in node -> proceed to child trie node(s)
+						//No more items in node -> proceed to child trie node(s)
 					//Check if final node (end of sequence but not a leaf)
-					if(node.isFinal() && state.isFinal()) {
-						reachedNodesWithoutOutput.set(node.getId());
+					/*
+					if(state.isFinal()) {
+						if(trackWithoutOutput){// && !reachedNodesWithoutOutput.get(node.getId())) {
+							reachedNodesWithoutOutput.set(node.getId());
+						}
+						trackWithoutOutput = false;
 						reachedFinalStateWithoutOutput |= true;
-					}
+					}*/
 					//if(node.isFinal()) reachedFinalStateWithoutOutput |= state.isFinal();
 
 					final Iterator<PatriciaTrieBasic.TrieNode> it = node.getChildren().iterator();
@@ -328,10 +369,10 @@ pos: 	do { // loop over positions; used for tail recursion optimization -> on tr
 					while (it.hasNext()) {
 
 						final PatriciaTrieBasic.TrieNode child = it.next();//.getValue();
-						//MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberNodeMoves,1);
+						MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberNodeMoves,1);
 						if(it.hasNext()) {
 							//Summarize returned support, because each node can reach final state independently
-							reachedFinalStateWithoutOutput |= incStep(0, state, level, expand, child);
+							reachedFinalStateWithoutOutput |= incStep(0, state, level, expand, child, trackWithoutOutput);
 						}else{
 							node = child;
 							pos = 0;
@@ -359,7 +400,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				final ItemState itemState = itemStateIt.next();
 				final int outputItemFid = itemState.itemFid;
 				final State toState = itemState.state;
-				//MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberFstTransitions,1);
+				MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberFstTransitions,1);
 
 				if (outputItemFid == 0) { // EPS output
 					// we did not get an output
@@ -377,20 +418,20 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					//int spIndex =  pos * fst.numStates() + toState.getId();
 					//int spIndex =  (pos * fst.numStates() * inputTrie.size()) + (node.getId()*fst.numStates())  + toState.getId();
 					//if (!currentSpReachedWithoutOutput.get(spIndex)) {
-							// haven't seen it, so process
-					//		currentSpReachedWithoutOutput.set(spIndex);
-					if (itemStateIt.hasNext()) {
-						// recurse over FST states -> stays within same input node (but might change in next step)
-						reachedFinalStateWithoutOutput |= incStep(pos + 1, toState, level + 1, expand, node);
-						continue itemState;
-					} else {
-						// tail recurse
-						state = toState;
-						pos++;
-						continue pos;
-					}
+						// haven't seen it, so process
+						//currentSpReachedWithoutOutput.set(spIndex);
+						if (itemStateIt.hasNext()) {
+							// recurse over FST states -> stays within same input node (but might change in next step)
+							reachedFinalStateWithoutOutput |= incStep(pos + 1, toState, level + 1, expand, node,trackWithoutOutput);
+							continue itemState;
+						} else {
+							// tail recurse
+							state = toState;
+							pos++;
+							continue pos;
+						}
 					//}
-				} else if (expand & largestFrequentFid >= outputItemFid) {
+				} else if (expand && largestFrequentFid >= outputItemFid) {
 					// we have an output and its frequent, so update the corresponding projected database
 					/*if(toState.isFinal()){
 						currentNodeReachedNodesWithoutOutput.set(node.getId());
@@ -416,41 +457,46 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
      */
 
 	private void expand(IntList prefix, DesqDfsPatriciaTreeNode node) {
-		//MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberExpands,1);
+		MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberExpands,1);
 		// add a placeholder to prefix for the output item of the child being expanded
 		final int lastPrefixIndex = prefix.size();
 		prefix.add(-1);
 
 		// iterate over all children
 		for (final DesqDfsPatriciaTreeNode childNode : node.childrenByFid.values() )  {
-			assert childNode.partialSupport + childNode.prefixSupport >= sigma;
+			//assert childNode.partialSupport + childNode.prefixSupport >= sigma;
 
 			// while we expand the child node, we also compute its actual support to determine whether or not
 			// to output it (and then output it if the support is large enough)
 			// we start with the partial support; may be increased when processing the projected database
-			long support = childNode.prefixSupport;
+			//long support = childNode.prefixSupport;
 
 			// set the current (partial) output sequence
 			prefix.set(lastPrefixIndex, childNode.itemFid);
 
 			// print debug information
 			if (DEBUG) {
-				logger.trace("Expanding " + prefix + ", partial support=" + childNode.partialSupport + ", prefix support="
-						+ childNode.prefixSupport
+				logger.trace("Expanding " + prefix
+						//+ ", partial support=" + childNode.partialSupport
+						//+ ", prefix support=" + childNode.prefixSupport
 						+ ", possible states=" + childNode.possibleStates);
 			}
 
 			//if (childNode.prefixSupport > 0) { // otherwise projected DB is empty and support = partial support
 				// set up the expansion
-			boolean expand = childNode.prefixSupport + childNode.partialSupport >= sigma; // otherwise expansions will be infrequent anyway
+
+			//boolean expand = childNode.getSupport() >= sigma; // no expand -> just find finals without output
 			projectedDatabaseIt.reset(childNode.projectedDatabase);
 			reachedNodesWithoutOutput.clear();
 			startNodesReachedNodesWithoutOutput.clear();
-
+			visitedIndices.clear();
 
 			//projectionIt = Arrays.asList(childNode.projection).listIterator();
 			//currentInputId = -1;
 			currentNode = childNode;
+			boolean reachedFinalStateWithoutOutput = false;
+
+			//currentSpReachedWithoutOutput.clear();
 
 			if(projectedDatabaseIt.hasNext()) {
 
@@ -467,18 +513,29 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					final PatriciaTrieBasic.TrieNode currentInputNode = inputTrie.getNodeById(currentInputId);
 					final int stateId = projectedDatabaseIt.nextNonNegativeInt();
 					final int pos = projectedDatabaseIt.nextNonNegativeInt();
-					boolean reachedFinalStateWithoutOutput =
-							incStep(pos, fst.getState(stateId), 0, expand, currentInputNode);
+					reachedFinalStateWithoutOutput |=
+							incStep(pos, fst.getState(stateId), 0, true,
+									currentInputNode,!currentNode.reachedFinalStateAtInputId.get(currentInputId));
+					//only track final without output if currentNode + InputId did not reach final state yet -> update nodes reached with final
 					if(reachedFinalStateWithoutOutput) {
 						//remember start node
-						startNodesReachedNodesWithoutOutput.add(currentInputId);
+						//startNodesReachedNodesWithoutOutput.add(currentInputId);
+						//it is a set -> duplicate start nodes are recorded just once
+						//support += currentInputNode.getSupport();
+
 
 					}
 
 
 				} while (projectedDatabaseIt.nextPosting());
 
-				if (!startNodesReachedNodesWithoutOutput.isEmpty()) {
+
+				//if (reachedFinalStateWithoutOutput){
+					//recalculate support
+					//support = determineSupport(inputTrie.getRoot());
+				//}
+
+				/*if (!startNodesReachedNodesWithoutOutput.isEmpty()) {
 
 					for(int inputNodeId: startNodesReachedNodesWithoutOutput) {
 						if(!childNode.reachedFinalStateAtInputId.get(inputNodeId)) {
@@ -488,9 +545,10 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 							support += getSupportWithoutOutput(inputTrie.getNodeById(inputNodeId));
 						}
 					}
-				}
+				}*/
 
 			}
+
 
 /*
 				while(projectionIt.hasNext()) {
@@ -545,6 +603,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			//}
 
 			// output the pattern for the current child node if it turns out to be frequent
+			long support = calculateSupport();
 			if (support >= sigma) {
 				if (ctx.patternWriter != null) {
 					ctx.patternWriter.write(prefix, support);
@@ -564,6 +623,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	}
 
 	// -- Helper for support determination
+	/*
 	private long getSupportWithoutOutput(PatriciaTrieBasic.TrieNode startNode){
 		if(reachedNodesWithoutOutput.get(startNode.getId())){
 			//this node was reached with final state and had no output
@@ -578,6 +638,33 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			}
 			return supportSum;
 		}
+	}
+
+	private long determineSupport(PatriciaTrieBasic.TrieNode startNode){
+		if(currentNode.reachedFinalStateAtInputId.get(startNode.getId())){
+			//this node was reached with final state and had no output
+			// -> return its support and ignore children
+			return startNode.getSupport();
+		}else{
+			//else, it cannot be counted for supporting the current prefix, but maybe its child input nodes!
+			// -> return sum of support of children
+			long supportSum = 0;
+			for (PatriciaTrieBasic.TrieNode child : startNode.getChildren()) {
+				supportSum += determineSupport(child);
+			}
+			return supportSum;
+		}
+	}*/
+
+	private long calculateSupport(){
+		//Consider support values except non-final
+		long support = 0;
+		for(int key: currentNode.relevantNodeSupports.keySet()){
+			if(!currentNode.reachedNonFinalStateAtInputId.get(key)){
+				support += currentNode.relevantNodeSupports.get(key);
+			}
+		}
+		return support;
 	}
 
 	// -- accessors to internal data structures (use with care) -------------------------------------------------------

@@ -10,14 +10,14 @@ import org.apache.commons.io.FilenameUtils;
 
 import java.util.*;
 
-public class PatriciaItemTrie {
+public class PatriciaTrie {
 
     private TrieNode root;
     private int currentNodeId;
 
     private List<TrieNode> nodes;
 
-    public PatriciaItemTrie() {
+    public PatriciaTrie() {
         //init root node with empty list
         this.nodes = new ArrayList<>();
         this.currentNodeId = -1;
@@ -465,13 +465,13 @@ public class PatriciaItemTrie {
 
     public static class Producer{
         protected State state;
-        protected PatriciaItemTrie.TrieNode node;
+        protected PatriciaTrie.TrieNode node;
         protected int itemPos;
         protected long support;
         protected boolean isFinal;
         protected boolean isComplete;
 
-        public Producer(State state, PatriciaItemTrie.TrieNode node, int itemPos,
+        public Producer(State state, PatriciaTrie.TrieNode node, int itemPos,
                         long support, boolean isFinal, boolean isComplete){
             this.state = state;
             this.node = node;

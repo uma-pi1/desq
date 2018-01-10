@@ -48,11 +48,11 @@ public final class DesqPatricia extends DesqMiner {
 	private final Dfa dfa;
 
   	/**Trie representing the data **/
-	private PatriciaItemTrie inputTrie; //stores the input data as patricia trie
-	private PatriciaItemTrie outputTrie; //stores the mined pattern of FST in patricia trie
+	private PatriciaTrie inputTrie; //stores the input data as patricia trie
+	private PatriciaTrie outputTrie; //stores the mined pattern of FST in patricia trie
 
-	private PatriciaItemTrie.TrieNode currentOutputNode;
-	private HashSet<PatriciaItemTrie.TrieNode> currentFinalNodesWithoutOutput;
+	private PatriciaTrie.TrieNode currentOutputNode;
+	private HashSet<PatriciaTrie.TrieNode> currentFinalNodesWithoutOutput;
 
 
 	// -- construction/clearing ---------------------------------------------------------------------------------------
@@ -78,8 +78,8 @@ public final class DesqPatricia extends DesqMiner {
 		}
 
 		// variables for patricia
-		inputTrie = new PatriciaItemTrie();
-		outputTrie = new PatriciaItemTrie();
+		inputTrie = new PatriciaTrie();
+		outputTrie = new PatriciaTrie();
 		currentFinalNodesWithoutOutput = new HashSet<>();
 	}
 
@@ -136,9 +136,9 @@ public final class DesqPatricia extends DesqMiner {
 		if((inputTrie.getRoot().getSupport() >= sigma) && !inputTrie.getRoot().isLeaf()) {
 			//start pattern growth
 			//init root node
-			PatriciaItemTrie.TrieNode outputRoot = outputTrie.getRoot();
+			PatriciaTrie.TrieNode outputRoot = outputTrie.getRoot();
 			outputRoot.addProducer(
-					new PatriciaItemTrie.Producer(
+					new PatriciaTrie.Producer(
 							fst.getInitialState(),
 							inputTrie.getRoot(),
 							0, sigma, false, false
@@ -172,7 +172,7 @@ public final class DesqPatricia extends DesqMiner {
 	*Expand the given output Trie node by doing next step iteration from all relevant states
 	 */
 
-	private void expand(PatriciaItemTrie.TrieNode node){
+	private void expand(PatriciaTrie.TrieNode node){
 		//correct support by tracking what was removed in child nodes
 
 		//check if node itself has sufficient support
@@ -182,7 +182,7 @@ public final class DesqPatricia extends DesqMiner {
 		currentFinalNodesWithoutOutput.clear();
 		long finalWithoutOutput = 0;
 		//Extend all possible states from this node and generate next output
-		for(PatriciaItemTrie.Producer p: node.producers){
+		for(PatriciaTrie.Producer p: node.producers){
 			//TODO: dfa based checks if final state is reachable? - or in state iterator in step?
 			if(!p.isComplete) {
 				finalWithoutOutput += step(p.state, p.node, p.itemPos);
@@ -203,7 +203,7 @@ public final class DesqPatricia extends DesqMiner {
 
 		//Recursively extend all sufficient frequent child nodes (just created)
 		IntList prune = new IntArrayList(node.childrenCount());
-		for(PatriciaItemTrie.TrieNode child: node.collectChildren()) {
+		for(PatriciaTrie.TrieNode child: node.collectChildren()) {
 
 			if (child.support >= sigma) {
 				expand(child);
@@ -241,7 +241,7 @@ public final class DesqPatricia extends DesqMiner {
 	 * @param pos item position in start node
 	 */
 
-	private long step(State state, PatriciaItemTrie.TrieNode node, int pos){
+	private long step(State state, PatriciaTrie.TrieNode node, int pos){
 
 		//Check if Fst at final complete state (without valid output)
 		if (state.isFinalComplete()){
@@ -253,7 +253,7 @@ public final class DesqPatricia extends DesqMiner {
 			long finalWithoutOutput = handleSupportOfFinalWithoutOutput(node, state);
 			//No more items in node -> proceed to next trie nodes (if no leaf already)
 			if(!node.isLeaf()) {
-				for (PatriciaItemTrie.TrieNode childNode : node.collectChildren()) {
+				for (PatriciaTrie.TrieNode childNode : node.collectChildren()) {
 					finalWithoutOutput += step(state, childNode, 0);
 				}
 			}
@@ -290,7 +290,7 @@ public final class DesqPatricia extends DesqMiner {
 					boolean isComplete = toState.isFinalComplete() ||
 							( node.isLeaf() && nextItemPos == node.items.size()); //no more processing
 					outputTrie.appendItem(currentOutputNode,outputItemFid, node.support,
-							new PatriciaItemTrie.Producer(toState, node, nextItemPos, node.support, isFinal, isComplete ),
+							new PatriciaTrie.Producer(toState, node, nextItemPos, node.support, isFinal, isComplete ),
 							isFinal);
 
 					if (DEBUG) {
@@ -303,7 +303,7 @@ public final class DesqPatricia extends DesqMiner {
 		return finalWithoutOutput;
 	}
 
-	private long handleSupportOfFinalWithoutOutput(PatriciaItemTrie.TrieNode node, State state){
+	private long handleSupportOfFinalWithoutOutput(PatriciaTrie.TrieNode node, State state){
 		if(state.isFinal() && !currentFinalNodesWithoutOutput.contains(node)){
 			currentFinalNodesWithoutOutput.add(node);
 			return node.getExclusiveSupport();
@@ -311,14 +311,14 @@ public final class DesqPatricia extends DesqMiner {
 		else return 0;
 	}
 
-	private void traverseOutputTrie(IntList prefix, PatriciaItemTrie.TrieNode node){
+	private void traverseOutputTrie(IntList prefix, PatriciaTrie.TrieNode node){
 		//no children -> store result
 		if(node.isLeaf() && node.isFinal()){
 			ctx.patternWriter.write(prefix, node.getSupport());
 
 		}else if(!node.isLeaf()){
 			//int sumSupport = 0;
-			for(PatriciaItemTrie.TrieNode child: node.collectChildren()){
+			for(PatriciaTrie.TrieNode child: node.collectChildren()){
 				//keep track of total child support
 				//sumSupport += node.getSupport();
 				//process child trie only if support is above or equal min support
@@ -345,7 +345,7 @@ public final class DesqPatricia extends DesqMiner {
 	@Override
 	public void mine() {
 		//pruned input data is stored in patricia trie -> traverse the inputTrie and find frequent input sets
-		System.out.println("Node#:" + PatriciaItemTrie.nodeCounter + " - " + inputTrie.getRoot().collectChildren().size());
+		System.out.println("Node#:" + PatriciaTrie.nodeCounter + " - " + inputTrie.getRoot().collectChildren().size());
 		if((inputTrie.getRoot().getSupport() >= sigma) && !inputTrie.getRoot().isLeaf()) {
 			//start recursive trie traversal and write mined patterns in output trie
 			currentPrefix = new IntArrayList();
@@ -360,7 +360,7 @@ public final class DesqPatricia extends DesqMiner {
 				traverseOutputTrie(new IntArrayList(), outputTrie.getRoot());
 			}
 		}
-		System.out.println("Node#:" + PatriciaItemTrie.nodeCounter + " - " + outputTrie.getRoot().collectChildren().size());
+		System.out.println("Node#:" + PatriciaTrie.nodeCounter + " - " + outputTrie.getRoot().collectChildren().size());
 		//outputTrie.exportGraphViz("outputTrie.pdf", ctx.dict, 1);
 	}*/
 
@@ -377,7 +377,7 @@ public final class DesqPatricia extends DesqMiner {
 	 * //@param state current state in fst
 	 *
 	 *
-	private void traverseTrieWithFST(int itemPos, PatriciaItemTrie.TrieNode node, State state){
+	private void traverseTrieWithFST(int itemPos, PatriciaTrie.TrieNode node, State state){
 
 		// print debug information
 		if (DEBUG) {
@@ -397,7 +397,7 @@ public final class DesqPatricia extends DesqMiner {
 			}
 			if(!state.isFinalComplete() && !node.isLeaf()){
 				//Just no more items -> proceed to next trie node
-				for(PatriciaItemTrie.TrieNode childNode: node.collectChildren()) {
+				for(PatriciaTrie.TrieNode childNode: node.collectChildren()) {
 					traverseTrieWithFST(0, childNode, state);
 				}
 			}
@@ -429,13 +429,13 @@ public final class DesqPatricia extends DesqMiner {
 		}
 	}
 
-	private void traverseOutputTrie(IntList prefix, PatriciaItemTrie.TrieNode node){
+	private void traverseOutputTrie(IntList prefix, PatriciaTrie.TrieNode node){
 		if(node.isLeaf()){
 			//no children -> store result
 			ctx.patternWriter.write(prefix, node.getSupport());
 		}else{
 			int sumSupport = 0;
-			for(PatriciaItemTrie.TrieNode child: node.collectChildren()){
+			for(PatriciaTrie.TrieNode child: node.collectChildren()){
 				//keep track of total child support
 				sumSupport += node.getSupport();
 				//process child trie only if support is above or equal min support

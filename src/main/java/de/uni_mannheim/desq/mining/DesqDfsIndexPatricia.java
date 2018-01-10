@@ -75,7 +75,7 @@ public final class DesqDfsIndexPatricia extends DesqMiner {
 	private int currentInputId;
 
 	/** The items in the input trie we are processing */
-	//private PatriciaItemTrie.TrieNode currentInputNode;
+	//private PatriciaTrie.TrieNode currentInputNode;
 
 	/** The state sequence of the accepting DFA run for the current intput sequence (two-pass only). */
 	//DfaState[] currentDfaStateSequence;
@@ -89,7 +89,7 @@ public final class DesqDfsIndexPatricia extends DesqMiner {
 	//private BitSet currentSpReachedWithoutOutput = new BitSet();
 
 	/**Trie representing the data **/
-	//private PatriciaItemTrie inputTrie; //stores the input data as patricia trie
+	//private PatriciaTrie inputTrie; //stores the input data as patricia trie
 	private IndexPatriciaTrie inputTrie;
 
 	// -- construction/clearing ---------------------------------------------------------------------------------------
