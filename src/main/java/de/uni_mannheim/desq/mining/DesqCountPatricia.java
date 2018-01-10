@@ -71,7 +71,7 @@ public final class DesqCountPatricia extends DesqMiner {
 	private final IntList dfaInitalPos;
 
 	/**Trie representing the data **/
-	private PatriciaItemTrie trie;
+	private PatriciaTrie trie;
 
 	private HashSet<IntList> outputSequenceCache;
 
@@ -125,7 +125,7 @@ public final class DesqCountPatricia extends DesqMiner {
 		}
 
 		// variables for patricia
-		trie = new PatriciaItemTrie();
+		trie = new PatriciaTrie();
 	}
 
 	public static DesqProperties createConf(String patternExpression, long sigma) {
@@ -189,13 +189,13 @@ public final class DesqCountPatricia extends DesqMiner {
 		//trie.exportGraphViz("trie.pdf");
 	}
 
-	private void traverseTrie(IntList prefix, PatriciaItemTrie.TrieNode node){
+	private void traverseTrie(IntList prefix, PatriciaTrie.TrieNode node){
 		if(node.isLeaf()){
 			//no children -> store result
 			ctx.patternWriter.write(prefix, node.getSupport());
 		}else{
 			int sumSupport = 0;
-			for(PatriciaItemTrie.TrieNode child: node.collectChildren()){
+			for(PatriciaTrie.TrieNode child: node.collectChildren()){
 				//keep track of total child support
 				sumSupport += node.getSupport();
 				//process child trie only if support is above or equal min support

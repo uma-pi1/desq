@@ -3,6 +3,8 @@ package de.uni_mannheim.desq.mining;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.fst.State;
 import de.uni_mannheim.desq.fst.graphviz.AutomatonVisualizer;
+import de.uni_mannheim.desq.util.IntBitSet;
+import de.uni_mannheim.desq.util.IntByteArrayList;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.AbstractObjectIterator;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -42,7 +44,7 @@ public class PatriciaTrieBasic {
     public void clear(){
         nodes.clear();
         currentNodeId = -1;
-        root.removeAllChildren();
+        root.children.clear();
         root = new TrieNode(new IntArrayList(), (long) 0,false, true, ++currentNodeId);
         nodes.add(currentNodeId, root);
     }
@@ -93,7 +95,7 @@ public class PatriciaTrieBasic {
                     splitNode(currentNode, nodeItem);
                     currentNode.setFinal(false); //is only sub-sequence
                     //and add new node with remaining input items
-                    expandTrie(currentNode, createIntList(currentItem, it),support,true);
+                    expandTrie(currentNode, createIntList(currentItem, it),support,true, false);
                     break; //remaining input added -> finished processing
                 } //else: same item in input and in node so far
 
@@ -115,7 +117,7 @@ public class PatriciaTrieBasic {
                 TrieNode nextNode = currentNode.getChildrenStartingWith(currentItem);
                 if (nextNode == null) {
                     //no next node starting with input item -> expand with new node containing all remaining
-                    expandTrie(currentNode, createIntList(currentItem, it), support, true);
+                    expandTrie(currentNode, createIntList(currentItem, it), support, true, false);
                     break; //remaining input added -> finished processing
                 } else {
                     //found child node starting with current item
@@ -145,13 +147,34 @@ public class PatriciaTrieBasic {
         return items;
     }
 
-    private TrieNode expandTrie(TrieNode startNode, IntList items, long support, boolean isFinal) {
+    private TrieNode expandTrie(TrieNode startNode, IntList items, long support, boolean isFinal, boolean moveChildren) {
         //Create new node
         TrieNode newNode = new TrieNode(items, support,isFinal,true, ++currentNodeId);
-        //Set pointer in parent node
-        startNode.addChild(newNode);
         //add new node to list
         nodes.add(currentNodeId, newNode);
+
+        //handle insert of node
+        if(moveChildren && !startNode.children.isEmpty()){
+            //reuse existing list of direct children
+            newNode.children = startNode.children;
+            //re-init existing list of direct children
+            startNode.children = new Int2ObjectOpenHashMap<>();
+
+            //Descendants are equal for now
+            //newNode.descendants.addAll(startNode.descendants);
+            newNode.descendants = (BitSet) startNode.descendants.clone();
+            //Update all descendants
+            newNode.resetParentOfChildren();
+
+            newNode.isLeaf = false;
+        }
+        //copy ancestor information (in any case equal before adding the new node)
+        if(!startNode.ancestors.isEmpty()) {
+            //newNode.ancestors.addAll(startNode.ancestors);
+            newNode.ancestors = (BitSet) startNode.ancestors.clone();
+        }
+        //Add the child into the trie (and add start node as parent of new Node)
+        startNode.addChild(newNode);
         return newNode;
     }
 
@@ -167,17 +190,19 @@ public class PatriciaTrieBasic {
     private TrieNode splitNode(TrieNode node, int separatorItem) {
         IntList remaining = node.separateItems(separatorItem);
         //remove children pointer from existing node
-        Int2ObjectOpenHashMap<TrieNode> existingChildren = node.removeAllChildren();
+        //Int2ObjectOpenHashMap<TrieNode> existingChildren = node.removeAllChildren();
+        //Int2ObjectOpenHashMap<TrieNode> existingChildren = node.children;
+        //node.children = new Int2ObjectOpenHashMap<>();
         //expand from existing node with remaining items
         //if original node is not final, child is neither
         //if original node stays final is decided in addItem node (depends on case)
-        TrieNode newNode = expandTrie(node, remaining, node.support, node.isFinal);
-
+        TrieNode newNode = expandTrie(node, remaining, node.support, node.isFinal, true);
+        /*
         //add existing children to new node
         if (!existingChildren.isEmpty()) {
             newNode.children = existingChildren;
             newNode.isLeaf = false;
-        }
+        }*/
         return newNode;
     }
 
@@ -225,6 +250,14 @@ public class PatriciaTrieBasic {
         protected Int2ObjectOpenHashMap<PatriciaTrieBasic.TrieNode> children = new Int2ObjectOpenHashMap<>();
         protected boolean isLeaf; //no children
         protected boolean isFinal; //a sequence ends here (instead of summing and comparing support)
+
+        protected TrieNode parent; //can only have one parent node -> used for propagation of child info
+        //protected IntSet ancestors = new IntArraySet(); // all parents (of parents ...) till root
+        //protected IntSet descendants = new IntArraySet(); // all children (of children ...)
+        protected BitSet ancestors = new BitSet(); // all parents (of parents ...) till root
+        protected BitSet descendants = new BitSet(); // all children (of children ...)
+
+
 
         public TrieNode(IntList fids, long support, boolean isFinal, boolean isLeaf, int id) {
             this.support = support;
@@ -301,8 +334,48 @@ public class PatriciaTrieBasic {
 
         public TrieNode addChild(int firstItem, TrieNode t) {
             if (isLeaf) isLeaf = false;
+            //maintain reference
+            t.parent = this;
+            //propagate parent information to all descendants
+            t.addAncestor(this.id);
+            //propagate new child information to all ancestors
+            this.addDescendant(t.id);
             //there must be only one child per next fid
             return children.put(firstItem, t);
+        }
+
+        //updates parents add children and triggers update of all descendants
+        public void resetParentOfChildren(){
+            if(!children.isEmpty()){
+                for(TrieNode child: children.values()){
+                    child.parent = this;
+                    child.addAncestor(this.id);
+                }
+            }
+        }
+
+        public void addAncestor(Integer a){
+            //ancestors.add(a);
+            //propagate ancestor to children (if not already known)
+            if(!ancestors.get(a)){
+                ancestors.set(a);
+                if(!children.isEmpty()){
+                    for(TrieNode child: children.values()){
+                        child.addAncestor(a);
+                    }
+                }
+            }
+        }
+
+        public void addDescendant(Integer d){
+            //descendants.add(d);
+            //propagate new descendant to parent (if not already known)
+            if(descendants.get(d)) {
+                descendants.set(d);
+                if (parent != null) {
+                    parent.addDescendant(d);
+                }
+            }
         }
 
 
