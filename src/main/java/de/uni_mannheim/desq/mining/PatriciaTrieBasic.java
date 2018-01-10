@@ -19,13 +19,23 @@ public class PatriciaTrieBasic {
     private TrieNode root;
     private int currentNodeId;
     private ObjectList<TrieNode> nodes;
+    private boolean maintainRelationLists;
 
     public PatriciaTrieBasic() {
+        this(false);
+    }
+
+    public PatriciaTrieBasic(boolean maintainRelationLists) {
         //init root node with empty list
         this.nodes = new ObjectArrayList<>();
         this.currentNodeId = -1;
-        this.root = new TrieNode(new IntArrayList(), (long) 0,false, true, ++currentNodeId);
+
+        this.maintainRelationLists = maintainRelationLists;
+
+        this.root = new TrieNode(new IntArrayList(), (long) 0,
+                false, true, ++currentNodeId, maintainRelationLists);
         nodes.add(currentNodeId, root);
+
     }
 
 
@@ -45,7 +55,8 @@ public class PatriciaTrieBasic {
         nodes.clear();
         currentNodeId = -1;
         root.children.clear();
-        root = new TrieNode(new IntArrayList(), (long) 0,false, true, ++currentNodeId);
+        root = new TrieNode(new IntArrayList(), (long) 0,
+                false, true, ++currentNodeId, maintainRelationLists);
         nodes.add(currentNodeId, root);
     }
 
@@ -131,7 +142,7 @@ public class PatriciaTrieBasic {
                 }
             }
         }
-        //inc support of last visited node and clean up
+        //ensure that support of last visited node is increased and clean up
         //doing it after loop ensures that the last node is considered if there was no expand
         currentNode.incSupport(support);
         currentNode.clearIterator();
@@ -149,7 +160,7 @@ public class PatriciaTrieBasic {
 
     private TrieNode expandTrie(TrieNode startNode, IntList items, long support, boolean isFinal, boolean moveChildren) {
         //Create new node
-        TrieNode newNode = new TrieNode(items, support,isFinal,true, ++currentNodeId);
+        TrieNode newNode = new TrieNode(items, support,isFinal,true, ++currentNodeId, maintainRelationLists);
         //add new node to list
         nodes.add(currentNodeId, newNode);
 
@@ -245,35 +256,34 @@ public class PatriciaTrieBasic {
         private IntListIterator  it;
         //The support for this set (beginning at root)
         protected long support;
-        //pointers to children
-        //protected HashMap<Integer, TrieNode> children = new HashMap<>();
         protected Int2ObjectOpenHashMap<PatriciaTrieBasic.TrieNode> children = new Int2ObjectOpenHashMap<>();
         protected boolean isLeaf; //no children
         protected boolean isFinal; //a sequence ends here (instead of summing and comparing support)
 
         protected TrieNode parent; //can only have one parent node -> used for propagation of child info
-        //protected IntSet ancestors = new IntArraySet(); // all parents (of parents ...) till root
-        //protected IntSet descendants = new IntArraySet(); // all children (of children ...)
         protected BitSet ancestors = new BitSet(); // all parents (of parents ...) till root
         protected BitSet descendants = new BitSet(); // all children (of children ...)
 
+        protected boolean maintainRelationLists;
+
+        //protected IntSet ancestors = new IntOpenHashSet(); // all parents (of parents ...) till root
+        //protected IntSet descendants = new IntOpenHashSet(); // all children (of children ...)
 
 
-        public TrieNode(IntList fids, long support, boolean isFinal, boolean isLeaf, int id) {
+
+        public TrieNode(IntList fids, long support,
+                        boolean isFinal, boolean isLeaf, int id, boolean maintainRelationLists) {
             this.support = support;
             this.isLeaf = isLeaf;
             this.isFinal = isFinal;
             this.id = id;
             this.items = fids;
+            this.maintainRelationLists = maintainRelationLists;
         }
 
         // Increment support
         public long incSupport(long s) {
             return this.support += s;
-        }
-
-        public int childrenCount() {
-            return children.size();
         }
 
         public int firstItem() {
@@ -317,16 +327,6 @@ public class PatriciaTrieBasic {
             };
         }
 
-        public ObjectIterator<Int2ObjectMap.Entry<PatriciaTrieBasic.TrieNode>> getChildrenIterator(){
-            return children.int2ObjectEntrySet().fastIterator();
-           /* while (childrenIt.hasNext()) {
-                Int2ObjectMap.Entry<DesqDfsPatriciaTreeNode> entry = childrenIt.next();
-                final DesqDfsPatriciaTreeNode child = entry.getValue();
-
-                }
-            }*/
-        }
-
         //returns previous child trie node (if replaced), else null
         public TrieNode addChild(TrieNode t) {
             return addChild(t.firstItem(), t);
@@ -355,35 +355,36 @@ public class PatriciaTrieBasic {
         }
 
         public void addAncestor(Integer a){
-            //ancestors.add(a);
-            //propagate ancestor to children (if not already known)
-            if(!ancestors.get(a)){
-                ancestors.set(a);
-                if(!children.isEmpty()){
-                    for(TrieNode child: children.values()){
-                        child.addAncestor(a);
+            if(maintainRelationLists) {
+                //propagate ancestor to children (if not already known)
+                if (!ancestors.get(a)) {
+                    ancestors.set(a);
+                    //if(!descendants.contains(a)){
+                    //  descendants.add(a);
+                    if (!children.isEmpty()) {
+                        for (TrieNode child : children.values()) {
+                            child.addAncestor(a);
+                        }
                     }
                 }
             }
         }
 
         public void addDescendant(Integer d){
-            //descendants.add(d);
-            //propagate new descendant to parent (if not already known)
-            if(descendants.get(d)) {
-                descendants.set(d);
-                if (parent != null) {
-                    parent.addDescendant(d);
+            if(maintainRelationLists) {
+                //descendants.add(d);
+                //propagate new descendant to parent (if not already known)
+                if (!descendants.get(d)) {
+                    descendants.set(d);
+                    //if(!descendants.contains(d)){
+                    //  descendants.add(d);
+                    if (parent != null) {
+                        parent.addDescendant(d);
+                    }
                 }
             }
         }
 
-
-        public Int2ObjectOpenHashMap<TrieNode> removeAllChildren() {
-            Int2ObjectOpenHashMap<TrieNode> removed = children;
-            children = new Int2ObjectOpenHashMap<>();
-            return removed;
-        }
 
         public TrieNode getChildrenStartingWith(int fid) {
             return children.get(fid);
