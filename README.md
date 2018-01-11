@@ -35,7 +35,17 @@ To run a Spark shell to experiment with DESQ, use
 spark-shell --jars path/to/desq-master-<releasedate>-no-spark.jar
 ```
 
-TODO: how to run without Spark installed (usinf full jar?)
+To submit an example to a Spark cluster, use
+
+```
+spark-submit --class de.uni_mannheim.desq.examples.readme.DesqExample path/to/desq-master-<releasedate>-no-spark.jar
+```
+
+To run an example locally without having Spark installed, use
+
+```
+java -cp path/to/desq-master-<releasedate>-full.jar de.uni_mannheim.desq.examples.readme.DesqExample
+```
 
 #### Build on your own
 
@@ -49,7 +59,11 @@ mvn clean package
 
 Building DESQ with `mvn clean package -Pprovided` builds the `desq-<branch>-<releasedate>-no-spark.jar` with the excluded Apache Spark dependency.
 
-TODO: how to run a shell with Spark with mvn (if Spark not installed)
+To run an example with maven, use
+
+```
+mvn compile && mvn exec:java -Dexec.mainClass="de.uni_mannheim.desq.examples.readme.DesqExample"
+```
 
 ## DESQ Examples
 
@@ -76,8 +90,6 @@ Each line corresponds to an input sequence, each whitespace-separated word to an
 The following piece of code mines frequent bigrams with a minimum support of 2
 using DESQ's Spark API. The full example code can be found at
 `src/main/scala/de/uni_mannheim/desq/examples/readme/DesqExample.scala`.
-
-TODO: create a subfolder readme in DESQs example package and move the files there.
 
 ```scala
 import de.uni_mannheim.desq.mining.spark._
@@ -113,9 +125,9 @@ use `(.){2,4}`, DESQ mines all 2-grams, 3-grams, and 4-grams.
 
 #### n-Gram Mining with Hierarchies
 
-TODO: Rework example to only use hierarchies and introduce the hat operator (but stay with ngrams). Output should be PERSON lives in CITY
-
-Consider the following additional hierarchy constraints stored in a file `data/readme/dictionary.json`. Please refer to the section about [I/O](#io) for details on the actual file format.
+Consider the following additional hierarchy constraints, which can also be found 
+in file `data/readme/dictionary.json`. Please refer to [I/O](#io) for details on 
+the actual file format.
 
 ```
 ├── PERSON
@@ -138,22 +150,72 @@ Consider the following additional hierarchy constraints stored in a file `data/r
     └── in
 ```
 
-The dictionary requires that the input sequences are stored as integers instead of strings in order to have a mapping between items in the sequences and the dictionary. Therefore, we now use `data/readme/sequences.del`.
+The dictionary requires that the input sequences are stored as integers instead 
+of strings in order to have a mapping between items in the sequences and the 
+dictionary. Therefore, we now use the file `data/readme/sequences.del`.
 
-Suppose we are interested in mining frequent verbs optionally followed by a preposition that occur between a person and a city (`PERSON (VERB PREP?) CITY`) with a minimum support of two (`2`). Now, we load the `DesqDataset` together with the dictionary.
+The following piece of code mines frequent 4-grams with a minimum support of 2 
+in which the first and the last item can also be generalizations of the
+actual item. This is possible with DESQ's `^`-operator. The full example code 
+can be found at 
+`src/main/scala/de/uni_mannheim/desq/examples/readme/DesqExampleWithDictionary.scala`.
 
 ```scala
 import de.uni_mannheim.desq.dictionary._
 import de.uni_mannheim.desq.mining.spark._
 
+// read the dictionary
 val dictionary = Dictionary.loadFrom("data/readme/dictionary.json")
 
+// read the data and convert it into DESQ's internal format (DesqDataset)
 val data = DesqDataset.loadFromDelFile("data/readme/sequences.del", dictionary).copyWithRecomputedCountsAndFids()
 
-val properties = DesqCount.createConf("PERSON (VERB PREP?) CITY", 2)
+// create a Miner
+val patternExpression = "(.^...^)"
+val minimumSupport = 2
+val properties = DesqCount.createConf(patternExpression, minimumSupport)
 val miner = DesqMiner.create(new DesqMinerContext(properties))
 
+// do the mining; this creates another DesqDataset containing the result
 val patterns = miner.mine(data)
+
+// print the result
+patterns.print()
+```
+
+You should get the following output if you run this example.
+
+```
+[PERSON lives in CITY]@3
+```
+
+#### Advanced Example with Hierarchies
+
+Again, consider the previous example with additional hierarchy constraints.
+
+The following piece of code mines frequent words with a minimum support of 2 
+occurring between a person and a city. This is possible with DESQ's 
+`()`-operator and by using the items `PERSON` and `CITY` in the pattern 
+expression directly. The full example code can be found at 
+`src/main/scala/de/uni_mannheim/desq/examples/readme/DesqExampleWithDictionaryAdvanced.scala`.
+
+```scala
+// read the dictionary
+val dictionary = Dictionary.loadFrom("data/readme/dictionary.json")
+
+// read the data and convert it into DESQ's internal format (DesqDataset)
+val data = DesqDataset.loadFromDelFile("data/readme/sequences.del", dictionary).copyWithRecomputedCountsAndFids()
+
+// create a Miner
+val patternExpression = "PERSON (.*) CITY"
+val minimumSupport = 2
+val properties = DesqCount.createConf(patternExpression, minimumSupport)
+val miner = DesqMiner.create(new DesqMinerContext(properties))
+
+// do the mining; this creates another DesqDataset containing the result
+val patterns = miner.mine(data)
+
+// print the result
 patterns.print()
 ```
 
@@ -163,13 +225,6 @@ You should get the following output if you run this example.
 [lives in]@3
 [loves]@2
 ```
-
-The full example code can be found at `src/main/scala/de/uni_mannheim/desq/examples/readme/DesqExampleWithDictionary.scala`.
-
-#### TODO
-
-A more advances tasks: e.g., words that occur frequently between a person and a city.
-
 
 ## I/O
 
@@ -210,7 +265,7 @@ Pattern Expression | Description
 `(.){5}` | Generalized 5-grams
 `(a\|b)[.*(c)]*.*(d)` | Subsequences matching regex `[a\|b]c*d`
 
-### Customized Constraints
+#### Customized Constraints
 
 Pattern Expression | Description
 :---: | :---:

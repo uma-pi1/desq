@@ -1,21 +1,22 @@
 package de.uni_mannheim.desq.examples.readme
 
+import de.uni_mannheim.desq.dictionary._
 import de.uni_mannheim.desq.mining.spark._
 import org.apache.spark.{SparkConf, SparkContext}
 
-object DesqExample {
+object DesqExampleWithDictionaryAdvanced {
 
   def main(args: Array[String]) {
     implicit val sc = new SparkContext(new SparkConf().setAppName(getClass.getName).setMaster("local"))
 
-    // read the data
-    val sequences = sc.textFile("data/readme/sequences.txt")
+    // read the dictionary
+    val dictionary = Dictionary.loadFrom("data/readme/dictionary.json")
 
-    // convert data into DESQ's internal format (DesqDataset)
-    val data = DesqDataset.buildFromStrings(sequences.map(s => s.split("\\s+")))
+    // read the data and convert it into DESQ's internal format (DesqDataset)
+    val data = DesqDataset.loadFromDelFile("data/readme/sequences.del", dictionary).copyWithRecomputedCountsAndFids()
 
     // create a Miner
-    val patternExpression = "(..)"
+    val patternExpression = "PERSON (.*) CITY"
     val minimumSupport = 2
     val properties = DesqCount.createConf(patternExpression, minimumSupport)
     val miner = DesqMiner.create(new DesqMinerContext(properties))

@@ -9,14 +9,22 @@ object DesqExampleWithDictionary {
   def main(args: Array[String]) {
     implicit val sc = new SparkContext(new SparkConf().setAppName(getClass.getName).setMaster("local"))
 
+    // read the dictionary
     val dictionary = Dictionary.loadFrom("data/readme/dictionary.json")
 
+    // read the data and convert it into DESQ's internal format (DesqDataset)
     val data = DesqDataset.loadFromDelFile("data/readme/sequences.del", dictionary).copyWithRecomputedCountsAndFids()
 
-    val properties = DesqCount.createConf("PERSON (VERB PREP?) CITY", 2)
+    // create a Miner
+    val patternExpression = "(.^...^)"
+    val minimumSupport = 2
+    val properties = DesqCount.createConf(patternExpression, minimumSupport)
     val miner = DesqMiner.create(new DesqMinerContext(properties))
 
+    // do the mining; this creates another DesqDataset containing the result
     val patterns = miner.mine(data)
+
+    // print the result
     patterns.print()
   }
 
