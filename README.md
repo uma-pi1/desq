@@ -59,6 +59,12 @@ mvn clean package
 
 Building DESQ with `mvn clean package -Pprovided` builds the `desq-<branch>-<releasedate>-no-spark.jar` with the excluded Apache Spark dependency.
 
+To start a Spark shell directly out of the project directory, use
+
+```
+mvn compile && mvn exec:exec -Dexec.executable="java" -Dexec.args="-cp \"%classpath\" -Dscala.usejavacp=true org.apache.spark.deploy.SparkSubmit --class org.apache.spark.repl.Main spark-shell"
+```
+
 ## DESQ Examples
 
 DESQ supports a variety of pattern mining tasks, some of which are highlighted
