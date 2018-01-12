@@ -10,7 +10,7 @@ setup with Apache Spark. There is also a Java API for sequential processing.
 ## Content
 
 1. [Quick Start](#quick-start)
-2. [API](#api)
+2. [DESQ Examples](#desq-examples)
 3. [I/O](#io)
 4. [Pattern Expressions](#pattern-expressions)
 5. [References](#references)
@@ -59,12 +59,6 @@ mvn clean package
 
 Building DESQ with `mvn clean package -Pprovided` builds the `desq-<branch>-<releasedate>-no-spark.jar` with the excluded Apache Spark dependency.
 
-To run an example with maven, use
-
-```
-mvn compile && mvn exec:java -Dexec.mainClass="de.uni_mannheim.desq.examples.readme.DesqExample"
-```
-
 ## DESQ Examples
 
 DESQ supports a variety of pattern mining tasks, some of which are highlighted
@@ -73,7 +67,7 @@ in this section.
 #### n-Gram Mining
 
 Consider the following input sequences, which can also be found in file
-`data/readme/sequences.txt`.
+[data/readme/sequences.txt]().
 
 ```
 Anna lives in Melbourne
@@ -89,7 +83,7 @@ Each line corresponds to an input sequence, each whitespace-separated word to an
 
 The following piece of code mines frequent bigrams with a minimum support of 2
 using DESQ's Spark API. The full example code can be found at
-`src/main/scala/de/uni_mannheim/desq/examples/readme/DesqExample.scala`.
+[src/main/scala/de/uni_mannheim/desq/examples/readme/DesqExample.scala]().
 
 ```scala
 import de.uni_mannheim.desq.mining.spark._
@@ -126,7 +120,7 @@ use `(.){2,4}`, DESQ mines all 2-grams, 3-grams, and 4-grams.
 #### n-Gram Mining with Hierarchies
 
 Consider the following additional hierarchy constraints, which can also be found 
-in file `data/readme/dictionary.json`. Please refer to [I/O](#io) for details on 
+in file [data/readme/dictionary.json](). Please refer to [I/O](#io) for details on 
 the actual file format.
 
 ```
@@ -152,13 +146,13 @@ the actual file format.
 
 The dictionary requires that the input sequences are stored as integers instead 
 of strings in order to have a mapping between items in the sequences and the 
-dictionary. Therefore, we now use the file `data/readme/sequences.del`.
+dictionary. Therefore, we now use the file [data/readme/sequences.del]().
 
 The following piece of code mines frequent 4-grams with a minimum support of 2 
 in which the first and the last item can also be generalizations of the
 actual item. This is possible with DESQ's `^`-operator. The full example code 
 can be found at 
-`src/main/scala/de/uni_mannheim/desq/examples/readme/DesqExampleWithDictionary.scala`.
+[src/main/scala/de/uni_mannheim/desq/examples/readme/DesqExampleWithDictionary.scala]().
 
 ```scala
 import de.uni_mannheim.desq.dictionary._
@@ -197,7 +191,7 @@ The following piece of code mines frequent words with a minimum support of 2
 occurring between a person and a city. This is possible with DESQ's 
 `()`-operator and by using the items `PERSON` and `CITY` in the pattern 
 expression directly. The full example code can be found at 
-`src/main/scala/de/uni_mannheim/desq/examples/readme/DesqExampleWithDictionaryAdvanced.scala`.
+[src/main/scala/de/uni_mannheim/desq/examples/readme/DesqExampleWithDictionaryAdvanced.scala]().
 
 ```scala
 // read the dictionary
@@ -233,8 +227,8 @@ together with their corresponding frequencies. Additionally, a `Dictionary` is
 included in a `DesqDataset` which arranges the items in a hierarchy.
 
 Typically, input sequences are stored in files as global identifiers (e.g.
-`data/readme/sequences.del`) which correspond to a dictionary (e.g.
-`data/readme/dictionary.json`). Please refer to the documentation of
+[data/readme/sequences.del]()) which correspond to a dictionary (e.g.
+[data/readme/dictionary.json]()). Please refer to the documentation of
 `DesqDataset` and `Dictionary` respectively for more details on the required
 file formats.
 
