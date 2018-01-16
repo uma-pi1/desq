@@ -3,9 +3,13 @@ package de.uni_mannheim.desq.mining;
 import de.uni_mannheim.desq.fst.*;
 import de.uni_mannheim.desq.patex.PatExUtils;
 import de.uni_mannheim.desq.util.DesqProperties;
+import de.uni_mannheim.desq.util.PrimitiveUtils;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.objects.ObjectArraySet;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.apache.log4j.Logger;
+import scala.collection.Seq;
 
 import java.util.*;
 
@@ -71,9 +75,9 @@ public final class DesqCountPatricia extends DesqMiner {
 	private final IntList dfaInitalPos;
 
 	/**Trie representing the data **/
-	private PatriciaTrie trie;
+	private PatriciaTrieBasic trie;
 
-	private HashSet<IntList> outputSequenceCache;
+	private Set<Sequence> outputSequenceCache;
 
 
 	// -- construction/clearing ---------------------------------------------------------------------------------------
@@ -86,7 +90,7 @@ public final class DesqCountPatricia extends DesqMiner {
 		this.useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
 		boolean useLazyDfa = ctx.conf.getBoolean("desq.mining.use.lazy.dfa");
 
-		// initalize helper variable for FST simulation
+		// initialize helper variable for FST simulation
 		this.largestFrequentFid = ctx.dict.lastFidAbove(sigma);
 		this.inputId = 0;
 		prefix = new Sequence();
@@ -125,7 +129,8 @@ public final class DesqCountPatricia extends DesqMiner {
 		}
 
 		// variables for patricia
-		trie = new PatriciaTrie();
+		trie = new PatriciaTrieBasic();
+		outputSequenceCache = new ObjectOpenHashSet<>();
 	}
 
 	public static DesqProperties createConf(String patternExpression, long sigma) {
@@ -149,7 +154,7 @@ public final class DesqCountPatricia extends DesqMiner {
 		assert prefix.isEmpty(); // will be maintained by stepOnePass()
 		this.inputSequence = sequence;
 		this.inputSupport = support;
-		this.outputSequenceCache = new HashSet<>();
+		this.outputSequenceCache.clear();
 
 		// two-pass version of DesqCount
 		if (useTwoPass) {
@@ -184,24 +189,25 @@ public final class DesqCountPatricia extends DesqMiner {
 
 		if((trie.getRoot().getSupport() >= sigma) && !trie.getRoot().isLeaf()) {
 			//start recursive trie traversal
-			traverseTrie(new IntArrayList(),trie.getRoot());
+			traverseTrie(new Sequence(),trie.getRoot());
 		}
 		//trie.exportGraphViz("trie.pdf");
 	}
 
-	private void traverseTrie(IntList prefix, PatriciaTrie.TrieNode node){
+	private void traverseTrie(Sequence prefix, PatriciaTrieBasic.TrieNode node){
 		if(node.isLeaf()){
 			//no children -> store result
 			ctx.patternWriter.write(prefix, node.getSupport());
 		}else{
 			int sumSupport = 0;
-			for(PatriciaTrie.TrieNode child: node.collectChildren()){
+			//for(PatriciaTrieBasic.TrieNode child: node.collectChildren()){
+			for(PatriciaTrieBasic.TrieNode child: node.getChildren()){
 				//keep track of total child support
-				sumSupport += node.getSupport();
+				sumSupport += child.getSupport();
 				//process child trie only if support is above or equal min support
 				if(child.getSupport() >= sigma){
-					//New recursion step -> copy item list per branch and add already child's items
-					IntList newPrefix = new IntArrayList(prefix);
+					//New recursion step -> copy item list per branch and add already items of child
+					Sequence newPrefix = new Sequence(prefix);
 					newPrefix.addAll(child.getItems());
 					traverseTrie(newPrefix,child);
 				}
@@ -226,10 +232,12 @@ public final class DesqCountPatricia extends DesqMiner {
 		// stop recursing if we reached a final-complete state or consumed the entire input
 		// and output if we stop at a final state
 		if (state.isFinalComplete() || pos == inputSequence.size()) {
-			if (!prefix.isEmpty() && state.isFinal() && !outputSequenceCache.contains(prefix)) {
+			if (!prefix.isEmpty() && state.isFinal()
+					&& !outputSequenceCache.contains(prefix)
+					) {
 				//add only once per input sequence
 				outputSequenceCache.add(prefix);
-				trie.addItems(prefix); //add relevant itemset to trie
+				trie.addItems(prefix, inputSupport); //add relevant itemset to trie
 			}
 			return;
 		}
