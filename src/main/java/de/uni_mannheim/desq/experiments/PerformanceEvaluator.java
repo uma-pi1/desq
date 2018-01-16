@@ -118,7 +118,7 @@ public class PerformanceEvaluator {
         // Init data load via DesqDataset (lazy) via Spark
         data = (usesGids)
                 ? ExampleUtils.buildDesqDatasetFromDelFile(sc, dataPath, factory)
-                : ExampleUtils.buildDesqDatasetFromRawFile(sc, dataPath, factory);
+                : ExampleUtils.buildDesqDatasetFromRawFile(sc, dataPath, factory, " ");
 
         //Gather data (via scala/spark)
         List<String[]> cachedSequences = data.toSids().toJavaRDD().collect();

@@ -135,7 +135,7 @@ public final class PatExToFst {
 
 		@Override
 		public Fst visitUnordered(UnorderedContext ctx){
-			//only called for last element   of concatexp (end of recursion, if there was one)
+			//only called for last element of concatexp (end of recursion, if there was one)
 			return visit(ctx.unorderedexp());
 		}
 
@@ -400,7 +400,6 @@ public final class PatExToFst {
 				Transition cachedT = transitionCache.get(transitionKey);
 				t = cachedT.shallowCopy();
 				t.setToState(new State(true));
-				//System.out.println(transitionKey);
 			} else {
 				// otherwise compute it
 				if (capture) {

@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
-public class DefaultItemsetBuilder implements SequenceBuilder{
+public class SequenceOfItemsetsBuilder implements SequenceBuilder{
     private String separatorSid;
     private int separatorGid;
     private long currentWeight = 0;
@@ -20,7 +20,7 @@ public class DefaultItemsetBuilder implements SequenceBuilder{
     protected Dictionary dict;
     private boolean sortByFidsAsc = true;
 
-    public DefaultItemsetBuilder(String separatorSid, boolean sortByFidsAsc) {
+    public SequenceOfItemsetsBuilder(String separatorSid, boolean sortByFidsAsc) {
         this.separatorSid = separatorSid;
         this.sortByFidsAsc = sortByFidsAsc;
     }
@@ -48,7 +48,6 @@ public class DefaultItemsetBuilder implements SequenceBuilder{
         throw new UnsupportedOperationException();
     }
 
-    //Remove duplicates during append
     @Override
     public Pair<Integer,Boolean> appendItem(String sid) {
         int gid = dict.gidOf(sid);
@@ -59,7 +58,6 @@ public class DefaultItemsetBuilder implements SequenceBuilder{
 
     @Override
     public IntList getCurrentGids() {
-        //Return sets as one line
         //Sort each set and add separator again
         IntList seqOfSets = new IntArrayList();
         for(IntList set: gidSets){
@@ -86,10 +84,11 @@ public class DefaultItemsetBuilder implements SequenceBuilder{
 
     private void initNewSet(){
         currentGids = new IntArrayList();
+        //Add new set already to gidSets
         gidSets.add(currentGids);
     }
 
-    //Allow direct entry via GID
+    //Allow direct entry via GID and remove duplicates during append
     @Override
     public Pair<Integer,Boolean> appendItem(int gid) {
         if((gid != separatorGid) && currentGids.contains(gid)){

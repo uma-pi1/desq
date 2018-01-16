@@ -1,6 +1,5 @@
 package de.uni_mannheim.desq.patex;
 
-import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.patex.PatExParser.*;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
