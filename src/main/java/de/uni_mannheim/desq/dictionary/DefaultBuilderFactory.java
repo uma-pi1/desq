@@ -7,14 +7,14 @@ public class DefaultBuilderFactory implements BuilderFactory {
 
     public DefaultBuilderFactory(Dictionary initialDictionary){
         if(initialDictionary != null) {
-            //Use initial Dictionary as base but do not alter the existing
+            //Use initial Dictionary as basis (complete copy)
             this.initialDictionary = initialDictionary.deepCopy();
             //... and start with zero freqs
             this.initialDictionary.clearFreqs();
         }
     }
 
-    public DefaultBuilderFactory(){ }
+    public DefaultBuilderFactory(){ } //empty init
 
     @Override
     public SequenceBuilder createSequenceBuilder() {

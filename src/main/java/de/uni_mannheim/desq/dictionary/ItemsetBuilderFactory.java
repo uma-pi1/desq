@@ -21,14 +21,14 @@ public class ItemsetBuilderFactory extends DefaultBuilderFactory {
 
     public ItemsetBuilderFactory(){ }
 
-    public ItemsetBuilderFactory sortByFidsAsc(boolean b){
-        sortByFidsAsc = b;
+    public ItemsetBuilderFactory sortByFidsAsc(boolean sortByFidsAsc){
+        this.sortByFidsAsc = sortByFidsAsc;
         return this;
     }
 
     @Override
     public SequenceBuilder createSequenceBuilder() {
-        return new DefaultItemsetBuilder(itemsetSeparatorSid, sortByFidsAsc);
+        return new SequenceOfItemsetsBuilder(itemsetSeparatorSid, sortByFidsAsc);
     }
 
     @Override

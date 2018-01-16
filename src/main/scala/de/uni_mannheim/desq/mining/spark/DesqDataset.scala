@@ -199,6 +199,36 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
     })
   }
 
+  /** Returning just Sids without weight -> easier handling for generic itemset creation
+    * copy of toSidsWeightPairs()
+    * created by sulbrich 22.09.2017) */
+  def toSids: RDD[Array[String]] = {
+    val dictBroadcast = broadcastDictionary()
+    val usesFids = this.usesFids // to localize
+
+    sequences.mapPartitions(rows => {
+      new Iterator[Array[String]] {
+        val dict:Dictionary = dictBroadcast.value
+
+        override def hasNext: Boolean = rows.hasNext
+
+        override def next(): Array[String] = {
+          val s = rows.next()
+          val itemSids = new Array[String](s.size())
+          for (i <- Range(0,s.size())) {
+            if (usesFids) {
+              itemSids(i) = dict.sidOfFid(s.getInt(i))
+            } else {
+              itemSids(i) = dict.sidOfGid(s.getInt(i))
+            }
+          }
+          itemSids
+        }
+      }
+    })
+
+  }
+
   // -- I/O -----------------------------------------------------------------------------------------------------------
 
   def save(outputPath: String): DesqDataset = {
@@ -278,36 +308,6 @@ class DesqDataset(val sequences: RDD[WeightedSequence], val dict: Dictionary, va
       strings.collect().foreach(println)
     else
       strings.take(maxSequences).foreach(println)
-  }
-
-  /** Returning just Sids without weight -> easier handling for generic itemset creation
-    * copy of toSidsWeightPairs()
-    * created by sulbrich 22.09.2017) */
-  def toSids: RDD[Array[String]] = {
-    val dictBroadcast = broadcastDictionary()
-    val usesFids = this.usesFids // to localize
-
-    sequences.mapPartitions(rows => {
-      new Iterator[Array[String]] {
-        val dict:Dictionary = dictBroadcast.value
-
-        override def hasNext: Boolean = rows.hasNext
-
-        override def next(): Array[String] = {
-          val s = rows.next()
-          val itemSids = new Array[String](s.size())
-          for (i <- Range(0,s.size())) {
-            if (usesFids) {
-              itemSids(i) = dict.sidOfFid(s.getInt(i))
-            } else {
-              itemSids(i) = dict.sidOfGid(s.getInt(i))
-            }
-          }
-          itemSids
-        }
-      }
-    })
-
   }
 }
 

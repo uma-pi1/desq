@@ -17,6 +17,7 @@ public class DefaultSequenceBuilder implements SequenceBuilder {
 
     public DefaultSequenceBuilder(){ }
 
+    @Override
     public void setDictionary(Dictionary dict){
         this.dict = dict;
     }

@@ -13,9 +13,8 @@ import de.uni_mannheim.desq.mining.spark.DesqDataset.build
 import de.uni_mannheim.desq.mining.spark.{DesqCount, DesqDataset, DesqMiner, DesqMinerContext}
 import de.uni_mannheim.desq.patex.{PatExToItemsetPatEx, PatExToSequentialPatEx, PatExTranslator}
 import de.uni_mannheim.desq.util.DesqProperties
-import it.unimi.dsi.fastutil.ints.IntArrayList
 import org.apache.spark.SparkContext
-import org.apache.spark.rdd.RDD
+
 
 import scala.io.Source
 
@@ -240,15 +239,12 @@ object ExampleUtils {
 
   def buildDesqDatasetFromRawFile(sc: SparkContext,
                                   dataPath: String,
-                                  factory: BuilderFactory): DesqDataset ={
-    //Init SparkConf
-    /*val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
-    initDesq(conf)
-    val sc:SparkContext = SparkContext.getOrCreate(conf)*/
+                                  factory: BuilderFactory,
+                                  separator: String = " "): DesqDataset ={
     DesqDataset.buildFromStrings(
-      sc.textFile(dataPath).map(s => s.split(" ")),
+      sc.textFile(dataPath).map(s => s.split(separator)),
       Option.apply(factory)
-    )//.copyWithRecomputedCountsAndFids()
+    )
   }
 
   /** Load a .del file containing gid
@@ -267,6 +263,6 @@ object ExampleUtils {
           seqBuilder.appendItem(token.toInt)
       }
     }
-    build[String](file, parse, Option.apply(factory))//.copyWithRecomputedCountsAndFids()
+    build[String](file, parse, Option.apply(factory))
   }
 }
