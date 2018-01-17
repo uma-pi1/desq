@@ -484,7 +484,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	}
 
 	// -- Helper for support determination
-
+/*
 	private long calculateSupport(){
 		//Consider support values except non-final
 		long support = 0;
@@ -495,6 +495,17 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		}
 		return support;
 	}
+
+	private void checkTrie(Int2LongOpenHashMap relevantNodeSupports, PatriciaTrieBasic.TrieNode node){
+		if(relevantNodeSupports.containsKey(node.getId())){
+			relevantNodeSupports.remove(node.getId());
+		}else{
+			for(PatriciaTrieBasic.TrieNode child: node.getChildren()){
+				checkTrie(relevantNodeSupports, child);
+			}
+		}
+	}
+	*/
 
 	// -- accessors to internal data structures (use with care) -------------------------------------------------------
 

@@ -73,7 +73,7 @@ public class EvaluatePerfOnFimi {
         ExampleUtils.runItemsetPerfEval(
                 getMinerConf(miner,
                         //"(.) (.)",
-                        "A B (.){1,3}", //"(.) (.)", //"A B (.){1,3}", //"A B (.){1,5}"
+                        "A B (.){1,3}", //"A B 30 1198 (.)", //"(.) (.)", //"A B (.){1,3}", //"A B (.){1,5}"
                         100),
                 retail_itemset_data, retail_itemset_dict,
                 //click_itemset_data, null,
@@ -127,6 +127,7 @@ public class EvaluatePerfOnFimi {
         //runItemsetExample(Miner.DesqCount);
 
         runFimi(Miner.DesqDfsPatricia);
+        //runFimi(Miner.DesqDfs);
         //runSequentialFimi(Miner.DesqDfs);
 
         //runIcdm16(Miner.DesqDfsPatricia);
