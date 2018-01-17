@@ -138,6 +138,12 @@ public class PatriciaTrieBasic {
                     currentNode = nextNode;
                     //skip the first item (already checked via hash key)
                     currentNode.itemIterator().next();
+                    //Case: last item of new input (but node has more!) -> it would end while loop -> handle split
+                    if(!it.hasNext() && currentNode.itemIterator().hasNext()){
+                        splitNode(currentNode, currentNode.itemIterator().next());
+                        //stays final because sequence ends here
+                        break;
+                    }
                     //continue;
                 }
             }
