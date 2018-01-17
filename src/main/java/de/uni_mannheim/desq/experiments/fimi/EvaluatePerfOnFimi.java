@@ -26,7 +26,7 @@ public class EvaluatePerfOnFimi {
                 break;
             case DesqDfs:
                 conf = DesqDfs.createConf(patEx, sigma);
-                conf.setProperty("desq.mining.use.two.pass", true); // has to be set for DesqDfs to return correct results
+                conf.setProperty("desq.mining.use.two.pass", false); // has to be set for DesqDfs to return correct results
                 break;
             case DesqCountPatricia:
                 conf = DesqCountPatricia.createConf(patEx, sigma);
@@ -127,6 +127,7 @@ public class EvaluatePerfOnFimi {
         //runItemsetExample(Miner.DesqCount);
 
         runFimi(Miner.DesqDfsPatricia);
+        //runFimi(Miner.DesqCount);
         //runFimi(Miner.DesqDfs);
         //runSequentialFimi(Miner.DesqDfs);
 

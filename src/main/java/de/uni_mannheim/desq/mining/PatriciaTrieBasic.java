@@ -143,7 +143,7 @@ public class PatriciaTrieBasic {
                         splitNode(currentNode, currentNode.itemIterator().next());
                         //stays final because sequence ends here
                         break;
-                    }
+                    }//if the nodes does not have a next item either -> they are equal -> handling after loop
                     //continue;
                 }
             }
@@ -154,7 +154,7 @@ public class PatriciaTrieBasic {
         currentNode.clearIterator();
     }
 
-    //Construct the remaining items (TODO: more efficient way?)
+    //Construct the remaining items (is there a more efficient way?)
     private IntList createIntList(int firstItem, IntListIterator remainingItems) {
         IntList items = new IntArrayList();
         items.add(firstItem);
