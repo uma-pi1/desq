@@ -80,7 +80,7 @@ public class EvaluatePerfOnFimi {
                 false,
                 null,
                 "data-local/log/Fimi_" + miner + "_",
-                2,
+                3,
                 0,
                 false, true, false,
                 true

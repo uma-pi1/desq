@@ -6,6 +6,8 @@ import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.State;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
+import org.apache.commons.lang3.tuple.MutablePair;
+//import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.BitSet;
 import java.util.concurrent.atomic.LongAdder;
@@ -90,6 +92,20 @@ final class DesqDfsPatriciaTreeNode {
 	/** keep track of input node supports **/
 	Int2LongOpenHashMap relevantNodeSupports;
 
+	/** Structure storing the valid relevant intervals (input trie nodes) with its support
+	 * No children (would be not interesting) -> flat structure no tree
+	 * Search if range is present or entailed already
+	 * Maps start to (end and support)
+	 * **/
+	Int2ObjectAVLTreeMap<MutablePair<Integer,Long>> relevantIntervals;
+
+	BitSet intervalStarts;
+
+
+
+
+
+
 	//private Int2ObjectMap<BitSet> currentSnapshotsByInput;
 
 	//BitSet nodesWithOutput; //keep track of nodes producing this output (itemFid)
@@ -118,7 +134,12 @@ final class DesqDfsPatriciaTreeNode {
 		//nodesWithOutput = new BitSet();
 
 		relevantNodeSupports = new Int2LongOpenHashMap();
+
+		relevantIntervals = new Int2ObjectAVLTreeMap<>();
+
+		intervalStarts = new BitSet();
 		clear();
+
 	}
 
 	void clear() {
@@ -141,6 +162,8 @@ final class DesqDfsPatriciaTreeNode {
 		//nodesWithOutput.clear();
 
 		relevantNodeSupports.clear();
+		relevantIntervals.clear();
+		intervalStarts.clear();
 		// clear the children
 		if (childrenByFid == null) {
 			childrenByFid = new Int2ObjectOpenHashMap<>();
@@ -222,8 +245,9 @@ final class DesqDfsPatriciaTreeNode {
 			reachedFinalStateAtInputId.set(inputNodeId);
 
 			//Processing only necessary if no parent was processed already
+			/*
 			if (!reachedFinalStateAtInputId.intersects(inputNode.ancestors)) {
-				//add support to prefix support
+							//add support to prefix support
 				//child.prefixSupport += inputSupport;
 				//Remember support
 				relevantNodeSupports.put(inputNodeId, inputSupport);
@@ -246,15 +270,63 @@ final class DesqDfsPatriciaTreeNode {
 					}
 				}
 
-				//potentially correct partial (unconfirmed) support
-				if (reachedNonFinalStateAtInputId.get(inputNodeId)) {
-					potentialSupport -= inputSupport;
-					//But correct only once! (since it is marked as final it will not be processed again)
-					//reachedNonFinalStateAtInputId.set(inputNodeId, false);
+				if (!reachedNonFinalStateAtInputId.get(inputNodeId)) {
+					//not counted in potential support yet -> add it
+					potentialSupport += inputSupport;
 				}
 
+			}*/
+			if(checkAndInsertInterval(inputNode.intervalStart, inputNode.intervalEnd, inputSupport)){
+				//further processings
+				if (!reachedNonFinalStateAtInputId.get(inputNodeId)) {
+					//not counted in potential support yet -> add it
+					potentialSupport += inputSupport;
+				}
 			}
 		}
+	}
+
+	//retrurns true if range was inserted
+	//TODO: improve like http://www.davismol.net/2016/02/07/data-structures-augmented-interval-tree-to-search-for-interval-overlapping/
+	private boolean checkAndInsertInterval(int start, int end, long support){
+		//Check if bit exists or get the previous one (previousSetBit includes given id)
+		int prev = intervalStarts.previousSetBit(start);
+
+		//Check if somehow covered yet
+		if(prev == start){
+			// --- exact match ---
+			MutablePair<Integer,Long> endAndSupport = relevantIntervals.get(start);
+			if(endAndSupport.getLeft() <= end){
+				//new interval is same or smaller -> ignore
+				return false;
+			}else{
+				//new interval exceeds existing -> adjust to new range and support
+				endAndSupport.setLeft(end);
+				endAndSupport.setRight(support);
+				//clear all other potentially existing sub-intervals
+				intervalStarts.set(start + 1, end+1, false);
+				//optional: drop from relevantIntervals?
+				return true;
+			}
+		}else if(prev > -1){
+			//--- there is some interval before ---
+			//check if part of larger range which starts before
+			MutablePair<Integer,Long> PrevEndAndSupport = relevantIntervals.get(prev);
+			if(PrevEndAndSupport.getLeft() >= end) {
+				//---previous (larger) range covers new one!
+				//new interval is part of a bigger one which is already recorded -> ignore
+				return false;
+			}
+		}
+		//New interval is not covered yet -> insert
+		intervalStarts.set(start);
+		relevantIntervals.put(start, new MutablePair<>(end,support));
+
+		//Check if a subsequence exists
+		if(intervalStarts.previousSetBit(end) > start){
+			intervalStarts.set(start + 1, end+1, false);
+		}
+		return true;
 	}
 
 	/** Add a snapshot to the projected database of the given child. Ignores duplicate snapshots. */
@@ -269,7 +341,7 @@ final class DesqDfsPatriciaTreeNode {
 						+ stateId;*/
 		//Ensure that node + pos + state combination is recorded only once
 		//if(!child.currentSnapshots.get(spIndex)){
-			//child.currentSnapshots.set(spIndex);
+		//child.currentSnapshots.set(spIndex);
 		/*BitSet b = child.currentSnapshotsByInput.get(inputId);
 		if(b == null){
 			b = new BitSet();
@@ -289,9 +361,19 @@ final class DesqDfsPatriciaTreeNode {
 
 	}
 
+	/*
 	public long getSupport(){
 		LongAdder adder = new LongAdder();
 		relevantNodeSupports.values().parallelStream().forEach(adder::add);
+		return adder.longValue();
+	}*/
+	public long getSupport() {
+		LongAdder adder = new LongAdder();
+
+		//.values().parallelStream().forEach(adder::add);
+
+		intervalStarts.stream().forEach(i -> adder.add(relevantIntervals.get(i).right));
+
 		return adder.longValue();
 	}
 
@@ -303,7 +385,8 @@ final class DesqDfsPatriciaTreeNode {
 			Int2ObjectMap.Entry<DesqDfsPatriciaTreeNode> entry = childrenIt.next();
 			final DesqDfsPatriciaTreeNode child = entry.getValue();
 			//if (child.partialSupport + child.prefixSupport < minSupport) {
-			if (child.getSupport() + child.potentialSupport < minSupport) {
+			//if (child.getSupport() + child.potentialSupport < minSupport) {
+			if (child.potentialSupport < minSupport) {
 				childrenIt.remove();
 			}
 		}

@@ -21,6 +21,7 @@ public class PatriciaTrieBasic {
     private ObjectList<TrieNode> nodes;
     private boolean maintainRelationLists;
 
+
     public PatriciaTrieBasic() {
         this(false);
     }
@@ -272,8 +273,10 @@ public class PatriciaTrieBasic {
 
         protected boolean maintainRelationLists;
 
-        //protected IntSet ancestors = new IntOpenHashSet(); // all parents (of parents ...) till root
-        //protected IntSet descendants = new IntOpenHashSet(); // all children (of children ...)
+        //interval
+        protected  int intervalStart;
+        protected  int intervalEnd;
+
 
 
 
@@ -440,6 +443,32 @@ public class PatriciaTrieBasic {
             //delete remaining based on idx
             items.removeElements(idx, items.size());
             return removed;
+        }
+
+        /**
+         * Method calculating interval tree information (including its children)
+         * Returns the highest id used
+         */
+        public int calculateIntervals(int start){
+            intervalStart = start;
+            if(isLeaf){
+                //This node is a leaf -> interval start = end
+                intervalEnd = start;
+                return start;
+            }else{
+                //Not a leaf -> iterate over all children (depth-first to ensure consistent intervals)
+                int end = start;
+                for(TrieNode child: getChildren()) {
+                    end = child.calculateIntervals(start);
+                    //next start
+                    start = end + 1;
+                }
+
+                if(isFinal) end += 1; //but not leaf -> represents end of sequence (higher support than children) -> ensure precedence
+
+                intervalEnd = end;
+                return end;
+            }
         }
 
         // Printing Node
