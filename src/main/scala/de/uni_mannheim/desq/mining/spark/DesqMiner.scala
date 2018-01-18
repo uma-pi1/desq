@@ -8,7 +8,7 @@ import scala.reflect.ClassTag
 abstract class DesqMiner(val ctx: DesqMinerContext) {
   /** Mines the given dataset using this miner and returns the result. Note that computation may or may not be
     * triggered by this method, i.e., can be performed lazily when accessing the sequence RDD in the result. */
-  def mine[T](data: DesqDataset[T])(implicit m: ClassTag[T]): DesqDataset[T]
+  def mine[T](data: GenericDesqDataset[T])(implicit m: ClassTag[T]): GenericDesqDataset[T]
 }
 
 object DesqMiner {

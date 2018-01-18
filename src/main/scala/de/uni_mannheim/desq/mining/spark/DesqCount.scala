@@ -11,12 +11,10 @@ import scala.reflect.ClassTag
   * Created by rgemulla on 14.09.2016.
   */
 class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
-  override def mine[T](data: DesqDataset[T])(implicit m: ClassTag[T]): DesqDataset[T] = {
+  override def mine[T](data: GenericDesqDataset[T])(implicit m: ClassTag[T]): GenericDesqDataset[T] = {
     // localize the variables we need in the RDD
-    val dictBroadcast = data.broadcastDictionary()
     val sequenceInterpreterBroadcast = data.broadcastSequenceInterpreter()
     val conf = ctx.conf
-    val usesFids = data.usesFids
     val minSupport = conf.getLong("desq.mining.min.support")
 
     // build RDD to perform the minig
@@ -24,9 +22,8 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
       // for each row, get output of FST and produce (output sequence, 1) pair
       new Iterator[(Sequence,Long)] {
         // initialize the sequential desq miner
-        val dict = dictBroadcast.value
         val sequenceInterpreter = sequenceInterpreterBroadcast.value
-        val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext(conf, dict)
+        val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext(conf, sequenceInterpreter.getDictionary)
         val baseMiner = new de.uni_mannheim.desq.mining.DesqCount(baseContext)
         var outputIterator: ObjectIterator[Sequence] = ObjectLists.emptyList[Sequence].iterator()
         var currentSupport = 0L
@@ -42,12 +39,7 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
             currentSupport = sequenceInterpreter.getWeight(s)
 
             // and run sequential DesqCount to get all output sequences produced by that input
-            if (usesFids) {
-              outputIterator = baseMiner.mine1(sequenceInterpreter.getSequence(s), 1L).iterator()
-            } else {
-              dict.gidsToFids(sequenceInterpreter.getSequence(s), itemFids)
-              outputIterator = baseMiner.mine1(itemFids, 1L).iterator()
-            }
+            outputIterator = baseMiner.mine1(sequenceInterpreter.getFids(s), 1L).iterator()
           }
 
           outputIterator.hasNext
@@ -60,10 +52,10 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
       }
     }).reduceByKey(_ + _) // now sum up count
       .filter(_._2 >= minSupport) // and drop infrequent output sequences
-      .map(s => sequenceInterpreterBroadcast.value.packSequence(s._1, s._2)) // and pack the remaining sequences into a Sequence
+      .map(s => sequenceInterpreterBroadcast.value.packInSequence(s._1, s._2)) // and pack the remaining sequences into a Sequence
 
-    // all done, return result (last parameter is true because mining.DesqCount always produces fids)
-    new DesqDataset[T](patterns, data, true)
+    // all done, return result
+    new GenericDesqDataset[T](patterns, data)
   }
 }
 

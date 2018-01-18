@@ -1,7 +1,7 @@
 package de.uni_mannheim.desq.examples.spark
 
 import de.uni_mannheim.desq.Desq._
-import de.uni_mannheim.desq.mining.spark.DesqCount
+import de.uni_mannheim.desq.mining.spark._
 import org.apache.spark.{SparkConf, SparkContext}
 
 /**
@@ -25,12 +25,48 @@ object DesqCountExample {
     ExampleUtils.runNyt(conf)
   }
 
+  def exampleWithStringArrayAndLongInterpreter()(implicit sc: SparkContext) {
+    val raw = sc.parallelize(Array("Anna lives in Melbourne",
+      "Anna likes Bob",
+      "Bob lives in Berlin",
+      "Cathy loves Paris",
+      "Cathy likes Dave",
+      "Dave loves London",
+      "Eddie lives in New York City"))
+
+    // build Dictionary
+
+    val dictionary = GenericDesqDataset.buildDictionaryFromStrings(raw.map(s => s.split("\\s+")))
+
+    // create StringArrayAndLongInterpreter which holds the Dictionary
+
+    val sequenceInterpreter = new StringArrayAndLongInterpreter()
+    sequenceInterpreter.setDictionary(dictionary)
+
+    // sequences as (Array[String], Long)
+
+    val sequences = raw.map(s => (s.split("\\s+"), 1L))
+
+    // mining with GenericDesqDataset[(Array[String], Long)]
+
+    val data = new GenericDesqDataset[(Array[String], Long)](sequences, sequenceInterpreter)
+
+    val patternExpression = "(..)"
+    val minimumSupport = 2
+    val properties = DesqCount.createConf(patternExpression, minimumSupport)
+    val miner = DesqMiner.create(new DesqMinerContext(properties))
+
+    val patterns = miner.mine(data)
+    patterns.print()
+  }
+
   def main(args: Array[String]) {
     val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
     initDesq(conf)
     implicit val sc = new SparkContext(conf)
     //sc.setLogLevel("INFO")
-    icdm16
+    //icdm16
     //nyt
+    exampleWithStringArrayAndLongInterpreter
   }
 }

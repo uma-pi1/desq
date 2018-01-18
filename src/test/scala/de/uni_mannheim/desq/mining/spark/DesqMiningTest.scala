@@ -20,7 +20,7 @@ import org.scalatest.junit.AssertionsForJUnit
 abstract class DesqMiningTest(sigma: Long, patternExpression: String,
                               minerName: String, conf: DesqProperties) extends AssertionsForJUnit {
   /** The data */
-  def getDataset()(implicit sc: SparkContext): DesqDataset[WeightedSequence]
+  def getDataset()(implicit sc: SparkContext): GenericDesqDataset[WeightedSequence]
 
   def goldFileBaseName: String
 
@@ -45,7 +45,7 @@ abstract class DesqMiningTest(sigma: Long, patternExpression: String,
 
   def mine(outputDelFile: File) {
     implicit val sc = de.uni_mannheim.desq.util.spark.TestUtils.sc
-    val data: DesqDataset[WeightedSequence] = getDataset()
+    val data: GenericDesqDataset[WeightedSequence] = getDataset()
 
     // Perform pattern mining into del file
     val resultRDD = data.mine(conf)
@@ -54,7 +54,7 @@ abstract class DesqMiningTest(sigma: Long, patternExpression: String,
     // write the data
     val patternWriter = new DelPatternWriter(new FileOutputStream(outputDelFile),
       DelPatternWriter.TYPE.GID)
-    patternWriter.setDictionary(data.dict)
+    patternWriter.setDictionary(data.sequenceInterpreter.getDictionary)
     result.foreach(patternWriter.write)
     patternWriter.close()
 
