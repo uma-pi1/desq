@@ -151,7 +151,7 @@ public final class DesqDfsPatricia extends DesqMiner {
 
 		// other auxiliary variables
 
-		inputTrie = new PatriciaTrieBasic(true);
+		inputTrie = new PatriciaTrieBasic(false);
 
 		/*//Init after trie is built!
 		BitSet initialState = new BitSet(fst.numStates());
@@ -232,6 +232,10 @@ public final class DesqDfsPatricia extends DesqMiner {
 				+ "; Avg child count in 1st Level: "
 				+ inputTrie.getRoot().getChildren().stream().mapToInt(child -> child.getChildren().size()).sum() / inputTrie.getRoot().childrenCount()
 		);*/
+
+		//ensure intervals are present in trie
+		inputTrie.getRoot().calculateIntervals(0);
+
 
 		if (DEBUG) {
 			inputTrie.exportGraphViz("inputTrie.pdf", ctx.dict, 5);
@@ -326,7 +330,7 @@ pos: 	do { // loop over positions; used for tail recursion optimization -> on tr
 					while (it.hasNext()) {
 
 						final PatriciaTrieBasic.TrieNode child = it.next();//.getValue();
-						//MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberNodeMoves,1);
+						MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberNodeMoves,1);
 						if(it.hasNext()) {
 							//Summarize returned support, because each node can reach final state independently
 							reachedFinalStateWithoutOutput |= incStep(0, state, level, expand, child, trackWithoutOutput);
@@ -355,7 +359,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				final ItemState itemState = itemStateIt.next();
 				final int outputItemFid = itemState.itemFid;
 				final State toState = itemState.state;
-				//MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberFstTransitions,1);
+				MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberFstTransitions,1);
 
 				if (outputItemFid == 0) { // EPS output
 					// we did not get an output
@@ -412,7 +416,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
      */
 
 	private void expand(IntList prefix, DesqDfsPatriciaTreeNode node) {
-		//MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberExpands,1);
+		MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberExpands,1);
 		// add a placeholder to prefix for the output item of the child being expanded
 		final int lastPrefixIndex = prefix.size();
 		prefix.add(-1);
