@@ -8,7 +8,7 @@ import java.io.IOException;
 
 public class EvaluatePerfOnFimi {
 
-    public enum Miner {DesqCount, DesqDfs, DesqCountPatricia, DesqPatricia, DesqDfsPatricia}
+    public enum Miner {DesqCount, DesqDfs, DesqCountPatricia, DesqPatricia, DesqDfsPatricia, DesqDfsPatriciaIndex}
 
     private static final String retail_itemset_data = "data-local/fimi_retail/retail.dat";
     private static final String retail_itemset_dict = "data-local/fimi_retail/dict.json";
@@ -38,6 +38,10 @@ public class EvaluatePerfOnFimi {
                 break;
             case DesqDfsPatricia:
                 conf = DesqDfsPatricia.createConf(patEx, sigma);
+                conf.setProperty("desq.mining.use.two.pass", false); // not used anyways
+                break;
+            case DesqDfsPatriciaIndex:
+                conf = DesqDfsPatriciaIndex.createConf(patEx, sigma);
                 conf.setProperty("desq.mining.use.two.pass", false); // not used anyways
                 break;
             default: throw new UnsupportedOperationException("Unsupported Miner");
@@ -72,11 +76,11 @@ public class EvaluatePerfOnFimi {
 
         ExampleUtils.runItemsetPerfEval(
                 getMinerConf(miner,
-                        //"(.) (.)",
-                        "A B (.){1,3}", //"A B 30 1198 (.)", //"(.) (.)", //"A B (.){1,3}", //"A B (.){1,5}"
-                        100),
-                retail_itemset_data, retail_itemset_dict,
-                //click_itemset_data, null,
+                        "(.) (.)",
+                        //"AB^ (.){1,3}", //"A B 30 1198 (.)", //"(.) (.)", //"A B (.){1,3}", //"A B (.){1,5}"
+                        1000),
+                //retail_itemset_data, retail_itemset_dict,
+                click_itemset_data, null,
                 false,
                 null,
                 "data-local/log/Fimi_" + miner + "_",
@@ -126,9 +130,10 @@ public class EvaluatePerfOnFimi {
     public static void main(String[] args) throws IOException{
         //runItemsetExample(Miner.DesqCount);
 
-        runFimi(Miner.DesqDfsPatricia);
         //runFimi(Miner.DesqCount);
-        //runFimi(Miner.DesqDfs);
+        runFimi(Miner.DesqDfs);
+        runFimi(Miner.DesqDfsPatricia);
+        runFimi(Miner.DesqDfsPatriciaIndex);
         //runSequentialFimi(Miner.DesqDfs);
 
         //runIcdm16(Miner.DesqDfsPatricia);

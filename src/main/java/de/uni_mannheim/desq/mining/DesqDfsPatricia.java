@@ -236,17 +236,16 @@ public final class DesqDfsPatricia extends DesqMiner {
 		//ensure intervals are present in trie
 		inputTrie.getRoot().calculateIntervals(0);
 
-
 		if (DEBUG) {
 			inputTrie.exportGraphViz("inputTrie.pdf", ctx.dict, 5);
 			fst.exportGraphViz("fst.pdf");
 		}
 
 		//Init Mining
-		BitSet initialState = new BitSet(fst.numStates());
-		initialState.set(fst.getInitialState().getId());
+		//BitSet initialState = new BitSet(fst.numStates());
+		//initialState.set(fst.getInitialState().getId());
 		//input trie size needs to be set after trie is built
-		root = new DesqDfsPatriciaTreeNode(fst, initialState,inputTrie.size());
+		root = new DesqDfsPatriciaTreeNode(fst, inputTrie.size());
 		currentNode = root;
 
 		//First IncStep (only possible after complete input trie is built)
@@ -295,9 +294,8 @@ public final class DesqDfsPatricia extends DesqMiner {
      *
      * @return true if the FST can accept without further output
      */
-	private boolean incStep(int pos, State state, final int level, final boolean expand, PatriciaTrieBasic.TrieNode node, boolean trackWithoutOutput) {
-		//long supportOfReachedFinalStatesWithoutOutput = 0; //only filled by child node recursion
-		boolean reachedFinalStateWithoutOutput = false; //only changed by FST transitions -> refers to same input node!
+	private void incStep(int pos, State state, final int level, final boolean expand, PatriciaTrieBasic.TrieNode node, boolean trackWithoutOutput) {
+		//boolean reachedFinalStateWithoutOutput = false; //only changed by FST transitions -> refers to same input node!
 
 pos: 	do { // loop over positions; used for tail recursion optimization -> on trie not linear anymore -> recursion needs to split
 
@@ -305,21 +303,21 @@ pos: 	do { // loop over positions; used for tail recursion optimization -> on tr
 			if(state.isFinal() && trackWithoutOutput) {
 
 				trackWithoutOutput = false; //this node is captured, ignore children
-				reachedFinalStateWithoutOutput |= true; //cannot be overwritten
+				//reachedFinalStateWithoutOutput |= true; //cannot be overwritten
 				currentNode.finalStateReached(node);
 
 			}
 
 			//If Fst reached final complete state -> exit
 			if (state.isFinalComplete()){
-				return reachedFinalStateWithoutOutput;
+				return;// reachedFinalStateWithoutOutput;
 			}
 
 			//Handle end of input trie node (proceed to child nodes if possible)
 			if(pos == node.getItems().size()) {
 				//Check if input trie node is leaf (no children) -> end of processing
 				if(node.isLeaf()) {
-					return reachedFinalStateWithoutOutput;
+					return;// reachedFinalStateWithoutOutput;
 				}else{
 					//No more items in node -> proceed to child trie node(s)
 
@@ -330,10 +328,11 @@ pos: 	do { // loop over positions; used for tail recursion optimization -> on tr
 					while (it.hasNext()) {
 
 						final PatriciaTrieBasic.TrieNode child = it.next();//.getValue();
-						MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberNodeMoves,1);
+//						MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberNodeMoves,1);
 						if(it.hasNext()) {
 							//Summarize returned support, because each node can reach final state independently
-							reachedFinalStateWithoutOutput |= incStep(0, state, level, expand, child, trackWithoutOutput);
+							//reachedFinalStateWithoutOutput |=
+									incStep(0, state, level, expand, child, trackWithoutOutput);
 						}else{
 							node = child;
 							pos = 0;
@@ -359,7 +358,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				final ItemState itemState = itemStateIt.next();
 				final int outputItemFid = itemState.itemFid;
 				final State toState = itemState.state;
-				MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberFstTransitions,1);
+//				MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberFstTransitions,1);
 
 				if (outputItemFid == 0) { // EPS output
 					// we did not get an output
@@ -381,7 +380,8 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 						//currentSpReachedWithoutOutput.set(spIndex);
 						if (itemStateIt.hasNext()) {
 							// recurse over FST states -> stays within same input node (but might change in next step)
-							reachedFinalStateWithoutOutput |= incStep(pos + 1, toState, level + 1, expand, node,trackWithoutOutput);
+							//reachedFinalStateWithoutOutput |=
+									incStep(pos + 1, toState, level + 1, expand, node,trackWithoutOutput);
 							continue itemState;
 						} else {
 							// tail recurse
@@ -405,7 +405,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			break; // skipped only by call to "continue pos" above (tail recursion optimization)
 		} while (true);
 
-		return reachedFinalStateWithoutOutput;
+		return;// reachedFinalStateWithoutOutput;
 	}
 
     /** Expands all children of the given search tree node. The node itself must have been processed/output/expanded
@@ -416,7 +416,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
      */
 
 	private void expand(IntList prefix, DesqDfsPatriciaTreeNode node) {
-		MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberExpands,1);
+//		MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberExpands,1);
 		// add a placeholder to prefix for the output item of the child being expanded
 		final int lastPrefixIndex = prefix.size();
 		prefix.add(-1);
@@ -431,9 +431,10 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			// print debug information
 			if (DEBUG) {
 				logger.trace("Expanding " + prefix
-						//+ ", partial support=" + childNode.partialSupport
+						+ ", potential support=" + childNode.potentialSupport
 						//+ ", prefix support=" + childNode.prefixSupport
-						+ ", possible states=" + childNode.possibleStates);
+						//+ ", possible states=" + childNode.possibleStates
+				);
 			}
 
 			//boolean expand = childNode.getSupport() >= sigma; // no expand -> just find finals without output

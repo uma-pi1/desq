@@ -250,7 +250,11 @@ public class PatriciaTrieBasic {
         }
     }
 
-
+    public IndexPatriciaTrie convertToIndexBasedTrie(){
+        IndexPatriciaTrie trie = new IndexPatriciaTrie(size(), root.getId());
+        nodes.parallelStream().forEach(trie::addNode);
+        return trie;
+    }
 
     // ------------------------- TRIE NODE -----------------------------
 
@@ -274,8 +278,9 @@ public class PatriciaTrieBasic {
         protected boolean maintainRelationLists;
 
         //interval
-        protected  int intervalStart;
-        protected  int intervalEnd;
+        //protected  int intervalStart;
+        //protected  int intervalEnd;
+        protected IntervalNode intervalNode;
 
 
 
@@ -449,27 +454,39 @@ public class PatriciaTrieBasic {
          * Method calculating interval tree information (including its children)
          * Returns the highest id used
          */
-        public int calculateIntervals(int start){
-            intervalStart = start;
+        public int calculateIntervals(final int start){
+            //intervalStart = start;
             if(isLeaf){
                 //This node is a leaf -> interval start = end
-                intervalEnd = start;
+                //intervalEnd = start;
+                intervalNode = new IntervalNode(start,start,support);
                 return start;
             }else{
                 //Not a leaf -> iterate over all children (depth-first to ensure consistent intervals)
                 int end = start;
+                int nextStart = start;
                 for(TrieNode child: getChildren()) {
-                    end = child.calculateIntervals(start);
+                    end = child.calculateIntervals(nextStart);
                     //next start
-                    start = end + 1;
+                    nextStart = end + 1;
                 }
 
-                if(isFinal) end += 1; //but not leaf -> represents end of sequence (higher support than children) -> ensure precedence
+                //if(isFinal) end += 1; //but not leaf -> represents end of sequence (higher support than children) -> ensure precedence
 
-                intervalEnd = end;
+                //intervalEnd = end;
+                intervalNode = new IntervalNode(start,end,support);
                 return end;
             }
         }
+        /*
+        public void addToIndexBasedTrie(IndexPatriciaTrie trie){
+            trie.addNode(this);
+            if(!isLeaf){
+                for (TrieNode child: getChildren()){
+                    child.addToIndexBasedTrie(trie);
+                }
+            }
+        }*/
 
         // Printing Node
         @Override
