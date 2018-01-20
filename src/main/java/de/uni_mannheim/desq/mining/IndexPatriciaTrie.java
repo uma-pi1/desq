@@ -31,7 +31,7 @@ public class IndexPatriciaTrie {
     }
 
     //Copy trie node to index based list based on trie node id
-    public void addNode(PatriciaTrieBasic.TrieNode node) {
+    public void addNode(PatriciaTrie.TrieNode node) {
         //Node Id
         int idx = node.getId();
 
