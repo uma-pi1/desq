@@ -1,6 +1,5 @@
 package de.uni_mannheim.desq.mining;
 
-import de.uni_mannheim.desq.experiments.MetricLogger;
 import de.uni_mannheim.desq.fst.Dfa;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.ItemState;
@@ -78,7 +77,7 @@ public final class DesqDfsPatriciaIndex extends DesqMiner {
 	private int currentInputId;
 
 	/** The items in the input trie we are processing */
-	//private PatriciaTrieBasic.TrieNode currentInputNode;
+	//private PatriciaTrie.TrieNode currentInputNode;
 
 	/** The state sequence of the accepting DFA run for the current intput sequence (two-pass only). */
 	//DfaState[] currentDfaStateSequence;
@@ -92,7 +91,7 @@ public final class DesqDfsPatriciaIndex extends DesqMiner {
 	//private BitSet currentSpReachedWithoutOutput = new BitSet();
 
 	/**Trie representing the data **/
-	private PatriciaTrieBasic inputTrieBuild; //stores the input data as patricia trie
+	private PatriciaTrie inputTrieBuild; //stores the input data as patricia trie
 	private IndexPatriciaTrie inputTrie;
 
 	//private BitSet nodeReachedAsFinalWithoutOutput;
@@ -154,7 +153,7 @@ public final class DesqDfsPatriciaIndex extends DesqMiner {
 
 		// other auxiliary variables
 
-		inputTrieBuild = new PatriciaTrieBasic(false);
+		inputTrieBuild = new PatriciaTrie();
 
 		/*//Init after trie is built!
 		BitSet initialState = new BitSet(fst.numStates());
@@ -324,8 +323,8 @@ pos: 	do { // loop over positions; used for tail recursion optimization -> on tr
 					//No more items in node -> proceed to child trie node(s)
 
 					final Iterator<Integer> it = inputTrie.getChildren(nodeId).iterator();
-					//ObjectIterator<Int2ObjectMap.Entry<PatriciaTrieBasic.TrieNode>> it = node.getChildrenIterator();
-					//AbstractObjectIterator<PatriciaTrieBasic.TrieNode> it = node.getChildrenIterator(largestFrequentFid);
+					//ObjectIterator<Int2ObjectMap.Entry<PatriciaTrie.TrieNode>> it = node.getChildrenIterator();
+					//AbstractObjectIterator<PatriciaTrie.TrieNode> it = node.getChildrenIterator(largestFrequentFid);
 					//if (!it.hasNext()) return state.isFinal();
 					while (it.hasNext()) {
 
@@ -458,7 +457,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					currentInputId = projectedDatabaseIt.nextNonNegativeInt();
 
 
-					//final PatriciaTrieBasic.TrieNode currentInputNode = inputTrie.getNodeById(currentInputId);
+					//final PatriciaTrie.TrieNode currentInputNode = inputTrie.getNodeById(currentInputId);
 					final int stateId = projectedDatabaseIt.nextNonNegativeInt();
 					final int pos = projectedDatabaseIt.nextNonNegativeInt();
 					//reachedFinalStateWithoutOutput |=
@@ -503,11 +502,11 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		return support;
 	}
 
-	private void checkTrie(Int2LongOpenHashMap relevantNodeSupports, PatriciaTrieBasic.TrieNode node){
+	private void checkTrie(Int2LongOpenHashMap relevantNodeSupports, PatriciaTrie.TrieNode node){
 		if(relevantNodeSupports.containsKey(node.getId())){
 			relevantNodeSupports.remove(node.getId());
 		}else{
-			for(PatriciaTrieBasic.TrieNode child: node.getChildren()){
+			for(PatriciaTrie.TrieNode child: node.getChildren()){
 				checkTrie(relevantNodeSupports, child);
 			}
 		}

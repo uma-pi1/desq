@@ -1,11 +1,12 @@
 package de.uni_mannheim.desq.mining;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
-import de.uni_mannheim.desq.fst.State;
 import de.uni_mannheim.desq.fst.graphviz.AutomatonVisualizer;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntList;
-import it.unimi.dsi.fastutil.ints.IntListIterator;
+import it.unimi.dsi.fastutil.ints.*;
+import it.unimi.dsi.fastutil.objects.AbstractObjectIterator;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectIterator;
+import it.unimi.dsi.fastutil.objects.ObjectList;
 import org.apache.commons.io.FilenameUtils;
 
 import java.util.*;
@@ -14,17 +15,18 @@ public class PatriciaTrie {
 
     private TrieNode root;
     private int currentNodeId;
+    private ObjectList<TrieNode> nodes;
 
-    private List<TrieNode> nodes;
 
     public PatriciaTrie() {
         //init root node with empty list
-        this.nodes = new ArrayList<>();
+        this.nodes = new ObjectArrayList<>();
         this.currentNodeId = -1;
-        this.root = new TrieNode(new IntArrayList(), (long) 0,false, true, ++currentNodeId);
+
+        this.root = new TrieNode(new IntArrayList(), (long) 0,
+                false, true, ++currentNodeId);
         nodes.add(currentNodeId, root);
     }
-
 
     public TrieNode getRoot(){
         return root;
@@ -41,17 +43,14 @@ public class PatriciaTrie {
     public void clear(){
         nodes.clear();
         currentNodeId = -1;
-        root.removeAllChildren();
-        root = new TrieNode(new IntArrayList(), (long) 0,false, true, ++currentNodeId);
+        root.children.clear();
+        root = new TrieNode(new IntArrayList(), (long) 0,
+                false, true, ++currentNodeId);
         nodes.add(currentNodeId, root);
     }
 
-    public void addItems(IntList fids) {
-        addItems(fids, (long) 1);
-    }
-
     public void addItems(IntList fids, long support) {
-        addItems(root, fids, support,null);
+        addItems(root, fids, support);
     }
 
     /**
@@ -61,7 +60,7 @@ public class PatriciaTrie {
      * @param support support/weight of these items
      */
 
-    public void addItems(TrieNode startNode, IntList items, long support, Producer producer) {
+    public void addItems(TrieNode startNode, IntList items, long support) {
         //traverse trie and inc support till nodes do not match or anymore or end of list
         IntListIterator it = items.iterator();
         TrieNode currentNode = startNode;
@@ -78,7 +77,7 @@ public class PatriciaTrie {
                     splitNode(currentNode, nodeItem);
                     currentNode.setFinal(false); //is only sub-sequence
                     //and add new node with remaining input items
-                    expandTrie(currentNode, createIntList(currentItem, it),support, producer,true);
+                    expandTrie(currentNode, createIntList(currentItem, it),support,true, false);
                     break; //remaining input added -> finished processing
                 } //else: same item in input and in node so far
 
@@ -100,7 +99,7 @@ public class PatriciaTrie {
                 TrieNode nextNode = currentNode.getChildrenStartingWith(currentItem);
                 if (nextNode == null) {
                     //no next node starting with input item -> expand with new node containing all remaining
-                    expandTrie(currentNode, createIntList(currentItem, it), support, producer,true);
+                    expandTrie(currentNode, createIntList(currentItem, it), support, true, false);
                     break; //remaining input added -> finished processing
                 } else {
                     //found child node starting with current item
@@ -110,44 +109,23 @@ public class PatriciaTrie {
                     currentNode = nextNode;
                     //skip the first item (already checked via hash key)
                     currentNode.itemIterator().next();
+                    //Case: last item of new input (but node has more!) -> it would end while loop -> handle split
+                    if(!it.hasNext() && currentNode.itemIterator().hasNext()){
+                        splitNode(currentNode, currentNode.itemIterator().next());
+                        //stays final because sequence ends here
+                        break;
+                    }//if the nodes does not have a next item either -> they are equal -> handling after loop
                     //continue;
                 }
             }
         }
-        //inc support of last visited node and clean up
+        //ensure that support of last visited node is increased and clean up
         //doing it after loop ensures that the last node is considered if there was no expand
         currentNode.incSupport(support);
-        currentNode.addProducer(producer);
         currentNode.clearIterator();
     }
-    // Add a single item after a given node (used for pattern growth)
-    public void appendItem(TrieNode startNode, int item, long support, Producer producer, boolean isFinal) {
-        //IntList is reused in node
-        IntList items = new IntArrayList();
-        items.add(item);
-        TrieNode nextNode = startNode.getChildrenStartingWith(item);
-        if (nextNode == null) {
-            //no next node starting with input item -> expand with new node containing the item
-            expandTrie(startNode, items, support, producer, isFinal);
-        } else {
-            //found child node starting with current item
-            //Check if the node contains more items -> split
-            if(nextNode.items.size() > 1) {
-                //but it has more items -> split after first item
-                splitNode(nextNode, nextNode.items.get(1));
-            }
-            //update the node containing the item
-            if(isFinal) nextNode.setFinal(isFinal); //only ensure true, but do not override it with false
-            //Check if it was already produced by same node -> skip (avoiding duplicates)
-            for(Producer p: nextNode.producers){
-                if(producer.node == p.node) return;
-            }
-            nextNode.incSupport(support);
-            nextNode.addProducer(producer);
-        }
-    }
 
-    //Construct the remaining items (TODO: more efficient way?)
+    //Construct the remaining items (is there a more efficient way?)
     private IntList createIntList(int firstItem, IntListIterator remainingItems) {
         IntList items = new IntArrayList();
         items.add(firstItem);
@@ -157,15 +135,24 @@ public class PatriciaTrie {
         return items;
     }
 
-    private TrieNode expandTrie(TrieNode startNode, IntList items, long support, Producer producer, boolean isFinal) {
+    private TrieNode expandTrie(TrieNode startNode, IntList items, long support, boolean isFinal, boolean moveChildren) {
         //Create new node
         TrieNode newNode = new TrieNode(items, support,isFinal,true, ++currentNodeId);
-        //Set producer if provided
-        newNode.addProducer(producer);
-        //Set pointer in parent node
-        startNode.addChild(newNode);
         //add new node to list
         nodes.add(currentNodeId, newNode);
+
+        //handle insert of node
+        if(moveChildren && !startNode.children.isEmpty()){
+            //reuse existing list of direct children
+            newNode.children = startNode.children;
+            //re-init existing list of direct children
+            startNode.children = new Int2ObjectOpenHashMap<>();
+
+            newNode.isLeaf = false;
+        }
+
+        //Add the child into the trie (and add start node as parent of new Node)
+        startNode.addChild(newNode);
         return newNode;
     }
 
@@ -181,20 +168,19 @@ public class PatriciaTrie {
     private TrieNode splitNode(TrieNode node, int separatorItem) {
         IntList remaining = node.separateItems(separatorItem);
         //remove children pointer from existing node
-        HashMap<Integer, TrieNode> existingChildren = node.removeAllChildren();
+        //Int2ObjectOpenHashMap<TrieNode> existingChildren = node.removeAllChildren();
+        //Int2ObjectOpenHashMap<TrieNode> existingChildren = node.children;
+        //node.children = new Int2ObjectOpenHashMap<>();
         //expand from existing node with remaining items
         //if original node is not final, child is neither
         //if original node stays final is decided in addItem node (depends on case)
-        TrieNode newNode = expandTrie(node, remaining, node.support, null, node.isFinal);
-        //copy list, it might change independently afterwards
-        newNode.producers.addAll(node.producers);
-        //remove the producer list (they only produced the sequence ending at new node)
-        node.producers.clear();
+        TrieNode newNode = expandTrie(node, remaining, node.support, node.isFinal, true);
+        /*
         //add existing children to new node
         if (!existingChildren.isEmpty()) {
             newNode.children = existingChildren;
             newNode.isLeaf = false;
-        }
+        }*/
         return newNode;
     }
 
@@ -211,7 +197,7 @@ public class PatriciaTrie {
 
     private void expandGraphViz(TrieNode node, AutomatonVisualizer viz, Dictionary dict, int depth) {
         int nextDepth = depth - 1;
-        for (TrieNode child : node.collectChildren()) {
+        for (TrieNode child : node.getChildren()) {
             //viz.add(node.toString(), String.valueOf(child.firstItem()), child.toString());
             viz.add(String.valueOf(node.id), child.toString(dict), String.valueOf(child.id));
             if (child.isFinal) {
@@ -224,7 +210,11 @@ public class PatriciaTrie {
         }
     }
 
-
+    public IndexPatriciaTrie convertToIndexBasedTrie(){
+        IndexPatriciaTrie trie = new IndexPatriciaTrie(size(), root.getId());
+        nodes.parallelStream().forEach(trie::addNode);
+        return trie;
+    }
 
     // ------------------------- TRIE NODE -----------------------------
 
@@ -237,21 +227,20 @@ public class PatriciaTrie {
         private IntListIterator  it;
         //The support for this set (beginning at root)
         protected long support;
-        //pointers to children
-        protected HashMap<Integer, TrieNode> children = new HashMap<>();
+        protected Int2ObjectOpenHashMap<PatriciaTrie.TrieNode> children = new Int2ObjectOpenHashMap<>();
         protected boolean isLeaf; //no children
         protected boolean isFinal; //a sequence ends here (instead of summing and comparing support)
-        protected boolean isRelevant; //additional information (used by pattern growth to keep track of relevant outputs)
-        protected List<Producer> producers;
 
-        public TrieNode(IntList fids, long support, boolean isFinal, boolean isLeaf, int id) {
+        protected IntervalNode intervalNode;
+
+
+        public TrieNode(IntList fids, long support,
+                        boolean isFinal, boolean isLeaf, int id) {
             this.support = support;
             this.isLeaf = isLeaf;
             this.isFinal = isFinal;
             this.id = id;
-            this.producers = new ArrayList<>();
             this.items = fids;
-            this.isRelevant = false;
         }
 
         // Increment support
@@ -267,6 +256,10 @@ public class PatriciaTrie {
             }
         }
 
+        public Collection<TrieNode> getChildren() {
+            return children.values();
+        }
+
         //returns previous child trie node (if replaced), else null
         public TrieNode addChild(TrieNode t) {
             return addChild(t.firstItem(), t);
@@ -276,25 +269,6 @@ public class PatriciaTrie {
             if (isLeaf) isLeaf = false;
             //there must be only one child per next fid
             return children.put(firstItem, t);
-        }
-
-        public void addChildren(Map<Integer, TrieNode> map) {
-            if (isLeaf) isLeaf = false;
-            children.putAll(map);
-        }
-
-        public Collection<TrieNode> collectChildren() {
-            return children.values();
-        }
-
-        public int childrenCount() {
-            return children.size();
-        }
-
-        public HashMap<Integer, TrieNode> removeAllChildren() {
-            HashMap<Integer, TrieNode> removed = children;
-            children = new HashMap<>();
-            return removed;
         }
 
         public TrieNode getChildrenStartingWith(int fid) {
@@ -314,29 +288,17 @@ public class PatriciaTrie {
         public boolean isLeaf(){
             return isLeaf;
         }
+
         public boolean isFinal(){
             return isFinal;
-        }
-        public boolean isRelevant(){
-            return isRelevant;
         }
 
         public void setFinal(boolean isFinal){
             this.isFinal = isFinal;
         }
 
-
         public long getSupport(){
             return support;
-        }
-
-        //Exclusive support (support - sum(children support)
-        public long getExclusiveSupport(){
-            long childSupport = 0;
-            for(TrieNode child: children.values()){
-                childSupport += child.support;
-            }
-            return support - childSupport;
         }
 
         public int getId(){
@@ -359,78 +321,36 @@ public class PatriciaTrie {
             return removed;
         }
 
-
-
-        // Handling Pattern Growth
-
-        public void setRelevant(boolean isRelevant){
-            this.isRelevant = isRelevant;
-        }
-
-        //Try to combine with child
-        public void trim(long minSupport, boolean checkRelevant, boolean merge){
-            //long supportCorrection = 0;
-            if(!children.isEmpty()) {
-                IntList prune = new IntArrayList(children.size());
-                for (TrieNode child : collectChildren()) {
-                    //remove infrequent or not relevant children
-                    if (child.support < minSupport) {
-                        prune.add(child.firstItem());
-                    }
-                    else if(checkRelevant && !child.isRelevant() && !child.isFinal()){
-                        prune.add(child.firstItem());
-                    }
+        /**
+         * Method calculating interval tree information (including its children)
+         * Returns the highest id used
+         */
+        public int calculateIntervals(final int start){
+            //intervalStart = start;
+            if(isLeaf){
+                //This node is a leaf -> interval start = end
+                //intervalEnd = start;
+                intervalNode = new IntervalNode(start,start,support);
+                return start;
+            }else{
+                //Not a leaf -> iterate over all children (depth-first to ensure consistent intervals)
+                int end = start;
+                int nextStart = start;
+                for(TrieNode child: getChildren()) {
+                    end = child.calculateIntervals(nextStart);
+                    //next start
+                    nextStart = end + 1;
                 }
-                removeChildrenByFirstItem(prune);
 
+                //if(isFinal) end += 1; //but not leaf -> represents end of sequence (higher support than children) -> ensure precedence
 
-                // --- merge with child?
-                //check if not final (would define a sequence end) and has exactly one child
-                if (merge && !isFinal && children.size() == 1) {
-                    mergeWith(children.values().iterator().next());
-                }
-            }
-            //return supportCorrection;
-        }
-
-        public void removeChildrenByFirstItem(IntList remove){
-            if(!remove.isEmpty()){
-                //Discard references, GC should do the rest
-                for(Integer item: remove){
-                    TrieNode child = children.remove(item);
-                }
-            }
-            if(children.isEmpty())
-                isLeaf = true;
-
-        }
-
-        //Merges two nodes - use with care
-        private void mergeWith(TrieNode node){
-            //add Items
-            items.addAll(node.items);
-
-            //Ensure consistent iterator
-            clearIterator();
-
-            //copy (pointers) from child into parent
-            isLeaf = node.isLeaf;
-            isFinal = node.isFinal;
-            isRelevant = node.isRelevant;
-            children = node.children;
-            producers = node.producers;
-            support = node.support;
-        }
-
-        public void addProducer(Producer p){
-            if(p != null) {
-                producers.add(p);
+                //intervalEnd = end;
+                intervalNode = new IntervalNode(start,end,support);
+                return end;
             }
         }
-
 
         // Printing Node
-
         @Override
         public String toString() {
             StringBuilder builder = new StringBuilder();
@@ -463,23 +383,4 @@ public class PatriciaTrie {
         }
     }
 
-    public static class Producer{
-        protected State state;
-        protected PatriciaTrie.TrieNode node;
-        protected int itemPos;
-        protected long support;
-        protected boolean isFinal;
-        protected boolean isComplete;
-
-        public Producer(State state, PatriciaTrie.TrieNode node, int itemPos,
-                        long support, boolean isFinal, boolean isComplete){
-            this.state = state;
-            this.node = node;
-            this.itemPos = itemPos;
-            this.support = support;
-            this.isFinal = isFinal;
-            this.isComplete = isComplete;
-        }
-
-    }
 }

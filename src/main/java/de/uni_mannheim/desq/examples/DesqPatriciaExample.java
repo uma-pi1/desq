@@ -1,7 +1,6 @@
 package de.uni_mannheim.desq.examples;
 
-import de.uni_mannheim.desq.mining.DesqCountPatricia;
-import de.uni_mannheim.desq.mining.DesqPatricia;
+import de.uni_mannheim.desq.mining.DesqDfsPatricia;
 import de.uni_mannheim.desq.patex.PatExToItemsetPatEx;
 import de.uni_mannheim.desq.util.DesqProperties;
 
@@ -16,7 +15,7 @@ public class DesqPatriciaExample {
 
 		patternExpression = new PatExToItemsetPatEx(patternExpression).translate();
 
-		DesqProperties conf = DesqPatricia.createConf(patternExpression, sigma);
+		DesqProperties conf = DesqDfsPatricia.createConf(patternExpression, sigma);
 		//DesqProperties conf = DesqCount.createConf(patternExpression, sigma);
 		/*conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
 		conf.setProperty("desq.mining.use.lazy.dfa", true);

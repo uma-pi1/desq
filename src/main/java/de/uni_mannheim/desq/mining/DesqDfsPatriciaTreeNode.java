@@ -26,7 +26,7 @@ final class DesqDfsPatriciaTreeNode {
 	final Fst fst;
 
 	/** the input trie */
-	//final PatriciaTrieBasic inputTrie;
+	//final PatriciaTrie inputTrie;
 	final int inputTrieSize;
 
 	/** possible FST states for this node */
@@ -168,7 +168,7 @@ final class DesqDfsPatriciaTreeNode {
 	 * @param state (to)state of the FST
 	 */
 	//void expandWithItem(final int outputFid, final int inputId, final long inputSupport,
-	void expandWithItem(final int outputFid, final PatriciaTrieBasic.TrieNode inputNode,
+	void expandWithItem(final int outputFid, final PatriciaTrie.TrieNode inputNode,
 						final int position, final State state) {
 
 		//Get child node with corresponding fid
@@ -253,7 +253,7 @@ final class DesqDfsPatriciaTreeNode {
 
 	}
 
-	public void finalStateReached(PatriciaTrieBasic.TrieNode inputNode){
+	public void finalStateReached(PatriciaTrie.TrieNode inputNode){
 		final int inputNodeId = inputNode.getId();
 
 
