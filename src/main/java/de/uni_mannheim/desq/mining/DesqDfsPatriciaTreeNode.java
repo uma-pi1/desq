@@ -224,9 +224,7 @@ final class DesqDfsPatriciaTreeNode {
 			childrenByFid.put(outputFid, child);
 		}
 
-		//final int inputNodeId = inputNode.getId();
-
-		//Handle supports:
+		//Handle support:
 		if(state.isFinal()){
 			child.finalStateReached(inputNodeId, trie);
 		}else{
@@ -260,76 +258,28 @@ final class DesqDfsPatriciaTreeNode {
 		if(!reachedFinalStateAtInputId.get(inputNodeId)) {
 			//handle a valid final state in FST -> remember it to avoid multiple processing of it
 			reachedFinalStateAtInputId.set(inputNodeId);
-			final long inputSupport = inputNode.getSupport();
 
 			//Processing only necessary if no parent was processed already
-			/*
-			if (!reachedFinalStateAtInputId.intersects(inputNode.ancestors)) {
-							//add support to prefix support
-				//child.prefixSupport += inputSupport;
-				//Remember support
-				relevantNodeSupports.put(inputNodeId, inputSupport);
-
-
-				//check if descendants were counted already and remove the support -> need to clean up
-				//Flag in "reachedFinalStateAtInputId" can stay
-				if (reachedFinalStateAtInputId.intersects(inputNode.descendants)) {
-					BitSet intersect = (BitSet) reachedFinalStateAtInputId.clone();
-					intersect.and(inputNode.descendants);
-					//correct them (could be done after expand before recalculating support!)
-					int nodeId = 0;
-					while (nodeId >= 0) {
-						nodeId = intersect.nextSetBit(nodeId); //returns -1 if none
-						//Remove support
-						if (nodeId > 0 && relevantNodeSupports.containsKey(nodeId)) {
-							relevantNodeSupports.remove(nodeId);
-							//child.reachedFinalStateAtInputId.set(inputNodeId, false);
-						}
-					}
-				}
-
-				if (!reachedNonFinalStateAtInputId.get(inputNodeId)) {
-					//not counted in potential support yet -> add it
-					potentialSupport += inputSupport;
-				}
-
-			}*/
-
-			/*
-			if(checkAndInsertInterval(inputNode.intervalStart, inputNode.intervalEnd, inputSupport)){
-				//further processings
-				if (!reachedNonFinalStateAtInputId.get(inputNodeId)) {
-					//not counted in potential support yet -> add it
-					potentialSupport += inputSupport;
-				}
-			}*/
-
-			relevantIntervalNodes.add(
-					inputNode.intervalNode
-			);
+			relevantIntervalNodes.add(inputNode.intervalNode);
 
 			if (!reachedNonFinalStateAtInputId.get(inputNodeId)) {
 				//not counted in potential support yet -> add it
-				potentialSupport += inputSupport;
+				potentialSupport += inputNode.getSupport();
 			}
 		}
 	}
 
 	//Same for Index based
 	public void finalStateReached(int nodeId, IndexPatriciaTrie trie){
-		final long inputSupport = trie.getSupport(nodeId);
-
 		if(!reachedFinalStateAtInputId.get(nodeId)) {
 			//handle a valid final state in FST -> remember it to avoid multiple processing of it
 			reachedFinalStateAtInputId.set(nodeId);
 
-			relevantIntervalNodes.add(
-					trie.getIntervalNode(nodeId)
-			);
+			relevantIntervalNodes.add(trie.getIntervalNode(nodeId));
 
 			if (!reachedNonFinalStateAtInputId.get(nodeId)) {
 				//not counted in potential support yet -> add it
-				potentialSupport += inputSupport;
+				potentialSupport += trie.getSupport(nodeId);
 			}
 		}
 	}
@@ -365,8 +315,6 @@ final class DesqDfsPatriciaTreeNode {
 		child.projectedDatabase.addNonNegativeInt(position);
 
 	}
-
-	/*
 
 	/**
 	 * Calculates the support of the prefix of this node
