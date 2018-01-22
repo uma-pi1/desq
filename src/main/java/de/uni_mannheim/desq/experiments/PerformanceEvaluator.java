@@ -5,6 +5,7 @@ import de.uni_mannheim.desq.dictionary.BuilderFactory;
 import de.uni_mannheim.desq.dictionary.Dictionary;
 import de.uni_mannheim.desq.examples.spark.ExampleUtils;
 import de.uni_mannheim.desq.io.CountPatternWriter;
+import de.uni_mannheim.desq.io.DelSequenceReader;
 import de.uni_mannheim.desq.io.MemoryPatternWriter;
 import de.uni_mannheim.desq.io.SequenceReader;
 import de.uni_mannheim.desq.mining.DesqMiner;
@@ -14,18 +15,24 @@ import de.uni_mannheim.desq.mining.spark.DesqDataset;
 import de.uni_mannheim.desq.experiments.MetricLogger.Metric;
 import de.uni_mannheim.desq.patex.PatExTranslator;
 import de.uni_mannheim.desq.util.DesqProperties;
+import de.uni_mannheim.desq.util.Profiler;
 import it.unimi.dsi.fastutil.ints.IntList;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.Iterator;
 import java.util.concurrent.atomic.LongAdder;
 
 public class PerformanceEvaluator {
+    private static boolean profileMemoryUsage = true;
+
     private DesqProperties desqMinerConfigTemplate;
     private String dataPath;
+    private String dictPath; //only needed if no factory used
     private BuilderFactory factory;
     private PatExTranslator<String> patExTranslator;
     private String logFile;
@@ -33,12 +40,16 @@ public class PerformanceEvaluator {
     private SparkConf conf;
     private int print = 0;
     private boolean usesGids;
-    private DesqDataset data; //references the data of current iteration
+    private boolean bypassBuilder;
+    private DesqDataset data; //references the data of current iteration (might be null)
+    private Dictionary dict; //references the dict of current iteration
     private SparkContext sc;
 
     public PerformanceEvaluator(DesqProperties desqMinerConfig,
                                 String dataPath,
+                                String dictPath,
                                 Boolean usesGids,
+                                Boolean bypassBuilder,
                                 BuilderFactory factory,
                                 Integer print,
                                 String logFile,
@@ -47,29 +58,37 @@ public class PerformanceEvaluator {
         this.desqMinerConfigTemplate = desqMinerConfig;
         this.dataPath = dataPath;
         this.usesGids = usesGids;
+
         this.factory = factory;
-        if(print != null){
-            this.print = print;
+
+        if(dictPath != null){
+            this.dictPath = dictPath;
         }
 
-        if(logFile != null){
-            this.logFile = logFile;
-        }
-        if(patExTranslator != null){
-            this.patExTranslator = patExTranslator;
-        }
+        if(print != null) this.print = print;
+        else this.print = 0;
+
+        if(logFile != null) this.logFile = logFile;
+
+        if(patExTranslator != null) this.patExTranslator = patExTranslator;
+
+        if(bypassBuilder != null) this.bypassBuilder = bypassBuilder;
+        else this.bypassBuilder = false;
 
         //init Spark
-        this.conf = new SparkConf().setAppName(getClass().getName()).setMaster("local");
-        Desq.initDesq(conf);
-
+        if(!this.bypassBuilder) {
+            this.conf = new SparkConf().setAppName(getClass().getName()).setMaster("local");
+            Desq.initDesq(conf);
+            conf.set("spark.kryoserializer.buffer.max", "1024m");
+        }
     }
 
-    public void run(int iterations){
+    public void run(int iterations) throws IOException{
         //Force re-init of logger
         MetricLogger.reset();
         //init spark (once per run)
-        sc = SparkContext.getOrCreate(conf);
+        sc = (!bypassBuilder) ? SparkContext.getOrCreate(conf) : null;
+
         log = MetricLogger.getInstance();
         for(int i = 0; i < iterations; i++) {
             System.out.println("\n == Iteration " + i + " ==" );
@@ -79,24 +98,28 @@ public class PerformanceEvaluator {
                     result.getPatterns().stream().mapToLong(ws -> ws.weight).sum());
             if(i == 0 && print > 0) {
                 //Print up to x inputs and patterns
-                System.out.println("Input data (up to " + print + "):");
-                data.print(print);
+                if(data != null) {
+                    System.out.println("Input data (up to " + print + "):");
+                    data.print(print);
+                }
                 System.out.println("Result patterns (up to " + print + "):");
                 int cnt = 0;
                 for (WeightedSequence ws : result.getPatterns()) {
-                    System.out.println(data.dict().sidsOfFids(ws) + "@" + ws.weight);
+                    System.out.println(dict.sidsOfFids(ws) + "@" + ws.weight);
                     if ((cnt += 1) >= print) break;
                 }
             }
 
             //Cleanup Spark (used for data load via DesqDataset)
-            data.broadcastDictionary().destroy();
-            data = null;
+            if(data != null) {
+                data.broadcastDictionary().destroy();
+                data = null;
+            }
             result.close();
 
         }
         //Stop Spark after all iterations
-        sc.stop();
+        if(!bypassBuilder) sc.stop();
 
 
         //Output log in csv (optional)
@@ -105,46 +128,65 @@ public class PerformanceEvaluator {
         }
     }
 
-    private MemoryPatternWriter runIteration(){
+    private MemoryPatternWriter runIteration() throws IOException{
         //Copy config to ensure changes are not passed to next iteration
         DesqProperties minerConf = new DesqProperties(desqMinerConfigTemplate);
+        Profiler profiler = new Profiler();
 
         // ------- Processing  -------------
         log.start(Metric.TotalRuntime);
 
         // ---- Load Data
-        System.out.print("Loading data (" + factory.getClass().getCanonicalName() + ") ... ");
         log.start(Metric.DataLoadRuntime);
-        // Init data load via DesqDataset (lazy) via Spark
-        data = (usesGids)
-                ? ExampleUtils.buildDesqDatasetFromDelFile(sc, dataPath, factory)
-                : ExampleUtils.buildDesqDatasetFromRawFile(sc, dataPath, factory, " ");
+        SequenceReader seqReader;
+        if(bypassBuilder){
+            System.out.print("Loading data (from files without builder) ... ");
+            //Read avro dict
+            dict = Dictionary.loadFrom(dictPath);
+            dict.recomputeFids();
+            //File dataFile = new File("data-local/netflix/flat-data-gid.del");
+            seqReader = new DelSequenceReader(
+                                dict,
+                                new FileInputStream(new File(dataPath)),
+                                !usesGids
+            );
+            //dataReader.setDictionary(dict);
+            System.out.println(log.stop(Metric.DataLoadRuntime));
+        }else {
+            System.out.print("Loading data (factory: " + factory.getClass().getCanonicalName() + ") ... ");
+            // Init data load via DesqDataset (lazy) via Spark
+            data = (usesGids)
+                    ? ExampleUtils.buildDesqDatasetFromDelFile(sc, dataPath, factory)
+                    : ExampleUtils.buildDesqDatasetFromRawFile(sc, dataPath, factory, " ");
+            dict = data.dict();
+            //Gather data (via scala/spark)
+            List<String[]> cachedSequences = data.toSids().toJavaRDD().collect();
+            System.out.println(log.stop(Metric.DataLoadRuntime));
 
-        //Gather data (via scala/spark)
-        List<String[]> cachedSequences = data.toSids().toJavaRDD().collect();
-        System.out.println(log.stop(Metric.DataLoadRuntime));
+            //Determine Fid of itemset separator (easier analysis later)
+            String itemsetSeparatorSid = data.properties().getString("desq.dataset.itemset.separator.sid", null);
+            if (itemsetSeparatorSid != null) {
+                System.out.println("Itemset Separator FId: " + dict.fidOf(itemsetSeparatorSid));
+            }
 
-        //Determine Fid of itemset separator (easier analysis later)
-        String itemsetSeparatorSid = data.properties().getString("desq.dataset.itemset.separator.sid", null);
-        if(itemsetSeparatorSid != null){
-            System.out.println("Itemset Separator FId: " + data.dict().fidOf(itemsetSeparatorSid));
+
+            // ---- Calculating some KPIs (impact on total runtime only)
+            System.out.println("#Dictionary entries: " + log.add(Metric.NumberDictionaryItems, dict.size()));
+
+
+            System.out.println("#Input sequences: "
+                    + log.add(Metric.NumberInputSequences, cachedSequences.size()));
+
+            //Sum up the length of each sequence
+            LongAdder adder = new LongAdder();
+            cachedSequences.parallelStream().forEach(seq -> adder.add(seq.length));
+            int sum = adder.intValue();
+
+            System.out.println("Avg length of input sequences: "
+                    + log.add(Metric.AvgLengthInputSequences, sum/cachedSequences.size()));
+
+            seqReader = new StringIteratorSequenceReader(dict, cachedSequences.iterator());
         }
-
-        // ---- Calculating some KPIs (impact on total runtime only)
-        System.out.println("#Dictionary entries: " + log.add(Metric.NumberDictionaryItems, data.dict().size()));
-
-
-        System.out.println("#Input sequences: "
-                + log.add(Metric.NumberInputSequences, cachedSequences.size()));
-
-        //Sum up the length of each sequence
-        LongAdder adder = new LongAdder();
-        cachedSequences.parallelStream().forEach(seq -> adder.add(seq.length));
-        int sum = adder.intValue();
-
-        System.out.println("Avg length of input sequences: "
-                + log.add(Metric.AvgLengthInputSequences, sum/cachedSequences.size()));
-
         // ---- Convert PatEx (optional)
         System.out.print("Converting PatEx ( " + (patExTranslator != null) + " )... ");
         log.start(Metric.PatExTransformationRuntime);
@@ -166,26 +208,40 @@ public class PerformanceEvaluator {
 
         //Prep
         log.start(Metric.MiningPrepRuntime);
-        DesqMinerContext ctx = new DesqMinerContext(minerConf, data.dict());
+        System.out.print("Prep. Mining ... ");
+        DesqMinerContext ctx = new DesqMinerContext(minerConf, dict);
         MemoryPatternWriter result = new MemoryPatternWriter();
         ctx.patternWriter = result;
         DesqMiner miner = DesqMiner.create(ctx);
-
-        SequenceReader seqReader = new StringIteratorSequenceReader(data.dict(), cachedSequences.iterator());
-        log.stop(Metric.MiningPrepRuntime);
+        System.out.println(log.stop(Metric.MiningPrepRuntime));
 
         //Read Input
+        System.out.print("Read ... ");
+        if(profileMemoryUsage) profiler.start();
         log.start(Metric.MiningReadRuntime);
         try { miner.addInputSequences(seqReader);}
         catch (IOException e) { e.printStackTrace();}
-        log.stop(Metric.MiningReadRuntime);
+        if(profileMemoryUsage) {
+            profiler.stop();
+            System.out.println(log.stop(Metric.MiningReadRuntime)
+                    + " (Memory: " + log.add(Metric.MemoryForReading, profiler.usedMemory/1024) + "kB)");
+        }else
+            System.out.println(log.stop(Metric.MiningReadRuntime));
+
 
         //Exec mining
+        System.out.print("Mine ... ");
+        if(profileMemoryUsage) profiler.start();
         log.start(Metric.MiningMineRuntime);
         miner.mine();
-        log.stop(Metric.MiningMineRuntime);
+        if(profileMemoryUsage) {
+            profiler.stop();
+            System.out.println(log.stop(Metric.MiningMineRuntime)
+                    + " (Memory: " + log.add(Metric.MemoryForMining, profiler.usedMemory/1024) + "kB)");
+        }else
+            System.out.println(log.stop(Metric.MiningMineRuntime));
 
-        System.out.println("MiningRuntime: " + log.stop(Metric.MiningRuntime));
+        System.out.println("Total Mining Time: " + log.stop(Metric.MiningRuntime));
 
         // ------ Collect Result KPIs ------------
         System.out.println("#Result Patterns: " + log.add(Metric.NumberResultPatterns,result.size()));

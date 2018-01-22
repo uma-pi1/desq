@@ -16,12 +16,14 @@ public class PatriciaTrie {
     private TrieNode root;
     private int currentNodeId;
     private ObjectList<TrieNode> nodes;
+    //private int expectedChildrenCount;
 
 
     public PatriciaTrie() {
         //init root node with empty list
         this.nodes = new ObjectArrayList<>();
         this.currentNodeId = -1;
+        //this.expectedChildrenCount = expectedChildrenCount;
 
         this.root = new TrieNode(new IntArrayList(), (long) 0,
                 false, true, ++currentNodeId);
@@ -74,7 +76,7 @@ public class PatriciaTrie {
                 //Case: item list differs -> split in common prefix and extend new sequence part
                 if (currentItem != nodeItem) {
                     //node item and input item differ -> split node and extend with remaining!
-                    splitNode(currentNode, nodeItem);
+                    splitNode(currentNode, currentNode.itemIterator().previousIndex());
                     currentNode.setFinal(false); //got only sub-sequence which splits (has multiple children)
                     //and add new node with remaining input items
                     expandTrie(currentNode, createIntList(currentItem, it),support,true, false);
@@ -83,7 +85,7 @@ public class PatriciaTrie {
 
                 //Case: item list is shorter than node Items -> split and update the first part (current node)
                 else if(!it.hasNext() && currentNode.itemIterator().hasNext()) {
-                    splitNode(currentNode, currentNode.itemIterator().next());
+                    splitNode(currentNode, currentNode.itemIterator().nextIndex());
                     currentNode.setFinal(true);//sequence ends here
                     break;
                 }
@@ -109,10 +111,10 @@ public class PatriciaTrie {
                     currentNode = nextNode;
                     //skip the first item (already checked via hash key)
                     currentNode.itemIterator().next();
-                    //Case: last item of new input (but node has more!) -> it would end while loop -> handle split
-                    if(!it.hasNext()){//loop will end anyways
+                    if(!it.hasNext()){//last item of input -> loop will end
                         if(currentNode.itemIterator().hasNext()){
-                            splitNode(currentNode, currentNode.itemIterator().next());
+                            //Case: last item of new input (but node has more!)
+                            splitNode(currentNode, currentNode.itemIterator().nextIndex());
                         }
                         currentNode.setFinal(true); //sequence ends here
                         break;
@@ -174,25 +176,16 @@ public class PatriciaTrie {
      * and parents do not need to be adjusted. The remaining Items are moved to a new node
      * which is attached as child node to the existing
      * @param node to be split
-     * @param separatorItem first item of new (second) node
+     * @param idx index of first item of new (second) node
      * @return the new node
      */
-    private TrieNode splitNode(TrieNode node, int separatorItem) {
-        IntList remaining = node.separateItems(separatorItem);
+    private TrieNode splitNode(TrieNode node, int idx) {
+        IntList remaining = node.separateItems(idx);
         //remove children pointer from existing node
-        //Int2ObjectOpenHashMap<TrieNode> existingChildren = node.removeAllChildren();
-        //Int2ObjectOpenHashMap<TrieNode> existingChildren = node.children;
-        //node.children = new Int2ObjectOpenHashMap<>();
         //expand from existing node with remaining items
         //if original node is not final, child is neither
         //if original node stays final is decided in addItem node (depends on case)
         TrieNode newNode = expandTrie(node, remaining, node.support, node.isFinal, true);
-        /*
-        //add existing children to new node
-        if (!existingChildren.isEmpty()) {
-            newNode.children = existingChildren;
-            newNode.isLeaf = false;
-        }*/
         return newNode;
     }
 
@@ -239,7 +232,7 @@ public class PatriciaTrie {
         private IntListIterator  it;
         //The support for this set (beginning at root)
         protected long support;
-        protected Int2ObjectOpenHashMap<PatriciaTrie.TrieNode> children = new Int2ObjectOpenHashMap<>();
+        protected Int2ObjectMap<TrieNode> children;
         protected boolean isLeaf; //no children
         protected boolean isFinal; //a sequence ends here (instead of summing and comparing support)
 
@@ -253,6 +246,7 @@ public class PatriciaTrie {
             this.isFinal = isFinal;
             this.id = id;
             this.items = fids;
+            this.children = new Int2ObjectOpenHashMap<>();
         }
 
         // Increment support
@@ -322,10 +316,10 @@ public class PatriciaTrie {
             it = null;
         }
 
-        public IntList separateItems(int separatorItem) {
+        public IntList separateItems(int idx) {
             //avoid inconsistent iterator
             clearIterator();
-            int idx = items.indexOf(separatorItem);
+            //int idx = items.indexOf(separatorItem);
             //determine to be removed items (for return) and copy them
             IntList removed = new IntArrayList(items.subList(idx, items.size()));
             //delete remaining based on idx

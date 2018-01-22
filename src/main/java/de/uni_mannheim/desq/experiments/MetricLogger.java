@@ -24,6 +24,7 @@ public class MetricLogger {
         NumberDictionaryItems, NumberInputSequences, AvgLengthInputSequences,
         NumberPatExItems, NumberDistinctPatExItems, NumberResultPatterns,
         NumberNodeMoves, NumberFstTransitions, NumberExpands,
+        MemoryForReading, MemoryForMining,
         //Runtime Metrics
         DataLoadRuntime,
         PatExTransformationRuntime,
@@ -35,6 +36,7 @@ public class MetricLogger {
                 FstMinimizationRuntime,
             MiningReadRuntime,
             MiningMineRuntime,
+                MiningMineFirstExpandRuntime,
         TotalRuntime
     }
 
