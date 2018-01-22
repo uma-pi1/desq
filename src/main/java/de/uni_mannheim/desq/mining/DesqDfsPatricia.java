@@ -189,22 +189,19 @@ public final class DesqDfsPatricia extends DesqMiner {
 
 pos: 	do { // loop over positions; used for tail recursion optimization -> on trie not linear anymore -> recursion needs to split
 
-			//Check if final state reached and if this fact should be recorded
-			if(state.isFinal() && trackWithoutOutput) {
-
-				trackWithoutOutput = false; //this node is captured, ignore children
-				//reachedFinalStateWithoutOutput |= true; //cannot be overwritten
-				currentNode.finalStateReached(node);
-
-			}
-
 			//If Fst reached final complete state -> exit
 			if (state.isFinalComplete()){
+				if(trackWithoutOutput) currentNode.finalStateReached(node);
 				return;// reachedFinalStateWithoutOutput;
 			}
 
 			//Handle end of input trie node (proceed to child nodes if possible)
 			if(pos == node.getItems().size()) {
+				//Check if track final state
+				if(trackWithoutOutput && state.isFinal() && node.isFinal()){
+					trackWithoutOutput = false;
+					currentNode.finalStateReached(node);
+				}
 				//Check if input trie node is leaf (no children) -> end of processing
 				if(node.isLeaf()) {
 					return;// reachedFinalStateWithoutOutput;

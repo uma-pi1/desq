@@ -26,7 +26,7 @@ public class EvaluatePerfOnFimi {
                 break;
             case DesqDfs:
                 conf = DesqDfs.createConf(patEx, sigma);
-                conf.setProperty("desq.mining.use.two.pass", false); // has to be set for DesqDfs to return correct results
+                conf.setProperty("desq.mining.use.two.pass", true); // has to be set for DesqDfs to return correct results
                 break;
             case DesqDfsPatricia:
                 conf = DesqDfsPatricia.createConf(patEx, sigma);
@@ -40,6 +40,7 @@ public class EvaluatePerfOnFimi {
         }
 
         conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
+        conf.setProperty("desq.mining.use.lazy.dfa", true);
 
         conf.setProperty("desq.mining.optimize.permutations", true);
 
@@ -69,8 +70,9 @@ public class EvaluatePerfOnFimi {
         ExampleUtils.runItemsetPerfEval(
                 getMinerConf(miner,
                         //"(.) (.)",
-                        "A B (.){1,3}", //"A B 30 1198 (.)", "A B (.){1,3}", "A B (.){1,5}"
-                        100),
+                        //"A B (.){1,3}", //"A B 30 1198 (.)", "A B (.){1,3}", "A B (.){1,5}"
+                        "(A).{1,5}$",
+                        1),
                 retail_itemset_data, retail_itemset_dict,
                 //click_itemset_data, null,
                 false,
@@ -78,7 +80,7 @@ public class EvaluatePerfOnFimi {
                 "data-local/log/Fimi_" + miner + "_",
                 3,
                 0,
-                false, true, false,
+                true, false, false,
                 true
         );
     }
@@ -106,7 +108,7 @@ public class EvaluatePerfOnFimi {
                         //"[c|d] (.){1,3} A",
                         //"(.){1,3}",
                         //"(A^)*",//"(A) e", //"(A^)",
-                        "[A.* (.)]|[(.).* A]", // [A.*]&[(.).*]!{1,3}
+                        "(a1)..",//"[A.* (.)]|[(.).* A]", // [A.*]&[(.).*]!{1,3}
                         1),
                 "data/icdm16-example/data.del",
                 "data/icdm16-example/dict.json",
@@ -123,14 +125,14 @@ public class EvaluatePerfOnFimi {
     public static void main(String[] args) throws IOException{
         //runItemsetExample(Miner.DesqCount);
 
-        //runFimi(Miner.DesqCount);
-        //runFimi(Miner.DesqDfs);
-        //runFimi(Miner.DesqDfsPatricia);
+        runFimi(Miner.DesqCount);
+        runFimi(Miner.DesqDfs);
+        runFimi(Miner.DesqDfsPatricia);
         //runFimi(Miner.DesqDfsPatriciaIndex);
         //runSequentialFimi(Miner.DesqDfs);
 
-        runIcdm16(Miner.DesqCount);
-        runIcdm16(Miner.DesqDfs);
+        //runIcdm16(Miner.DesqCount);
+        //runIcdm16(Miner.DesqDfs);
         //runIcdm16(Miner.DesqDfsPatricia);
 
     }

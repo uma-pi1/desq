@@ -10,7 +10,7 @@ public class IndexPatriciaTrie {
     private long[] nodeSupport;
     private IntList[] nodeChildren;
     private IntList[] nodeItems;
-    //private boolean[] nodeIsFinal;
+    private boolean[] nodeIsFinal;
     private boolean[] nodeIsLeaf;
     private IntervalNode[] nodeInterval;
     private int[] nodeItemsSize;
@@ -23,7 +23,7 @@ public class IndexPatriciaTrie {
         this.nodeSupport = new long[size];
         this.nodeChildren = new IntList[size];
         this.nodeItems = new IntList[size];
-        //this.nodeIsFinal = new boolean[size];
+        this.nodeIsFinal = new boolean[size];
         this.nodeIsLeaf = new boolean[size];
         this.nodeInterval = new IntervalNode[size];
         this.nodeItemsSize = new int[size];
@@ -38,7 +38,7 @@ public class IndexPatriciaTrie {
         //Fill values with corresponding node index
         nodeItems[idx] =  node.items;
         nodeSupport[idx] =  node.support;
-        //nodeIsFinal[idx] = node.isFinal;
+        nodeIsFinal[idx] = node.isFinal;
         nodeIsLeaf[idx] =  node.isLeaf;
         nodeInterval[idx] = node.intervalNode;//new IntervalNode(node.intervalStart, node.intervalEnd, node.support);
         nodeItemsSize[idx] = node.items.size();
@@ -58,10 +58,10 @@ public class IndexPatriciaTrie {
         return nodeSupport[nodeId];
     }
 
-    /*
+
     public boolean isFinal(int nodeId) {
         return nodeIsFinal[nodeId];
-    }*/
+    }
 
     public boolean isLeaf(int nodeId) {
         return nodeIsLeaf[nodeId];
@@ -102,7 +102,7 @@ public class IndexPatriciaTrie {
         this.nodeSupport = null;
         this.nodeChildren = null;
         this.nodeItems = null;
-        //this.nodeIsFinal = null;
+        this.nodeIsFinal = null;
         this.nodeIsLeaf = null;
         this.nodeInterval = null;
     }
