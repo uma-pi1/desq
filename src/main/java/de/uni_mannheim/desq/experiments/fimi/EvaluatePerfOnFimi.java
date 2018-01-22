@@ -69,7 +69,7 @@ public class EvaluatePerfOnFimi {
         ExampleUtils.runItemsetPerfEval(
                 getMinerConf(miner,
                         //"(.) (.)",
-                        "A B (.){1,3}", //"A B 30 1198 (.)", //"(.) (.)", //"A B (.){1,3}", //"A B (.){1,5}"
+                        "A B (.){1,3}", //"A B 30 1198 (.)", "A B (.){1,3}", "A B (.){1,5}"
                         100),
                 retail_itemset_data, retail_itemset_dict,
                 //click_itemset_data, null,
@@ -105,7 +105,8 @@ public class EvaluatePerfOnFimi {
                 getMinerConf(miner,
                         //"[c|d] (.){1,3} A",
                         //"(.){1,3}",
-                        "(A^)*",//"(A) e", //"(A^)",
+                        //"(A^)*",//"(A) e", //"(A^)",
+                        "[A.* (.)]|[(.).* A]", // [A.*]&[(.).*]!{1,3}
                         1),
                 "data/icdm16-example/data.del",
                 "data/icdm16-example/dict.json",
@@ -113,8 +114,8 @@ public class EvaluatePerfOnFimi {
                 "/",
                 "data-local/log/icdm16Ex_" + miner + "_",
                 1,
-                50,
-                false, true, false,
+                5,
+                true, false, false,
                 true
         );
     }
@@ -124,12 +125,12 @@ public class EvaluatePerfOnFimi {
 
         //runFimi(Miner.DesqCount);
         //runFimi(Miner.DesqDfs);
-        runFimi(Miner.DesqDfsPatricia);
-        runFimi(Miner.DesqDfsPatriciaIndex);
+        //runFimi(Miner.DesqDfsPatricia);
+        //runFimi(Miner.DesqDfsPatriciaIndex);
         //runSequentialFimi(Miner.DesqDfs);
 
-
-        //runIcdm16(Miner.DesqDfs);
+        runIcdm16(Miner.DesqCount);
+        runIcdm16(Miner.DesqDfs);
         //runIcdm16(Miner.DesqDfsPatricia);
 
     }
