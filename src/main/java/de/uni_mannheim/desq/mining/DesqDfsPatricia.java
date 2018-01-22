@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.mining;
 
+import de.uni_mannheim.desq.experiments.MetricLogger;
 import de.uni_mannheim.desq.fst.*;
 import de.uni_mannheim.desq.patex.PatExUtils;
 import de.uni_mannheim.desq.util.DesqProperties;
@@ -13,6 +14,7 @@ import java.util.*;
 public final class DesqDfsPatricia extends DesqMiner {
 	private static final Logger logger = Logger.getLogger(DesqDfsPatricia.class);
 	private static final boolean DEBUG = false;
+	private static final boolean logRuntime = true;
 	static {
 		if (DEBUG) logger.setLevel(Level.TRACE);
 	}
@@ -69,6 +71,8 @@ public final class DesqDfsPatricia extends DesqMiner {
 	/**Trie representing the data **/
 	private PatriciaTrie inputTrie; //stores the input data as patricia trie
 
+	private int cnt = 0; //just
+
 	// -- construction/clearing ---------------------------------------------------------------------------------------
 
 	public DesqDfsPatricia(DesqMinerContext ctx) {
@@ -118,6 +122,8 @@ public final class DesqDfsPatricia extends DesqMiner {
 
 	@Override
 	public void addInputSequence(IntList inputSequence, long inputSupport, boolean allowBuffering) {
+		//System.out.println(++cnt);
+
 		if (!pruneIrrelevantInputs || dfa.accepts(inputSequence)) {
 			// if we reach this place, we either don't want to prune irrelevant inputs or the input is relevant
             // -> remember it
@@ -143,8 +149,9 @@ public final class DesqDfsPatricia extends DesqMiner {
 		inputTrie.getRoot().calculateIntervals(0);
 
 		if (DEBUG) {
-			inputTrie.exportGraphViz("inputTrie.pdf", ctx.dict, 5);
 			fst.exportGraphViz("fst.pdf");
+			inputTrie.exportGraphViz("inputTrie.pdf", ctx.dict, 5);
+
 		}
 
 		//Init Mining
@@ -159,11 +166,13 @@ public final class DesqDfsPatricia extends DesqMiner {
 		//currentInputId = inputSequences.size()-1;
 		//currentInputSequence = inputSequences.get(currentInputId);
 		if((inputTrie.getRoot().getSupport() >= sigma) && !inputTrie.getRoot().isLeaf()) {
+			if(logRuntime) MetricLogger.getInstance().start(MetricLogger.Metric.MiningMineFirstExpandRuntime);
 			for(PatriciaTrie.TrieNode node: inputTrie.getRoot().getChildren()) {
 				// and run the first inc step
 				//currentSpReachedWithoutOutput.clear();
 				incStep(0, fst.getInitialState(), 0, true, node, false);
 			}
+			if(logRuntime) MetricLogger.getInstance().stop(MetricLogger.Metric.MiningMineFirstExpandRuntime);
 
 			//Proceed as in standard DFS
 			if (inputTrie.getRoot().getSupport() >= sigma) {
@@ -189,7 +198,7 @@ public final class DesqDfsPatricia extends DesqMiner {
 
 pos: 	do { // loop over positions; used for tail recursion optimization -> on trie not linear anymore -> recursion needs to split
 
-			//If Fst reached final complete state -> exit
+			//If Fst reached final complete state -> exit (no items will be produced and ending in an final state is clear)
 			if (state.isFinalComplete()){
 				if(trackWithoutOutput) currentNode.finalStateReached(node);
 				return;// reachedFinalStateWithoutOutput;
