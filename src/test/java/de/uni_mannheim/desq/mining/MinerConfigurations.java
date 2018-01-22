@@ -54,6 +54,15 @@ public class MinerConfigurations {
         return desqDfs(sigma, patternExpression, pruneIrrelevantInputs, useLazyDfa, useTwoPass);
     }
 
+    public static Pair<String, DesqProperties> desqDfsPatricia(long sigma, String patternExpression,
+                                                       boolean pruneIrrelevantInputs, boolean useLazyDfa) {
+        DesqProperties conf = DesqDfsPatricia.createConf(patternExpression, sigma);
+        conf.setProperty("desq.mining.prune.irrelevant.inputs", pruneIrrelevantInputs);
+        conf.setProperty("desq.mining.use.lazy.dfa", useLazyDfa);
+        String minerName = "DesqDfsPatricia-" + toLetter(pruneIrrelevantInputs) + toLetter(useLazyDfa);
+        return Pair.of(minerName, conf);
+    }
+
     public static List<Pair<String, DesqProperties>> all(long sigma, int gamma, int lambda, boolean generalize) {
         List<Pair<String, DesqProperties>> allMiners = new ArrayList<>();
         allMiners.add(prefixGrowth(sigma, gamma, lambda, generalize));
@@ -82,6 +91,10 @@ public class MinerConfigurations {
         allMiners.add(desqDfs(sigma, patternExpression, true, true, false));
         allMiners.add(desqDfs(sigma, patternExpression, true, false, true));
         allMiners.add(desqDfs(sigma, patternExpression, true, true, true));
+
+        allMiners.add(desqDfsPatricia(sigma, patternExpression, false, false));
+        allMiners.add(desqDfsPatricia(sigma, patternExpression, true, false));
+        allMiners.add(desqDfsPatricia(sigma, patternExpression, true, true));
         return allMiners;
     }
 

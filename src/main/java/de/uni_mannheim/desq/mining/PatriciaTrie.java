@@ -75,7 +75,7 @@ public class PatriciaTrie {
                 if (currentItem != nodeItem) {
                     //node item and input item differ -> split node and extend with remaining!
                     splitNode(currentNode, nodeItem);
-                    currentNode.setFinal(false); //is only sub-sequence
+                    currentNode.setFinal(false); //got only sub-sequence which splits (has multiple children)
                     //and add new node with remaining input items
                     expandTrie(currentNode, createIntList(currentItem, it),support,true, false);
                     break; //remaining input added -> finished processing
@@ -84,7 +84,7 @@ public class PatriciaTrie {
                 //Case: item list is shorter than node Items -> split and update the first part (current node)
                 else if(!it.hasNext() && currentNode.itemIterator().hasNext()) {
                     splitNode(currentNode, currentNode.itemIterator().next());
-                    //stays final because sequence ends here
+                    currentNode.setFinal(true);//sequence ends here
                     break;
                 }
                 //Case: sequence fits in existing trie
@@ -110,11 +110,13 @@ public class PatriciaTrie {
                     //skip the first item (already checked via hash key)
                     currentNode.itemIterator().next();
                     //Case: last item of new input (but node has more!) -> it would end while loop -> handle split
-                    if(!it.hasNext() && currentNode.itemIterator().hasNext()){
-                        splitNode(currentNode, currentNode.itemIterator().next());
-                        //stays final because sequence ends here
+                    if(!it.hasNext()){//loop will end anyways
+                        if(currentNode.itemIterator().hasNext()){
+                            splitNode(currentNode, currentNode.itemIterator().next());
+                        }
+                        currentNode.setFinal(true); //sequence ends here
                         break;
-                    }//if the nodes does not have a next item either -> they are equal -> handling after loop
+                    }
                     //continue;
                 }
             }
@@ -135,13 +137,23 @@ public class PatriciaTrie {
         return items;
     }
 
+    /**
+     * Append a new node after a give one.
+     * @param startNode existing parent of the new node
+     * @param items items of the new node
+     * @param support support of the new node
+     * @param isFinal is the new node final?
+     * @param moveChildren Whether or not the children are moved from the start to the new node (split case)
+     * @return the new node
+     */
+
     private TrieNode expandTrie(TrieNode startNode, IntList items, long support, boolean isFinal, boolean moveChildren) {
         //Create new node
         TrieNode newNode = new TrieNode(items, support,isFinal,true, ++currentNodeId);
         //add new node to list
         nodes.add(currentNodeId, newNode);
 
-        //handle insert of node
+        //handle insert of node in existing paths
         if(moveChildren && !startNode.children.isEmpty()){
             //reuse existing list of direct children
             newNode.children = startNode.children;
