@@ -15,20 +15,29 @@ public class IntervalNode implements Comparable<IntervalNode>{
      *
      * @param other the other node
      * @return
-     * >0 if is "larger" than the other node
-     * <0 if is "smaller" than the other node
+     * >0 if is "more" than the other node
+     * <0 if is "less" than other node
      * 0 if both are equal
+     * Sort direction is per default ascending -> "less" comes before "more"
+     * Example: [2,4]@3 has to be before [2,3]@2
      */
     @Override
     public int compareTo(IntervalNode other) {
-        //return (start != other.start) ? start - other.start : end - other.end;
         if(start != other.start)
+            //smaller start than other -> before other (<0)
             return start - other.start;
         else if(end != other.end)
-            return end - other.end;
+            //same start, but larger end than other -> before other (<0)
+            return other.end - end;
         else
             //if exactly same interval: higher support has precedence
             // (parent has higher support than child)
-            return (int) (support - other.support);
+            // higher support than other -> before other (<0)
+            return (int) (other.support - support);
+    }
+
+    @Override
+    public String toString(){
+        return "[" + start + "," + end + "]@" + support;
     }
 }

@@ -1,22 +1,19 @@
 package de.uni_mannheim.desq.mining;
 
-//import java.util.Collections;
-
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.State;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import it.unimi.dsi.fastutil.objects.ObjectList;
-//import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.concurrent.atomic.LongAdder;
 
 /**
- * DesqDfsTreeNode.java
- * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
+ * DesqDfsPatriciaTreeNode.java
+ * @author Sascha Ulbrich (based on DesqDfsTreeNode by Kaustubh Beedkar)
  */
 final class DesqDfsPatriciaTreeNode {
 
@@ -26,27 +23,11 @@ final class DesqDfsPatriciaTreeNode {
 	final Fst fst;
 
 	/** the input trie */
-	//final PatriciaTrie inputTrie;
 	final int inputTrieSize;
 
-	/** possible FST states for this node */
-	//final BitSet possibleStates;
-
-	/** If {@link #possibleStates} contains only one state, then the state, else -1 */
-	//final int possibleState;
 
 	/** The output item associated with this node */
 	int itemFid;
-
-	/** The prefix support of this node = number of distinct input sequences that can be expanded further. Equal
-	 * to the number of input sequences (postings) in the projected database. Computed while expanding this
-	 * node's parent. */
-	//long prefixSupport;
-
-	/** The partial support of this node = number of distinct input sequences that hit a final complete state and
-	 * for which there are no further expansions. Computed while expanding this node's parent.
-	 */
-	//long partialSupport;
 
 	/** the potential support tracks the sum of support nodes which did not reach a final state yet.
 	 * They must be confirmed during next expansion. This value is just an estimation because sequences may be counted
