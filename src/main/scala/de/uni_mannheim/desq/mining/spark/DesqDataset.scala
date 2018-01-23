@@ -394,7 +394,6 @@ object DesqDataset {
 
     // --- Dictionary
     val dict = rawData.mapPartitions(rows => {
-      //val dictBuilder = factory.createDictionaryBuilder()
       while (rows.hasNext) {
         parse.apply(rows.next(), dictBuilder)
       }
@@ -409,7 +408,6 @@ object DesqDataset {
 
     val sequences = rawData.mapPartitions(rows => new Iterator[WeightedSequence] {
       private val dict = dictBroadcast.value
-      //private val seqBuilder = factory.createSequenceBuilder(dict)
       seqBuilder.setDictionary(dict)
 
       override def hasNext: Boolean = rows.hasNext

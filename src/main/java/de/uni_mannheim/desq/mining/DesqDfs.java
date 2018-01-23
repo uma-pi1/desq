@@ -1,6 +1,6 @@
 package de.uni_mannheim.desq.mining;
 
-//import de.uni_mannheim.desq.experiments.MetricLogger;
+import de.uni_mannheim.desq.experiments.MetricLogger;
 import de.uni_mannheim.desq.fst.*;
 import de.uni_mannheim.desq.patex.PatExUtils;
 import de.uni_mannheim.desq.util.DesqProperties;
@@ -15,6 +15,7 @@ import java.util.BitSet;
 public final class DesqDfs extends MemoryDesqMiner {
 	private static final Logger logger = Logger.getLogger(DesqDfs.class);
 	private static final boolean DEBUG = false;
+	private static final boolean logMetrics = false; //performance impact!
 	static {
 		if (DEBUG) logger.setLevel(Level.TRACE);
 	}
@@ -255,7 +256,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				final ItemState itemState = itemStateIt.next();
 				final int outputItemFid = itemState.itemFid;
 				final State toState = itemState.state;
-				//MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberFstTransitions,1);
+	    		if(logMetrics) MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberFstTransitions,1);
 				if (outputItemFid == 0) { // EPS output
 					// we did not get an output
 					// in the two pass algorithm, we don't need to consider empty-output paths that reach the initial state
@@ -304,7 +305,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
      */
 
 	private void expand(IntList prefix, DesqDfsTreeNode node) {
-		//MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberExpands,1);
+		if(logMetrics) MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberExpands,1);
 		// add a placeholder to prefix for the output item of the child being expanded
 		final int lastPrefixIndex = prefix.size();
 		prefix.add(-1);

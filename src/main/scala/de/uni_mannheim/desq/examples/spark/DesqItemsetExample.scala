@@ -264,7 +264,7 @@ object DesqItemsetExample {
     val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
     initDesq(conf)
     implicit val sc: SparkContext = new SparkContext(conf)
-    conf.set("spark.kryoserializer.buffer.max", "1024m")
+    conf.set("spark.kryoserializer.buffer.max", "2047m")
 
     //icdm16()
     //icdm16(compare = true)
@@ -299,6 +299,8 @@ object DesqItemsetExample {
       "data-local/amazon/amazon-data-gid.del",
       "data-local/amazon/amazon-dict.avro.gz"
     )
+
+
   }
 
 }

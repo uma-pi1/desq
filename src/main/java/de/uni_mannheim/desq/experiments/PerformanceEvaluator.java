@@ -28,7 +28,7 @@ import java.util.Iterator;
 import java.util.concurrent.atomic.LongAdder;
 
 public class PerformanceEvaluator {
-    private static final boolean profileMemoryUsage = true;
+    private static final boolean profileMemoryUsage = false;
 
     private DesqProperties desqMinerConfigTemplate;
     private String dataPath;
@@ -76,7 +76,7 @@ public class PerformanceEvaluator {
         else this.bypassBuilder = false;
 
         //init Spark
-        if(!this.bypassBuilder) {
+        if(!(this.bypassBuilder && this.dataPath.contains(".del"))) {
             this.conf = new SparkConf().setAppName(getClass().getName()).setMaster("local");
             Desq.initDesq(conf);
             conf.set("spark.kryoserializer.buffer.max", "1024m");
@@ -87,7 +87,7 @@ public class PerformanceEvaluator {
         //Force re-init of logger
         MetricLogger.reset();
         //init spark (once per run)
-        sc = (!bypassBuilder) ? SparkContext.getOrCreate(conf) : null;
+        sc = (conf != null) ? SparkContext.getOrCreate(conf) : null;
 
         log = MetricLogger.getInstance();
         for(int i = 0; i < iterations; i++) {
@@ -119,7 +119,7 @@ public class PerformanceEvaluator {
 
         }
         //Stop Spark after all iterations
-        if(!bypassBuilder) sc.stop();
+        if(sc != null) sc.stop();
 
 
         //Output log in csv (optional)
@@ -139,25 +139,33 @@ public class PerformanceEvaluator {
         // ---- Load Data
         log.start(Metric.DataLoadRuntime);
         SequenceReader seqReader;
-        if(bypassBuilder){
+        if(bypassBuilder && dataPath.contains(".del")){
             System.out.print("Loading data (from files without builder) ... ");
             //Read avro dict
             dict = Dictionary.loadFrom(dictPath);
             dict.recomputeFids();
             //File dataFile = new File("data-local/netflix/flat-data-gid.del");
             seqReader = new DelSequenceReader(
-                                dict,
-                                new FileInputStream(new File(dataPath)),
-                                !usesGids
+                    dict,
+                    new FileInputStream(new File(dataPath)),
+                    !usesGids
             );
+//                dict = data.dict();
+//                seqReader = new StringIteratorSequenceReader(dict, data.toSids().toJavaRDD().collect().iterator());
             //dataReader.setDictionary(dict);
             System.out.println(log.stop(Metric.DataLoadRuntime));
         }else {
-            System.out.print("Loading data (factory: " + factory.getClass().getCanonicalName() + ") ... ");
+
             // Init data load via DesqDataset (lazy) via Spark
-            data = (usesGids)
-                    ? ExampleUtils.buildDesqDatasetFromDelFile(sc, dataPath, factory)
-                    : ExampleUtils.buildDesqDatasetFromRawFile(sc, dataPath, factory, " ");
+            if(bypassBuilder){
+                System.out.print("Loading data (from files without builder) ... ");
+                data = DesqDataset.load(dataPath,sc);
+            }else {
+                System.out.print("Loading data (factory: " + factory.getClass().getCanonicalName() + ") ... ");
+                data = (usesGids)
+                        ? ExampleUtils.buildDesqDatasetFromDelFile(sc, dataPath, factory)
+                        : ExampleUtils.buildDesqDatasetFromRawFile(sc, dataPath, factory, " ");
+            }
             dict = data.dict();
             //Gather data (via scala/spark)
             List<String[]> cachedSequences = data.toSids().toJavaRDD().collect();

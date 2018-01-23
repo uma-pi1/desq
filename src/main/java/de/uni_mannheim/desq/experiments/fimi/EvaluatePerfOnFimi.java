@@ -16,6 +16,7 @@ public class EvaluatePerfOnFimi {
     private static final String retail_seqOfItemsets_dict = "data-local/fimi_retail/dict.json";
     private static final String click_itemset_data = "data-local/fimi/kosarak/kosarak.dat";//"data-local/fimi_click/kosarak.dat";
     private static final String click_seqOfItemsets_data = "data-local/fimi_click/kosarak_sequences.dat";
+    private static final String nyt91_desqDataset = "data-local/nyt-1991-data/desqDataset";
     private static final String nyt_annotated_data = "data-local/nyt/nyt-data-gid.del";
     private static final String nyt_annotated_dict = "data-local/nyt/nyt-dict.json";
     private static final String amazon_data_gid = "data-local/amazon/amazon-data-gid.del";
@@ -32,15 +33,13 @@ public class EvaluatePerfOnFimi {
                 break;
             case DesqDfs:
                 conf = DesqDfs.createConf(patEx, sigma);
-                conf.setProperty("desq.mining.use.two.pass", false); // has to be set for DesqDfs to return correct results
+                conf.setProperty("desq.mining.use.two.pass", false);
                 break;
             case DesqDfsPatricia:
                 conf = DesqDfsPatricia.createConf(patEx, sigma);
-                conf.setProperty("desq.mining.use.two.pass", false); // not used anyways
                 break;
             case DesqDfsPatriciaIndex:
                 conf = DesqDfsPatriciaIndex.createConf(patEx, sigma);
-                conf.setProperty("desq.mining.use.two.pass", false); // not used anyways
                 break;
             default: throw new UnsupportedOperationException("Unsupported Miner");
         }
@@ -76,17 +75,17 @@ public class EvaluatePerfOnFimi {
 
         ExampleUtils.runItemsetPerfEval(
                 getMinerConf(miner,
-                        "(.) (.)",
+                        "A B (.){2,5}", //measured for permute
                         //"A B (.){1,3}", //"A B 30 1198 (.)", "A B (.){1,3}", "A B (.){1,5}"
                         //"(A).{1,5}$",
-                        1000),
-                //retail_itemset_data, retail_itemset_dict,
-                click_itemset_data, null,
+                        10),
+                retail_itemset_data, retail_itemset_dict,
+                //click_itemset_data, null,
                 false,
                 false,
                 null,
                 "data-local/log/Fimi_" + miner + "_",
-                3,
+                11,
                 0,
                 false, true, false,
                 true
@@ -96,14 +95,31 @@ public class EvaluatePerfOnFimi {
     private static void runNyt(Miner miner) throws IOException {
         ExampleUtils.runItemsetPerfEval(
                 getMinerConf(miner,
-                        "(.)!{3}&.!*",
-                        1000000),
+                        "(.)!{3}&.!{0,2}",  //"(.)!{3}&.!*",
+                        100000),
                 nyt_annotated_data, nyt_annotated_dict,
                 false,
                 true,
                 null,
                 "data-local/log/NytAn_" + miner + "_",
-                1,
+                11,
+                0,
+                true, false, false,
+                true
+        );
+    }
+
+    private static void runNyt91(Miner miner) throws IOException {
+        ExampleUtils.runItemsetPerfEval(
+                getMinerConf(miner,
+                        "(.)!{3}&.!{0,2}",  //"(.)!{3}&.!*",
+                        100),
+                nyt91_desqDataset, null,
+                false,
+                true,
+                null,
+                "data-local/log/Nyt91_" + miner + "_",
+                11,
                 0,
                 true, false, false,
                 true
@@ -171,7 +187,7 @@ public class EvaluatePerfOnFimi {
 
         //runFimi(Miner.DesqCount);
         runFimi(Miner.DesqDfs);
-        runFimi(Miner.DesqDfsPatricia);
+        //runFimi(Miner.DesqDfsPatricia);
         //runFimi(Miner.DesqDfsPatriciaIndex);
         //runSequentialFimi(Miner.DesqDfs);
 
@@ -182,6 +198,8 @@ public class EvaluatePerfOnFimi {
         //Nyt Annotated
         //runNyt(Miner.DesqDfs);
         //runNyt(Miner.DesqDfsPatricia); // memory usage explodes during trie build!
+
+        //runNyt91(Miner.DesqDfs);
 
         //Amazon
         //runAmazon(Miner.DesqDfs);
