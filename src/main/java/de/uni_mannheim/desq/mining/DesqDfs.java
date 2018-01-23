@@ -237,7 +237,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 pos: 	do { // loop over positions; used for tail recursion optimization
 			// check if we reached a final complete state or consumed entire input and reached a final state
 			if (state.isFinalComplete() | pos == currentInputSequence.size())
-				return state.isFinal();
+				return state.isFinal() || reachedFinalStateWithoutOutput;
 
 			// get iterator over next output item/state pairs; reuse existing ones if possible
 			// in two-pass, only iterates over states that we saw in the first pass (the other ones can safely be skipped)
