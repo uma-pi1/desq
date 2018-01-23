@@ -232,11 +232,39 @@ object DesqItemsetExample {
     (miner, result)
   }
 
+
+  def convertDesqDatasetToItemset(targetPath: String,
+                                  sourceDataPath: String,
+                                  sourceDictPath: String = "",
+                                  itemsetSeparator: String = "/"
+                                  )(implicit sc: SparkContext): DesqDataset = {
+
+    //Define factory for building the itemset DesqDataset
+    val factory =
+      if(sourceDictPath != ""){
+        new ItemsetBuilderFactory(Dictionary.loadFrom(sourceDictPath),itemsetSeparator)
+      }else{
+        new ItemsetBuilderFactory(itemsetSeparator)
+      }
+
+    //Convert
+    println("Start conversion ... ")
+    val convertedData = ExampleUtils.buildDesqDatasetFromDelFile(sc,sourceDataPath,factory)
+
+    //Store
+    println("Saving converted data to " + targetPath)
+    convertedData.save(targetPath)
+
+    //Return
+    convertedData
+  }
+
   def main(args: Array[String]) {
     //Init SparkConf
     val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
     initDesq(conf)
-    implicit val sc:SparkContext = new SparkContext(conf)
+    implicit val sc: SparkContext = new SparkContext(conf)
+    conf.set("spark.kryoserializer.buffer.max", "1024m")
 
     //icdm16()
     //icdm16(compare = true)
@@ -249,7 +277,7 @@ object DesqItemsetExample {
 
     //sequenceOfItemsets(patEx = "[c|d] / (-/)") //on example
 
-    sequenceOfItemsets(
+    /*sequenceOfItemsets(
       eval = true,
       dataPath = "data-local/fimi_retail/retail_sequences.dat",
       dictPath = "data-local/fimi_retail/dict.json",
@@ -257,6 +285,19 @@ object DesqItemsetExample {
       patEx = "(-/) /{1,2} (-/)",
       minSupport = 100
 
+    )
+
+    convertDesqDatasetToItemset(
+      "data-local/nyt_itemset/",
+      "data-local/nyt/nyt-data-gid.del",
+      "data-local/nyt/nyt-dict.avro.gz"
+    )*/
+
+
+    convertDesqDatasetToItemset(
+      "data-local/amazon_itemset/",
+      "data-local/amazon/amazon-data-gid.del",
+      "data-local/amazon/amazon-dict.avro.gz"
     )
   }
 

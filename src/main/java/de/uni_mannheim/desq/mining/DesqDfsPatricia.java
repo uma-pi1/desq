@@ -14,7 +14,8 @@ import java.util.*;
 public final class DesqDfsPatricia extends DesqMiner {
 	private static final Logger logger = Logger.getLogger(DesqDfsPatricia.class);
 	private static final boolean DEBUG = false;
-	private static final boolean logRuntime = true;
+	private static final boolean logRuntime = true; //not performance critical
+	private static final boolean logMetrics = false; //performance impact!
 	static {
 		if (DEBUG) logger.setLevel(Level.TRACE);
 	}
@@ -219,7 +220,7 @@ pos: 	do { // loop over positions; used for tail recursion optimization -> on tr
 					final Iterator<PatriciaTrie.TrieNode> it = node.getChildren().iterator();
 					while (it.hasNext()) {
 						final PatriciaTrie.TrieNode child = it.next();
-//						MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberNodeMoves,1);
+						if(logMetrics) MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberNodeMoves,1);
 						if(it.hasNext()) {
 							//Summarize returned support, because each node can reach final state independently
 							//reachedFinalStateWithoutOutput |=
@@ -245,7 +246,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				final ItemState itemState = itemStateIt.next();
 				final int outputItemFid = itemState.itemFid;
 				final State toState = itemState.state;
-//				MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberFstTransitions,1);
+				if(logMetrics) MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberFstTransitions,1);
 
 				if (outputItemFid == 0) { // EPS output
 					// we did not get an output
@@ -290,7 +291,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
      */
 
 	private void expand(IntList prefix, DesqDfsPatriciaTreeNode node) {
-//		MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberExpands,1);
+		if(logMetrics) MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberExpands,1);
 		// add a placeholder to prefix for the output item of the child being expanded
 		final int lastPrefixIndex = prefix.size();
 		prefix.add(-1);
