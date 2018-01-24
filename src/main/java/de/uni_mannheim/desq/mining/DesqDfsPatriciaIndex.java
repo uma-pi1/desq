@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.mining;
 
+import de.uni_mannheim.desq.experiments.MetricLogger;
 import de.uni_mannheim.desq.fst.Dfa;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.ItemState;
@@ -18,6 +19,8 @@ import java.util.Iterator;
 public final class DesqDfsPatriciaIndex extends DesqMiner {
 	private static final Logger logger = Logger.getLogger(DesqDfsPatriciaIndex.class);
 	private static final boolean DEBUG = false;
+	private static final boolean logRuntime = true; //not performance critical
+	private static final boolean logMetrics = false; //performance impact!
 	static {
 		if (DEBUG) logger.setLevel(Level.TRACE);
 	}
@@ -132,14 +135,20 @@ public final class DesqDfsPatriciaIndex extends DesqMiner {
 
 	@Override
 	public void mine() {
-		//ensure intervals are present in trie
-		inputTrieBuild.getRoot().calculateIntervals(0);
 		if (DEBUG) {
 			inputTrieBuild.exportGraphViz("inputTrie.pdf", ctx.dict, 3);
 			fst.exportGraphViz("fst.pdf");
 		}
+
+		if(logRuntime) MetricLogger.getInstance().start(MetricLogger.Metric.MiningMinePreprocessingRuntime);
+		//ensure intervals are present in trie
+		inputTrieBuild.getRoot().calculateIntervals(0);
+		//convert to index lists
 		inputTrie = inputTrieBuild.convertToIndexBasedTrie();
 		inputTrieBuild = null;
+		if(logRuntime) MetricLogger.getInstance().stop(MetricLogger.Metric.MiningMinePreprocessingRuntime);
+
+		if(logMetrics) inputTrie.calcMetrics();
 
 		//Init Mining
 		//input trie size needs to be set after trie is built
@@ -149,18 +158,22 @@ public final class DesqDfsPatriciaIndex extends DesqMiner {
 		//First IncStep (only possible after complete input trie is built)
 		// run the first incStep; start at all positions from which a final FST state can be reached
 		if((inputTrie.getSupport(inputTrie.getRootId()) >= sigma) && !inputTrie.isLeaf(inputTrie.getRootId())) {
+			if(logRuntime) MetricLogger.getInstance().start(MetricLogger.Metric.MiningMineFirstExpandRuntime);
 			for(int node: inputTrie.getChildren(inputTrie.getRootId())) {
 				incStep(0, fst.getInitialState(), 0, true, node, false);
 			}
+			if(logRuntime) MetricLogger.getInstance().stop(MetricLogger.Metric.MiningMineFirstExpandRuntime);
 
 			//Proceed as in standard DFS
-
 			if (inputTrie.getSupport(inputTrie.getRootId()) >= sigma) {
 				// the root has already been processed; now recursively grow the patterns
 				root.pruneInfrequentChildren(sigma);
 				expand(new IntArrayList(), root);
 			}
 		}
+		if(logMetrics) MetricLogger.getInstance().add(
+				MetricLogger.Metric.NumberSearchTreeNodes,
+				DesqDfsPatriciaTreeNode.nodeCounter.longValue());
 	}
 
     /** Updates the projected databases of the children of the current node corresponding

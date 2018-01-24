@@ -22,8 +22,13 @@ public class MetricLogger {
         //Parameters
         StartTimestamp,
         NumberDictionaryItems, NumberInputSequences, AvgLengthInputSequences,
+        LengthOfItems, //sum of items in input nodes/sequences
+        NumberInputTrieNodes,NumberInputTrieLeafNodes, NumberInputTrieFinalNodes, //Input Trie KPIs
+        NumberSearchTreeNodes, //Pattern-growth specific
+
+
         NumberPatExItems, NumberDistinctPatExItems, NumberResultPatterns,
-        NumberNodeMoves, NumberFstTransitions, NumberExpands,
+        NumberNodeMoves, NumberFstTransitions, NumberExpands, //Performance critical processing KPIs
         MemoryForReading, MemoryForMining,
         //Runtime Metrics
         DataLoadRuntime,
@@ -36,6 +41,7 @@ public class MetricLogger {
                 FstMinimizationRuntime,
             MiningReadRuntime,
             MiningMineRuntime,
+                MiningMinePreprocessingRuntime,
                 MiningMineFirstExpandRuntime,
         TotalRuntime
     }

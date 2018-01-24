@@ -13,6 +13,7 @@ import de.uni_mannheim.desq.mining.DesqMinerContext;
 import de.uni_mannheim.desq.mining.WeightedSequence;
 import de.uni_mannheim.desq.mining.spark.DesqDataset;
 import de.uni_mannheim.desq.experiments.MetricLogger.Metric;
+import de.uni_mannheim.desq.patex.PatExToSequentialPatEx;
 import de.uni_mannheim.desq.patex.PatExTranslator;
 import de.uni_mannheim.desq.util.DesqProperties;
 import de.uni_mannheim.desq.util.Profiler;
@@ -205,9 +206,10 @@ public class PerformanceEvaluator {
             patEx = patExTranslator.translate();
             minerConf.setProperty("desq.mining.pattern.expression", patEx);
             System.out.print("  ->  " + patEx);
-            //new PatExToSequentialPatEx(itemsetPatEx).translate()
+            /*patEx = new PatExToSequentialPatEx(patEx).translate();
+            System.out.print("  ->  " + patEx);
+            minerConf.setProperty("desq.mining.pattern.expression", patEx);*/
         }
-        //new PatExToSequentialPatEx(patEx).translate()
         System.out.println(" ... " + log.stop(Metric.PatExTransformationRuntime));
 
 

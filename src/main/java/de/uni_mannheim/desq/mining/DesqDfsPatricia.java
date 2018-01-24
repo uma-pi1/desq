@@ -145,9 +145,12 @@ public final class DesqDfsPatricia extends DesqMiner {
 				+ "; Avg child count in 1st Level: "
 				+ inputTrie.getRoot().getChildren().stream().mapToInt(child -> child.getChildren().size()).sum() / inputTrie.getRoot().childrenCount()
 		);*/
-
+		if(logRuntime) MetricLogger.getInstance().start(MetricLogger.Metric.MiningMinePreprocessingRuntime);
 		//ensure intervals are present in trie
 		inputTrie.getRoot().calculateIntervals(0);
+		if(logRuntime) MetricLogger.getInstance().stop(MetricLogger.Metric.MiningMinePreprocessingRuntime);
+
+		if(logMetrics) inputTrie.calcMetrics();
 
 		if (DEBUG) {
 			fst.exportGraphViz("fst.pdf");
@@ -182,6 +185,9 @@ public final class DesqDfsPatricia extends DesqMiner {
 				expand(new IntArrayList(), root);
 			}
 		}
+		if(logMetrics) MetricLogger.getInstance().add(
+				MetricLogger.Metric.NumberSearchTreeNodes,
+				DesqDfsPatriciaTreeNode.nodeCounter.longValue());
 	}
 
     /** Updates the projected databases of the children of the current node corresponding

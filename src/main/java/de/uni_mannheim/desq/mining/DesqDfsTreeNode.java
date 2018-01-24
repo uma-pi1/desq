@@ -9,12 +9,14 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
 import java.util.BitSet;
+import java.util.concurrent.atomic.LongAdder;
 
 /**
  * DesqDfsTreeNode.java
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
 final class DesqDfsTreeNode {
+	public static LongAdder nodeCounter = new LongAdder();
 
 	// -- member variables --------------------------------------------------------------------------------------------
 
@@ -73,6 +75,7 @@ final class DesqDfsTreeNode {
 	// -- construction and clearing -----------------------------------------------------------------------------------
 
 	DesqDfsTreeNode(Fst fst, BitSet possibleStates) {
+		nodeCounter.add(1);
 		this.fst = fst;
 		this.possibleStates = possibleStates;
 		if (possibleStates.cardinality() == 1) {

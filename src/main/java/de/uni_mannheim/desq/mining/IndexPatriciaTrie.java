@@ -1,6 +1,10 @@
 package de.uni_mannheim.desq.mining;
+import de.uni_mannheim.desq.experiments.MetricLogger;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+
+import java.util.concurrent.atomic.LongAdder;
+
 public class IndexPatriciaTrie {
 
     private int rootId;  //index of root
@@ -88,7 +92,25 @@ public class IndexPatriciaTrie {
     }
 
 
+    //Measuring KPIs
+    public void calcMetrics(){
+        MetricLogger logger = MetricLogger.getInstance();
+        logger.add(MetricLogger.Metric.NumberInputTrieNodes,size);
 
+        //calc conditionals
+        LongAdder leafNodes = new LongAdder();
+        LongAdder finalNodes = new LongAdder();
+        LongAdder itemsLength = new LongAdder();
+
+        for(int i = rootId; i < size;i++){
+            itemsLength.add(nodeItemsSize[i]);
+            if(nodeIsLeaf[i]) leafNodes.add(1);
+            if(nodeIsFinal[i]) finalNodes.add(1);
+        }
+        logger.add(MetricLogger.Metric.LengthOfItems,itemsLength.intValue());
+        logger.add(MetricLogger.Metric.NumberInputTrieLeafNodes,leafNodes.intValue());
+        logger.add(MetricLogger.Metric.NumberInputTrieFinalNodes,finalNodes.intValue());
+    }
 
 
     public int size() {

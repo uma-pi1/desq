@@ -17,6 +17,8 @@ import java.util.concurrent.atomic.LongAdder;
  */
 final class DesqDfsPatriciaTreeNode {
 
+	public static LongAdder nodeCounter = new LongAdder();
+
 	// -- member variables --------------------------------------------------------------------------------------------
 
 	/** the FST */
@@ -100,6 +102,7 @@ final class DesqDfsPatriciaTreeNode {
 
 	//DesqDfsPatriciaTreeNode(Fst fst, BitSet possibleStates, int inputTrieSize) {
 	DesqDfsPatriciaTreeNode(Fst fst, int inputTrieSize) {
+		nodeCounter.add(1);
 		this.inputTrieSize = inputTrieSize;
 		this.fst = fst;
 		projectedDatabase = new PostingList();

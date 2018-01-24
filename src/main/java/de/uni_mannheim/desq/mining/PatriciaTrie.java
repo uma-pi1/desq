@@ -1,6 +1,7 @@
 package de.uni_mannheim.desq.mining;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
+import de.uni_mannheim.desq.experiments.MetricLogger;
 import de.uni_mannheim.desq.fst.graphviz.AutomatonVisualizer;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.AbstractObjectIterator;
@@ -10,6 +11,7 @@ import it.unimi.dsi.fastutil.objects.ObjectList;
 import org.apache.commons.io.FilenameUtils;
 
 import java.util.*;
+import java.util.concurrent.atomic.LongAdder;
 
 public class PatriciaTrie {
 
@@ -221,6 +223,25 @@ public class PatriciaTrie {
         return trie;
     }
 
+    //Measuring KPIs
+    public void calcMetrics(){
+        MetricLogger logger = MetricLogger.getInstance();
+        logger.add(MetricLogger.Metric.NumberInputTrieNodes,nodes.size());
+
+        //calc conditionals
+        LongAdder leafNodes = new LongAdder();
+        LongAdder finalNodes = new LongAdder();
+        LongAdder itemsLength = new LongAdder();
+        nodes.parallelStream().forEach(node -> {
+            itemsLength.add(node.items.size());
+            if(node.isLeaf()) leafNodes.add(1);
+            if(node.isFinal()) finalNodes.add(1);
+        });
+        logger.add(MetricLogger.Metric.LengthOfItems,itemsLength.intValue());
+        logger.add(MetricLogger.Metric.NumberInputTrieLeafNodes,leafNodes.intValue());
+        logger.add(MetricLogger.Metric.NumberInputTrieFinalNodes,finalNodes.intValue());
+    }
+
     // ------------------------- TRIE NODE -----------------------------
 
     public class TrieNode {
@@ -355,6 +376,7 @@ public class PatriciaTrie {
                 return end;
             }
         }
+
 
         // Printing Node
         @Override

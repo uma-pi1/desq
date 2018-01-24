@@ -11,11 +11,13 @@ import org.apache.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.concurrent.atomic.LongAdder;
 
 public final class DesqDfs extends MemoryDesqMiner {
 	private static final Logger logger = Logger.getLogger(DesqDfs.class);
 	private static final boolean DEBUG = false;
 	private static final boolean logMetrics = false; //performance impact!
+	LongAdder itemsLength = new LongAdder();
 	static {
 		if (DEBUG) logger.setLevel(Level.TRACE);
 	}
@@ -173,6 +175,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			if (dfa.acceptsReverse(inputSequence, dfaStateSequence, dfaInitialPos)) {
 			    // we now know that the sequence is relevant; remember it
 				super.addInputSequence(inputSequence, inputSupport, allowBuffering);
+				if(logMetrics) itemsLength.add(inputSequence.size());
 				while (itemStateIterators.size() < inputSequence.size())
 					itemStateIterators.add(new State.ItemStateIterator(ctx.dict.isForest()));
 				dfaStateSequences.add(dfaStateSequence.toArray(new DfaState[dfaStateSequence.size()]));
@@ -200,6 +203,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			// if we reach this place, we either don't want to prune irrelevant inputs or the input is relevant
             // -> remember it
 		    super.addInputSequence(inputSequence, inputSupport, allowBuffering);
+			if(logMetrics) itemsLength.add(inputSequence.size());
 			while (itemStateIterators.size() < inputSequence.size())
 				itemStateIterators.add(new State.ItemStateIterator(ctx.dict.isForest()));
 
@@ -221,6 +225,15 @@ public final class DesqDfs extends MemoryDesqMiner {
 			// the root has already been processed; now recursively grow the patterns
 			root.pruneInfrequentChildren(sigma);
 			expand(new IntArrayList(), root);
+		}
+
+		if(logMetrics) {
+			MetricLogger.getInstance().add(
+					MetricLogger.Metric.LengthOfItems,
+					itemsLength.longValue());
+			MetricLogger.getInstance().add(
+					MetricLogger.Metric.NumberSearchTreeNodes,
+					DesqDfsTreeNode.nodeCounter.longValue());
 		}
 	}
 

@@ -33,7 +33,7 @@ public class EvaluatePerfOnFimi {
                 break;
             case DesqDfs:
                 conf = DesqDfs.createConf(patEx, sigma);
-                conf.setProperty("desq.mining.use.two.pass", false);
+                conf.setProperty("desq.mining.use.two.pass", true);
                 break;
             case DesqDfsPatricia:
                 conf = DesqDfsPatricia.createConf(patEx, sigma);
@@ -75,7 +75,8 @@ public class EvaluatePerfOnFimi {
 
         ExampleUtils.runItemsetPerfEval(
                 getMinerConf(miner,
-                        "A B (.){2,5}", //measured for permute
+                        //"A B (.){1," + n + "}",//"(.){1," + n + "}",//"A B (.){1," + n + "}", //measured for permute
+                        "(.){2,4}",
                         //"A B (.){1,3}", //"A B 30 1198 (.)", "A B (.){1,3}", "A B (.){1,5}"
                         //"(A).{1,5}$",
                         10),
@@ -84,7 +85,7 @@ public class EvaluatePerfOnFimi {
                 false,
                 false,
                 null,
-                "data-local/log/Fimi_" + miner + "_",
+                "data-local/log/Fimi_Retail_Simple_" + miner + "_",
                 11,
                 0,
                 false, true, false,
@@ -186,9 +187,9 @@ public class EvaluatePerfOnFimi {
         //runItemsetExample(Miner.DesqCount);
 
         //runFimi(Miner.DesqCount);
-        runFimi(Miner.DesqDfs);
-        //runFimi(Miner.DesqDfsPatricia);
-        //runFimi(Miner.DesqDfsPatriciaIndex);
+        //runFimi(Miner.DesqDfs);
+        runFimi(Miner.DesqDfsPatricia);
+        runFimi(Miner.DesqDfsPatriciaIndex);
         //runSequentialFimi(Miner.DesqDfs);
 
         //runIcdm16(Miner.DesqCount);
@@ -204,5 +205,7 @@ public class EvaluatePerfOnFimi {
         //Amazon
         //runAmazon(Miner.DesqDfs);
         //runAmazon(Miner.DesqDfsPatricia);
+
+        //for(int i = 1; i < 11 ;i++) runFimi(Miner.DesqDfs, i);
     }
 }
