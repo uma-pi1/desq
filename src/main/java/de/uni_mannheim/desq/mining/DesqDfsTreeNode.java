@@ -2,6 +2,7 @@ package de.uni_mannheim.desq.mining;
 
 //import java.util.Collections;
 
+import de.uni_mannheim.desq.experiments.MetricLogger;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.State;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -17,6 +18,7 @@ import java.util.concurrent.atomic.LongAdder;
  */
 final class DesqDfsTreeNode {
 	public static LongAdder nodeCounter = new LongAdder();
+	public static LongAdder pruneCounter = new LongAdder();
 
 	// -- member variables --------------------------------------------------------------------------------------------
 
@@ -220,6 +222,7 @@ final class DesqDfsTreeNode {
 			final DesqDfsTreeNode child = entry.getValue();
 			if (child.partialSupport + child.prefixSupport < minSupport) {
 				childrenIt.remove();
+				pruneCounter.add(1);
 			}
 		}
 	}

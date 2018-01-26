@@ -152,6 +152,8 @@ public final class DesqDfsPatriciaIndex extends DesqMiner {
 
 		//Init Mining
 		//input trie size needs to be set after trie is built
+		DesqDfsPatriciaTreeNode.nodeCounter.reset();
+		DesqDfsPatriciaTreeNode.pruneCounter.reset();
 		root = new DesqDfsPatriciaTreeNode(fst, inputTrie.size());
 		currentNode = root;
 
@@ -171,9 +173,14 @@ public final class DesqDfsPatriciaIndex extends DesqMiner {
 				expand(new IntArrayList(), root);
 			}
 		}
-		if(logMetrics) MetricLogger.getInstance().add(
-				MetricLogger.Metric.NumberSearchTreeNodes,
-				DesqDfsPatriciaTreeNode.nodeCounter.longValue());
+		if(logMetrics) {
+			MetricLogger.getInstance().add(
+					MetricLogger.Metric.NumberSearchTreeNodes,
+					DesqDfsPatriciaTreeNode.nodeCounter.longValue());
+			MetricLogger.getInstance().add(
+					MetricLogger.Metric.NumberPrunedSearchTreeNodes,
+					DesqDfsPatriciaTreeNode.pruneCounter.longValue());
+		}
 	}
 
     /** Updates the projected databases of the children of the current node corresponding
@@ -215,7 +222,7 @@ pos: 	do { // loop over positions; used for tail recursion optimization -> on tr
 					while (it.hasNext()) {
 
 						final int childId = it.next();
-//						MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberNodeMoves,1);
+						if(logMetrics) MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberNodeMoves,1);
 						if(it.hasNext()) {
 							//Summarize returned support, because each node can reach final state independently
 							//reachedFinalStateWithoutOutput |=
@@ -240,7 +247,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				final ItemState itemState = itemStateIt.next();
 				final int outputItemFid = itemState.itemFid;
 				final State toState = itemState.state;
-//				MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberFstTransitions,1);
+				if(logMetrics) MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberFstTransitions,1);
 
 				if (outputItemFid == 0) { // EPS output
 					// we did not get an output
@@ -276,7 +283,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
      */
 
 	private void expand(IntList prefix, DesqDfsPatriciaTreeNode node) {
-//		MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberExpands,1);
+		if(logMetrics) MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberExpands,1);
 		// add a placeholder to prefix for the output item of the child being expanded
 		final int lastPrefixIndex = prefix.size();
 		prefix.add(-1);

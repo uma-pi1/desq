@@ -137,6 +137,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 		// other auxiliary variables
 		BitSet initialState = new BitSet(fst.numStates());
 		initialState.set(fst.getInitialState().getId());
+		DesqDfsTreeNode.nodeCounter.reset();
+		DesqDfsTreeNode.pruneCounter.reset();
 		root = new DesqDfsTreeNode(fst, initialState);
 		currentNode = root;
 	}
@@ -234,6 +236,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 			MetricLogger.getInstance().add(
 					MetricLogger.Metric.NumberSearchTreeNodes,
 					DesqDfsTreeNode.nodeCounter.longValue());
+			MetricLogger.getInstance().add(
+					MetricLogger.Metric.NumberPrunedSearchTreeNodes,
+					DesqDfsTreeNode.pruneCounter.longValue());
 		}
 	}
 

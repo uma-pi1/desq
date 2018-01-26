@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.mining;
 
+import de.uni_mannheim.desq.experiments.MetricLogger;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.State;
 import it.unimi.dsi.fastutil.ints.*;
@@ -18,6 +19,7 @@ import java.util.concurrent.atomic.LongAdder;
 final class DesqDfsPatriciaTreeNode {
 
 	public static LongAdder nodeCounter = new LongAdder();
+	public static LongAdder pruneCounter = new LongAdder();
 
 	// -- member variables --------------------------------------------------------------------------------------------
 
@@ -333,6 +335,7 @@ final class DesqDfsPatriciaTreeNode {
 			final DesqDfsPatriciaTreeNode child = entry.getValue();
 			if (child.potentialSupport < minSupport) {
 				childrenIt.remove();
+				pruneCounter.add(1);
 			}
 		}
 	}

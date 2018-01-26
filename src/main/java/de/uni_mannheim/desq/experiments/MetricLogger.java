@@ -12,22 +12,24 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.LongAdder;
 
 public class MetricLogger {
     private static MetricLogger instance;
     private int currentIteration;
     private Map<Metric,Map<Integer, Long>> metrics;
+    private Map<Metric,Map<Integer, LongAdder>> sumMetrics;
 
     public enum Metric { //Define metrics and their order
         //Parameters
         StartTimestamp,
         NumberDictionaryItems, NumberInputSequences, AvgLengthInputSequences,
-        LengthOfItems, //sum of items in input nodes/sequences
+        LengthOfItems, LeafNodesLengthOfItems, FinalNodesLengthOfItems, //sum of items in input nodes/sequences
         NumberInputTrieNodes,NumberInputTrieLeafNodes, NumberInputTrieFinalNodes, //Input Trie KPIs
-        NumberSearchTreeNodes, //Pattern-growth specific
+        NumberSearchTreeNodes, NumberPrunedSearchTreeNodes,//Pattern-growth specific
 
-
-        NumberPatExItems, NumberDistinctPatExItems, NumberResultPatterns,
+        //NumberPatExItems, NumberDistinctPatExItems,
+        NumberResultPatterns,
         NumberNodeMoves, NumberFstTransitions, NumberExpands, //Performance critical processing KPIs
         MemoryForReading, MemoryForMining,
         //Runtime Metrics
@@ -57,9 +59,11 @@ public class MetricLogger {
     private MetricLogger() {
         this.currentIteration = -1;
         this.metrics = new HashMap<>();
+        this.sumMetrics = new HashMap<>();
         //Init iteration lists
         for(Metric m: Metric.values()){
             metrics.put(m,new HashMap<>());
+            sumMetrics.put(m,new HashMap<>());
         }
     }
 
@@ -97,14 +101,14 @@ public class MetricLogger {
         return value;
     }
 
-    public int addToSum(Metric metric, int value){
-        if(metrics.get(metric).containsKey(currentIteration)) {
-            metrics.get(metric).put(currentIteration,
-                    metrics.get(metric).get(currentIteration) + value);
+    public void addToSum(Metric metric, int value){
+        if(sumMetrics.get(metric).containsKey(currentIteration)) {
+            sumMetrics.get(metric).get(currentIteration).add(value);
         }else{
-            add(metric,value);
+            LongAdder newAdder = new LongAdder();
+            newAdder.add(value);
+            sumMetrics.get(metric).put(currentIteration,newAdder);
         }
-        return value;
     }
 
     public void writeToFile(String file){
@@ -127,12 +131,15 @@ public class MetricLogger {
         for(Metric m: Metric.values()){
             StringBuilder lineBuilder = new StringBuilder();
             lineBuilder.append(m.toString());
-            Map<Integer,Long> iterations = metrics.get(m);
+            Map<Integer,Long> metricIterations = metrics.get(m);
+            Map<Integer,LongAdder> sumMetricIterations = sumMetrics.get(m);
 
             for(int i = 0; i <= currentIteration; i++){
                 lineBuilder.append(separator);
-                if(iterations.containsKey(i)){
-                    lineBuilder.append(iterations.get(i));
+                if(metricIterations.containsKey(i)) {
+                    lineBuilder.append(metricIterations.get(i));
+                }else if(sumMetricIterations.containsKey(i)){
+                    lineBuilder.append(sumMetricIterations.get(i).longValue());
                 }else{
                     lineBuilder.append("-");
                 }

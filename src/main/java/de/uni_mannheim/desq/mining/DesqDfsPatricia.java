@@ -160,6 +160,8 @@ public final class DesqDfsPatricia extends DesqMiner {
 
 		//Init Mining
 		//input trie size needs to be set after trie is built
+		DesqDfsPatriciaTreeNode.nodeCounter.reset();
+		DesqDfsPatriciaTreeNode.pruneCounter.reset();
 		root = new DesqDfsPatriciaTreeNode(fst, inputTrie.size());
 		currentNode = root;
 
@@ -185,9 +187,14 @@ public final class DesqDfsPatricia extends DesqMiner {
 				expand(new IntArrayList(), root);
 			}
 		}
-		if(logMetrics) MetricLogger.getInstance().add(
-				MetricLogger.Metric.NumberSearchTreeNodes,
-				DesqDfsPatriciaTreeNode.nodeCounter.longValue());
+		if(logMetrics) {
+			MetricLogger.getInstance().add(
+					MetricLogger.Metric.NumberSearchTreeNodes,
+					DesqDfsPatriciaTreeNode.nodeCounter.longValue());
+			MetricLogger.getInstance().add(
+					MetricLogger.Metric.NumberPrunedSearchTreeNodes,
+					DesqDfsPatriciaTreeNode.pruneCounter.longValue());
+		}
 	}
 
     /** Updates the projected databases of the children of the current node corresponding
@@ -258,7 +265,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					// we did not get an output
 					// if we saw this state at this position without output (for this input sequence and for the currently
 					// expanded node) before, we do not need to process it again
-					//CANNOT PRUNE HERE IF TRIE -> after this node many other sequences can follow
+					//CANNOT PRUNE HERE IF TRIE -> after this node many other sequences can follow -> node id must be included in index
 					//int spIndex =  pos * fst.numStates() + toState.getId();
 					//int spIndex =  (pos * fst.numStates() * inputTrie.size()) + (node.getId()*fst.numStates())  + toState.getId();
 					//if (!currentSpReachedWithoutOutput.get(spIndex)) {

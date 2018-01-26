@@ -187,9 +187,9 @@ public class EvaluatePerfOnFimi {
         //runItemsetExample(Miner.DesqCount);
 
         //runFimi(Miner.DesqCount);
-        //runFimi(Miner.DesqDfs);
-        runFimi(Miner.DesqDfsPatricia);
-        runFimi(Miner.DesqDfsPatriciaIndex);
+        runFimi(Miner.DesqDfs);
+        //runFimi(Miner.DesqDfsPatricia);
+        //runFimi(Miner.DesqDfsPatriciaIndex);
         //runSequentialFimi(Miner.DesqDfs);
 
         //runIcdm16(Miner.DesqCount);

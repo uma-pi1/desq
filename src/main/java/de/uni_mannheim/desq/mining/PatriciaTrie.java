@@ -232,14 +232,25 @@ public class PatriciaTrie {
         LongAdder leafNodes = new LongAdder();
         LongAdder finalNodes = new LongAdder();
         LongAdder itemsLength = new LongAdder();
+        LongAdder itemsLengthFinal = new LongAdder();
+        LongAdder itemsLengthLeaf = new LongAdder();
         nodes.parallelStream().forEach(node -> {
-            itemsLength.add(node.items.size());
-            if(node.isLeaf()) leafNodes.add(1);
-            if(node.isFinal()) finalNodes.add(1);
+            int size = node.items.size();
+            itemsLength.add(size);
+            if(node.isLeaf()) {
+                leafNodes.add(1);
+                itemsLengthLeaf.add(size);
+            }
+            if(node.isFinal()) {
+                finalNodes.add(1);
+                itemsLengthFinal.add(size);
+            }
         });
-        logger.add(MetricLogger.Metric.LengthOfItems,itemsLength.intValue());
-        logger.add(MetricLogger.Metric.NumberInputTrieLeafNodes,leafNodes.intValue());
-        logger.add(MetricLogger.Metric.NumberInputTrieFinalNodes,finalNodes.intValue());
+        logger.add(MetricLogger.Metric.LengthOfItems,itemsLength.longValue());
+        logger.add(MetricLogger.Metric.NumberInputTrieLeafNodes,leafNodes.longValue());
+        logger.add(MetricLogger.Metric.NumberInputTrieFinalNodes,finalNodes.longValue());
+        logger.add(MetricLogger.Metric.LeafNodesLengthOfItems,itemsLengthLeaf.longValue());
+        logger.add(MetricLogger.Metric.FinalNodesLengthOfItems,itemsLengthFinal.longValue());
     }
 
     // ------------------------- TRIE NODE -----------------------------
