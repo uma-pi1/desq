@@ -72,8 +72,6 @@ public final class DesqDfsPatricia extends DesqMiner {
 	/**Trie representing the data **/
 	private PatriciaTrie inputTrie; //stores the input data as patricia trie
 
-	private int cnt = 0; //just
-
 	// -- construction/clearing ---------------------------------------------------------------------------------------
 
 	public DesqDfsPatricia(DesqMinerContext ctx) {

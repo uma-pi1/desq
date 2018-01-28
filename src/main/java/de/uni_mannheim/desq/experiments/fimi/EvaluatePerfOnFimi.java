@@ -76,7 +76,8 @@ public class EvaluatePerfOnFimi {
         ExampleUtils.runItemsetPerfEval(
                 getMinerConf(miner,
                         //"A B (.){1," + n + "}",//"(.){1," + n + "}",//"A B (.){1," + n + "}", //measured for permute
-                        "(.){2,4}",
+                        "(.){2,4}", //used for algorithm comparison
+                        //"A&(.)!{2}",
                         //"A B (.){1,3}", //"A B 30 1198 (.)", "A B (.){1,3}", "A B (.){1,5}"
                         //"(A).{1,5}$",
                         10),
@@ -86,7 +87,7 @@ public class EvaluatePerfOnFimi {
                 false,
                 null,
                 "data-local/log/Fimi_Retail_Simple_" + miner + "_",
-                11,
+                3,
                 0,
                 false, true, false,
                 true
@@ -168,7 +169,8 @@ public class EvaluatePerfOnFimi {
                         //"[c|d] (.){1,3} A",
                         //"(.){1,3}",
                         //"(A^)*",//"(A) e", //"(A^)",
-                        "(a1)..",//"[A.* (.)]|[(.).* A]", // [A.*]&[(.).*]!{1,3}
+                        //"(a1)..",//"[A.* (.)]|[(.).* A]", // [A.*]&[(.).*]!{1,3}
+                        "A.*(B)",
                         1),
                 "data/icdm16-example/data.del",
                 "data/icdm16-example/dict.json",
@@ -187,14 +189,14 @@ public class EvaluatePerfOnFimi {
         //runItemsetExample(Miner.DesqCount);
 
         //runFimi(Miner.DesqCount);
-        runFimi(Miner.DesqDfs);
+        //runFimi(Miner.DesqDfs);
         //runFimi(Miner.DesqDfsPatricia);
         //runFimi(Miner.DesqDfsPatriciaIndex);
         //runSequentialFimi(Miner.DesqDfs);
 
         //runIcdm16(Miner.DesqCount);
         //runIcdm16(Miner.DesqDfs);
-        //runIcdm16(Miner.DesqDfsPatricia);
+        runIcdm16(Miner.DesqDfsPatricia);
 
         //Nyt Annotated
         //runNyt(Miner.DesqDfs);
