@@ -393,6 +393,13 @@ object DesqDataset {
     val dictBuilder = factory.createDictionaryBuilder()
 
     // --- Dictionary
+    /*
+    //For huge initial dict
+    rawData.foreach(row => {parse.apply(row,dictBuilder)})
+    dictBuilder.newSequence(0)
+    val dict = dictBuilder.getDictionary */
+
+
     val dict = rawData.mapPartitions(rows => {
       while (rows.hasNext) {
         parse.apply(rows.next(), dictBuilder)

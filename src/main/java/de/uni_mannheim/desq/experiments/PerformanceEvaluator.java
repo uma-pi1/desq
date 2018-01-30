@@ -161,13 +161,16 @@ public class PerformanceEvaluator {
             if(bypassBuilder){
                 System.out.print("Loading data (from files without builder) ... ");
                 data = DesqDataset.load(dataPath,sc);
+                dict = data.dict();
+                //dict.recomputeFids();
             }else {
                 System.out.print("Loading data (factory: " + factory.getClass().getCanonicalName() + ") ... ");
                 data = (usesGids)
                         ? ExampleUtils.buildDesqDatasetFromDelFile(sc, dataPath, factory)
                         : ExampleUtils.buildDesqDatasetFromRawFile(sc, dataPath, factory, " ");
+                dict = data.dict();
             }
-            dict = data.dict();
+
             //Gather data (via scala/spark)
             List<String[]> cachedSequences = data.toSids().toJavaRDD().collect();
             System.out.println(log.stop(Metric.DataLoadRuntime));

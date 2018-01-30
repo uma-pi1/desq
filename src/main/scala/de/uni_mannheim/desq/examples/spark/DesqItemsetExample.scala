@@ -4,6 +4,7 @@ import de.uni_mannheim.desq.Desq._
 import de.uni_mannheim.desq.mining.spark.{DesqCount, DesqDataset, DesqMiner}
 import de.uni_mannheim.desq.dictionary.{DefaultBuilderFactory, Dictionary, ItemsetBuilderFactory}
 import de.uni_mannheim.desq.patex.PatExToItemsetPatEx
+import it.unimi.dsi.fastutil.ints.{AbstractIntCollection, IntArrayList, IntList}
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.io.Source
@@ -253,11 +254,27 @@ object DesqItemsetExample {
 
     //Store
     println("Saving converted data to " + targetPath)
-    convertedData.save(targetPath)
+    convertedData.copyWithRecomputedCountsAndFids().save(targetPath)
 
     //Return
     convertedData
   }
+
+  def checkItemsetDesqDataset(path: String)(implicit sc: SparkContext){
+    val dds = DesqDataset.load(path)
+    dds.toFids().sequences.foreach(row => {
+      var lastFid = -1
+      for(fid: Int <- row.toIntArray()) {
+        if (lastFid < fid) {
+          //correct descending order
+          lastFid = fid
+        } else {
+          throw new Error("Incorrect ordering in itemset DesqDataset")
+        }
+      }
+    })
+  }
+
 
   def main(args: Array[String]) {
     //Init SparkConf
@@ -293,13 +310,14 @@ object DesqItemsetExample {
       "data-local/nyt/nyt-dict.avro.gz"
     )*/
 
-
+/*
     convertDesqDatasetToItemset(
       "data-local/amazon_itemset/",
       "data-local/amazon/amazon-data-gid.del",
       "data-local/amazon/amazon-dict.avro.gz"
-    )
+    )*/
 
+    checkItemsetDesqDataset("data-local/amazon_itemset/")
 
   }
 
