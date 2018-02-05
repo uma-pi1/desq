@@ -170,7 +170,7 @@ final class DesqDfsPatriciaTreeNode {
 		//Handle supports:
 		if(!child.reachedFCStateAtInputId.get(inputNodeId)) { //FC -> full support
 			if (state.isFinalComplete()) {
-				child.finalStateReached(inputNode, true);
+				child.finalStateReached(inputNode, true); //record it (instead of writing to projection)
 				if (!child.reachedNonFCStateAtInputId.get(inputNodeId)) {
 					//not counted in potential support yet -> add it
 					child.potentialSupport += inputNode.getSupport();
@@ -179,7 +179,7 @@ final class DesqDfsPatriciaTreeNode {
 				//..remember to avoid multiple processing...
 				child.reachedNonFCStateAtInputId.set(inputNodeId);
 				//... and increase the potential support
-				child.potentialSupport += inputNode.getSupport(); //(full support: all subsequences might support it)
+				child.potentialSupport += inputNode.getSupport(); //(full support: all descendants might support it)
 			}
 		}
 		//Check if state can be expanded

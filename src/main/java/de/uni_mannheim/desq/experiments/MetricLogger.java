@@ -25,6 +25,7 @@ public class MetricLogger {
         StartTimestamp,
         NumberDictionaryItems, NumberInputSequences, AvgLengthInputSequences,
         LengthOfItems, LeafNodesLengthOfItems, FinalNodesLengthOfItems, //sum of items in input nodes/sequences
+        LengthOfItemsWeighted, LeafNodesLengthOfItemsWeighted, FinalNodesLengthOfItemsWeighted, //weighted sum of items in input nodes/sequences
         NumberInputTrieNodes,NumberInputTrieLeafNodes, NumberInputTrieFinalNodes, //Input Trie KPIs
         NumberSearchTreeNodes, NumberPrunedSearchTreeNodes,//Pattern-growth specific
 
