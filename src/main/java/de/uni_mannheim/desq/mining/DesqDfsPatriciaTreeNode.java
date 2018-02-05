@@ -7,6 +7,7 @@ import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import it.unimi.dsi.fastutil.objects.ObjectList;
+import it.unimi.dsi.fastutil.objects.ObjectSet;
 
 import java.util.BitSet;
 import java.util.Collections;
@@ -70,11 +71,13 @@ final class DesqDfsPatriciaTreeNode {
 	//BitSet currentSnapshots;
 
 
-	/** Whether a final state was reached already for this input node **/
-	BitSet reachedFinalStateAtInputId ;
+	/** Whether a final state (at the end of a final node) or a final complete state was reached already for this input node **/
+	//BitSet reachedFinalStateAtInputId ;
+	/** track if a final complete state was reached already **/
+	BitSet reachedFCStateAtInputId ;
 
 	/** Whether a non final state was reached already for this input node (partial support already recorded)**/
-	BitSet reachedNonFinalStateAtInputId;
+	BitSet reachedNonFCStateAtInputId;
 
 	/** keep track of input node supports **/
 	//Int2LongOpenHashMap relevantNodeSupports;
@@ -92,10 +95,6 @@ final class DesqDfsPatriciaTreeNode {
 	 */
 	ObjectList<IntervalNode> relevantIntervalNodes;
 
-
-
-
-
 	//private Int2ObjectMap<BitSet> currentSnapshotsByInput;
 
 	//BitSet nodesWithOutput; //keep track of nodes producing this output (itemFid)
@@ -108,8 +107,8 @@ final class DesqDfsPatriciaTreeNode {
 		this.inputTrieSize = inputTrieSize;
 		this.fst = fst;
 		projectedDatabase = new PostingList();
-		reachedFinalStateAtInputId = new BitSet();//(inputTrieSize); //(inputTrieSize >> 6);
-		reachedNonFinalStateAtInputId = new BitSet();//(inputTrieSize);
+		reachedFCStateAtInputId = new BitSet();//(inputTrieSize); //(inputTrieSize >> 6);
+		reachedNonFCStateAtInputId = new BitSet();//(inputTrieSize);
 		relevantIntervalNodes = new ObjectArrayList<>();
 		clear();
 
@@ -122,8 +121,8 @@ final class DesqDfsPatriciaTreeNode {
 		projectedDatabaseCurrentInputId = -1;
 		currentInputId = -1;
 		projectedDatabase.clear();
-		reachedFinalStateAtInputId.clear();
-		reachedNonFinalStateAtInputId.clear();
+		reachedFCStateAtInputId.clear();
+		reachedNonFCStateAtInputId.clear();
 		relevantIntervalNodes.clear();
 
 		// clear the children
@@ -139,8 +138,8 @@ final class DesqDfsPatriciaTreeNode {
 		projectedDatabase = null;
 		childrenByFid = null;
 		relevantIntervalNodes = null;
-		reachedFinalStateAtInputId = null;
-		reachedNonFinalStateAtInputId = null;
+		reachedFCStateAtInputId = null;
+		reachedNonFCStateAtInputId = null;
 	}
 
 
@@ -161,7 +160,6 @@ final class DesqDfsPatriciaTreeNode {
 		DesqDfsPatriciaTreeNode child = childrenByFid.get(outputFid);
 		if (child == null) {
 			//If not existing -> create child node with corresponding fid
-			//BitSet childPossibleStates = fst.reachableStates(possibleStates, outputFid);
 			child = new DesqDfsPatriciaTreeNode(fst, inputTrieSize);
 			child.itemFid = outputFid;
 			childrenByFid.put(outputFid, child);
@@ -170,25 +168,22 @@ final class DesqDfsPatriciaTreeNode {
 		final int inputNodeId = inputNode.getId();
 
 		//Handle supports:
-		if(state.isFinal()){
-			child.finalStateReached(inputNode);
-		}else{
-			//If not (non) final already reached...
-			if(!child.reachedNonFinalStateAtInputId.get(inputNodeId)
-					&& !child.reachedFinalStateAtInputId.get(inputNodeId)) {
-				//..remember to avoid multiple processing...
-				child.reachedNonFinalStateAtInputId.set(inputNodeId);
-				//... check that not any ancestor/parent was recorded already...
-				/*if(!child.reachedNonFinalStateAtInputId.intersects(inputNode.ancestors) ||
-						!child.reachedFinalStateAtInputId.intersects(inputNode.ancestors))*/
-					//... and increase the potential support
+		if(!child.reachedFCStateAtInputId.get(inputNodeId)) { //FC -> full support
+			if (state.isFinalComplete()) {
+				child.finalStateReached(inputNode, true);
+				if (!child.reachedNonFCStateAtInputId.get(inputNodeId)) {
+					//not counted in potential support yet -> add it
 					child.potentialSupport += inputNode.getSupport();
+				}
+			} else if (!child.reachedNonFCStateAtInputId.get(inputNodeId)){
+				//..remember to avoid multiple processing...
+				child.reachedNonFCStateAtInputId.set(inputNodeId);
+				//... and increase the potential support
+				child.potentialSupport += inputNode.getSupport(); //(full support: all subsequences might support it)
 			}
-
 		}
 		//Check if state can be expanded
-		if(!state.isFinalComplete() &&
-				!(state.isFinal() && inputNode.isLeaf() && inputNode.items.size() == position)){
+		if(!state.isFinalComplete()){
 			//Add all possible positions to projected database, which are worth to follow up
 			addToProjectedDatabase(child, inputNodeId,position, state.getId());
 		}
@@ -204,32 +199,28 @@ final class DesqDfsPatriciaTreeNode {
 		DesqDfsPatriciaTreeNode child = childrenByFid.get(outputFid);
 		if (child == null) {
 			//If not existing -> create child node with corresponding fid
-			//BitSet childPossibleStates = fst.reachableStates(possibleStates, outputFid);
 			child = new DesqDfsPatriciaTreeNode(fst, inputTrieSize);
 			child.itemFid = outputFid;
 			childrenByFid.put(outputFid, child);
 		}
 
 		//Handle support:
-		if(state.isFinal()){
-			child.finalStateReached(inputNodeId, trie);
-		}else{
-			//If not (non) final already reached...
-			if(!child.reachedNonFinalStateAtInputId.get(inputNodeId)
-					&& !child.reachedFinalStateAtInputId.get(inputNodeId)) {
+		if(!child.reachedFCStateAtInputId.get(inputNodeId)) {
+			if (state.isFinalComplete()) {
+				child.finalStateReached(inputNodeId, trie, true);
+				if (!child.reachedNonFCStateAtInputId.get(inputNodeId)) {
+					//not counted in potential support yet -> add it
+					child.potentialSupport += trie.getSupport(inputNodeId);
+				}
+			} else if (!child.reachedNonFCStateAtInputId.get(inputNodeId)) {
 				//..remember to avoid multiple processing...
-				child.reachedNonFinalStateAtInputId.set(inputNodeId);
-				//... check that not any ancestor/parent was recorded already...
-				/*if(!child.reachedNonFinalStateAtInputId.intersects(inputNode.ancestors) ||
-						!child.reachedFinalStateAtInputId.intersects(inputNode.ancestors))*/
+				child.reachedNonFCStateAtInputId.set(inputNodeId);
 				//... and increase the potential support
 				child.potentialSupport += trie.getSupport(inputNodeId);
 			}
-
 		}
 		//Check if state can be expanded
-		if(!state.isFinalComplete() &&
-				!(state.isFinal() && trie.isLeaf(inputNodeId) && trie.getItemsSize(inputNodeId) == position)){
+		if(!state.isFinalComplete()){
 			//Add all possible positions to projected database, which are worth to follow up
 			addToProjectedDatabase(child, inputNodeId,position, state.getId());
 		}
@@ -237,37 +228,28 @@ final class DesqDfsPatriciaTreeNode {
 
 	}
 
-	public void finalStateReached(PatriciaTrie.TrieNode inputNode){
-		final int inputNodeId = inputNode.getId();
+	public void finalStateReached(PatriciaTrie.TrieNode inputNode, boolean isFinalComplete){
+		//handle a valid final state in FST -> remember it to avoid multiple processing of it
+		if(isFinalComplete) reachedFCStateAtInputId.set(inputNode.getId());
 
-
-		if(!reachedFinalStateAtInputId.get(inputNodeId)) {
-			//handle a valid final state in FST -> remember it to avoid multiple processing of it
-			reachedFinalStateAtInputId.set(inputNodeId);
-
-			//Processing only necessary if no parent was processed already
-			relevantIntervalNodes.add(inputNode.intervalNode);
-
-			if (!reachedNonFinalStateAtInputId.get(inputNodeId)) {
-				//not counted in potential support yet -> add it
-				potentialSupport += inputNode.getSupport();
-			}
-		}
+		//Processing only necessary if no parent was processed already
+		relevantIntervalNodes.add(new IntervalNode(
+				inputNode.intervalStart,
+				inputNode.intervalEnd,
+				inputNode.support,
+				inputNode.exclusiveSupport,
+				isFinalComplete
+		));
 	}
 
 	//Same for Index based
-	public void finalStateReached(int nodeId, IndexPatriciaTrie trie){
-		if(!reachedFinalStateAtInputId.get(nodeId)) {
-			//handle a valid final state in FST -> remember it to avoid multiple processing of it
-			reachedFinalStateAtInputId.set(nodeId);
+	public void finalStateReached(int nodeId, IndexPatriciaTrie trie, boolean isFinalComplete){
+		//handle a valid final state in FST -> remember it to avoid multiple processing of it
+		if(isFinalComplete) reachedFCStateAtInputId.set(nodeId);
 
-			relevantIntervalNodes.add(trie.getIntervalNode(nodeId));
-
-			if (!reachedNonFinalStateAtInputId.get(nodeId)) {
-				//not counted in potential support yet -> add it
-				potentialSupport += trie.getSupport(nodeId);
-			}
-		}
+		relevantIntervalNodes.add(
+				trie.getIntervalNode(nodeId,isFinalComplete) //pre-calculated in index based version
+		);
 	}
 
 	/** Add a snapshot to the projected database of the given child. Ignores duplicate snapshots. */
@@ -312,11 +294,22 @@ final class DesqDfsPatriciaTreeNode {
 		LongAdder adder = new LongAdder();
 		//Ensure that larger intervals (parent nodes) are processed before sub-intervals (child nodes)
 		Collections.sort(relevantIntervalNodes);
-		int to = -1; //processed interval end
+		/*int to = -1; //processed interval end
 		for(IntervalNode node: relevantIntervalNodes){
 			if(node.start > to){
 				adder.add(node.support);
 				to = node.end;
+			}
+		}*/
+		int skip = -1; //processed interval end
+		IntervalNode last = null; //remember last processed interval (for de-duplication)
+		for(IntervalNode node: relevantIntervalNodes){
+			if(!node.equals(last) && node.start > skip){
+				last = node;
+				adder.add(
+						(node.isFinalComplete) ? node.support : node.exclusiveSupport
+				);
+				if(node.isFinalComplete) skip = node.end ;
 			}
 		}
 		return adder.longValue();

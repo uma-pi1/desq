@@ -268,7 +268,10 @@ public class PatriciaTrie {
         protected boolean isLeaf; //no children
         protected boolean isFinal; //a sequence ends here (instead of summing and comparing support)
 
-        protected IntervalNode intervalNode;
+        //protected IntervalNode intervalNode;
+        protected int intervalStart;
+        protected int intervalEnd;
+        protected long exclusiveSupport;
 
 
         public TrieNode(IntList fids, long support,
@@ -364,26 +367,30 @@ public class PatriciaTrie {
          * Returns the highest id used
          */
         public int calculateIntervals(final int start){
-            //intervalStart = start;
+            intervalStart = start;
             if(isLeaf){
                 //This node is a leaf -> interval start = end
-                //intervalEnd = start;
-                intervalNode = new IntervalNode(start,start,support);
+                intervalEnd = start;
+                //intervalNode = new IntervalNode(start,start,support);
+                exclusiveSupport = support;
                 return start;
             }else{
                 //Not a leaf -> iterate over all children (depth-first to ensure consistent intervals)
                 int end = start;
                 int nextStart = start;
+
+                LongAdder childrenSupport = new LongAdder();
                 for(TrieNode child: getChildren()) {
                     end = child.calculateIntervals(nextStart);
                     //next start
                     nextStart = end + 1;
+                    //track child supports
+                    childrenSupport.add(child.support);
                 }
 
-                //if(isFinal) end += 1; //but not leaf -> represents end of sequence (higher support than children) -> ensure precedence
-
-                //intervalEnd = end;
-                intervalNode = new IntervalNode(start,end,support);
+                intervalEnd = end;
+                //intervalNode = new IntervalNode(start,end,support);
+                exclusiveSupport = support - childrenSupport.longValue();
                 return end;
             }
         }

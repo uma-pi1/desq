@@ -88,14 +88,14 @@ public class EvaluatePerfOnFimi {
                         //"A&(.)!{2}",
                         //"A B (.){1,3}", //"A B 30 1198 (.)", "A B (.){1,3}", "A B (.){1,5}"
                         //"(.)",//"(A).{1,5}$",
-                        5000),
-                //retail_itemset_data, retail_itemset_dict, //sigma 10
-                click_itemset_data, null, //sigma 5000
+                        10),
+                retail_itemset_data, retail_itemset_dict, //sigma 10
+                //click_itemset_data, null, //sigma 5000
                 false,
                 false,
                 null,
-                "data-local/log/Fimi_Click_Simple_" + miner + "_",
-                11,
+                "data-local/log/Fimi_RETEST_" + miner + "_",
+                5,
                 0,
                 false, true, false,
                 true
@@ -229,7 +229,7 @@ public class EvaluatePerfOnFimi {
                         //"(.){1,3}",
                         //"(A^)*",//"(A) e", //"(A^)",
                         //"(a1)..",//"[A.* (.)]|[(.).* A]", // [A.*]&[(.).*]!{1,3}
-                        "A.*(B)",
+                        "[(a2).*]* (a1).* [(a2).*]*",//"(c) a1+ $ ",//"A.*(B)",
                         1),
                 "data/icdm16-example/data.del",
                 "data/icdm16-example/dict.json",
@@ -238,7 +238,7 @@ public class EvaluatePerfOnFimi {
                 "/",
                 "data-local/log/icdm16Ex_" + miner + "_",
                 1,
-                5,
+                10,
                 true, false, false,
                 true
         );
@@ -248,9 +248,9 @@ public class EvaluatePerfOnFimi {
         //runItemsetExample(Miner.DesqCount);
 
         //runFimi(Miner.DesqCount);
-        //runFimi(Miner.DesqDfs);
+        runFimi(Miner.DesqDfs);
         //runFimi(Miner.DesqDfs_twoPass);
-        //runFimi(Miner.DesqDfsPatricia);
+        runFimi(Miner.DesqDfsPatricia);
         //runFimi(Miner.DesqDfsPatriciaIndex);
         //runSequentialFimi(Miner.DesqDfs);
 
@@ -278,10 +278,10 @@ public class EvaluatePerfOnFimi {
         //runAmazonItemset2(Miner.DesqDfsPatricia); // ABORT
         //runAmazonItemset2(Miner.DesqDfsPatriciaIndex);
 
-        runAmazonItemset3(Miner.DesqDfs);
-        runAmazonItemset3(Miner.DesqDfs_twoPass);
-        runAmazonItemset3(Miner.DesqDfsPatricia);
-        runAmazonItemset3(Miner.DesqDfsPatriciaIndex);
+        //runAmazonItemset3(Miner.DesqDfs);
+        //runAmazonItemset3(Miner.DesqDfs_twoPass);
+        //runAmazonItemset3(Miner.DesqDfsPatricia);
+        //runAmazonItemset3(Miner.DesqDfsPatriciaIndex);
 
 
 

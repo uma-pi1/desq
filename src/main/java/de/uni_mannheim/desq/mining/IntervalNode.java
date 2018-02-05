@@ -4,11 +4,15 @@ public class IntervalNode implements Comparable<IntervalNode>{
     protected int start;
     protected int end;
     protected long support;
+    protected long exclusiveSupport;
+    protected boolean isFinalComplete;
 
-    public IntervalNode(int start, int end, long support){
+    public IntervalNode(int start, int end, long support, long exclusiveSupport, boolean isFinalComplete){
         this.start = start;
         this.end = end;
         this.support = support;
+        this.exclusiveSupport = exclusiveSupport;
+        this.isFinalComplete = isFinalComplete;
     }
 
     /**
@@ -29,6 +33,9 @@ public class IntervalNode implements Comparable<IntervalNode>{
         else if(end != other.end)
             //same start, but larger end than other -> before other (<0)
             return other.end - end;
+        else if(isFinalComplete != other.isFinalComplete)
+            //same start and end, but FinalComplete (other not) -> before other (<0)
+            return (isFinalComplete) ? -1 : +1;
         else
             //if exactly same interval: higher support has precedence
             // (parent has higher support than child)
@@ -38,6 +45,14 @@ public class IntervalNode implements Comparable<IntervalNode>{
 
     @Override
     public String toString(){
-        return "[" + start + "," + end + "]@" + support;
+        return "[" + start + "," + end + "]@" + support + "FC:" + isFinalComplete;
+    }
+
+    public boolean equals(IntervalNode other){
+        return other != null
+                && this.start == other.start
+                && this.end == other.end
+                && this.support == other.support
+                && this.isFinalComplete == other.isFinalComplete;
     }
 }

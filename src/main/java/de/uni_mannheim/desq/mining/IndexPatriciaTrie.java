@@ -16,7 +16,9 @@ public class IndexPatriciaTrie {
     private IntList[] nodeItems;
     private boolean[] nodeIsFinal;
     private boolean[] nodeIsLeaf;
-    private IntervalNode[] nodeInterval;
+    //private IntervalNode[] nodeInterval;
+    private IntervalNode[] nodeIntervalNode;
+    private IntervalNode[] nodeFinalIntervalNode;
     private int[] nodeItemsSize;
 
 
@@ -29,7 +31,9 @@ public class IndexPatriciaTrie {
         this.nodeItems = new IntList[size];
         this.nodeIsFinal = new boolean[size];
         this.nodeIsLeaf = new boolean[size];
-        this.nodeInterval = new IntervalNode[size];
+        //this.nodeInterval = new IntervalNode[size];
+        this.nodeIntervalNode = new IntervalNode[size];
+        this.nodeFinalIntervalNode = new IntervalNode[size];
         this.nodeItemsSize = new int[size];
 
     }
@@ -44,7 +48,12 @@ public class IndexPatriciaTrie {
         nodeSupport[idx] =  node.support;
         nodeIsFinal[idx] = node.isFinal;
         nodeIsLeaf[idx] =  node.isLeaf;
-        nodeInterval[idx] = node.intervalNode;//new IntervalNode(node.intervalStart, node.intervalEnd, node.support);
+        nodeIntervalNode[idx] = new IntervalNode(
+                node.intervalStart, node.intervalEnd,
+                node.support, node.exclusiveSupport, false);
+        nodeFinalIntervalNode[idx] = new IntervalNode(
+                node.intervalStart, node.intervalEnd,
+                node.support, node.exclusiveSupport, true);
         nodeItemsSize[idx] = node.items.size();
 
         //convert children
@@ -87,8 +96,8 @@ public class IndexPatriciaTrie {
         return nodeChildren[nodeId];
     }
 
-    public IntervalNode getIntervalNode(int nodeId) {
-        return nodeInterval[nodeId];
+    public IntervalNode getIntervalNode(int nodeId, boolean isFinalComplete) {
+        return (isFinalComplete) ? nodeFinalIntervalNode[nodeId] : nodeIntervalNode[nodeId];
     }
 
 
@@ -137,7 +146,8 @@ public class IndexPatriciaTrie {
         this.nodeItems = null;
         this.nodeIsFinal = null;
         this.nodeIsLeaf = null;
-        this.nodeInterval = null;
+        this.nodeFinalIntervalNode = null;
+        this.nodeIntervalNode = null;
     }
 
     /* Potentially useful outputs -> but pruned only reason to store node-final information...

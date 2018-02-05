@@ -212,16 +212,20 @@ pos: 	do { // loop over positions; used for tail recursion optimization -> on tr
 
 			//If Fst reached final complete state -> exit (no items will be produced and ending in an final state is clear)
 			if (state.isFinalComplete()){
-				if(trackWithoutOutput) currentNode.finalStateReached(node);
+				if(trackWithoutOutput && !currentNode.reachedFCStateAtInputId.get(node.getId()))
+					currentNode.finalStateReached(node, true);
 				return;// reachedFinalStateWithoutOutput;
 			}
 
 			//Handle end of input trie node (proceed to child nodes if possible)
 			if(pos == node.getItems().size()) {
-				//Check if track final state
-				if(trackWithoutOutput && state.isFinal() && node.isFinal()){
-					trackWithoutOutput = false;
-					currentNode.finalStateReached(node);
+				//Check if end of final node
+				if(trackWithoutOutput
+						&& state.isFinal() && node.isFinal()
+						&& !currentNode.reachedFCStateAtInputId.get(node.getId())){
+					//Case: end of sequence and a final state -> track it (only exclusive support)
+					//But keep tracking relevant descendants nodes
+					currentNode.finalStateReached(node, false);
 				}
 				//Check if input trie node is leaf (no children) -> end of processing
 				if(node.isLeaf()) {
@@ -339,7 +343,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					final int pos = projectedDatabaseIt.nextNonNegativeInt();
 					//reachedFinalStateWithoutOutput |=
 							incStep(pos, fst.getState(stateId), 0, true,
-									currentInputNode,!currentNode.reachedFinalStateAtInputId.get(currentInputId));
+									currentInputNode,!currentNode.reachedFCStateAtInputId.get(currentInputId));
 
 				} while (projectedDatabaseIt.nextPosting());
 			}
