@@ -7,13 +7,11 @@ import de.uni_mannheim.desq.fst.ItemState;
 import de.uni_mannheim.desq.fst.State;
 import de.uni_mannheim.desq.patex.PatExUtils;
 import de.uni_mannheim.desq.util.DesqProperties;
-import de.uni_mannheim.desq.util.IntBitSet;
 import it.unimi.dsi.fastutil.ints.*;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.Iterator;
 
 public final class DesqDfsPatriciaIndex extends DesqMiner {
@@ -194,14 +192,13 @@ public final class DesqDfsPatriciaIndex extends DesqMiner {
      * @return true if the FST can accept without further output
      */
 	private void incStep(int pos, State state, final int level, final boolean expand, int nodeId, boolean trackWithoutOutput) {
-		//boolean reachedFinalStateWithoutOutput = false; //only changed by FST transitions -> refers to same input node!
 
 pos: 	do { // loop over positions; used for tail recursion optimization -> on trie not linear anymore -> recursion needs to split
 
 			//If Fst reached final complete state -> exit
 			if (state.isFinalComplete()){
 				if(trackWithoutOutput && !currentNode.reachedFCStateAtInputId.get(nodeId))
-					currentNode.finalStateReached(nodeId, inputTrie, true);
+					currentNode.recordRelevantNode(nodeId, inputTrie, true);
 				return; //reachedFinalStateWithoutOutput;
 			}
 
@@ -213,7 +210,7 @@ pos: 	do { // loop over positions; used for tail recursion optimization -> on tr
 						&& !currentNode.reachedFCStateAtInputId.get(nodeId)){
 					//Case: end of sequence and a final state -> track it (only exclusive support)
 					//But keep tracking relevant descendants nodes
-					currentNode.finalStateReached(nodeId, inputTrie, false);
+					currentNode.recordRelevantNode(nodeId, inputTrie, false);
 				}
 				//Check if input trie node is leaf (no children) -> end of processing
 				if(inputTrie.isLeaf(nodeId)){

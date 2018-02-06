@@ -1,13 +1,11 @@
 package de.uni_mannheim.desq.mining;
 
-import de.uni_mannheim.desq.experiments.MetricLogger;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.State;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import it.unimi.dsi.fastutil.objects.ObjectList;
-import it.unimi.dsi.fastutil.objects.ObjectSet;
 
 import java.util.BitSet;
 import java.util.Collections;
@@ -54,50 +52,15 @@ final class DesqDfsPatriciaTreeNode {
 	 * of the projected database. */
 	int projectedDatabaseCurrentInputId;
 
-	/** Whether we saw a final complete state for the current input sequence */
-	//boolean reachedFinalCompleteState;
-
-	/** Whether we saw a non final complete state for the current input sequence */
-	//boolean reachedNonFinalCompleteState;
-
-	/** If we saw a final complete state for the current input sequence, then at this position */
-	//int finalCompletePosition;
-
-	/** If we saw a final complete state for the current input sequence, then it was this state */
-	//int finalCompleteStateId;
-
-	/** Buffers all snapshots of the current input sequence in the projected database. Used to avoid adding duplicate
-	 * snapshots. Index of a snapshot is <code>position*nodeId*fst.numStates() + stateId</code>. */
-	//BitSet currentSnapshots;
-
-
-	/** Whether a final state (at the end of a final node) or a final complete state was reached already for this input node **/
-	//BitSet reachedFinalStateAtInputId ;
 	/** track if a final complete state was reached already **/
 	BitSet reachedFCStateAtInputId ;
 
 	/** Whether a non final state was reached already for this input node (partial support already recorded)**/
 	BitSet reachedNonFCStateAtInputId;
 
-	/** keep track of input node supports **/
-	//Int2LongOpenHashMap relevantNodeSupports;
-
-	/** Structure storing the valid relevant intervals (input trie nodes) with its support
-	 * No children (would be not interesting) -> flat structure no tree
-	 * Search if range is present or entailed already
-	 * Maps start to (end and support)
-	 * **/
-	//Int2ObjectAVLTreeMap<MutablePair<Integer,Long>> relevantIntervals;
-	//BitSet intervalStarts;
-
-	/** Collection of relevant input nodes, based on interval Ids
-	 *
-	 */
+	/** Collection of relevant input nodes, based on interval Ids */
 	ObjectList<IntervalNode> relevantIntervalNodes;
 
-	//private Int2ObjectMap<BitSet> currentSnapshotsByInput;
-
-	//BitSet nodesWithOutput; //keep track of nodes producing this output (itemFid)
 
 	// -- construction and clearing -----------------------------------------------------------------------------------
 
@@ -170,7 +133,7 @@ final class DesqDfsPatriciaTreeNode {
 		//Handle supports:
 		if(!child.reachedFCStateAtInputId.get(inputNodeId)) { //FC -> full support
 			if (state.isFinalComplete()) {
-				child.finalStateReached(inputNode, true); //record it (instead of writing to projection)
+				child.recordRelevantNode(inputNode, true); //record it (instead of writing to projection)
 				if (!child.reachedNonFCStateAtInputId.get(inputNodeId)) {
 					//not counted in potential support yet -> add it
 					child.potentialSupport += inputNode.getSupport();
@@ -207,7 +170,7 @@ final class DesqDfsPatriciaTreeNode {
 		//Handle support:
 		if(!child.reachedFCStateAtInputId.get(inputNodeId)) {
 			if (state.isFinalComplete()) {
-				child.finalStateReached(inputNodeId, trie, true);
+				child.recordRelevantNode(inputNodeId, trie, true);
 				if (!child.reachedNonFCStateAtInputId.get(inputNodeId)) {
 					//not counted in potential support yet -> add it
 					child.potentialSupport += trie.getSupport(inputNodeId);
@@ -228,7 +191,7 @@ final class DesqDfsPatriciaTreeNode {
 
 	}
 
-	public void finalStateReached(PatriciaTrie.TrieNode inputNode, boolean isFinalComplete){
+	public void recordRelevantNode(PatriciaTrie.TrieNode inputNode, boolean isFinalComplete){
 		//handle a valid final state in FST -> remember it to avoid multiple processing of it
 		if(isFinalComplete) reachedFCStateAtInputId.set(inputNode.getId());
 
@@ -243,7 +206,7 @@ final class DesqDfsPatriciaTreeNode {
 	}
 
 	//Same for Index based
-	public void finalStateReached(int nodeId, IndexPatriciaTrie trie, boolean isFinalComplete){
+	public void recordRelevantNode(int nodeId, IndexPatriciaTrie trie, boolean isFinalComplete){
 		//handle a valid final state in FST -> remember it to avoid multiple processing of it
 		if(isFinalComplete) reachedFCStateAtInputId.set(nodeId);
 
@@ -294,13 +257,6 @@ final class DesqDfsPatriciaTreeNode {
 		LongAdder adder = new LongAdder();
 		//Ensure that larger intervals (parent nodes) are processed before sub-intervals (child nodes)
 		Collections.sort(relevantIntervalNodes);
-		/*int to = -1; //processed interval end
-		for(IntervalNode node: relevantIntervalNodes){
-			if(node.start > to){
-				adder.add(node.support);
-				to = node.end;
-			}
-		}*/
 		int skip = -1; //processed interval end
 		IntervalNode last = null; //remember last processed interval (for de-duplication)
 		for(IntervalNode node: relevantIntervalNodes){

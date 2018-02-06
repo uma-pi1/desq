@@ -4,7 +4,6 @@ import de.uni_mannheim.desq.experiments.MetricLogger;
 import de.uni_mannheim.desq.fst.*;
 import de.uni_mannheim.desq.patex.PatExUtils;
 import de.uni_mannheim.desq.util.DesqProperties;
-import de.uni_mannheim.desq.util.IntBitSet;
 import it.unimi.dsi.fastutil.ints.*;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -213,7 +212,7 @@ pos: 	do { // loop over positions; used for tail recursion optimization -> on tr
 			//If Fst reached final complete state -> exit (no items will be produced and ending in an final state is clear)
 			if (state.isFinalComplete()){
 				if(trackWithoutOutput && !currentNode.reachedFCStateAtInputId.get(node.getId()))
-					currentNode.finalStateReached(node, true);
+					currentNode.recordRelevantNode(node, true);
 				return;// reachedFinalStateWithoutOutput;
 			}
 
@@ -225,7 +224,7 @@ pos: 	do { // loop over positions; used for tail recursion optimization -> on tr
 						&& !currentNode.reachedFCStateAtInputId.get(node.getId())){
 					//Case: end of sequence and a final state -> track it (only exclusive support)
 					//But keep tracking relevant descendants nodes
-					currentNode.finalStateReached(node, false);
+					currentNode.recordRelevantNode(node, false);
 				}
 				//Check if input trie node is leaf (no children) -> end of processing
 				if(node.isLeaf()) {

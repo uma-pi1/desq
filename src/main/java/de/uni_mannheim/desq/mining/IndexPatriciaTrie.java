@@ -112,17 +112,24 @@ public class IndexPatriciaTrie {
         LongAdder itemsLength = new LongAdder();
         LongAdder itemsLengthFinal = new LongAdder();
         LongAdder itemsLengthLeaf = new LongAdder();
+        LongAdder itemsLengthWeighted = new LongAdder();
+        LongAdder itemsLengthFinalWeighted = new LongAdder();
+        LongAdder itemsLengthLeafWeighted = new LongAdder();
 
         for(int i = rootId; i < size;i++){
             int size = nodeItemsSize[i];
+            long sizeWeighted = nodeSupport[i] * size;
             itemsLength.add(size);
+            itemsLengthWeighted.add(sizeWeighted);
             if(nodeIsLeaf[i]){
                 leafNodes.add(1);
                 itemsLengthLeaf.add(size);
+                itemsLengthWeighted.add(sizeWeighted);
             }
             if(nodeIsFinal[i]){
                 finalNodes.add(1);
                 itemsLengthFinal.add(size);
+                itemsLengthFinalWeighted.add(sizeWeighted);
             }
         }
         logger.add(MetricLogger.Metric.LengthOfItems,itemsLength.longValue());
@@ -130,6 +137,9 @@ public class IndexPatriciaTrie {
         logger.add(MetricLogger.Metric.NumberInputTrieFinalNodes,finalNodes.longValue());
         logger.add(MetricLogger.Metric.LeafNodesLengthOfItems,itemsLengthLeaf.longValue());
         logger.add(MetricLogger.Metric.FinalNodesLengthOfItems,itemsLengthFinal.longValue());
+        logger.add(MetricLogger.Metric.LengthOfItemsWeighted,itemsLengthWeighted.longValue());
+        logger.add(MetricLogger.Metric.LeafNodesLengthOfItemsWeighted,itemsLengthLeafWeighted.longValue());
+        logger.add(MetricLogger.Metric.FinalNodesLengthOfItemsWeighted,itemsLengthFinalWeighted.longValue());
     }
 
 
@@ -150,7 +160,7 @@ public class IndexPatriciaTrie {
         this.nodeIntervalNode = null;
     }
 
-    /* Potentially useful outputs -> but pruned only reason to store node-final information...
+    /*  =============== Potentially useful outputs ===========================
     public String getNodeString(int nodeId, Dictionary dict) {
         StringBuilder builder = new StringBuilder();
         boolean first = true;
