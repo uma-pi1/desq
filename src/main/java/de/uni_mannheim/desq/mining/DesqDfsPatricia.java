@@ -147,8 +147,6 @@ public final class DesqDfsPatricia extends DesqMiner {
 		inputTrie.getRoot().calculateIntervals(0);
 		if(logRuntime) MetricLogger.getInstance().stop(MetricLogger.Metric.MiningMinePreprocessingRuntime);
 
-		if(logMetrics) inputTrie.calcMetrics();
-
 		if (DEBUG) {
 			fst.exportGraphViz("fst.pdf");
 			inputTrie.exportGraphViz("inputTrie.pdf", ctx.dict, 5);
@@ -184,12 +182,15 @@ public final class DesqDfsPatricia extends DesqMiner {
 				expand(new IntArrayList(), root);
 			}
 		}
+
 		if(logMetrics) {
-			MetricLogger.getInstance().add(
-					MetricLogger.Metric.NumberSearchTreeNodes,
+			MetricLogger log = MetricLogger.getInstance();
+			inputTrie.calcMetrics();
+			log.add(MetricLogger.Metric.NumberFSTStates,
+					this.fst.numStates());
+			log.add(MetricLogger.Metric.NumberSearchTreeNodes,
 					DesqDfsPatriciaTreeNode.nodeCounter.longValue());
-			MetricLogger.getInstance().add(
-					MetricLogger.Metric.NumberPrunedSearchTreeNodes,
+			log.add(MetricLogger.Metric.NumberPrunedSearchTreeNodes,
 					DesqDfsPatriciaTreeNode.pruneCounter.longValue());
 		}
 	}

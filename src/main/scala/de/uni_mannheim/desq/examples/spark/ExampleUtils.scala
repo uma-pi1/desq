@@ -249,6 +249,7 @@ object ExampleUtils {
 
   /** Load a .del file containing gid
     * The corresponding dictionary must be provided via factory as initial dictionary!
+    * Potential enhancement: allow to load FIDs
     */
   def buildDesqDatasetFromDelFile( sc: SparkContext,
                                    delFile: String,

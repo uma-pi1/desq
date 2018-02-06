@@ -41,6 +41,7 @@ public class PerformanceEvaluator {
     private SparkConf conf;
     private int print = 0;
     private boolean usesGids;
+    private boolean isDelFile;
     private boolean bypassBuilder;
     private DesqDataset data; //references the data of current iteration (might be null)
     private Dictionary dict; //references the dict of current iteration
@@ -50,6 +51,7 @@ public class PerformanceEvaluator {
                                 String dataPath,
                                 String dictPath,
                                 Boolean usesGids,
+                                Boolean isDelFile,
                                 Boolean bypassBuilder,
                                 BuilderFactory factory,
                                 Integer print,
@@ -59,6 +61,7 @@ public class PerformanceEvaluator {
         this.desqMinerConfigTemplate = desqMinerConfig;
         this.dataPath = dataPath;
         this.usesGids = usesGids;
+        this.isDelFile = isDelFile;
 
         this.factory = factory;
 
@@ -140,32 +143,30 @@ public class PerformanceEvaluator {
         // ---- Load Data
         log.start(Metric.DataLoadRuntime);
         SequenceReader seqReader;
-        if(bypassBuilder && dataPath.contains(".del")){
+
+        if(bypassBuilder && isDelFile){
+            //Load data from a .del file and avro dictionary directly (no spark usage)
             System.out.print("Loading data (from files without builder) ... ");
             //Read avro dict
             dict = Dictionary.loadFrom(dictPath);
             dict.recomputeFids();
-            //File dataFile = new File("data-local/netflix/flat-data-gid.del");
             seqReader = new DelSequenceReader(
                     dict,
                     new FileInputStream(new File(dataPath)),
                     !usesGids
             );
-//                dict = data.dict();
-//                seqReader = new StringIteratorSequenceReader(dict, data.toSids().toJavaRDD().collect().iterator());
-            //dataReader.setDictionary(dict);
             System.out.println(log.stop(Metric.DataLoadRuntime));
         }else {
-
             // Init data load via DesqDataset (lazy) via Spark
             if(bypassBuilder){
+                //Load persisted DesqDataset from a folder
                 System.out.print("Loading data (from files without builder) ... ");
                 data = DesqDataset.load(dataPath,sc);
                 dict = data.dict();
-                //dict.recomputeFids();
             }else {
+                //Load from Del file (if usesGids) or CSV (FIMI -> separated by space)
                 System.out.print("Loading data (factory: " + factory.getClass().getCanonicalName() + ") ... ");
-                data = (usesGids)
+                data = (isDelFile)
                         ? ExampleUtils.buildDesqDatasetFromDelFile(sc, dataPath, factory)
                         : ExampleUtils.buildDesqDatasetFromRawFile(sc, dataPath, factory, " ");
                 dict = data.dict();

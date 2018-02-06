@@ -146,8 +146,6 @@ public final class DesqDfsPatriciaIndex extends DesqMiner {
 		inputTrieBuild = null;
 		if(logRuntime) MetricLogger.getInstance().stop(MetricLogger.Metric.MiningMinePreprocessingRuntime);
 
-		if(logMetrics) inputTrie.calcMetrics();
-
 		//Init Mining
 		//input trie size needs to be set after trie is built
 		DesqDfsPatriciaTreeNode.nodeCounter.reset();
@@ -172,11 +170,13 @@ public final class DesqDfsPatriciaIndex extends DesqMiner {
 			}
 		}
 		if(logMetrics) {
-			MetricLogger.getInstance().add(
-					MetricLogger.Metric.NumberSearchTreeNodes,
+			MetricLogger log = MetricLogger.getInstance();
+			inputTrie.calcMetrics();
+			log.add(MetricLogger.Metric.NumberFSTStates,
+					this.fst.numStates());
+			log.add(MetricLogger.Metric.NumberSearchTreeNodes,
 					DesqDfsPatriciaTreeNode.nodeCounter.longValue());
-			MetricLogger.getInstance().add(
-					MetricLogger.Metric.NumberPrunedSearchTreeNodes,
+			log.add(MetricLogger.Metric.NumberPrunedSearchTreeNodes,
 					DesqDfsPatriciaTreeNode.pruneCounter.longValue());
 		}
 	}

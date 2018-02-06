@@ -230,14 +230,14 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 
 		if(logMetrics) {
-			MetricLogger.getInstance().add(
-					MetricLogger.Metric.LengthOfItems,
+			MetricLogger log = MetricLogger.getInstance();
+			log.add(MetricLogger.Metric.NumberFSTStates,
+					this.fst.numStates());
+			log.add(MetricLogger.Metric.LengthOfItems,
 					itemsLength.longValue());
-			MetricLogger.getInstance().add(
-					MetricLogger.Metric.NumberSearchTreeNodes,
+			log.add(MetricLogger.Metric.NumberSearchTreeNodes,
 					DesqDfsTreeNode.nodeCounter.longValue());
-			MetricLogger.getInstance().add(
-					MetricLogger.Metric.NumberPrunedSearchTreeNodes,
+			log.add(MetricLogger.Metric.NumberPrunedSearchTreeNodes,
 					DesqDfsTreeNode.pruneCounter.longValue());
 		}
 	}

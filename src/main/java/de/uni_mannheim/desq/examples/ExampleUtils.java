@@ -185,6 +185,7 @@ public class ExampleUtils {
     public static void runItemsetPerfEval(DesqProperties minerConf,
                                           String dataPath, String dictPath,
                                           Boolean usesGids,
+                                          Boolean isDelFile,
                                           Boolean bypassBuilder,
                                           String itemsetSeparator,
                                           String logPrefix,
@@ -211,7 +212,7 @@ public class ExampleUtils {
             logFile = (logPrefix == null) ? null : logPrefix + "Sequence.csv";
             new PerformanceEvaluator(
                     minerConf,
-                    dataPath, dictPath, usesGids, bypassBuilder,
+                    dataPath, dictPath, usesGids, isDelFile, bypassBuilder,
                     factory,
                     print,
                     logFile,
@@ -226,7 +227,7 @@ public class ExampleUtils {
             logFile = (logPrefix == null) ? null : logPrefix + "Itemset.csv";
             new PerformanceEvaluator(
                     minerConf,
-                    dataPath, dictPath, usesGids, bypassBuilder,
+                    dataPath, dictPath, usesGids, isDelFile, bypassBuilder,
                     factory,
                     print,
                     logFile,
@@ -241,7 +242,7 @@ public class ExampleUtils {
             logFile = (logPrefix == null) ? null : logPrefix + "SeqItemsets.csv";
             new PerformanceEvaluator(
                     minerConf,
-                    dataPath, dictPath, usesGids, bypassBuilder,
+                    dataPath, dictPath, usesGids, isDelFile, bypassBuilder,
                     factory,
                     print,
                     logFile,
