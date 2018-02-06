@@ -33,14 +33,18 @@ public class IntervalNode implements Comparable<IntervalNode>{
         else if(end != other.end)
             //same start, but larger end than other -> before other (<0)
             return other.end - end;
-        else if(isFinalComplete != other.isFinalComplete)
-            //same start and end, but FinalComplete (other not) -> before other (<0)
-            return (isFinalComplete) ? -1 : +1;
-        else
+        else if(support != other.support)
             //if exactly same interval: higher support has precedence
             // (parent has higher support than child)
             // higher support than other -> before other (<0)
             return (int) (other.support - support);
+        else if(isFinalComplete != other.isFinalComplete)
+            //exactly same interval and support, but not FinalComplete both
+            // if other not final-complete -> before other (<0)
+            return (isFinalComplete) ? -1 : +1;
+        else
+            //they are equal
+            return 0;
     }
 
     @Override
