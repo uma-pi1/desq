@@ -31,7 +31,7 @@ object DictionaryExample extends App {
   data.print()
 
   println("\nDictionary with frequencies")
-  val newData = data.copyWithRecomputedCountsAndFids()
-  newData.sequenceInterpreter.getDictionary.writeJson(System.out)
+  val newData = data.recomputeDictionary()
+  newData.descriptor.getDictionary.writeJson(System.out)
   println()
 }

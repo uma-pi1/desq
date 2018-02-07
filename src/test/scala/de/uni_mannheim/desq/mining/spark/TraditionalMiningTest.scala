@@ -55,7 +55,7 @@ abstract class TraditionalMiningTest(sigma: Long, gamma: Int, lambda: Int, gener
         // write the data
         val patternWriter = new DelPatternWriter(new FileOutputStream(outputDelFile),
             DelPatternWriter.TYPE.GID)
-        patternWriter.setDictionary(data.sequenceInterpreter.getDictionary)
+        patternWriter.setDictionary(data.descriptor.getDictionary)
         result.foreach(patternWriter.write)
         patternWriter.close()
 
