@@ -29,7 +29,7 @@ import java.util.Iterator;
 import java.util.concurrent.atomic.LongAdder;
 
 public class PerformanceEvaluator {
-    private static final boolean profileMemoryUsage = false;
+    private static final boolean profileMemoryUsage = true;
 
     private DesqProperties desqMinerConfigTemplate;
     private String dataPath;

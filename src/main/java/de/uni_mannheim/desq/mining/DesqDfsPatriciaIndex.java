@@ -18,7 +18,7 @@ public final class DesqDfsPatriciaIndex extends DesqMiner {
 	private static final Logger logger = Logger.getLogger(DesqDfsPatriciaIndex.class);
 	private static final boolean DEBUG = false;
 	private static final boolean logRuntime = true; //not performance critical
-	private static final boolean logMetrics = false; //performance impact!
+	private static final boolean logMetrics = true; //performance impact!
 	static {
 		if (DEBUG) logger.setLevel(Level.TRACE);
 	}

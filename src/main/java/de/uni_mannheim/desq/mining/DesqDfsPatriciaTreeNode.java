@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.LongAdder;
  * @author Sascha Ulbrich (based on DesqDfsTreeNode by Kaustubh Beedkar)
  */
 final class DesqDfsPatriciaTreeNode {
+	private static final boolean logMetrics = true;
 
 	public static LongAdder nodeCounter = new LongAdder();
 	public static LongAdder pruneCounter = new LongAdder();
@@ -66,13 +67,16 @@ final class DesqDfsPatriciaTreeNode {
 
 	//DesqDfsPatriciaTreeNode(Fst fst, BitSet possibleStates, int inputTrieSize) {
 	DesqDfsPatriciaTreeNode(Fst fst, int inputTrieSize) {
-		nodeCounter.add(1);
+
 		this.inputTrieSize = inputTrieSize;
 		this.fst = fst;
 		projectedDatabase = new PostingList();
 		reachedFCStateAtInputId = new BitSet();//(inputTrieSize); //(inputTrieSize >> 6);
 		reachedNonFCStateAtInputId = new BitSet();//(inputTrieSize);
 		relevantIntervalNodes = new ObjectArrayList<>();
+
+		if(logMetrics) nodeCounter.add(1);
+
 		clear();
 
 	}
@@ -284,7 +288,7 @@ final class DesqDfsPatriciaTreeNode {
 			final DesqDfsPatriciaTreeNode child = entry.getValue();
 			if (child.potentialSupport < minSupport) {
 				childrenIt.remove();
-				pruneCounter.add(1);
+				if(logMetrics) pruneCounter.add(1);
 			}
 		}
 	}

@@ -2,7 +2,6 @@ package de.uni_mannheim.desq.mining;
 
 //import java.util.Collections;
 
-import de.uni_mannheim.desq.experiments.MetricLogger;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.State;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -17,6 +16,8 @@ import java.util.concurrent.atomic.LongAdder;
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
 final class DesqDfsTreeNode {
+	private static final boolean logMetrics = true;
+
 	public static LongAdder nodeCounter = new LongAdder();
 	public static LongAdder pruneCounter = new LongAdder();
 
@@ -77,7 +78,7 @@ final class DesqDfsTreeNode {
 	// -- construction and clearing -----------------------------------------------------------------------------------
 
 	DesqDfsTreeNode(Fst fst, BitSet possibleStates) {
-		nodeCounter.add(1);
+
 		this.fst = fst;
 		this.possibleStates = possibleStates;
 		if (possibleStates.cardinality() == 1) {
@@ -86,6 +87,9 @@ final class DesqDfsTreeNode {
 			possibleState = -1;
 		}
 		currentSnapshots = new BitSet(fst.numStates()*16);
+
+		if(logMetrics) nodeCounter.add(1);
+
 		clear();
 	}
 
@@ -222,7 +226,7 @@ final class DesqDfsTreeNode {
 			final DesqDfsTreeNode child = entry.getValue();
 			if (child.partialSupport + child.prefixSupport < minSupport) {
 				childrenIt.remove();
-				pruneCounter.add(1);
+				if(logMetrics) pruneCounter.add(1);
 			}
 		}
 	}

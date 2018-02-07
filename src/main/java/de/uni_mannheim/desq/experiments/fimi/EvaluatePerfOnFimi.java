@@ -89,15 +89,15 @@ public class EvaluatePerfOnFimi {
                         //"A&(.)!{2}",
                         //"A B (.){1,3}", //"A B 30 1198 (.)", "A B (.){1,3}", "A B (.){1,5}"
                         //"(.)",//"(A).{1,5}$",
-                        10),
-                retail_itemset_data, retail_itemset_dict, //sigma 10
-                //click_itemset_data, null, //sigma 5000
+                        5000),
+                //retail_itemset_data, retail_itemset_dict, //sigma 10
+                click_itemset_data, null, //sigma 5000
                 false,
                 false,
                 false,
                 null,
-                "data-local/log/Fimi_RETEST_" + miner + "_",
-                5,
+                "data-local/log/Fimi_Click_Simple_Metric_" + miner + "_",
+                11,
                 0,
                 false, true, false,
                 true
@@ -259,10 +259,10 @@ public class EvaluatePerfOnFimi {
         //runItemsetExample(Miner.DesqCount);
 
         //runFimi(Miner.DesqCount);
-        //runFimi(Miner.DesqDfs);
+        runFimi(Miner.DesqDfs);
         runFimi(Miner.DesqDfs_twoPass);
         runFimi(Miner.DesqDfsPatricia);
-        //runFimi(Miner.DesqDfsPatriciaIndex);
+        runFimi(Miner.DesqDfsPatriciaIndex);
         //runSequentialFimi(Miner.DesqDfs);
 
         //runIcdm16(Miner.DesqCount);
