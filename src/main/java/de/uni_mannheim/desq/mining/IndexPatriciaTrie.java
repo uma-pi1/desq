@@ -124,7 +124,7 @@ public class IndexPatriciaTrie {
             if(nodeIsLeaf[i]){
                 leafNodes.add(1);
                 itemsLengthLeaf.add(size);
-                itemsLengthWeighted.add(sizeWeighted);
+                itemsLengthLeafWeighted.add(sizeWeighted);
             }
             if(nodeIsFinal[i]){
                 finalNodes.add(1);
