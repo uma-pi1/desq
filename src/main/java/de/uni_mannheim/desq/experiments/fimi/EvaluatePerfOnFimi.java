@@ -239,7 +239,8 @@ public class EvaluatePerfOnFimi {
                         //"(A^)*",//"(A) e", //"(A^)",
                         //"(a1)..",//"[A.* (.)]|[(.).* A]", // [A.*]&[(.).*]!{1,3}
                         //"[(a2).*]* (a1).* [(a2).*]*",//"(c) a1+ $ ",//"A.*(B)",
-                        "c a1 $",
+                        "[c|d|e] (A)!*&(B)+&a1!+ [d|e]",
+                        //"c a1 $",
                         1),
                 "data/icdm16-example/data.del",
                 "data/icdm16-example/dict.json",
@@ -259,14 +260,14 @@ public class EvaluatePerfOnFimi {
         //runItemsetExample(Miner.DesqCount);
 
         //runFimi(Miner.DesqCount);
-        runFimi(Miner.DesqDfs);
-        runFimi(Miner.DesqDfs_twoPass);
-        runFimi(Miner.DesqDfsPatricia);
-        runFimi(Miner.DesqDfsPatriciaIndex);
+        //runFimi(Miner.DesqDfs);
+        //runFimi(Miner.DesqDfs_twoPass);
+        //runFimi(Miner.DesqDfsPatricia);
+        //runFimi(Miner.DesqDfsPatriciaIndex);
         //runSequentialFimi(Miner.DesqDfs);
 
         //runIcdm16(Miner.DesqCount);
-        //runIcdm16(Miner.DesqDfs);
+        runIcdm16(Miner.DesqDfs);
         //runIcdm16(Miner.DesqDfsPatricia);
 
         //Nyt Annotated
