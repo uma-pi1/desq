@@ -193,13 +193,12 @@ public final class DesqDfsPatriciaIndex extends DesqMiner {
      */
 	private void incStep(int pos, State state, final int level, final boolean expand, int nodeId, boolean trackWithoutOutput) {
 
-pos: 	do { // loop over positions; used for tail recursion optimization -> on trie not linear anymore -> recursion needs to split
-
+pos: 	do { // loop over positions; used for tail recursion optimization
 			//If Fst reached final complete state -> exit
 			if (state.isFinalComplete()){
 				if(trackWithoutOutput && !currentNode.reachedFCStateAtInputId.get(nodeId))
 					currentNode.recordRelevantNode(nodeId, inputTrie, true);
-				return; //reachedFinalStateWithoutOutput;
+				return;
 			}
 
 			//Handle end of input trie node (proceed to child nodes if possible)
@@ -214,23 +213,19 @@ pos: 	do { // loop over positions; used for tail recursion optimization -> on tr
 				}
 				//Check if input trie node is leaf (no children) -> end of processing
 				if(inputTrie.isLeaf(nodeId)){
-					return;// reachedFinalStateWithoutOutput;
+					return;
 				}else{
 					//No more items in node -> proceed to child trie node(s)
-
 					final Iterator<Integer> it = inputTrie.getChildren(nodeId).iterator();
 					while (it.hasNext()) {
 
 						final int childId = it.next();
 						if(logMetrics) MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberNodeMoves,1);
 						if(it.hasNext()) {
-							//Summarize returned support, because each node can reach final state independently
-							//reachedFinalStateWithoutOutput |=
 							incStep(0, state, level, expand, childId, trackWithoutOutput);
 						}else{
 							nodeId = childId;
-							pos = 0;
-							//Proceed ...
+							pos = 0;//Proceed ...
 						}
 					}
 				}
@@ -253,7 +248,6 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					// we did not get an output
 					if (itemStateIt.hasNext()) {
 						// recurse over FST states -> stays within same input node (but might change in next step)
-						//reachedFinalStateWithoutOutput |=
 						incStep(pos + 1, toState, level + 1, expand, nodeId,trackWithoutOutput);
 						continue itemState;
 					} else {
@@ -272,7 +266,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			break; // skipped only by call to "continue pos" above (tail recursion optimization)
 		} while (true);
 
-		return;// reachedFinalStateWithoutOutput;
+		return;
 	}
 
     /** Expands all children of the given search tree node. The node itself must have been processed/output/expanded

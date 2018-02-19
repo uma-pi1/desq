@@ -206,15 +206,13 @@ public final class DesqDfsPatricia extends DesqMiner {
      * @return true if the FST can accept without further output
      */
 	private void incStep(int pos, State state, final int level, final boolean expand, PatriciaTrie.TrieNode node, boolean trackWithoutOutput) {
-		//boolean reachedFinalStateWithoutOutput = false; //only changed by FST transitions -> refers to same input node!
-
-pos: 	do { // loop over positions; used for tail recursion optimization -> on trie not linear anymore -> recursion needs to split
+pos: 	do { // loop over positions; used for tail recursion optimization
 
 			//If Fst reached final complete state -> exit (no items will be produced and ending in an final state is clear)
 			if (state.isFinalComplete()){
 				if(trackWithoutOutput && !currentNode.reachedFCStateAtInputId.get(node.getId()))
 					currentNode.recordRelevantNode(node, true);
-				return;// reachedFinalStateWithoutOutput;
+				return;
 			}
 
 			//Handle end of input trie node (proceed to child nodes if possible)
@@ -229,7 +227,7 @@ pos: 	do { // loop over positions; used for tail recursion optimization -> on tr
 				}
 				//Check if input trie node is leaf (no children) -> end of processing
 				if(node.isLeaf()) {
-					return;// reachedFinalStateWithoutOutput;
+					return;
 				}else{
 					//No more items in node -> proceed to child trie node(s)
 					final Iterator<PatriciaTrie.TrieNode> it = node.getChildren().iterator();
@@ -237,13 +235,10 @@ pos: 	do { // loop over positions; used for tail recursion optimization -> on tr
 						final PatriciaTrie.TrieNode child = it.next();
 						if(logMetrics) MetricLogger.getInstance().addToSum(MetricLogger.Metric.NumberNodeMoves,1);
 						if(it.hasNext()) {
-							//Summarize returned support, because each node can reach final state independently
-							//reachedFinalStateWithoutOutput |=
-									incStep(0, state, level, expand, child, trackWithoutOutput);
+							incStep(0, state, level, expand, child, trackWithoutOutput);
 						}else{
 							node = child;
-							pos = 0;
-							//Proceed ...
+							pos = 0; //Proceed ...
 						}
 					}
 				}
@@ -251,7 +246,6 @@ pos: 	do { // loop over positions; used for tail recursion optimization -> on tr
 
 
 			// get iterator over next output item/state pairs; reuse existing ones if possible
-			// in two-pass, only iterates over states that we saw in the first pass (the other ones can safely be skipped)
 			final int itemFid = node.getItems().getInt(pos);
 			final State.ItemStateIterator itemStateIt = state.consume(itemFid, itemStateIterators.get(level), null);
 
@@ -294,8 +288,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 			break; // skipped only by call to "continue pos" above (tail recursion optimization)
 		} while (true);
-
-		return;// reachedFinalStateWithoutOutput;
+		return;
 	}
 
     /** Expands all children of the given search tree node. The node itself must have been processed/output/expanded
