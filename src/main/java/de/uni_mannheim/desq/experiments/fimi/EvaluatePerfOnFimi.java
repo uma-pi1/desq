@@ -151,8 +151,8 @@ public class EvaluatePerfOnFimi {
                 true,
                 null,
                 "data-local/log/Amazon_" + miner + "_",
-                1,
-                30,
+                11,
+                0,
                 true, false, false,
                 true
         );
@@ -267,7 +267,7 @@ public class EvaluatePerfOnFimi {
         //runSequentialFimi(Miner.DesqDfs);
 
         //runIcdm16(Miner.DesqCount);
-        runIcdm16(Miner.DesqDfs);
+        //runIcdm16(Miner.DesqDfs);
         //runIcdm16(Miner.DesqDfsPatricia);
 
         //Nyt Annotated
@@ -285,16 +285,17 @@ public class EvaluatePerfOnFimi {
         //runAmazonItemset(Miner.DesqDfsPatricia);
         //runAmazonItemset(Miner.DesqDfsPatriciaIndex);
 
-        //runAmazonItemset2(Miner.DesqDfs);
-        //runAmazonItemset2(Miner.DesqDfs_twoPass);
-        //runAmazonItemset2(Miner.DesqDfsPatricia); // ABORT
-        //runAmazonItemset2(Miner.DesqDfsPatriciaIndex);
 
-        //runAmazonItemset3(Miner.DesqDfs);
-        //runAmazonItemset3(Miner.DesqDfs_twoPass);
-        //runAmazonItemset3(Miner.DesqDfsPatricia);
-        //runAmazonItemset3(Miner.DesqDfsPatriciaIndex);
 
+        runAmazonItemset3(Miner.DesqDfs);
+        runAmazonItemset3(Miner.DesqDfs_twoPass);
+        runAmazonItemset3(Miner.DesqDfsPatricia);
+        runAmazonItemset3(Miner.DesqDfsPatriciaIndex);
+
+        runAmazonItemset2(Miner.DesqDfs);
+        runAmazonItemset2(Miner.DesqDfs_twoPass);
+        runAmazonItemset2(Miner.DesqDfsPatricia); // ABORT
+        runAmazonItemset2(Miner.DesqDfsPatriciaIndex);
 
 
         //for(int i = 1; i < 11 ;i++) runFimi(Miner.DesqDfs_twoPass, i);

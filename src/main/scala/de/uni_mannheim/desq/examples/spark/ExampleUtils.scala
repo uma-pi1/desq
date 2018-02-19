@@ -140,6 +140,8 @@ object ExampleUtils {
       runVerbose(data, minerConf)
   }
 
+
+
     //Helper Methods (for use in Java)
   def buildDesqDatasetFromRawFile(sc: SparkContext,
                                   dataPath: String,

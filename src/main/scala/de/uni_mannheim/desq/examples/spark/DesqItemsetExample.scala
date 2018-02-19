@@ -29,95 +29,39 @@ object DesqItemsetExample {
     ExampleUtils.runIcdm16(conf, asItemset = true)
   }
 
-  /** run eval on icdm16 */
-  def evalIdcm16()(implicit sc: SparkContext){
-    val patternExpression = "[c|d] (A)+ B"
-    val sigma = 1
-    //val conf = DesqCount.createConf(patternExpression, sigma)
-
-    val dictFile = this.getClass.getResource("/icdm16-example/dict.json")
-    val dataFile = this.getClass.getResource("/icdm16-example/data.del")
-
-    // load the dictionary & update hierarchy
-    val dict = Dictionary.loadFrom(dictFile)
-    val delFile = sc.parallelize(Source.fromURL(dataFile).getLines.toSeq)
-    val data = DesqDataset.loadFromDelFile(delFile, dict, usesFids = false).copyWithRecomputedCountsAndFids()
-
-    println("\n ==== sequence query =====")
-    ExampleUtils.runPerformanceEval(patternExpression,sigma,data)
-
-    println("\n ==== itemset query =====")
-    val factory = new ItemsetBuilderFactory(data.dict)
-    val itemsetData = DesqDataset.buildFromStrings(data.toSids, Option.apply(factory))
-    ExampleUtils.runPerformanceEval(patternExpression,sigma,
-      itemsetData,
-      Option.apply(new PatExToItemsetPatEx(patternExpression)))
-  }
-
   /** run/eval itemset query on fimi-retail data and stores metrics in CSVs in data-local/ **/
-  def fimi_retail(eval: Boolean = false)(implicit sc: SparkContext) {
+  def fimi_retail()(implicit sc: SparkContext) {
 
     val patEx = "(39)&(41)&.!* (.)!{2,5}&.!* "//"(39)&(41)!{0,7}&.!*"
     val minSupport = 500
 
-    if(eval) { // Run evaluation with logging of metrics
+    val data = "data-local/fimi_retail/retail.dat"
+    val dict = Option.apply(Dictionary.loadFrom("data-local/fimi_retail/dict.json", sc))
 
-      println("\n ==== Evaluate sequence query =====")
-      ExampleUtils.runPerformanceEval(
-        patEx, minSupport,
-        DesqDataset.buildFromStrings(sc.textFile("data-local/fimi_retail/retail.dat").map(s => s.split(" "))),
-        logFile = "data-local/testSeq.csv", iterations = 10
-      )
-
-      println("\n ==== Evaluate itemset query =====")
-      val factory = Option.apply(new ItemsetBuilderFactory())
-      ExampleUtils.runPerformanceEval(
-        patEx, minSupport,
-        DesqDataset.buildFromStrings(sc.textFile("data-local/fimi_retail/retail.dat").map(s => s.split(" ")),factory),
-        patExTranslator = Option.apply(new PatExToItemsetPatEx(patEx)),
-        logFile = "data-local/testItemset.csv", iterations = 10
-      )
-    }else {
-      val data = "data-local/fimi_retail/retail.dat"
-      val dict = Option.apply(Dictionary.loadFrom("data-local/fimi_retail/dict.json", sc))
-
-      println("\n ==== FIMI - Retail: Itemset query =====")
-      runItemsetMiner(
-        rawData = data,
-        patEx = patEx,
-        minSupport = minSupport,
-        extDict = dict)
-    }
+    println("\n ==== FIMI - Retail: Itemset query =====")
+    runItemsetMiner(
+      rawData = data,
+      patEx = patEx,
+      minSupport = minSupport,
+      extDict = dict)
   }
 
   /** run itemset query on nyt91 data**/
-  def nyt91(eval: Boolean = false)(implicit sc: SparkContext) {
+  def nyt91()(implicit sc: SparkContext) {
 
     val patEx = "(.)!{3}&.!*" // PATTY: n-grams of (max?) length 3 (Up to 4 per sentence???)
     //val patEx = "(..)"
     val minSupport = 100000
     val data = DesqDataset.load("data-local/nyt-1991-data")
 
-    if(eval){
-      ExampleUtils.runPerformanceEval(
-        patEx, minSupport,
-        DesqDataset.buildFromStrings(data.toSids, Option.apply(
-          new ItemsetBuilderFactory(data.dict)
-        )),
-        Option.apply(new PatExToItemsetPatEx(patEx)), //"each sentence viewed as a shopping transaction"
-        logFile = "data-local/logPATTYItemset.csv"
-      )
-    }else {
-      runItemsetMiner(
-        rawData = data,
-        patEx = patEx,
-        minSupport = minSupport
-      )
-    }
+    runItemsetMiner(
+      rawData = data,
+      patEx = patEx,
+      minSupport = minSupport
+    )
   }
 
-  def sequenceOfItemsets(eval: Boolean = false,
-                         dataPath: String = "data/itemset-example/data.dat",
+  def sequenceOfItemsets(dataPath: String = "data/itemset-example/data.dat",
                          dictPath: String = "data/itemset-example/dict.json",
                          logPrefix: String = "data-local/ItemsetEx_",
                          patEx: String = "[c|d] / (B)",
@@ -127,57 +71,28 @@ object DesqItemsetExample {
 
     val dict = Dictionary.loadFrom(dictPath)
 
-    if(eval){ // Run performance evaluation (summaries + metrics in CSV)
-      println("\n ==== Evaluate sequence query =====")
-      val defFactory = Option.apply(new DefaultBuilderFactory(dict))
-      ExampleUtils.runPerformanceEval(
-        patEx, minSupport,
-        DesqDataset.buildFromStrings(sc.textFile(dataPath).map(s => s.split(" ")),defFactory),
-        logFile = logPrefix + "Seq.csv"
-      )
+    println("\n === ItemsetExample - Itemset Query ===")
+    runItemsetMiner(
+      rawData = dataPath,
+      patEx = patEx,
+      minSupport = minSupport,
+      extDict = Option.apply(dict)
+    )
 
-      println("\n ==== Evaluate itemset query =====")
-      val itemsetFactory = Option.apply(new ItemsetBuilderFactory(dict))
-      ExampleUtils.runPerformanceEval(
-        patEx, minSupport,
-        DesqDataset.buildFromStrings(sc.textFile(dataPath).map(s => s.split(" ")),itemsetFactory ),
-        Option.apply(new PatExToItemsetPatEx(patEx)),
-        logFile = logPrefix + "Itemset.csv"
-      )
-
-      println("\n ==== Evaluate sequence of itemsets query =====")
-      val seqItemsetFactory = Option.apply(new ItemsetBuilderFactory(dict,"/"))
-      ExampleUtils.runPerformanceEval(
-        patEx, minSupport,
-        DesqDataset.buildFromStrings(sc.textFile(dataPath).map(s => s.split(" ")),seqItemsetFactory ),
-        Option.apply(new PatExToItemsetPatEx(patEx, "/")),
-        logFile = logPrefix + "SeqOfItemset.csv"
-      )
-    }else{ //Run the miner and show results (for functional test)
-      println("\n === ItemsetExample - Itemset Query ===")
-      runItemsetMiner(
-        rawData = dataPath,
-        patEx = patEx,
-        minSupport = minSupport,
-        extDict = Option.apply(dict)
-      )
-
-      println("\n === ItemsetExample - Sequence of Itemsets Query ===")
-      runItemsetMiner(
-        rawData = dataPath,
-        patEx = patEx,
-        minSupport = minSupport,
-        extDict = Option.apply(dict),
-        itemsetSeparator = Option.apply("/")
-      )
-    }
+    println("\n === ItemsetExample - Sequence of Itemsets Query ===")
+    runItemsetMiner(
+      rawData = dataPath,
+      patEx = patEx,
+      minSupport = minSupport,
+      extDict = Option.apply(dict),
+      itemsetSeparator = Option.apply("/")
+    )
   }
 
   /**
     * Generic method to run Queries on ItemSet Data
     */
-  def runItemsetMiner[T](
-                          rawData: T,
+  def runItemsetMiner[T](rawData: T,
                           patEx:String,
                           minSupport: Int = 1000,
                           extDict: Option[Dictionary] = None,
@@ -288,9 +203,9 @@ object DesqItemsetExample {
     //evalIdcm16
 
     //fimi_retail()
-    //fimi_retail(eval = true)
+    //fimi_retail()
 
-    //nyt91(eval = true)
+    //nyt91()
 
     //sequenceOfItemsets(patEx = "[c|d] / (-/)") //on example
 
