@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.LongAdder;
 public final class DesqDfs extends MemoryDesqMiner {
 	private static final Logger logger = Logger.getLogger(DesqDfs.class);
 	private static final boolean DEBUG = false;
-	private static final boolean logMetrics = true; //performance impact!
+	private static final boolean logMetrics = false; //performance impact!
 	LongAdder itemsLength = new LongAdder();
 	static {
 		if (DEBUG) logger.setLevel(Level.TRACE);

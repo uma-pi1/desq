@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.LongAdder;
  * @author Kaustubh Beedkar {kbeedkar@uni-mannheim.de}
  */
 final class DesqDfsTreeNode {
-	private static final boolean logMetrics = true;
+	private static final boolean logMetrics = false;
 
 	public static LongAdder nodeCounter = new LongAdder();
 	public static LongAdder pruneCounter = new LongAdder();

@@ -204,7 +204,7 @@ public class EvaluatePerfOnFimi {
                 false,
                 true,
                 null,
-                "data-local/log/AmazonItemset_Simple_Metrics_" + miner + "_",
+                "data-local/log/AmazonItemset_Simple_" + miner + "_",
                 11,
                 0,
                 false, true, false,
