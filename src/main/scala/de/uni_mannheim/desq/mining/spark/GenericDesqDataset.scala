@@ -7,6 +7,7 @@ import java.util.zip.GZIPOutputStream
 import de.uni_mannheim.desq.avro.AvroDesqDatasetDescriptor
 import de.uni_mannheim.desq.dictionary.{DefaultDictionaryBuilder, DefaultSequenceBuilder, Dictionary, DictionaryBuilder}
 import de.uni_mannheim.desq.mining.WeightedSequence
+import de.uni_mannheim.desq.mining.spark.DesqDataset.loadFromDelFile
 import de.uni_mannheim.desq.util.DesqProperties
 import it.unimi.dsi.fastutil.ints._
 import org.apache.avro.io.EncoderFactory
@@ -14,6 +15,7 @@ import org.apache.avro.specific.SpecificDatumWriter
 import org.apache.hadoop.fs.permission.FsPermission
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.io.{NullWritable, Writable}
+import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 
@@ -236,15 +238,15 @@ object GenericDesqDataset {
 
   /** Builds a GenericDesqDataset from an RDD of string arrays. Every array corresponds to one sequence, every element
     * to one item. The generated hierarchy is flat. */
-  def buildFromStrings[T](rawData: RDD[Array[String]], descriptor: DesqDescriptor[T])(implicit m: ClassTag[T]): GenericDesqDataset[T] = {
-    val parse = (strings: Array[String], seqBuilder: DictionaryBuilder) => {
+  def buildFromStringArrayAndLong(rawData: (RDD[(Array[String], Long)])): GenericDesqDataset[(Array[String], Long)] = {
+    val parse = (pairs: (Array[String], Long), seqBuilder: DictionaryBuilder) => {
       seqBuilder.newSequence(1)
-      for (string <- strings) {
+      for (string <- pairs._1) {
         seqBuilder.appendItem(string)
       }
     }
 
-    build[Array[String], T](rawData, parse, descriptor)
+    build[(Array[String], Long)](rawData, parse, new StringArrayAndLongDescriptor())
   }
 
   /** Builds a GenericDesqDataset from arbitrary input data. The dataset is linked to the original data and parses
@@ -252,13 +254,29 @@ object GenericDesqDataset {
     *
     * @param rawData the input data as an RDD
     * @param parse method that takes an input element, parses it, and registers the resulting items (and their parents)
-    *              with the provided DictionaryBuilder. Used to construct the dictionary and to translate the data.
+    *              with the provided DictionaryBuilder. Used to construct the dictionary.
     * @param descriptor the DesqDescriptor that should be used
-    * @tparam R type of input data elements
-    * @tparam T type of output GenericDesqDataset
+    * @tparam R type of data elements
     * @return the created GenericDesqDataset
     */
-  def build[R, T](rawData: RDD[R], parse: (R, DictionaryBuilder) => _, descriptor: DesqDescriptor[T])(implicit m: ClassTag[T]): GenericDesqDataset[T] = {
+  def build[R](rawData: RDD[R], parse: (R, DictionaryBuilder) => _, descriptor: DesqDescriptor[R])(implicit m: ClassTag[R]): GenericDesqDataset[R] = {
+    val dict = buildDictionary(rawData, parse)
+    descriptor.setDictionary(dict)
+
+    // we do not have to convert the sequences as we want to directly mine on them with the DesqDescriptor
+    val result = new GenericDesqDataset[R](rawData, descriptor)
+    result
+  }
+
+  /** Builds a Dictionary from arbitrary input data.
+    *
+    * @param rawData the input data as an RDD
+    * @param parse method that takes an input element, parses it, and registers the resulting items (and their parents)
+    *              with the provided DictionaryBuilder.
+    * @tparam R type of data elements
+    * @return the created Dictionary
+    */
+  def buildDictionary[R](rawData: RDD[R], parse: (R, DictionaryBuilder) => _): Dictionary = {
     val dict = rawData.mapPartitions(rows => {
       val dictBuilder = new DefaultDictionaryBuilder()
       while (rows.hasNext) {
@@ -271,24 +289,7 @@ object GenericDesqDataset {
     }, 3)
     dict.recomputeFids()
 
-    descriptor.setDictionary(dict)
-
-    // now convert the sequences (lazily)
-    val descriptorBroadcast = rawData.context.broadcast(descriptor)
-    val sequences = rawData.mapPartitions(rows => new Iterator[T] {
-      val descriptor = descriptorBroadcast.value
-      val seqBuilder = new DefaultSequenceBuilder(dict)
-
-      override def hasNext: Boolean = rows.hasNext
-
-      override def next(): T = {
-        parse.apply(rows.next(), seqBuilder)
-        descriptor.construct().apply(seqBuilder.getCurrentGids, seqBuilder.getCurrentWeight)
-      }
-    })
-
-    val result = new GenericDesqDataset[T](sequences, descriptor)
-    result
+    dict
   }
 
 }

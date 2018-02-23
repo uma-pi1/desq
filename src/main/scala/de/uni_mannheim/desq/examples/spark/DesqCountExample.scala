@@ -25,7 +25,7 @@ object DesqCountExample {
     ExampleUtils.runNyt(conf)
   }
 
-  def exampleWithStringArrayAndLongDescriptor()(implicit sc: SparkContext) {
+  def readmeExampleOnGenericDesqDataset()(implicit sc: SparkContext) {
     val raw = sc.parallelize(Array("Anna lives in Melbourne",
       "Anna likes Bob",
       "Bob lives in Berlin",
@@ -34,7 +34,7 @@ object DesqCountExample {
       "Dave loves London",
       "Eddie lives in New York City"))
 
-    val data = GenericDesqDataset.buildFromStrings(raw.map(s => s.split("\\s+")), new StringArrayAndLongDescriptor())
+    val data = GenericDesqDataset.buildFromStringArrayAndLong(raw.map(s => (s.split("\\s+"), 1)))
 
     val patternExpression = "(..)"
     val minimumSupport = 2
@@ -50,8 +50,8 @@ object DesqCountExample {
     initDesq(conf)
     implicit val sc = new SparkContext(conf)
     //sc.setLogLevel("INFO")
-    //icdm16
+    icdm16
     //nyt
-    exampleWithStringArrayAndLongDescriptor
+    //readmeExampleOnGenericDesqDataset
   }
 }

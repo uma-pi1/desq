@@ -4,6 +4,7 @@ import java.util
 import java.util.{Collections, Comparator}
 
 import de.uni_mannheim.desq.dictionary.Dictionary
+import de.uni_mannheim.desq.io.DelSequenceReader
 import de.uni_mannheim.desq.mining.WeightedSequence
 import de.uni_mannheim.desq.util.DesqProperties
 import org.apache.spark.SparkContext
@@ -26,11 +27,13 @@ class Icdm16TraditionalMiningTest(sigma: Long, gamma: Int, lambda: Int, generali
     override def testDirectoryName = getClass.getSimpleName
 
     /** The data */
-    override def getDataset()(implicit sc: SparkContext): GenericDesqDataset[WeightedSequence] = Icdm16TraditionalMiningTest.getDataset()
+    override def getDesqDataset()(implicit sc: SparkContext): DesqDataset = Icdm16TraditionalMiningTest.getDesqDataset()
+    override def getGenericDesqDataset()(implicit sc: SparkContext): GenericDesqDataset[(Array[String], Long)] = Icdm16TraditionalMiningTest.getGenericDesqDataset()
 }
 
 object Icdm16TraditionalMiningTest {
-    var dataset: GenericDesqDataset[WeightedSequence] = _
+    var desqDataset: DesqDataset = _
+    var genericDesqDataset: GenericDesqDataset[(Array[String], Long)] = _
 
     @Parameterized.Parameters(name = "Icdm16TraditionalMiningTest-{4}-{0}-{1}-{2}-{3}-")
     def data(): util.Collection[Array[Object]] = {
@@ -53,17 +56,35 @@ object Icdm16TraditionalMiningTest {
     }
 
     /** The data */
-    def getDataset()(implicit sc: SparkContext): GenericDesqDataset[WeightedSequence] = {
-        if (dataset == null) {
-            val dictFile = this.getClass.getResource("/icdm16-example/dict.json")
-            val dataFile = this.getClass.getResource("/icdm16-example/data.del")
+    def getDesqDataset()(implicit sc: SparkContext): DesqDataset = {
+      if (desqDataset == null) {
+        val dictFile = this.getClass.getResource("/icdm16-example/dict.json")
+        val dataFile = this.getClass.getResource("/icdm16-example/data.del")
 
-            // load the dictionary & update hierarchy
-            val dict = Dictionary.loadFrom(dictFile)
-            val delFile = sc.parallelize(Source.fromURL(dataFile).getLines.toSeq)
-            dataset = DesqDataset.loadFromDelFile(delFile, dict, usesFids = false).recomputeDictionary()
-            dataset.sequences.cache()
-        }
-        dataset
+        // load the dictionary & update hierarchy
+        val dict = Dictionary.loadFrom(dictFile)
+        val delFile = sc.parallelize(Source.fromURL(dataFile).getLines.toSeq)
+        desqDataset = DesqDataset.loadFromDelFile(delFile, dict, usesFids = false).recomputeDictionary()
+        desqDataset.sequences.cache()
+      }
+      desqDataset
     }
+
+    /** The data */
+    def getGenericDesqDataset()(implicit sc: SparkContext): GenericDesqDataset[(Array[String], Long)] = {
+      if (genericDesqDataset == null) {
+        val desqDataset = getDesqDataset()
+        val sequences = desqDataset.sequences.collect().map(ws => {
+          (desqDataset.descriptor.getSids(ws), desqDataset.descriptor.getWeight(ws))
+        })
+
+        val descriptor = new StringArrayAndLongDescriptor()
+        descriptor.setDictionary(desqDataset.descriptor.getDictionary)
+
+        genericDesqDataset = new GenericDesqDataset[(Array[String], Long)](sc.parallelize(sequences), descriptor)
+        genericDesqDataset.sequences.cache()
+      }
+      genericDesqDataset
+    }
+
 }

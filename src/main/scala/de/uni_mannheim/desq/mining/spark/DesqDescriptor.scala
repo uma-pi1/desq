@@ -5,10 +5,7 @@ import de.uni_mannheim.desq.mining.Sequence
 import it.unimi.dsi.fastutil.ints.{IntArrayList, IntList}
 import org.apache.hadoop.io.Writable
 
-abstract class DesqDescriptor[T](var useStableIntLists: Boolean = true) extends WithDictionary {
-
-  /** Hold an [[IntList]] to fill again and again if the flag for stable [[IntList]]s is set */
-  var unstableIntList = new IntArrayList()
+abstract class DesqDescriptor[T] extends WithDictionary {
 
   /**
     * @return A deep copy of this descriptor with a deep copy of the contained dictionary
@@ -23,16 +20,46 @@ abstract class DesqDescriptor[T](var useStableIntLists: Boolean = true) extends 
   def getWeight(sequence: T): Long
 
   /**
+    * If forceWritingToTarget = true, the target parameter must be returned and must store the result after this method
+    * is called. If forceWritingToTarget = false, the target parameter could store the result, but there is no
+    * guarantee that it stores the result (i.e. return value is read-only)
+    *
     * @param sequence Sequence
-    * @return An [[IntList]] of the given sequence as gids (should not be modified)
+    * @param target An [[IntList]] to which the result can but must not be written
+    * @param forceWritingToTarget A flag that forces the method to write the result to the target parameter to make
+    *                             sure that the result can be modified by the caller of this method
+    * @return An [[IntList]] of the given sequence as gids
     */
-  def getGids(sequence: T): IntList
+  def getGids(sequence: T, target: IntList, forceWritingToTarget: Boolean): IntList
 
   /**
     * @param sequence Sequence
-    * @return An [[IntList]] of the given sequence as fids (should not be modified)
+    * @return An [[IntList]] of the given sequence as gids (read-only)
     */
-  def getFids(sequence: T): IntList
+  def getGids(sequence: T): IntList = {
+    getGids(sequence, new IntArrayList(), false)
+  }
+
+  /**
+    * If forceWritingToTarget = true, the target parameter must be returned and must store the result after this method
+    * is called. If forceWritingToTarget = false, the target parameter could store the result, but there is no
+    * guarantee that it stores the result (i.e. return value is read-only)
+    *
+    * @param sequence Sequence
+    * @param target An [[IntList]] to which the result can but must not be written
+    * @param forceWritingToTarget A flag that forces the method to write the result to the target parameter to make
+    *                             sure that the result can be modified by the caller of this method
+    * @return An [[IntList]] of the given sequence as fids
+    */
+  def getFids(sequence: T, target: IntList, forceWritingToTarget: Boolean): IntList
+
+  /**
+    * @param sequence Sequence
+    * @return An [[IntList]] of the given sequence as fids (read-only)
+    */
+  def getFids(sequence: T): IntList = {
+    getFids(sequence, new IntArrayList(), false)
+  }
 
   /**
     * @param sequence Sequence
@@ -60,22 +87,5 @@ abstract class DesqDescriptor[T](var useStableIntLists: Boolean = true) extends 
     *         (required for [[DesqCount.mine()]])
     */
   def pack(s: Sequence, w: Long): T
-
-  /**
-    * @return A function that constructs a Sequence out of an [[IntList]] of gids together with a weight
-    *         (required for [[GenericDesqDataset.build()]])
-    */
-  def construct(): (IntList, Long) => T
-
-  /**
-    * Decide whether stable [[IntList]]s as return values for [[DesqDescriptor.getGids()]] and
-    * [[DesqDescriptor.getFids()]] should be used or not (i.e. if the returned [[IntList]] remains valid after another
-    * call of [[DesqDescriptor.getGids()]] or [[DesqDescriptor.getFids()]])
-    *
-    * @param stable Flag indicating whether stable [[IntList]]s should be used or not
-    */
-  def setUseStableIntLists(stable: Boolean) = {
-    useStableIntLists = stable
-  }
 
 }

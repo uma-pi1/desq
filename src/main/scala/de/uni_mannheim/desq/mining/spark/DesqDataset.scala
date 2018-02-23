@@ -4,7 +4,7 @@ import java.net.URI
 import java.util.zip.GZIPInputStream
 
 import de.uni_mannheim.desq.avro.AvroDesqDatasetDescriptor
-import de.uni_mannheim.desq.dictionary.{DefaultSequenceBuilder, Dictionary, DictionaryBuilder}
+import de.uni_mannheim.desq.dictionary.{DefaultDictionaryBuilder, DefaultSequenceBuilder, Dictionary, DictionaryBuilder}
 import de.uni_mannheim.desq.io.DelSequenceReader
 import de.uni_mannheim.desq.mining.WeightedSequence
 import org.apache.avro.io.DecoderFactory
@@ -138,6 +138,55 @@ object DesqDataset {
   /** Loads data from the specified del file */
   def loadFromDelFile(delFile: String, dict: Dictionary, usesFids: Boolean = false)(implicit sc: SparkContext): DesqDataset = {
     loadFromDelFile(sc.textFile(delFile), dict, usesFids)
+  }
+
+  // -- building ------------------------------------------------------------------------------------------------------
+
+  /** Builds a DesqDataset from an RDD of string arrays. Every array corresponds to one sequence, every element
+    * to one item. The generated hierarchy is flat. */
+  def buildFromStrings[T](rawData: RDD[Array[String]]): DesqDataset = {
+    val parse = (strings: Array[String], seqBuilder: DictionaryBuilder) => {
+      seqBuilder.newSequence(1)
+      for (string <- strings) {
+        seqBuilder.appendItem(string)
+      }
+    }
+
+    build[Array[String]](rawData, parse)
+  }
+  /** Builds a DesqDataset from arbitrary input data. The dataset is linked to the original data and parses
+    * it again when used. For improved performance, save the dataset once created.
+    *
+    * @param rawData the input data as an RDD
+    * @param parse method that takes an input element, parses it, and registers the resulting items (and their parents)
+    *              with the provided DictionaryBuilder. Used to construct the dictionary and to translate the data.
+    * @tparam R type of input data elements
+    * @return the created DesqDataset
+    */
+  def build[R](rawData: RDD[R], parse: (R, DictionaryBuilder) => _): DesqDataset = {
+    val dict = GenericDesqDataset.buildDictionary(rawData, parse)
+
+    val descriptor = new WeightedSequenceDescriptor()
+    descriptor.setDictionary(dict)
+
+    // now convert the sequences (lazily)
+    val descriptorBroadcast = rawData.context.broadcast(descriptor)
+    val sequences = rawData.mapPartitions(rows => new Iterator[WeightedSequence] {
+      val descriptor = descriptorBroadcast.value
+      val seqBuilder = new DefaultSequenceBuilder(dict)
+
+      override def hasNext: Boolean = rows.hasNext
+
+      override def next(): WeightedSequence = {
+        parse.apply(rows.next(), seqBuilder)
+        val weightedSequence = new WeightedSequence(seqBuilder.getCurrentGids, seqBuilder.getCurrentWeight)
+        dict.gidsToFids(weightedSequence)
+        weightedSequence
+      }
+    })
+
+    val result = new DesqDataset(sequences, descriptor)
+    result
   }
 
 }

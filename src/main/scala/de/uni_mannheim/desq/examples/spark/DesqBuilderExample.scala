@@ -17,7 +17,7 @@ object DesqBuilderExample extends App {
 
   // create the dataset
   val lines = sc.textFile("data-local/nyt-1991-data.del")
-  val data = GenericDesqDataset.buildFromStrings(lines.map(s => s.split(" ")), new WeightedSequenceDescriptor())
+  val data = DesqDataset.buildFromStrings(lines.map(s => s.split(" ")))
 
   // save it
   val savedData = data.save("data-local/nyt-1991-data")

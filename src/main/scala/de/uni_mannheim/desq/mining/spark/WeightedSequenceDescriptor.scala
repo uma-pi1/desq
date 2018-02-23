@@ -16,35 +16,39 @@ class WeightedSequenceDescriptor(val usesFids: Boolean = true) extends DesqDescr
     sequence.weight
   }
 
-  override def getGids(sequence: WeightedSequence): IntList = {
+  override def getGids(sequence: WeightedSequence, target: IntList, forceWritingToTarget: Boolean): IntList = {
     if (usesFids) {
-      if(useStableIntLists) {
-        val sequenceGids = new IntArrayList()
+        val sequenceGids = target
         dict.fidsToGids(sequence, sequenceGids)
         sequenceGids
-      } else {
-        val sequenceGids = unstableIntList
-        dict.fidsToGids(sequence, sequenceGids)
-        sequenceGids
-      }
     } else {
-      sequence
+      if(forceWritingToTarget) {
+        target.size(sequence.size())
+        for (i <- 0 until sequence.size()) {
+          target.set(i, sequence.getInt(i))
+        }
+        target
+      } else {
+        sequence
+      }
     }
   }
 
-  override def getFids(sequence: WeightedSequence): IntList = {
+  override def getFids(sequence: WeightedSequence, target: IntList, forceWritingToTarget: Boolean): IntList = {
     if (usesFids) {
-      sequence
-    } else {
-      if(useStableIntLists) {
-        val sequenceFids = new IntArrayList()
-        dict.gidsToFids(sequence, sequenceFids)
-        sequenceFids
+      if(forceWritingToTarget) {
+        target.size(sequence.size())
+        for (i <- 0 until sequence.size()) {
+          target.set(i, sequence.getInt(i))
+        }
+        target
       } else {
-        val sequenceFids = unstableIntList
+        sequence
+      }
+    } else {
+        val sequenceFids = target
         dict.gidsToFids(sequence, sequenceFids)
         sequenceFids
-      }
     }
   }
 
@@ -68,18 +72,6 @@ class WeightedSequenceDescriptor(val usesFids: Boolean = true) extends DesqDescr
 
   override def pack(sequence: Sequence, weight: Long): WeightedSequence = {
     sequence.withSupport(weight)
-  }
-
-  override def construct(): (IntList, Long) => WeightedSequence = {
-    val constructFunction = (gids: IntList, weight: Long) => {
-      val weightedSequence = new WeightedSequence(gids, weight)
-      if(usesFids) {
-        dict.gidsToFids(weightedSequence)
-      }
-      weightedSequence
-    }
-
-    constructFunction
   }
 
 }

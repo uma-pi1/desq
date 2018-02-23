@@ -16,30 +16,20 @@ class StringArrayAndLongDescriptor extends DesqDescriptor[(Array[String], Long)]
     sequence._2
   }
 
-  override def getGids(sequence: (Array[String], Long)): IntList = {
-    if(useStableIntLists) {
-      val itemGids = new IntArrayList(sequence._1.length)
-      sequence._1.foreach(s => itemGids.add(dict.gidOf(s)))
-      itemGids
-    } else {
-      val itemGids = unstableIntList
-      itemGids.clear()
-      sequence._1.foreach(s => itemGids.add(dict.gidOf(s)))
-      itemGids
+  override def getGids(sequence: (Array[String], Long), target: IntList, forceWritingToTarget: Boolean): IntList = {
+    target.size(sequence._1.length)
+    for (i <- 0 until sequence._1.length) {
+      target.set(i, dict.gidOf(sequence._1(i)))
     }
+    target
   }
 
-  override def getFids(sequence: (Array[String], Long)): IntList = {
-    if(useStableIntLists) {
-      val itemFids = new IntArrayList(sequence._1.length)
-      sequence._1.foreach(s => itemFids.add(dict.fidOf(s)))
-      itemFids
-    } else {
-      val itemFids = unstableIntList
-      itemFids.clear()
-      sequence._1.foreach(s => itemFids.add(dict.fidOf(s)))
-      itemFids
+  override def getFids(sequence: (Array[String], Long), target: IntList, forceWritingToTarget: Boolean): IntList = {
+    target.size(sequence._1.length)
+    for (i <- 0 until sequence._1.length) {
+      target.set(i, dict.fidOf(sequence._1(i)))
     }
+    target
   }
 
   override def getSids(sequence: (Array[String], Long)): Array[String] = {
@@ -62,19 +52,6 @@ class StringArrayAndLongDescriptor extends DesqDescriptor[(Array[String], Long)]
     }
 
     (itemSids, w)
-  }
-
-  override def construct(): (IntList, Long) => (Array[String], Long) = {
-    val constructFunction = (gids: IntList, weight: Long) => {
-      val itemSids = new Array[String](gids.size())
-      for (i <- Range(0, gids.size())) {
-        itemSids(i) = dict.sidOfGid(gids.getInt(i))
-      }
-
-      (itemSids, weight)
-    }
-
-    constructFunction
   }
 
 }

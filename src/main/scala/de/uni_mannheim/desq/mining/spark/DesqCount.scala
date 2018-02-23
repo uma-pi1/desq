@@ -29,8 +29,6 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         var currentSupport = 0L
         val itemFids = new IntArrayList()
 
-        descriptor.setUseStableIntLists(false)
-
         // here we check if we have an output sequence from the current row; if not, we more to the next row
         // that produces an output
         override def hasNext: Boolean = {
