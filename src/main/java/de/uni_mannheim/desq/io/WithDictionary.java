@@ -2,7 +2,7 @@ package de.uni_mannheim.desq.io;
 
 import de.uni_mannheim.desq.dictionary.Dictionary;
 
-abstract class WithDictionary {
+public abstract class WithDictionary {
 	// can be used by implementing classes to access item information
 	protected Dictionary dict = null;
 

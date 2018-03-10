@@ -3,6 +3,7 @@ package de.uni_mannheim.desq.mining.spark
 import java.util
 import java.util.{Collections, Comparator}
 
+import de.uni_mannheim.desq.mining.WeightedSequence
 import de.uni_mannheim.desq.util.DesqProperties
 import org.apache.spark.SparkContext
 import org.junit.runner.RunWith
@@ -18,7 +19,8 @@ import scala.collection.JavaConversions._
 class Icdm16DesqMiningTest(sigma: Long, patternExpression: String, minerName: String, conf: DesqProperties)
   extends DesqMiningTest(sigma, patternExpression, minerName, conf) {
   /** The data */
-  override def getDataset()(implicit sc: SparkContext): DesqDataset = Icdm16TraditionalMiningTest.getDataset()
+  override def getDesqDataset()(implicit sc: SparkContext): DesqDataset = Icdm16TraditionalMiningTest.getDesqDataset()
+  override def getGenericDesqDataset()(implicit sc: SparkContext): GenericDesqDataset[(Array[String], Long)] = Icdm16TraditionalMiningTest.getGenericDesqDataset()
 
   override def goldFileBaseName: String = "icdm16/icdm16-desq-patterns-ids"
 

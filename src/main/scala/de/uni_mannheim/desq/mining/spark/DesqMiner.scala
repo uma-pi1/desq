@@ -1,12 +1,18 @@
 package de.uni_mannheim.desq.mining.spark
 
+import scala.reflect.ClassTag
+
 /**
   * Created by rgemulla on 12.09.2016.
   */
 abstract class DesqMiner(val ctx: DesqMinerContext) {
   /** Mines the given dataset using this miner and returns the result. Note that computation may or may not be
     * triggered by this method, i.e., can be performed lazily when accessing the sequence RDD in the result. */
-  def mine(data: DesqDataset): DesqDataset
+  def mine[T](data: GenericDesqDataset[T])(implicit m: ClassTag[T]): GenericDesqDataset[T]
+
+  def mineAndConvertToDesqDatasetWithFids[T](data: GenericDesqDataset[T])(implicit m: ClassTag[T]): DesqDataset = {
+    DesqDataset.buildFromGenericDesqDataset(data, usesFids = true)
+  }
 }
 
 object DesqMiner {

@@ -2,7 +2,7 @@ package de.uni_mannheim.desq.examples.spark
 
 import de.uni_mannheim.desq.Desq._
 import de.uni_mannheim.desq.dictionary.Dictionary
-import de.uni_mannheim.desq.mining.spark.DesqDataset
+import de.uni_mannheim.desq.mining.spark.{DesqDataset, GenericDesqDataset}
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.io.Source
@@ -31,7 +31,7 @@ object DictionaryExample extends App {
   data.print()
 
   println("\nDictionary with frequencies")
-  val newData = data.copyWithRecomputedCountsAndFids()
-  newData.dict.writeJson(System.out)
+  val newData = data.recomputeDictionary()
+  newData.descriptor.getDictionary.writeJson(System.out)
   println()
 }

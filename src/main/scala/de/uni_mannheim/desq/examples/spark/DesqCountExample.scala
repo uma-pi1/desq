@@ -1,7 +1,7 @@
 package de.uni_mannheim.desq.examples.spark
 
 import de.uni_mannheim.desq.Desq._
-import de.uni_mannheim.desq.mining.spark.DesqCount
+import de.uni_mannheim.desq.mining.spark._
 import org.apache.spark.{SparkConf, SparkContext}
 
 /**
@@ -25,6 +25,26 @@ object DesqCountExample {
     ExampleUtils.runNyt(conf)
   }
 
+  def readmeExampleOnGenericDesqDataset()(implicit sc: SparkContext) {
+    val raw = sc.parallelize(Array("Anna lives in Melbourne",
+      "Anna likes Bob",
+      "Bob lives in Berlin",
+      "Cathy loves Paris",
+      "Cathy likes Dave",
+      "Dave loves London",
+      "Eddie lives in New York City"))
+
+    val data = GenericDesqDataset.buildFromStringArrayAndLong(raw.map(s => (s.split("\\s+"), 1)))
+
+    val patternExpression = "(..)"
+    val minimumSupport = 2
+    val properties = DesqCount.createConf(patternExpression, minimumSupport)
+    val miner = DesqMiner.create(new DesqMinerContext(properties))
+
+    val patterns = miner.mine(data)
+    patterns.print()
+  }
+
   def main(args: Array[String]) {
     val conf = new SparkConf().setAppName(getClass.getName).setMaster("local")
     initDesq(conf)
@@ -32,5 +52,6 @@ object DesqCountExample {
     //sc.setLogLevel("INFO")
     icdm16
     //nyt
+    //readmeExampleOnGenericDesqDataset
   }
 }
