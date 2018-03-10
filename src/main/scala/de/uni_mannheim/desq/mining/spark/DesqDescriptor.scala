@@ -20,17 +20,18 @@ abstract class DesqDescriptor[T] extends WithDictionary {
   def getWeight(sequence: T): Long
 
   /**
-    * If forceWritingToTarget = true, the target parameter must be returned and must store the result after this method
-    * is called. If forceWritingToTarget = false, the target parameter could store the result, but there is no
+    * If forceTarget = true, the target parameter must be returned and must store the result after this method
+    * is called. If forceTarget = false, the target parameter could store the result, but there is no
     * guarantee that it stores the result (i.e. return value is read-only)
     *
     * @param sequence Sequence
     * @param target An [[IntList]] to which the result can but must not be written
-    * @param forceWritingToTarget A flag that forces the method to write the result to the target parameter to make
-    *                             sure that the result can be modified by the caller of this method
+    * @param forceTarget A flag that forces the method to write the result to the target parameter to make
+    *                    sure that the result can be modified by the caller of this method If forceTarget = false,
+    *                    it is not allowed to modify the return value of this method (i.e. read-only).
     * @return An [[IntList]] of the given sequence as gids
     */
-  def getGids(sequence: T, target: IntList, forceWritingToTarget: Boolean): IntList
+  def getGids(sequence: T, target: IntList, forceTarget: Boolean): IntList
 
   /**
     * @param sequence Sequence
@@ -41,17 +42,18 @@ abstract class DesqDescriptor[T] extends WithDictionary {
   }
 
   /**
-    * If forceWritingToTarget = true, the target parameter must be returned and must store the result after this method
-    * is called. If forceWritingToTarget = false, the target parameter could store the result, but there is no
+    * If forceTarget = true, the target parameter must be returned and must store the result after this method
+    * is called. If forceTarget = false, the target parameter could store the result, but there is no
     * guarantee that it stores the result (i.e. return value is read-only)
     *
     * @param sequence Sequence
     * @param target An [[IntList]] to which the result can but must not be written
-    * @param forceWritingToTarget A flag that forces the method to write the result to the target parameter to make
-    *                             sure that the result can be modified by the caller of this method
+    * @param forceTarget A flag that forces the method to write the result to the target parameter to make
+    *                    sure that the result can be modified by the caller of this method. If forceTarget = false,
+    *                    it is not allowed to modify the return value of this method (i.e. read-only).
     * @return An [[IntList]] of the given sequence as fids
     */
-  def getFids(sequence: T, target: IntList, forceWritingToTarget: Boolean): IntList
+  def getFids(sequence: T, target: IntList, forceTarget: Boolean): IntList
 
   /**
     * @param sequence Sequence

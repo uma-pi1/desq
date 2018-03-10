@@ -11,7 +11,7 @@ abstract class DesqMiner(val ctx: DesqMinerContext) {
   def mine[T](data: GenericDesqDataset[T])(implicit m: ClassTag[T]): GenericDesqDataset[T]
 
   def mineAndConvertToDesqDatasetWithFids[T](data: GenericDesqDataset[T])(implicit m: ClassTag[T]): DesqDataset = {
-    mine(data).toDesqDatasetWithFids()
+    DesqDataset.buildFromGenericDesqDataset(data, usesFids = true)
   }
 }
 

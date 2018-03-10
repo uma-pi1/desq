@@ -16,7 +16,7 @@ class StringArrayAndLongDescriptor extends DesqDescriptor[(Array[String], Long)]
     sequence._2
   }
 
-  override def getGids(sequence: (Array[String], Long), target: IntList, forceWritingToTarget: Boolean): IntList = {
+  override def getGids(sequence: (Array[String], Long), target: IntList, forceTarget: Boolean): IntList = {
     target.size(sequence._1.length)
     for (i <- 0 until sequence._1.length) {
       target.set(i, dict.gidOf(sequence._1(i)))
@@ -24,7 +24,7 @@ class StringArrayAndLongDescriptor extends DesqDescriptor[(Array[String], Long)]
     target
   }
 
-  override def getFids(sequence: (Array[String], Long), target: IntList, forceWritingToTarget: Boolean): IntList = {
+  override def getFids(sequence: (Array[String], Long), target: IntList, forceTarget: Boolean): IntList = {
     target.size(sequence._1.length)
     for (i <- 0 until sequence._1.length) {
       target.set(i, dict.fidOf(sequence._1(i)))

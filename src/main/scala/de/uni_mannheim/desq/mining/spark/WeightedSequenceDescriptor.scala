@@ -16,13 +16,13 @@ class WeightedSequenceDescriptor(val usesFids: Boolean = true) extends DesqDescr
     sequence.weight
   }
 
-  override def getGids(sequence: WeightedSequence, target: IntList, forceWritingToTarget: Boolean): IntList = {
+  override def getGids(sequence: WeightedSequence, target: IntList, forceTarget: Boolean): IntList = {
     if (usesFids) {
         val sequenceGids = target
         dict.fidsToGids(sequence, sequenceGids)
         sequenceGids
     } else {
-      if(forceWritingToTarget) {
+      if(forceTarget) {
         target.size(sequence.size())
         for (i <- 0 until sequence.size()) {
           target.set(i, sequence.getInt(i))
@@ -34,9 +34,9 @@ class WeightedSequenceDescriptor(val usesFids: Boolean = true) extends DesqDescr
     }
   }
 
-  override def getFids(sequence: WeightedSequence, target: IntList, forceWritingToTarget: Boolean): IntList = {
+  override def getFids(sequence: WeightedSequence, target: IntList, forceTarget: Boolean): IntList = {
     if (usesFids) {
-      if(forceWritingToTarget) {
+      if(forceTarget) {
         target.size(sequence.size())
         for (i <- 0 until sequence.size()) {
           target.set(i, sequence.getInt(i))

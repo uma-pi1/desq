@@ -86,54 +86,6 @@ class GenericDesqDataset[T](val sequences: RDD[T], val descriptor: DesqDescripto
 
   // -- conversion ----------------------------------------------------------------------------------------------------
 
-  /** Returns a DesqDataset with sequences encoded as fids.
-    */
-  def toDesqDatasetWithFids(): DesqDataset = {
-    val descriptorBroadcast = broadcastDescriptor()
-
-    val newSequences = sequences.mapPartitions(rows => {
-      new Iterator[WeightedSequence] {
-        val descriptor = descriptorBroadcast.value
-
-        override def hasNext: Boolean = rows.hasNext
-
-        override def next(): WeightedSequence = {
-          val sequence = rows.next()
-          new WeightedSequence(descriptor.getFids(sequence), descriptor.getWeight(sequence))
-        }
-      }
-    })
-
-    val newDescriptor = new WeightedSequenceDescriptor(usesFids = true)
-    newDescriptor.setDictionary(descriptor.getDictionary)
-
-    new DesqDataset(newSequences, newDescriptor)
-  }
-
-  /** Returns a DesqDataset with sequences encoded as fids.
-    */
-  def toDesqDatasetWithGids(): DesqDataset = {
-    val descriptorBroadcast = broadcastDescriptor()
-
-    val newSequences = sequences.mapPartitions(rows => {
-      new Iterator[WeightedSequence] {
-        val descriptor = descriptorBroadcast.value
-
-        override def hasNext: Boolean = rows.hasNext
-
-        override def next(): WeightedSequence = {
-          val sequence = rows.next()
-          new WeightedSequence(descriptor.getGids(sequence), descriptor.getWeight(sequence))
-        }
-      }
-    })
-
-    val newDescriptor = new WeightedSequenceDescriptor(usesFids = false)
-    newDescriptor.setDictionary(descriptor.getDictionary)
-
-    new DesqDataset(newSequences, newDescriptor)
-  }
-
   /** Returns an RDD that contains for each sequence an array of its string identifiers and its weight. */
   def toSidsWeightPairs(): RDD[(Array[String],Long)] = {
     val descriptorBroadcast = broadcastDescriptor()
