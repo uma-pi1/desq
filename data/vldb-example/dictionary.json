@@ -1,0 +1,7 @@
+{"fid":1,"gid":2,"sid":"b","dfreq":5,"cfreq":5,"parentGids":[],"noChildren":0,"properties":[]}
+{"fid":2,"gid":1,"sid":"A","dfreq":4,"cfreq":6,"parentGids":[],"noChildren":2,"properties":[]}
+{"fid":3,"gid":4,"sid":"a_1","dfreq":3,"cfreq":5,"parentGids":[1],"noChildren":0,"properties":[]}
+{"fid":4,"gid":7,"sid":"d","dfreq":3,"cfreq":3,"parentGids":[],"noChildren":0,"properties":[]}
+{"fid":5,"gid":6,"sid":"c","dfreq":2,"cfreq":4,"parentGids":[],"noChildren":0,"properties":[]}
+{"fid":6,"gid":3,"sid":"e","dfreq":1,"cfreq":5,"parentGids":[],"noChildren":0,"properties":[]}
+{"fid":7,"gid":5,"sid":"a_2","dfreq":1,"cfreq":1,"parentGids":[1],"noChildren":0,"properties":[]}

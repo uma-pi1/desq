@@ -11,7 +11,7 @@ import org.apache.spark.mllib.fpm.PrefixSpan
 
 
 /**
-  * Class to conventiently run DDIN, DDIS, DDesqCount, DDIN/NA, and DDIN/A on various pattern expressions
+  * Class to conventiently run DesqSeq, DesqCand, and other algorithms on various pattern expressions
   * Usage:
   * input=hdfs://path-to-input-DesqDataset-on-hdfs-or-local/  output=hdfs://path-to-folder-for-found-frequent-sequences/  case=A1  algorithm=DDIN
   *
@@ -82,10 +82,8 @@ object DesqRunner {
                 runDesq()
         } else { // use default settings for local running: run the thesis example in all algorithms
             runConf.put("count.patterns", "true")
-            runConf.put("input", "data/thesis-example/DesqDataset/")
-            runGrid(Array("Thesis"), Array("Semi-naive", "DDIS", "DDIN", "DDIN/NA", "DDIN/A"))
-            // We could also directly run a pattern expression with one specific algorithm
-            // runDesq("Thesis", 2)
+            runConf.put("input", "data/vldb-example/DesqDataset/")
+            runGrid(Array("VLDB"), Array("Naive", "SemiNaive", "DesqSeq", "DesqCand"))
         }
     }
 
@@ -260,6 +258,11 @@ object DesqRunner {
     def setPatternExpression(useCase: String) {
         verbose = false
         useCase match {
+            case "VLDB" => {
+                patternExp = "(A)[(.^)|.*]*(b)"
+                sigma = 2
+                verbose = true
+            }
             case "Thesis" => {
                 patternExp = "A([c|d][A^|B^]+e)"
                 sigma = 2
@@ -438,6 +441,11 @@ object DesqRunner {
             case "DesqSeq.noTrim" =>
                 aggregateShuffleSequences = false
                 useGrid = true
+            case "DesqSeq.noStop" =>
+                aggregateShuffleSequences = false
+                useGrid = true
+                trimInputSequences = true
+                stopAtLastPivotPos = false
             case "DesqSeq" =>
                 aggregateShuffleSequences = false
                 useGrid = true
