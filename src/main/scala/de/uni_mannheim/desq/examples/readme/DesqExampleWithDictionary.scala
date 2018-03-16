@@ -13,7 +13,7 @@ object DesqExampleWithDictionary {
     val dictionary = Dictionary.loadFrom("data/readme/dictionary.json")
 
     // read the data and convert it into DESQ's internal format (DesqDataset)
-    val data = DesqDataset.loadFromDelFile("data/readme/sequences.del", dictionary).copyWithRecomputedCountsAndFids()
+    val data = DesqDataset.loadFromDelFile("data/readme/sequences.del", dictionary).recomputeDictionary()
 
     // create a Miner
     val patternExpression = "(.^...^)"

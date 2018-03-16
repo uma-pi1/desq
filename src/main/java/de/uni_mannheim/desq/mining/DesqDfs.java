@@ -1,15 +1,20 @@
 package de.uni_mannheim.desq.mining;
 
 import de.uni_mannheim.desq.fst.*;
+import de.uni_mannheim.desq.util.CloneableIntHeapPriorityQueue;
 import de.uni_mannheim.desq.patex.PatExUtils;
 import de.uni_mannheim.desq.util.DesqProperties;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import org.apache.log4j.Level;
+import it.unimi.dsi.fastutil.ints.*;
+import it.unimi.dsi.fastutil.objects.*;
+
 import org.apache.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Iterator;
 
 public final class DesqDfs extends MemoryDesqMiner {
 	private static final Logger logger = Logger.getLogger(DesqDfs.class);
@@ -36,7 +41,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 	// -- helper variables --------------------------------------------------------------------------------------------
 
     /** Stores the final state transducer for DesqDfs (one-pass) */
-	private final Fst fst;
+	private static Fst fst;
+
+	/** Flags to help construct and number the FST only once per executor JVM */
+	private static String fstConstructedFor = "";
+	private static String fstNumberedFor = "";
 
     /** Stores the largest fid of an item with frequency at least sigma. Zsed to quickly determine
      * whether an item is frequent (if fid <= largestFrequentFid, the item is frequent */
@@ -54,7 +63,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 	// -- helper variables for pruning and twopass --------------------------------------------------------------------
 
 	/** The DFA corresponding to the FST (pruning) or reverse FST (two-pass). */
-	private final Dfa dfa;
+	private static Dfa dfa;
+
+	/** Flag to construct the DFA only once per executor JVM */
+	private static String dfaConstructedFor = "";
 
     /** For each relevant input sequence, the sequence of states taken by dfa (two-pass only) */
 	private final ArrayList<DfaState[]> dfaStateSequences;
@@ -86,7 +98,106 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 	// -- construction/clearing ---------------------------------------------------------------------------------------
 
+	// -- helper variables for distributing --------------------------------------------------------------------------
+	/** Set of output items created by one input sequence */
+	final IntSet pivotItems = new IntOpenHashSet();
+
+	/** Storing the current input sequence */
+	protected IntList inputSequence;
+
+	/** pivot item of the currently mined partition */
+	private int pivotItem = 0;
+
+	/** Current prefix (used for finding the potential output items of one sequence) */
+	final Sequence prefix = new Sequence();
+
+	/** length of last processed prefix */
+	int processedPathSize = 0;
+
+	/** If true, DesqDfs Distributed sends Output NFAs instead of input sequences */
+	final boolean sendNFAs;
+
+	/** If true, DesqDfs Distributed merges shared suffixes in the tree representation */
+	final boolean mergeSuffixes;
+
+	/** If true, DesqDfs Distributed merges shared suffixes in the tree representation */
+	final boolean trimInputSequences;
+
+	/** If true, we send either NFAs or input sequence */
+	final boolean useHybrid;
+
+	/** If true, we construct one NFA to find pivots */
+	final boolean useGrid;
+
+	/** If true, we take all frequent items of the sequence as pivot items*/
+	final boolean sendToAllFrequentItems;
+
+	/** If true, we determine the last position of the input sequence that can generate the pivot item and do not expand further than this position if the pivot item wasn't seen before */
+	final boolean stopAtLastPivotPos;
+
+	/** Stores the input items of which we know that they cannot create the pivot item with any of the FST's transitions */
+	BitSet cannotProducePivotItem = new BitSet();
+
+	/** A list of input items of which we know that they can create the current pivot item */
+	BitSet canProducePivotItem = new BitSet();
+
+	/** For each input sequence, stores the position of the last item that can generate the pivot item */
+	IntArrayList lastPivotPos = new IntArrayList();
+
+	/** Stores the one NFA from which we extract pivot NFAs later on */
+	QPGrid grid = new QPGrid();
+
+	/** Stores one Transition iterator per recursion level for reuse */
+	final ArrayList<Iterator<Transition>> transitionIterators = new ArrayList<>();
+
+	/** Current transition */
+	Transition tr;
+
+	/** Current to-state */
+	State toState;
+
+	/** A set to collect the output items of the current transition */
+	IntArrayList outputItems = new IntArrayList();
+
+	/** One itCache per level, in order to reuse the Iterator objects */
+	private final ArrayList<Transition.ItemStateIteratorCache> itCaches = new ArrayList<>();
+
+	/** Stores the current path through the FST */
+	private ObjectList<OutputLabel> path = new ObjectArrayList<>();
+
+	/** Stores input NFAs for current partition */
+	protected final ObjectArrayList<WeightedSequence> inputNFAs = new ObjectArrayList<>();
+
+	/** The items of the NFA we are processing */
+	WeightedSequence currentNFA;
+
+	/** Stores number of pivot-relevant items in the path (we use this for efficiently finding pivot elements for input sequences) */
+	private IntArrayList outputItemLimits = new IntArrayList();
+
+	/** For each pivot item (and input sequence), we store one NFA producing the output sequences for that pivot item from the current input sequence */
+	private NFAList nfas = new NFAList();
+
+	/** A list of serialized NFAs for the current input sequence */
+	ObjectArrayList<Sequence> serializedNFAs = new ObjectArrayList<>();
+
+	/** An nfaDecoder to decode nfas from a representation by path to one by state. Reuses internal data structures for all input nfas */
+	private NFADecoder nfaDecoder = null;
+
+	/** Stores one pivot element heap per level for reuse */
+	final ArrayList<CloneableIntHeapPriorityQueue> pivotItemHeaps = new ArrayList<>();
+
+	/** Stats about pivot element search */
+	public long counterTotalRecursions = 0;
+	private boolean verbose;
+	private boolean drawGraphs = false;
+
+	// -- construction/clearing ---------------------------------------------------------------------------------------
+
 	public DesqDfs(DesqMinerContext ctx) {
+		this(ctx, false);
+	}
+
+	public DesqDfs(DesqMinerContext ctx, boolean skipDfaBuild) {
 		super(ctx);
 		sigma = ctx.conf.getLong("desq.mining.min.support");
 		largestFrequentFid = ctx.dict.lastFidAbove(sigma);
@@ -94,14 +205,28 @@ public final class DesqDfs extends MemoryDesqMiner {
         useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
 		boolean useLazyDfa = ctx.conf.getBoolean("desq.mining.use.lazy.dfa");
 
-		// create FST
+		sendNFAs = ctx.conf.getBoolean("desq.mining.send.nfas", false);
+		mergeSuffixes = ctx.conf.getBoolean("desq.mining.merge.suffixes", false);
+		trimInputSequences = ctx.conf.getBoolean("desq.mining.trim.input.sequences", false);
+		useHybrid = ctx.conf.getBoolean("desq.mining.use.hybrid", false);
+		useGrid = ctx.conf.getBoolean("desq.mining.use.grid", false);
+		sendToAllFrequentItems = ctx.conf.getBoolean("desq.mining.send.to.all.frequent.items", false);
+		stopAtLastPivotPos = ctx.conf.getBoolean("desq.mining.stop.at.last.pivot.pos", false);
+
+		// create FST once per JVM
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
-		this.fst = PatExUtils.toFst(ctx.dict, patternExpression);
+		synchronized (fstConstructedFor) {
+			if(!fstConstructedFor.equals(patternExpression)) {
+				this.fst = PatExUtils.toFst(ctx.dict, patternExpression);
+				fstConstructedFor = patternExpression;
+			}
+		}
+
 
 		// create two pass auxiliary variables (if needed)
 		if (useTwoPass) { // two-pass
-            // two-pass will always prune irrelevant input sequences, so notify the user when the corresponding
-            // property is not set
+			// two-pass will always prune irrelevant input sequences, so notify the user when the corresponding
+			// property is not set
 			if (!pruneIrrelevantInputs) {
 				logger.warn("property desq.mining.prune.irrelevant.inputs=false will be ignored because " +
 						"desq.mining.use.two.pass=true");
@@ -117,24 +242,47 @@ public final class DesqDfs extends MemoryDesqMiner {
 			dfaInitialPos = null;
 		}
 
-		// create DFA or reverse DFA (if needed)
-		if(useTwoPass) {
-			// construct the DFA for the FST (for the first pass)
-			// the DFA is constructed for the reverse FST
-			this.dfa = Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid, true, useLazyDfa);
-		} else if (pruneIrrelevantInputs) {
-			// construct the DFA to prune irrelevant inputs
-			// the DFA is constructed for the forward FST
-			this.dfa = Dfa.createDfa(fst, ctx.dict, largestFrequentFid, false, useLazyDfa);
-		} else {
-			this.dfa = null;
+		// create DFA or reverse DFA (if needed) (once per JVM)
+        synchronized (dfaConstructedFor) {
+        	if(!dfaConstructedFor.equals(patternExpression)) {
+				if (useTwoPass && (!skipDfaBuild || !sendNFAs)) {
+					// construct the DFA for the FST (for the first pass)
+					// the DFA is constructed for the reverse FST
+					this.dfa = Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid, true, useLazyDfa);
+				} else if (pruneIrrelevantInputs && !skipDfaBuild) {
+					// construct the DFA to prune irrelevant inputs
+					// the DFA is constructed for the forward FST
+					this.dfa = Dfa.createDfa(fst, ctx.dict, largestFrequentFid, false, useLazyDfa);
+				} else {
+					this.dfa = null;
+				}
+				dfaConstructedFor = patternExpression;
+			}
 		}
+
+		if(drawGraphs) fst.exportGraphViz("fst.pdf");
 
 		// other auxiliary variables
 		BitSet initialState = new BitSet(fst.numStates());
 		initialState.set(fst.getInitialState().getId());
-		root = new DesqDfsTreeNode(fst, initialState);
+		root = new DesqDfsTreeNode(fst, initialState, !sendNFAs || useHybrid, sendNFAs);
 		currentNode = root;
+		verbose = false;
+
+
+		synchronized (fstNumberedFor) {
+			if(!fstNumberedFor.equals(patternExpression)) {
+				fst.numberTransitions();
+				fstNumberedFor = patternExpression;
+			}
+		}
+
+
+        // we need an itCache in deserialization of the NFAs, to produce the output items of transitions
+        if(itCaches.isEmpty()) {
+            Transition.ItemStateIteratorCache itCache = new Transition.ItemStateIteratorCache(ctx.dict.isForest());
+            itCaches.add(itCache);
+        }
 	}
 
 	public static DesqProperties createConf(String patternExpression, long sigma) {
@@ -149,14 +297,23 @@ public final class DesqDfs extends MemoryDesqMiner {
 	}
 
 	public void clear() {
+		clear(false);
+	}
+
+	public void clear(boolean trimInputSequences) {
 		inputSequences.clear();
-        inputSequences.trimToSize();
-		if (useTwoPass) {
+		inputNFAs.clear();
+		if(trimInputSequences) {
+			inputSequences.trimToSize();
+			inputNFAs.trim();
+		}
+		if (useTwoPass && dfaStateSequences != null) {
 			dfaStateSequences.clear();
             dfaStateSequences.trimToSize();
 		}
 		root.clear();
 		currentNode = root;
+		sumInputSupports = 0;
 	}
 
 	// -- processing input sequences ----------------------------------------------------------------------------------
@@ -179,22 +336,29 @@ public final class DesqDfs extends MemoryDesqMiner {
 				currentInputId = inputSequences.size()-1;
 				currentInputSequence = inputSequences.get(currentInputId);
 				currentDfaStateSequence = dfaStateSequences.get(currentInputId);
+
+				// if we mine a partition, we find the last position of the input sequence that can create a pivot item
+				if(stopAtLastPivotPos && pivotItem != 0) {
+					findLastPivotPositionForCurrentInputSequence();
+				}
+
+
 				currentSpReachedWithoutOutput.clear();
 				for (int i = 0; i< dfaInitialPos.size(); i++) {
 					// for those positions, start with the initial state
-					incStep(dfaInitialPos.getInt(i), fst.getInitialState(), 0, true);
+					incStep(dfaInitialPos.getInt(i), fst.getInitialState(), 0, true, false);
 				}
 
-				// clean up
-				dfaInitialPos.clear();
-			}
-			dfaStateSequence.clear();
+                // clean up
+                dfaInitialPos.clear();
+            }
+            dfaStateSequence.clear();
             return;
-		}
+        }
 
-		// one-pass version of DesqDfs
-		if (!pruneIrrelevantInputs || dfa.accepts(inputSequence)) {
-			// if we reach this place, we either don't want to prune irrelevant inputs or the input is relevant
+        // one-pass version of DesqDfs
+        if (!pruneIrrelevantInputs || dfa.accepts(inputSequence)) {
+            // if we reach this place, we either don't want to prune irrelevant inputs or the input is relevant
             // -> remember it
 		    super.addInputSequence(inputSequence, inputSupport, allowBuffering);
 			while (itemStateIterators.size() < inputSequence.size())
@@ -205,12 +369,62 @@ public final class DesqDfs extends MemoryDesqMiner {
 			currentInputId = inputSequences.size()-1;
 			currentInputSequence = inputSequences.get(currentInputId);
 			currentSpReachedWithoutOutput.clear();
-			incStep(0, fst.getInitialState(), 0, true);
+			incStep(0, fst.getInitialState(), 0, true, false);
+		}
+
+
+		sumInputSupports += inputSupport;
+	}
+
+	/** Finds the last position of the current input sequence that can produce the current pivot item */
+    private void findLastPivotPositionForCurrentInputSequence() {
+		boolean found = false;
+		Iterator<ItemState> outIt;
+
+		// make sure lastPivotPos array is large enough
+		if (lastPivotPos.size() <= currentInputId) lastPivotPos.add(Integer.MAX_VALUE);
+
+		// we check each input item, starting from the end of the input sequence
+		for (int pos = currentInputSequence.size() - 1; pos >= 0; pos--) {
+			int item = currentInputSequence.getInt(pos);
+
+			// if we know that this item _cannot_ create a pivot item, we can move to the next input item
+			if (cannotProducePivotItem.get(item)) {
+				// move on
+			} else if (canProducePivotItem.get(item)) { // if we know that the item can create the current pivot item, we mark the position
+				found = true;
+				lastPivotPos.set(currentInputId, pos);
+				break; // stop going through input items
+			} else { // otherwise, we need to find out whether this item can create the pivot item
+				// we fire all distinct output-generating transitions of the FST on this input item
+				for (int i = 1; i <= fst.numberDistinctItemEx(); i++) {
+					tr = fst.getPrototypeTransitionByItemExId(i);
+					if (tr.matches(item)) {
+						// get all output items and check whether the pivot is among it
+						outIt = tr.consume(item, itCaches.get(0));
+						while (outIt.hasNext()) {
+							if (outIt.next().itemFid == pivotItem) {
+								found = true;
+								// set last pivot pos
+								lastPivotPos.set(currentInputId, pos);
+								canProducePivotItem.set(item);
+								break; // stop going through the outgoing items
+							}
+						}
+					}
+					if (found)
+						break; // stop going through the transitions
+				}
+				// set cannot create
+				if (!found)
+					cannotProducePivotItem.set(item);
+			}
+			if (found)
+				break; // stop going through the items of the input sequence
 		}
 	}
 
-
-    // -- mining ------------------------------------------------------------------------------------------------------
+	// -- mining ------------------------------------------------------------------------------------------------------
 
 	@Override
 	public void mine() {
@@ -231,13 +445,19 @@ public final class DesqDfs extends MemoryDesqMiner {
      *
      * @return true if the FST can accept without further output
      */
-	private boolean incStep(int pos, State state, final int level, final boolean expand) {
+	private boolean incStep(int pos, State state, final int level, final boolean expand, boolean seenPivot) {
 		boolean reachedFinalStateWithoutOutput = false;
 
 pos: 	do { // loop over positions; used for tail recursion optimization
 			// check if we reached a final complete state or consumed entire input and reached a final state
-			if (state.isFinalComplete() | pos == currentInputSequence.size())
+			if (state.isFinalComplete() || pos == currentInputSequence.size())
 				return state.isFinal() || reachedFinalStateWithoutOutput;
+
+			// if we are mining a partition, we don't run the FST further on an input sequence if we have not seen
+	 		// 		the pivot item and there is no chance to see it further down the input seq.
+			if(stopAtLastPivotPos && pivotItem != 0 && (!seenPivot && pos > lastPivotPos.getInt(currentInputId))) {
+				return state.isFinal() || reachedFinalStateWithoutOutput;
+			}
 
 			// get iterator over next output item/state pairs; reuse existing ones if possible
 			// in two-pass, only iterates over states that we saw in the first pass (the other ones can safely be skipped)
@@ -259,7 +479,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 					// in the two pass algorithm, we don't need to consider empty-output paths that reach the initial state
 					// because we'll start from those positions later on anyway. Those paths are only possible
 					// in DesqDfs when we expand the empty prefix (equiv. current node is root)
-					// NOT NEEDED ANYMORE (covered by indexing below)
+					// not needed anymore (covered by indexing below)
 					// if (useTwoPass && current.node==root && toState == fst.getInitialState()) {
 					//	continue;
 					// }
@@ -272,7 +492,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 						currentSpReachedWithoutOutput.set(spIndex);
 						if (itemStateIt.hasNext()) {
 							// recurse
-							reachedFinalStateWithoutOutput |= incStep(pos + 1, toState, level + 1, expand);
+							reachedFinalStateWithoutOutput |= incStep(pos + 1, toState, level + 1, expand, seenPivot);
 							continue itemState;
 						} else {
 							// tail recurse
@@ -281,10 +501,10 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 							continue pos;
 						}
 					}
-				} else if (expand & largestFrequentFid >= outputItemFid) {
+				} else if (expand && largestFrequentFid >= outputItemFid && (pivotItem == 0 || outputItemFid <= pivotItem)) {
 					// we have an output and its frequent, so update the corresponding projected database
 					currentNode.expandWithItem(outputItemFid, currentInputId, currentInputSequence.weight,
-							pos + 1, toState);
+							pos + 1, toState, outputItemFid == pivotItem);
 				}
 				continue itemState;
 			}
@@ -294,12 +514,12 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		return reachedFinalStateWithoutOutput;
 	}
 
-    /** Expands all children of the given search tree node. The node itself must have been processed/output/expanded
-     * already.
-     *
-     * @param prefix (partial) output sequence corresponding to the given node (must remain unmodified upon return)
-     * @param node the node whose children to expand
-     */
+	/** Expands all children of the given search tree node. The node itself must have been processed/output/expanded
+	 * already.
+	 *
+	 * @param prefix (partial) output sequence corresponding to the given node (must remain unmodified upon return)
+	 * @param node the node whose children to expandOnNFA
+	 */
 
 	private void expand(IntList prefix, DesqDfsTreeNode node) {
 		// add a placeholder to prefix for the output item of the child being expanded
@@ -348,7 +568,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 						if (stateId < 0) // if >= 0, then there is only one possible FST state and it's not recorded in the posting list
 							stateId = projectedDatabaseIt.nextNonNegativeInt();
 						final int pos = projectedDatabaseIt.nextNonNegativeInt(); // position of next input item
-						reachedFinalStateWithoutOutput |= incStep(pos, fst.getState(stateId), 0, expand);
+						reachedFinalStateWithoutOutput |= incStep(pos, fst.getState(stateId), 0, expand, currentNode.seenPivot);
 					} while (projectedDatabaseIt.hasNext());
 
 					// if we reached a final state without output, increment the support of this child node
@@ -362,7 +582,8 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 			// output the pattern for the current child node if it turns out to be frequent
 			if (support >= sigma) {
-				if (ctx.patternWriter != null) {
+				// if we are mining a specific pivot partition (meaning, pivotItem>0), then we output only sequences with that pivot
+				if (ctx.patternWriter != null && (pivotItem==0 || pivot(prefix) == pivotItem)) {
 					ctx.patternWriter.write(prefix, support);
 				}
 			}
@@ -378,9 +599,771 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		prefix.removeInt(lastPrefixIndex);
 	}
 
-	// -- accessors to internal data structures (use with care) -------------------------------------------------------
+    // -- accessors to internal data structures (use with care) -------------------------------------------------------
 
-	public Dfa getDfa() {
-		return dfa;
+    public Dfa getDfa() {
+        return dfa;
+    }
+
+	// ---------------- Distributed ---------------------------------------------------------
+
+    /** Returns the minimum and maximum relevant position (as long) of the current input sequence for the given pivot item */
+	public long minMaxForCurrentInputSeq(int pivot) {
+		return grid.minMaxForPivot(pivot);
+	}
+
+	/**
+	 * Returns the set of pivot items for the given input sequence
+	 *
+	 * @param inputSequence
+	 * @return pivotItems set of frequent output items of input sequence inputSequence
+	 */
+	public IntSet generatePivotItems(IntList inputSequence, RelevantPositions relevantPositions) {
+		pivotItems.clear();
+		this.inputSequence = inputSequence;
+
+		// naive method: every frequent item is a pivot item
+		if(sendToAllFrequentItems) {
+			IntSet ascendants = new IntOpenHashSet();
+			for (int item : inputSequence) {
+				if (item <= largestFrequentFid) {
+					pivotItems.add(item);
+				}
+			}
+		} else if(useGrid) {
+		    // construct the grid
+			buildGrid(inputSequence);
+
+			// if the there is at least one accepting path, we retrieve the pivot items for these paths
+			if(grid.hasAcceptingPaths()) {
+			    pivotItems.addAll(grid.getPivotsForward(trimInputSequences));
+			}
+		} else {
+  			// check whether sequence produces output at all. if yes, produce output items
+			if (useTwoPass) {
+				// Run the DFA to find to determine whether the input has outputs and in which states
+				// Then walk backwards and collect the output items
+				if (dfa.acceptsReverse(inputSequence, dfaStateSequence, dfaInitialPos)) {
+					//dfaStateSequences.add(dfaStateSequence.toArray(new DfaState[dfaStateSequence.size()]));
+
+					// run the first incStep; start at all positions from which a final FST state can be reached
+					for (int i = 0; i < dfaInitialPos.size(); i++) {
+						// for those positions, start with the initial state
+						piStep(-1, dfaInitialPos.getInt(i), fst.getInitialState(), 0, relevantPositions, -1);
+					}
+
+					// clean up
+					dfaInitialPos.clear();
+				}
+				dfaStateSequence.clear();
+			} else { // one pass
+				if (!pruneIrrelevantInputs || dfa.accepts(inputSequence)) {
+					piStep(-1, 0, fst.getInitialState(), 0, relevantPositions, -1);
+				}
+			}
+		}
+		return pivotItems;
+	}
+
+	public QPGrid buildGrid(IntList inputSequence) {
+		// get the pivot elements with the corresponding paths through the FST
+		this.inputSequence = inputSequence;
+		grid.clear();
+
+		// we always use two-pass
+		dfaStateSequence.clear();
+		if (dfa.acceptsReverse(inputSequence, dfaStateSequence, dfaInitialPos)) {
+
+			// run the first incStep; start at all positions from which a final FST state can be reached
+			for (int i = 0; i < dfaInitialPos.size(); i++) {
+				findPathsStep(fst.getInitialState(), dfaInitialPos.getInt(i), 0, null, -1);
+			}
+
+			// clean up
+			dfaInitialPos.clear();
+		}
+
+		return grid;
+	}
+
+	/** Generates all Output NFAs of the given input sequence and returns them in a Map: pivItem -> NFA
+	 *
+	 * @param inputSequence
+	 * @return pivotItems set of frequent output items of input sequence inputSequence
+	 */
+	public ObjectArrayList<Sequence> generateNFAs(IntList inputSequence) {
+		// get the pivot elements with the corresponding paths through the FST
+		this.inputSequence = inputSequence;
+		path.clear();
+
+		serializedNFAs.clear();
+
+        if (useGrid) {
+            buildGrid(inputSequence);
+            if (grid.numStates() > 0) {
+                grid.constructPivotNFAs(serializedNFAs, fst);
+            }
+        } else {
+
+            nfas.clear();
+            if (useTwoPass) {
+                dfaStateSequence.clear();
+                if (dfa.acceptsReverse(inputSequence, dfaStateSequence, dfaInitialPos)) {
+
+                    // run the first incStep; start at all positions from which a final FST state can be reached
+                    for (int i = 0; i < dfaInitialPos.size(); i++) {
+                        piStep(-1, dfaInitialPos.getInt(i), fst.getInitialState(), 0, null, -1);
+                    }
+
+                    // clean up
+                    dfaInitialPos.clear();
+                }
+            } else {
+                piStep(-1, 0, fst.getInitialState(), 0, null, -1);
+            }
+            for (OutputNFA nfa : nfas.getNFAs()) {
+                Sequence send;
+                if (nfa.hasStoppedNFAconstruction()) { // stoppedNFAconstruction will not be true unless useHybrid=true
+                    // if we stopped NFA construction at some point, we send the relevant part of the input sequence
+                    send = nfa.prepInputSequence(currentInputSequence);
+                } else {
+                    // otherwise, we send serialize the NFA we constructed
+//					nfa.exportGraphViz(inputSequence + "-piv"+nfa.pivot + "-DDIN.pdf");
+                    if (mergeSuffixes)
+                        send = nfa.mergeAndSerialize(true);
+                    else
+                        send = nfa.serialize();
+                }
+
+                send.add(nfa.pivot);
+                serializedNFAs.add(send);
+            }
+        }
+
+		return serializedNFAs;
+	}
+
+	/** Runs one step (along compressed transition) in the FST in order to produce the set of frequent output items
+	 *  and directly creates the partitions with the transition representation
+	 *
+	 * @param largestFidSeenIncoming largest seen fid so far. this will become the first pivot item later on
+	 * @param pos   current position
+	 * @param state current state
+	 * @param level current level
+	 */
+	private void piStep(final int largestFidSeenIncoming, int pos, State state, int level,
+						   RelevantPositions relevantPositions, int currentLastIrrelevant) {
+		counterTotalRecursions++;
+
+		if(state.getId() == 0 && path.size() == 0) {
+			currentLastIrrelevant = pos;
+		}
+
+		// if we reached a final state, we add the current set of pivot items at this state to the global set of pivot items for this sequences
+		if(state.isFinal() && path.size() > processedPathSize) {
+			processedPathSize = path.size();
+
+			if(sendNFAs) {
+				// make a deep copy of the path, as we will kick items out of the sets
+				OutputLabel[] pathCopy = new OutputLabel[path.size()];
+				for(int i=0; i<pathCopy.length; i++) {
+					pathCopy[i] = path.get(i).clone();
+				}
+
+				// add this path to the different pivot NFAs
+				//    we start with the largest pivot, and drop elements from the output sets one by one
+				int pivotItem = largestFidSeenIncoming;
+				int numPivotsEmitted = 0;
+				while(pivotItem != -1) {
+					numPivotsEmitted++;
+					OutputNFA nfa = nfas.getNFAForPivot(pivotItem, fst, useHybrid);
+
+					// if the path doesn't contain the pivot, something went wrong here.
+					assert pivot(pathCopy) >= pivotItem: "Pivot in path is " + pivot(pathCopy) + ", but pivot item is " + pivotItem;
+
+					// add the path to the pivot (incl. kicking out items>pivot) and retrieve next pivot item
+					pivotItem = nfa.addPathAndReturnNextPivot(pathCopy, currentLastIrrelevant, pos);
+				}
+			} else {
+			    // If we are not sending NFAs, we are only interested in the pivot items for this sequence.
+				// We extract these pivot items from the output items in the path.
+
+				// we work on subset of the output item sets in the path. In outputItemLimits, we store the index of
+				// the rightmost item of our subset.
+			   	for(int i=0; i<path.size(); i++) {
+			   		if(i >= outputItemLimits.size()) {
+						outputItemLimits.add(path.get(i).outputItems.size() - 1);
+					} else {
+			   			outputItemLimits.set(i, path.get(i).outputItems.size() - 1);
+					}
+				}
+
+			    int nextPivot = largestFidSeenIncoming;
+			    int currentPivot;
+			    int currentLimit;
+
+			    pivotloop:
+			    while(true) {
+			    	// for each pivot item we find, we drop items >= pivot from the output item sets and look for the
+					// next-largest output item, which then will be the next pivot item
+					// we stop when one of the sets in the path is empty
+
+					currentPivot = nextPivot;
+					nextPivot = -1;
+					pivotItems.add(currentPivot);
+					if(trimInputSequences)
+						relevantPositions.addLimitsForPivot(currentPivot, currentLastIrrelevant, pos);
+
+					// go through each output set in the path
+					for (int i = 0; i < path.size(); i++) {
+						currentLimit = outputItemLimits.getInt(i);
+
+						// drop items >= the current pivot
+						while (path.get(i).outputItems.getInt(currentLimit) >= currentPivot) {
+							currentLimit--;
+
+							// if this set is empty, we have found all pivot items and can stop here
+							if(currentLimit < 0) {
+								break pivotloop;
+							}
+						}
+
+						outputItemLimits.set(i, currentLimit);
+						nextPivot = Math.max(nextPivot, path.get(i).outputItems.getInt(currentLimit));
+					}
+				}
+			}
+		}
+
+		// check if we already read the entire input
+		if (state.isFinalComplete() || pos == inputSequence.size()) {
+			return;
+		}
+
+		// get the next input item
+		final int itemFid = inputSequence.getInt(pos);
+
+		// in two pass, we only go to states we saw in the first pass
+		final BitSet validToStates = useTwoPass
+				? dfaStateSequence.get(inputSequence.size()-(pos+1)).getFstStates() // only states from first pass
+				: null; // all states
+
+		// get an iterator over all relevant transitions from here (relevant=starts from this state + matches the input item)
+		Iterator<Transition> transitionIt;
+		if(level >= transitionIterators.size()) {
+			transitionIt = state.consumeCompressed(itemFid, null, validToStates);
+			transitionIterators.add(transitionIt);
+		} else {
+			transitionIt = state.consumeCompressed(itemFid, transitionIterators.get(level), validToStates);
+		}
+
+		Transition.ItemStateIteratorCache itCache;
+		if(level >= itCaches.size()) {
+			itCache = new Transition.ItemStateIteratorCache(ctx.dict.isForest());
+			itCaches.add(itCache);
+		} else {
+		    itCache = itCaches.get(level);
+		}
+
+		OutputLabel ol;
+		int outputItem;
+		int largestFidSeen;
+		boolean needToSort;
+		int lastOutputItem;
+
+		// follow each relevant transition
+		while(transitionIt.hasNext()) {
+			tr = transitionIt.next();
+			toState = tr.getToState();
+
+			largestFidSeen = largestFidSeenIncoming;
+
+			// We handle the different output label types differently
+			if(!tr.hasOutput()) { // this transition doesn't produce output
+                // an eps transition does not introduce potential pivot elements, so we simply continue recursion
+                piStep(largestFidSeen, pos + 1, toState, level + 1, relevantPositions, currentLastIrrelevant);
+
+			} else { // this transition produces output
+				// collect all output elements into the outputItems set
+				Iterator<ItemState> outIt = tr.consume(itemFid, itCache);
+
+				// we assume that we get the items sorted, in decreasing order
+				// if that is not the case, we need to sort
+				needToSort = false;
+				lastOutputItem = Integer.MAX_VALUE;
+
+				while(outIt.hasNext()) {
+					outputItem = outIt.next().itemFid;
+
+					assert outputItem != lastOutputItem; // We assume we get each item only once
+					if(outputItem > lastOutputItem)
+						needToSort = true;
+					lastOutputItem = outputItem;
+
+					// we are only interested in frequent output items
+				    if(largestFrequentFid >= outputItem) {
+						outputItems.add(outputItem);
+
+						// we look out for the maximum item
+						if(outputItem > largestFidSeen) {
+							largestFidSeen = outputItem;
+						}
+					}
+				}
+
+				// if we have frequent output items, build the output label for this transition and follow it
+                if(outputItems.size() > 0) {
+
+					// if we need to sort, we sort. Otherwise we just reverse the elements to have them in increasing order
+					if(needToSort)
+						IntArrays.quickSort(outputItems.elements(), 0, outputItems.size());
+					else
+						IntArrays.reverse(outputItems.elements(), 0, outputItems.size());
+
+                    ol = new OutputLabel(tr, itemFid, outputItems);
+
+                    // now that we use the previous set in the output label, we start a new one for the next transition
+                    outputItems = new IntArrayList();
+
+                    // add this output label to the path and follow the path further. afterwards, remove the
+					//   output label from the path and continue with the next transition
+					path.add(ol);
+					piStep(largestFidSeen, pos + 1, toState, level + 1, relevantPositions, currentLastIrrelevant);
+					path.remove(path.size() - 1);
+					processedPathSize = path.size();
+				}
+			}
+		}
+	}
+
+	/** Run one FST step to find all paths through the FST for the current input sequence.
+	 * Returns true if it found an accepting path starting at given (state,pos)
+	 */
+	private boolean findPathsStep(State state, int pos, int level,
+								  RelevantPositions relevantPositions, int currentLastIrrelevant) {
+	    				// current nfaState is implicit through (fstState.id, pos)
+		counterTotalRecursions++;
+		int qCurrent = state.getId();
+
+		if(qCurrent == 0 && path.size() == 0) {
+			currentLastIrrelevant = pos;
+		}
+
+		// mark this state as final in the NFA. will be done only once, as we visit this state only once
+		if(state.isFinal()) {
+			grid.markFinal(qCurrent, pos); // creates the state if it doesn't exist yet
+		}
+
+		// check if we already read the entire input
+		if (state.isFinalComplete() || pos == inputSequence.size()) {
+			grid.markNoFollowingOutput(qCurrent,pos);
+			// mark this state as final
+			return true;
+		}
+
+		// get the next input item
+		final int itemFid = inputSequence.getInt(pos);
+
+		// in two pass, we only go to states we saw in the first pass
+		final BitSet validToStates = useTwoPass
+				? dfaStateSequence.get(inputSequence.size()-(pos+1)).getFstStates() // only states from first
+				: null; // all states
+
+		// get an iterator over all relevant transitions from here (relevant=starts from this state + matches the input item)
+		Iterator<Transition> transitionIt;
+		if(level >= transitionIterators.size()) {
+			transitionIt = state.consumeCompressed(itemFid, null, validToStates);
+			transitionIterators.add(transitionIt);
+		} else {
+			transitionIt = state.consumeCompressed(itemFid, transitionIterators.get(level), validToStates);
+		}
+
+		Transition.ItemStateIteratorCache itCache;
+		if(level >= itCaches.size()) {
+			itCache = new Transition.ItemStateIteratorCache(ctx.dict.isForest());
+			itCaches.add(itCache);
+		} else {
+			itCache = itCaches.get(level);
+		}
+
+		OutputLabel ol;
+		int outputItem;
+		boolean needToSort;
+		int lastOutputItem;
+		int qTo;
+		boolean foundAcceptingPath = false;
+		boolean hasFollowingOutput = false;
+
+		// follow each relevant transition
+		while(transitionIt.hasNext()) {
+			tr = transitionIt.next();
+			toState = tr.getToState();
+			ol = null;
+
+			// We handle the different output label types differently
+			if(!tr.hasOutput()) { // this transition doesn't produce output
+                // this is an eps-edge. we use null as a marker for eps-edges in the NFA
+				ol = null;
+			} else { // this transition produces output
+				// collect all output elements into the outputItems set
+				Iterator<ItemState> outIt = tr.consume(itemFid, itCache);
+
+				// we assume that we get the items sorted, in decreasing order
+				// if that is not the case, we need to sort
+				needToSort = false;
+				lastOutputItem = Integer.MAX_VALUE;
+
+				while(outIt.hasNext()) {
+					outputItem = outIt.next().itemFid;
+
+					assert outputItem != lastOutputItem; // We assume we get each item only once
+					if(outputItem > lastOutputItem)
+						needToSort = true;
+					lastOutputItem = outputItem;
+
+					// we are only interested in frequent output items
+					if(largestFrequentFid >= outputItem) {
+						outputItems.add(outputItem);
+					}
+				}
+
+				// if we have frequent output items, build the output label for this transition and follow it
+				if(outputItems.size() > 0) {
+
+					// if we need to sort, we sort. Otherwise we just reverse the elements to have them in increasing order
+					if(needToSort)
+						IntArrays.quickSort(outputItems.elements(), 0, outputItems.size());
+					else
+						IntArrays.reverse(outputItems.elements(), 0, outputItems.size());
+
+					ol = grid.getOrCreateLabel(tr, itemFid, outputItems);
+
+					// if we are using this output items object in the new ol (and not reusing an old object), we create a new one
+                    // otherwise, we can reuse the object
+					if(ol.outputItems == outputItems) {
+						outputItems = new IntArrayList();
+					} else {
+						outputItems.clear();
+					}
+				} else {
+					// we have no frequent items on this transition, so we don't follow it
+					continue;
+				}
+			}
+
+			qTo = toState.getId();
+			// so we have a new connection from (qCurrent, pos) to (qTo, pos+1) with label ol. what to do now?
+
+			// easiest option: we know the to-state (qTo, pos+1) is a dead end. then we do nothing
+			if(grid.isDeadEnd(qTo, pos+1)) {
+				// do nothing
+			}
+
+			// next: qCurrent already has such an forwardEdges edge. then we have to do basically nothing
+			else if(grid.checkForEdge(qCurrent, pos, qTo, ol)) {
+				// do nothing
+			}
+
+			// next: the to-state (qTo, pos+1) already exists. then we don't have to recurse, we just add a link
+			else if(grid.checkForState(qTo, pos+1) != -1 || grid.hasNoFollowingOutput(qTo, pos+1)) {
+                foundAcceptingPath = true;
+                grid.addEdge(qCurrent, pos, qTo, ol); // add edge to NFA and maintain maxPivot entries
+                if(!grid.hasNoFollowingOutput(qTo, pos+1) || (ol != null && !ol.outputItems.isEmpty()))
+                    hasFollowingOutput = true;
+			}
+
+			// otherwise, we need to recurse down this path and update our information when we come back up
+			else {
+				boolean isAccepting = findPathsStep(toState, pos + 1, level + 1, relevantPositions, currentLastIrrelevant);
+				foundAcceptingPath |= isAccepting;
+
+				// if we found and accepting path with this transition, add an edge
+                if(isAccepting) {
+                    grid.addEdge(qCurrent, pos, qTo, ol); // this creates the current state if it doesn't exist yet
+                    if(!grid.hasNoFollowingOutput(qTo, pos+1) || (ol != null && !ol.outputItems.isEmpty()))
+                        hasFollowingOutput = true;
+				}
+			}
+		}
+
+		// if we didnt' find any accepting path starting from here, we mark this (q,pos) pair as dead end
+		if(!foundAcceptingPath) {
+			grid.markDeadEnd(qCurrent, pos);
+		}
+		if(!hasFollowingOutput)
+			grid.markNoFollowingOutput(qCurrent, pos);
+		return foundAcceptingPath;
+	}
+
+	/**
+	 * Mines for frequent sequences in the given HashMap of aggregated NFAs
+	 * @param pivotItem
+	 * @param serializedInputNFAs
+	 */
+	public void mineNFAs(int pivotItem, Object2LongOpenHashMap<Sequence> serializedInputNFAs) {
+		this.pivotItem = pivotItem;
+
+		// if we don't have an nfaDecoder from a previous partition, create one
+		if(nfaDecoder == null)
+			nfaDecoder = new NFADecoder(fst, itCaches.get(0));
+
+		sumInputSupports = 0;
+		// transform aggregated nfas to a by-state representation
+		for (Object2LongMap.Entry<Sequence> nfaWithWeight : serializedInputNFAs.object2LongEntrySet()) {
+			Sequence nfa = nfaWithWeight.getKey();
+			long weight = nfaWithWeight.getLongValue();
+			if(useHybrid && nfa.getInt(0) == 0) {
+                // this is an input sequence
+                nfa.removeInt(0); // remove the first int (the first int signals that this is an input sequence rather than an NFA)
+                addInputSequence(nfa, weight, true);
+			}
+			else {
+				inputNFAs.add(nfaDecoder.convertPathToStateSerialization(nfa, pivotItem).withSupport(weight));
+			}
+			sumInputSupports += weight;
+		}
+
+		mineOnNFA();
+
+		this.pivotItem = 0;
+		this.clear(false);
+	}
+
+	/**
+	 * Mines for frequent sequences form the given Iterable of NFAs
+	 * Works without aggregation of NFAs
+	 * @param pivotItem
+	 * @param serializedInputNFAs
+	 */
+	public void mineNFAs(int pivotItem, Iterable<Sequence> serializedInputNFAs) {
+		this.pivotItem = pivotItem;
+
+		// if we don't have an nfaDecoder from a previous partition, create one
+		if(nfaDecoder == null)
+			nfaDecoder = new NFADecoder(fst, itCaches.get(0));
+
+		sumInputSupports = 0;
+		// transform aggregated nfas to a by-state representation
+        for(Sequence nfa : serializedInputNFAs) {
+        	if(useHybrid && nfa.getInt(0) == 0) {
+				// this is an input sequence
+				nfa.removeInt(0);
+				addInputSequence(nfa, 1, true);
+			} else {
+				inputNFAs.add(nfaDecoder.convertPathToStateSerialization(nfa, pivotItem).withSupport(1));
+			}
+			sumInputSupports += 1;
+		}
+
+		mineOnNFA();
+
+		this.pivotItem = 0;
+		this.clear(false);
+	}
+
+	/** Prepare DesqDfs object to mine a partition */
+	public void preparePartition(int pivot) {
+		this.pivotItem = pivot;
+		cannotProducePivotItem.clear();
+		canProducePivotItem.clear();
+	}
+
+	/**
+	 * Mine with respect to a specific pivot item. e.g, filter out all non-pivot sequences
+	 *   (e.g. filter out all sequences where pivotItem is not the max item)
+     *   Requires that the pivot item has been set using preparePartition(pivotItem)
+	 */
+	public void minePartition() {
+		assert pivotItem != 0: "Pivot item has not been set. Use preparePartition(pivotItem).";
+
+		mine();
+
+		// reset the pivot item, just to be sure. pivotItem=0 means no filter
+		this.pivotItem = 0;
+		this.clear(false);
+	}
+
+	public void mineOnNFA() {
+		if (sumInputSupports >= sigma) {
+			currentNode = root;
+			// and process all given NFAs
+			for (int inputId = 0; inputId < inputNFAs.size(); inputId++) {
+				currentInputId = inputId;
+				currentNFA = inputNFAs.get(inputId);
+				incStepOnNFA(0, true);
+			}
+
+			// we processed the input sequences already when we added them, see addInputSequence()
+
+            // we have processed both NFAs and sequences, now recursively grow the patterns
+			root.pruneInfrequentChildren(sigma);
+			expandOnNFA(new IntArrayList(), root);
+		}
+	}
+
+	/** Expands all children of the given search tree node. The node itself must have been processed/output/expanded
+	 * already.
+	 *
+	 * @param prefix (partial) output sequence corresponding to the given node (must remain unmodified upon return)
+	 * @param node the node whose children to expandOnNFA
+	 */
+	private void expandOnNFA(IntList prefix, DesqDfsTreeNode node) {
+		// add a placeholder to prefix for the output item of the child being expanded
+		final int lastPrefixIndex = prefix.size();
+		prefix.add(-1);
+
+		// iterate over all children
+		for (final DesqDfsTreeNode childNode : node.childrenByFid.values() )  {
+			// while we expandOnNFA the child node, we also compute its actual support to determine whether or not
+			// to output it (and then output it if the support is large enough)
+			long support = childNode.partialSupport;
+			// check whether pivot expansion worked
+			// the idea is that we never expandOnNFA a child>pivotItem at this point
+			if(pivotItem != 0) {
+				assert childNode.itemFid <= pivotItem;
+			}
+
+			// set the current (partial) output sequence
+			prefix.set(lastPrefixIndex, childNode.itemFid);
+
+			if(childNode.prefixSupport > 0) {
+				// set up the expansion
+				boolean expand = childNode.prefixSupport >= sigma;
+
+				/** Iterate over all NFA snapshots for this node */
+				projectedDatabaseIt.reset(childNode.projectedNFADatabase);
+				currentInputId = -1;
+				currentNode = childNode;
+
+				if(projectedDatabaseIt.hasNext()) {
+					do {
+						// process next NFA
+						currentInputId += projectedDatabaseIt.nextNonNegativeInt();
+						currentNFA = inputNFAs.get(currentInputId);
+
+						// iterate over state snapshots for this NFA
+						boolean reachedFinalStateWithoutOutput = false;
+						do {
+							final int pos = projectedDatabaseIt.nextNonNegativeInt(); // position of next input item
+							reachedFinalStateWithoutOutput |= incStepOnNFA(pos, expand);
+						} while (projectedDatabaseIt.hasNext());
+
+						// if we reached a final state without output, increment the support of this child node
+						if (reachedFinalStateWithoutOutput) {
+							support += currentNFA.weight;
+						}
+
+						// now go to next posting (next NFA)
+					} while (projectedDatabaseIt.nextPosting());
+				}
+
+				/** If we are using hybrid mode, also iterate over input sequence snapshots for this node */
+				if(useHybrid) {
+					projectedDatabaseIt.reset(childNode.projectedDatabase);
+					currentInputId = -1;
+					currentNode = childNode;
+
+					if(projectedDatabaseIt.hasNext()) {
+						do {
+							// process next input sequence
+							currentInputId += projectedDatabaseIt.nextNonNegativeInt();
+							currentInputSequence = inputSequences.get(currentInputId);
+							if (useTwoPass) {
+								currentDfaStateSequence = dfaStateSequences.get(currentInputId);
+							}
+							currentSpReachedWithoutOutput.clear();
+
+							// iterate over state snapshots for this input sequence
+							boolean reachedFinalStateWithoutOutput = false;
+							do {
+								final int stateId = projectedDatabaseIt.nextNonNegativeInt();
+								final int pos = projectedDatabaseIt.nextNonNegativeInt(); // position of next input item
+								reachedFinalStateWithoutOutput |= incStep(pos, fst.getState(stateId), 0, expand, currentNode.seenPivot);
+							} while (projectedDatabaseIt.hasNext());
+
+							// if we reached a final state without output, increment the support of this child node
+							if (reachedFinalStateWithoutOutput) {
+								support += currentInputSequence.weight;
+							}
+
+							// now go to next posting (next input sequence)
+						} while (projectedDatabaseIt.nextPosting());
+					}
+				}
+			}
+
+			// output the patterns for the current child node if it turns out to be frequent
+			if (support >= sigma) {
+				// if we are mining a specific pivot partition (meaning, pivotItem>0), then we output only sequences with that pivot
+				if (ctx.patternWriter != null && (pivotItem==0 || pivot(prefix) == pivotItem)) {
+					ctx.patternWriter.write(prefix, support);
+				}
+			}
+			// expandOnNFA the child node
+			childNode.pruneInfrequentChildren(sigma);
+			childNode.projectedDatabase = null; // not needed anymore
+			childNode.projectedNFADatabase = null; // not needed anymore
+			expandOnNFA(prefix, childNode);
+			childNode.invalidate(); // not needed anymore
+		}
+		// we are done processing the node, so remove its item from the prefix
+		prefix.removeInt(lastPrefixIndex);
+	}
+
+	/** Updates the projected databases of the children of the current node (args.node) corresponding to each possible
+	 * next output item for the current input sequence (also stored in args). Used only in the one-pass algorithm.
+	 *
+	 * @param pos next item to read
+	 * @param expand if an item is produced, whether to add it to the corresponding child node
+	 *
+	 * @return true if a final FST state can be reached without producing further output
+	 */
+	private boolean incStepOnNFA(int pos, final boolean expand) {
+	    // "pos" points to a state in the shuffled OutputNFA. This state has 0-n outgoing transitions.
+		// Each transition carries a toState and a list of output items
+		int nextInt = currentNFA.getInt(pos);
+		int currentToStatePos = -1;
+		while(nextInt != OutputNFA.END_FINAL && nextInt != OutputNFA.END) {
+
+			if(nextInt < 0) { // this is a (new) toState
+				currentToStatePos = -nextInt;
+			} else { // otherwise, it's output items
+				// we checked that these output items are relevant for the partition when we converted the NFA to a by-state representation
+				if(expand) {
+					assert currentToStatePos != -1;
+					currentNode.expandWithTransition(nextInt, currentInputId, currentNFA.weight, currentToStatePos);
+				}
+			}
+			pos++;
+			nextInt = currentNFA.getInt(pos);
+		}
+
+		return nextInt == OutputNFA.END_FINAL; // is true if this state is final
+	}
+
+	/**
+	 * Returns the pivot item of the given sequence
+	 * @param sequence
+	 * @return pivot item
+	 */
+	private int pivot(IntList sequence) {
+		int pivotItem = 0;
+		for(int item : sequence) {
+			pivotItem = Math.max(item, pivotItem);
+		}
+		return pivotItem;
+	}
+
+	/**
+	 * Returns the pivot item of the given path
+	 * @param path
+	 * @return pivot items
+	 */
+	private int pivot(OutputLabel[] path) {
+		int pivot = -1;
+		for(OutputLabel ol : path) {
+			pivot = Math.max(pivot, ol.outputItems.getInt(ol.outputItems.size()-1));
+		}
+		return pivot;
 	}
 }

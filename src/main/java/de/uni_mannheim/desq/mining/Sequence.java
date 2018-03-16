@@ -5,6 +5,7 @@ import com.esotericsoftware.kryo.io.Input;
 import de.uni_mannheim.desq.util.Writable2Serializer;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableUtils;
 
@@ -43,6 +44,23 @@ public class Sequence extends IntArrayList implements Externalizable, Writable {
         Sequence c = new Sequence(size);
         System.arraycopy(this.a, 0, c.a, 0, this.size);
         c.size = this.size;
+        return c;
+    }
+
+    /** Clones a subrange of this sequence to a new sequence. Indexes `from` and `to` are included */
+    public Sequence cloneSubList(int from, int to) {
+        Sequence c = new Sequence(to-from+1);
+        System.arraycopy(this.a, from, c.a, 0, to-from+1);
+        c.size = to-from+1;
+        return c;
+    }
+
+    /** Clones a subrange of this sequence as <code>cloneSubList</code>, but adds a leading 0 marker */
+    public Sequence cloneSubListWithLeadingZero(int from, int to) {
+        Sequence c = new Sequence(to-from+2);
+        c.a[0] = 0;
+        System.arraycopy(this.a, from, c.a, 1, to-from+1);
+        c.size = to-from+2;
         return c;
     }
 

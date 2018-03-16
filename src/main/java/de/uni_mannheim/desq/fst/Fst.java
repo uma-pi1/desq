@@ -1,17 +1,18 @@
 package de.uni_mannheim.desq.fst;
 
-
 import com.google.common.base.Strings;
 import de.uni_mannheim.desq.fst.graphviz.AutomatonVisualizer;
 import de.uni_mannheim.desq.util.CollectionUtils;
 import it.unimi.dsi.fastutil.ints.*;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectList;
 import org.apache.commons.io.FilenameUtils;
 
 import java.io.PrintStream;
 import java.util.*;
 
-
- 
 public final class Fst {
 	/** initial state */
 	State initialState;
@@ -480,4 +481,50 @@ public final class Fst {
 			}
 		}
 	}
+
+
+	// ---------------- transition numbering ---------------------------------------------------------
+
+    /** Stores one "prototype" transition per item expression, which we use later to (re-)generate the output items */
+	private Transition[] prototypeTransitions = null;
+
+	/** Stores which item expressions we have already seen and which transition numbers we assigned to them */
+	Object2IntMap<String> trNumbersByItemExpression = new Object2IntOpenHashMap();
+
+	/**
+	 * Numbers the output-generating transitions of this FST
+     *
+	 * Each distinct item expression is assigned one number. For each distinct item expression, we store one "prototype"
+	 * transition. This prototype transition can later be used to generate the output items.
+	 * */
+	public void numberTransitions() {
+
+	    ObjectList<Transition> tempPrototypeTransitions = new ObjectArrayList<>();
+		int trNo = 0;
+		String itemEx;
+
+		for(State state : states) {
+			// sort the transitions to get a consistent numbering
+			state.sortTransitions();
+
+			for(Transition tr : state.transitionList) {
+
+				// we only assign numbers to transitions that produce output
+				if(tr.hasOutput()) {
+					itemEx = tr.itemExpression();
+					if(!trNumbersByItemExpression.containsKey(itemEx)) {
+					    trNumbersByItemExpression.put(itemEx, trNo);
+					    trNo++;
+					    tempPrototypeTransitions.add(tr);
+					}
+				}
+			}
+		}
+		prototypeTransitions = new Transition[tempPrototypeTransitions.size()];
+		prototypeTransitions = tempPrototypeTransitions.toArray(prototypeTransitions);
+	}
+
+	public Transition getPrototypeTransitionByItemExId( int trNo ) { return prototypeTransitions[trNo-1]; }
+	public int getItemExId(Transition tr ) { return trNumbersByItemExpression.get(tr.itemExpression())+1; }
+	public int numberDistinctItemEx() { return prototypeTransitions.length; }
 }

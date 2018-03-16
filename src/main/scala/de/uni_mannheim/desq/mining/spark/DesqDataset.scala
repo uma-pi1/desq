@@ -4,7 +4,7 @@ import java.net.URI
 import java.util.zip.GZIPInputStream
 
 import de.uni_mannheim.desq.avro.AvroDesqDatasetDescriptor
-import de.uni_mannheim.desq.dictionary.{DefaultDictionaryBuilder, DefaultSequenceBuilder, Dictionary, DictionaryBuilder}
+import de.uni_mannheim.desq.dictionary.{DefaultSequenceBuilder, Dictionary, DictionaryBuilder}
 import de.uni_mannheim.desq.io.DelSequenceReader
 import de.uni_mannheim.desq.mining.WeightedSequence
 import org.apache.avro.io.DecoderFactory
@@ -14,8 +14,6 @@ import org.apache.hadoop.io.NullWritable
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
-
-import scala.reflect.ClassTag
 
 /**
   * Created by rgemulla on 12.09.2016.
@@ -184,9 +182,7 @@ object DesqDataset {
     descriptor.setDictionary(dict)
 
     // now convert the sequences (lazily)
-    val descriptorBroadcast = rawData.context.broadcast(descriptor)
     val sequences = rawData.mapPartitions(rows => new Iterator[WeightedSequence] {
-      val descriptor = descriptorBroadcast.value
       val seqBuilder = new DefaultSequenceBuilder(dict)
 
       override def hasNext: Boolean = rows.hasNext

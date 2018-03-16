@@ -1,10 +1,6 @@
 package de.uni_mannheim.desq.fst;
 
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.Iterator;
-import java.util.List;
-
+import java.util.*;
 
 public final class State {
 
@@ -85,6 +81,53 @@ public final class State {
 			};
 		}
 	}
+
+	private static final class CompressedTransitionIterator implements Iterator<Transition> {
+		Iterator<Transition> transitionsIt;
+		Transition nextTransition;
+		BitSet validToStates;
+		int fid;
+		boolean isNew;
+
+		@Override
+		public boolean hasNext() {
+			do {
+				nextTransition = nextTransition();
+				if(nextTransition == null) {
+					return false;
+				}
+			} while(!nextTransition.matches(fid));
+			return true;
+		}
+
+		@Override
+		public Transition next() {
+			return nextTransition;
+		}
+
+		@Override
+		public void remove() {
+			throw new UnsupportedOperationException();
+		}
+
+		private Transition nextTransition() {
+			if (validToStates==null) {
+				if (transitionsIt.hasNext()) {
+					return transitionsIt.next();
+				} else {
+					return null;
+				}
+			} else {
+				while (transitionsIt.hasNext()) {
+					Transition nextTransition = transitionsIt.next();
+					if (validToStates.get(nextTransition.toState.getId())) {
+						return nextTransition;
+					}
+				}
+				return null;
+			}
+		}
+	}
 	
 	public ItemStateIterator newIterator(boolean isForest) {
 		return new ItemStateIterator(isForest);
@@ -112,6 +155,43 @@ public final class State {
 		it.fid = fid;
 		it.currentItHasNext = false;
 		return it;
+	}
+
+
+	@Deprecated
+	public Iterator<Transition> consumeCompressed(int itemFid) {
+		return consumeCompressed(itemFid, null, null);
+	}
+
+	@Deprecated
+	public Iterator<Transition> consumeCompressed(int itemFid, Iterator<Transition> it) {
+		return consumeCompressed(itemFid, it, null);
+	}
+
+	/** Returns an iterator over (output item, next state)-pairs consistent with the given input item. Only
+	 * produces pairs for which the next state is contained in validToStates (BitSet indexed by state ids).
+	 *
+	 * If the output item is epsilon, returns (0, next state) pair.
+	 *
+	 * @param itemFid input item
+	 * @param it iterator to reuse
+	 * @param validToStates set of next states to consider
+	 *
+	 * @return an iterator over (output item fid, next state) pairs
+	 */
+	public Iterator<Transition> consumeCompressed(int itemFid, Iterator<Transition> it, BitSet validToStates) {
+		CompressedTransitionIterator resultIt;
+		if(it != null && it instanceof CompressedTransitionIterator)
+			resultIt = (CompressedTransitionIterator)it;
+		else
+			resultIt = new CompressedTransitionIterator();
+
+		resultIt.transitionsIt = transitionList.iterator();
+		resultIt.validToStates = validToStates;
+		resultIt.fid = itemFid;
+		resultIt.isNew = true;
+
+		return resultIt;
 	}
 
 	public boolean isFinal() { 
@@ -156,7 +236,7 @@ public final class State {
 			throw new UnsupportedOperationException();
 		}
 	}
-	
+
 	public StateIterator toStateIterator(int itemFid) {
 		return toStateIterator(itemFid, null);
 	}
@@ -177,5 +257,9 @@ public final class State {
 	/** Remove all outgoing transitions from this state */
 	public void removeAllTransitions() {
 		transitionList.clear();
+	}
+
+	public void sortTransitions() {
+		transitionList.sort(Comparator.comparing((Transition t)->t.itemExpression()));
 	}
 }
