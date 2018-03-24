@@ -139,17 +139,17 @@ class GenericDesqDataset[T](val sequences: RDD[T], val descriptor: DesqDescripto
 
   // -- mining --------------------------------------------------------------------------------------------------------
 
-  def mine(minerConf: DesqProperties)(implicit m: ClassTag[T]): GenericDesqDataset[T] = {
+  def mine(minerConf: DesqProperties)(implicit m: ClassTag[T]): DesqDataset = {
     val ctx = new DesqMinerContext(minerConf)
     mine(ctx)
   }
 
-  def mine(ctx: DesqMinerContext)(implicit m: ClassTag[T]): GenericDesqDataset[T] = {
+  def mine(ctx: DesqMinerContext)(implicit m: ClassTag[T]): DesqDataset = {
     val miner = DesqMiner.create(ctx)
     mine(miner)
   }
 
-  def mine(miner: DesqMiner)(implicit m: ClassTag[T]): GenericDesqDataset[T] = {
+  def mine(miner: DesqMiner)(implicit m: ClassTag[T]): DesqDataset = {
     miner.mine(this)
   }
 

@@ -92,11 +92,7 @@ abstract class TraditionalMiningTest(sigma: Long, gamma: Int, lambda: Int, gener
     // write the data
     val patternWriter = new DelPatternWriter(new FileOutputStream(outputDelFile), DelPatternWriter.TYPE.GID)
     patternWriter.setDictionary(data.descriptor.getDictionary)
-    for(i <- 0 until result.length) {
-      val fids = data.descriptor.getFids(result(i))
-      val frequencey = data.descriptor.getWeight(result(i))
-      patternWriter.write(fids, frequencey)
-    }
+    result.foreach(patternWriter.write)
     patternWriter.close()
 
     // sort del file
