@@ -19,7 +19,7 @@ import scala.reflect.ClassTag
   * Created by alexrenz on 05.10.2016.
   */
 class DDIN(ctx: DesqMinerContext) extends DesqMiner(ctx) {
-    override def mine[T](data: GenericDesqDataset[T])(implicit m: ClassTag[T]): GenericDesqDataset[T] = {
+    override def mine[T](data: GenericDesqDataset[T])(implicit m: ClassTag[T]): DesqDataset = {
         // localize the variables we need in the RDD
         val conf = ctx.conf
         val minSupport = conf.getLong("desq.mining.min.support")
@@ -265,8 +265,8 @@ class DDIN(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         }
 
 
-        // all done, return result (last parameter is true because mining.DesqCount always produces fids)
-        new GenericDesqDataset[T](patterns, data)
+        // all done, return result (we assume patterns are produced as fids)
+        DesqDataset.buildFromGenericDesqDataset(new GenericDesqDataset(patterns, data))
     }
 }
 

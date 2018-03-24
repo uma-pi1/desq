@@ -11,7 +11,7 @@ import scala.reflect.ClassTag
   * Created by rgemulla on 14.09.2016.
   */
 class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
-  override def mine[T](data: GenericDesqDataset[T])(implicit m: ClassTag[T]): GenericDesqDataset[T] = {
+  override def mine[T](data: GenericDesqDataset[T])(implicit m: ClassTag[T]): DesqDataset = {
     // localize the variables we need in the RDD
     val descriptorBroadcast = data.broadcastDescriptor()
     val conf = ctx.conf
@@ -54,8 +54,8 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
       .filter(_._2 >= minSupport) // and drop infrequent output sequences
       .map(s => descriptorBroadcast.value.pack(s._1, s._2)) // and pack the remaining sequences into a Sequence
 
-    // all done, return result
-    new GenericDesqDataset[T](patterns, data)
+    // all done, return result (we assume patterns are produced as fids)
+    DesqDataset.buildFromGenericDesqDataset(new GenericDesqDataset(patterns, data))
   }
 }
 

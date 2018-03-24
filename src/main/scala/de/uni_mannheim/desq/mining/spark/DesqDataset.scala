@@ -15,6 +15,8 @@ import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 
+import scala.reflect.ClassTag
+
 /**
   * Created by rgemulla on 12.09.2016.
   */
@@ -41,10 +43,11 @@ class DesqDataset(override val sequences: RDD[WeightedSequence],
       new DesqDataset(sequences, newDescriptor)
     } else {
       // otherwise we need to relabel the fids
-      val newDictBroadcast = sequences.context.broadcast(newDescriptor.getDictionary)
+      val newDescriptorBroadcast = sequences.context.broadcast(newDescriptor)
+      val descriptorBroadcast = broadcastDescriptor()
       val newSequences = sequences.mapPartitions(rows => {
         new Iterator[WeightedSequence] {
-          val newDict = newDictBroadcast.value
+          val newDescriptor = newDescriptorBroadcast.value
           val descriptor = descriptorBroadcast.value
 
           override def hasNext: Boolean = rows.hasNext
@@ -53,13 +56,13 @@ class DesqDataset(override val sequences: RDD[WeightedSequence],
             val oldSeq = rows.next()
             val newSeq = descriptor.getCopy(oldSeq)
             descriptor.getDictionary.fidsToGids(descriptor.getFids(newSeq))
-            newDict.gidsToFids(descriptor.getFids(newSeq))
+            newDescriptorBroadcast.value.getDictionary.gidsToFids(descriptor.getFids(newSeq))
             newSeq
           }
         }
       })
 
-      new DesqDataset(sequences, newDescriptor)
+      new DesqDataset(newSequences, newDescriptor)
     }
   }
 
@@ -133,37 +136,36 @@ object DesqDataset {
   }
 
   /**
-    * Builds a DesqDataset from a GenericDesqDataset.
+    * Builds a DesqDataset from a GenericDesqDataset (assumes usesFids = true if input is already a DesqDataset).
     *
     * @param genericDesqDataset the input GenericDesqDataset
-    * @param usesFids if the DesqDataset should be constructed with fids or gids
     * @tparam T type of input GenericDesqDataset
     * @return the created DesqDataset
     */
-  def buildFromGenericDesqDataset[T](genericDesqDataset: GenericDesqDataset[T], usesFids: Boolean): DesqDataset = {
-    val descriptorBroadcast = genericDesqDataset.broadcastDescriptor()
+  def buildFromGenericDesqDataset[T](genericDesqDataset: GenericDesqDataset[T])(implicit ct: ClassTag[T]): DesqDataset = {
+    val descriptor = new WeightedSequenceDescriptor(true)
+    descriptor.setDictionary(genericDesqDataset.descriptor.getDictionary)
 
-    val newSequences = genericDesqDataset.sequences.mapPartitions(rows => {
-      new Iterator[WeightedSequence] {
-        val descriptor = descriptorBroadcast.value
+    if(ct.runtimeClass.isAssignableFrom(classOf[WeightedSequence])) {
+      new DesqDataset(genericDesqDataset.sequences.asInstanceOf[RDD[WeightedSequence]], descriptor)
+    } else {
+      val descriptorBroadcast = genericDesqDataset.broadcastDescriptor()
 
-        override def hasNext: Boolean = rows.hasNext
+      val newPatterns = genericDesqDataset.sequences.mapPartitions(rows => {
+        new Iterator[WeightedSequence] {
+          val descriptor: DesqDescriptor[T] = descriptorBroadcast.value
 
-        override def next(): WeightedSequence = {
-          val sequence = rows.next()
-          if(usesFids) {
+          override def hasNext: Boolean = rows.hasNext
+
+          override def next(): WeightedSequence = {
+            val sequence = rows.next()
             new WeightedSequence(descriptor.getFids(sequence), descriptor.getWeight(sequence))
-          } else {
-            new WeightedSequence(descriptor.getGids(sequence), descriptor.getWeight(sequence))
           }
         }
-      }
-    })
+      })
 
-    val newDescriptor = new WeightedSequenceDescriptor(usesFids)
-    newDescriptor.setDictionary(genericDesqDataset.descriptor.getDictionary)
-
-    new DesqDataset(newSequences, newDescriptor)
+      new DesqDataset(newPatterns, descriptor)
+    }
   }
 
   /** Builds a DesqDataset from arbitrary input data. The dataset is linked to the original data and parses
