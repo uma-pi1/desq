@@ -1,6 +1,7 @@
 package de.uni_mannheim.desq.mining;
 
 import de.uni_mannheim.desq.fst.*;
+import de.uni_mannheim.desq.mining.distributed.*;
 import de.uni_mannheim.desq.util.CloneableIntHeapPriorityQueue;
 import de.uni_mannheim.desq.patex.PatExUtils;
 import de.uni_mannheim.desq.util.DesqProperties;
@@ -175,13 +176,13 @@ public final class DesqDfs extends MemoryDesqMiner {
 	private IntArrayList outputItemLimits = new IntArrayList();
 
 	/** For each pivot item (and input sequence), we store one NFA producing the output sequences for that pivot item from the current input sequence */
-	private NFAList nfas = new NFAList();
+	private NfaList nfas = new NfaList();
 
 	/** A list of serialized NFAs for the current input sequence */
 	ObjectArrayList<Sequence> serializedNFAs = new ObjectArrayList<>();
 
 	/** An nfaDecoder to decode nfas from a representation by path to one by state. Reuses internal data structures for all input nfas */
-	private NFADecoder nfaDecoder = null;
+	private NfaDeserializer nfaDeserializer = null;
 
 	/** Stores one pivot element heap per level for reuse */
 	final ArrayList<CloneableIntHeapPriorityQueue> pivotItemHeaps = new ArrayList<>();
@@ -721,7 +722,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
             } else {
                 piStep(-1, 0, fst.getInitialState(), 0, null, -1);
             }
-            for (OutputNFA nfa : nfas.getNFAs()) {
+            for (OutputNfa nfa : nfas.getNFAs()) {
                 Sequence send;
                 if (nfa.hasStoppedNFAconstruction()) { // stoppedNFAconstruction will not be true unless useHybrid=true
                     // if we stopped NFA construction at some point, we send the relevant part of the input sequence
@@ -735,7 +736,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
                         send = nfa.serialize();
                 }
 
-                send.add(nfa.pivot);
+                send.add(nfa.getPivot());
                 serializedNFAs.add(send);
             }
         }
@@ -776,7 +777,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				int numPivotsEmitted = 0;
 				while(pivotItem != -1) {
 					numPivotsEmitted++;
-					OutputNFA nfa = nfas.getNFAForPivot(pivotItem, fst, useHybrid);
+					OutputNfa nfa = nfas.getNFAForPivot(pivotItem, fst, useHybrid);
 
 					// if the path doesn't contain the pivot, something went wrong here.
 					assert pivot(pathCopy) >= pivotItem: "Pivot in path is " + pivot(pathCopy) + ", but pivot item is " + pivotItem;
@@ -792,9 +793,9 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				// the rightmost item of our subset.
 			   	for(int i=0; i<path.size(); i++) {
 			   		if(i >= outputItemLimits.size()) {
-						outputItemLimits.add(path.get(i).outputItems.size() - 1);
+						outputItemLimits.add(path.get(i).getOutputItems().size() - 1);
 					} else {
-			   			outputItemLimits.set(i, path.get(i).outputItems.size() - 1);
+			   			outputItemLimits.set(i, path.get(i).getOutputItems().size() - 1);
 					}
 				}
 
@@ -819,7 +820,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 						currentLimit = outputItemLimits.getInt(i);
 
 						// drop items >= the current pivot
-						while (path.get(i).outputItems.getInt(currentLimit) >= currentPivot) {
+						while (path.get(i).getOutputItems().getInt(currentLimit) >= currentPivot) {
 							currentLimit--;
 
 							// if this set is empty, we have found all pivot items and can stop here
@@ -829,7 +830,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 						}
 
 						outputItemLimits.set(i, currentLimit);
-						nextPivot = Math.max(nextPivot, path.get(i).outputItems.getInt(currentLimit));
+						nextPivot = Math.max(nextPivot, path.get(i).getOutputItems().getInt(currentLimit));
 					}
 				}
 			}
@@ -1040,7 +1041,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 					// if we are using this output items object in the new ol (and not reusing an old object), we create a new one
                     // otherwise, we can reuse the object
-					if(ol.outputItems == outputItems) {
+					if(ol.getOutputItems() == outputItems) {
 						outputItems = new IntArrayList();
 					} else {
 						outputItems.clear();
@@ -1068,7 +1069,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			else if(grid.checkForState(qTo, pos+1) != -1 || grid.hasNoFollowingOutput(qTo, pos+1)) {
                 foundAcceptingPath = true;
                 grid.addEdge(qCurrent, pos, qTo, ol); // add edge to NFA and maintain maxPivot entries
-                if(!grid.hasNoFollowingOutput(qTo, pos+1) || (ol != null && !ol.outputItems.isEmpty()))
+                if(!grid.hasNoFollowingOutput(qTo, pos+1) || (ol != null && !ol.getOutputItems().isEmpty()))
                     hasFollowingOutput = true;
 			}
 
@@ -1080,7 +1081,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				// if we found and accepting path with this transition, add an edge
                 if(isAccepting) {
                     grid.addEdge(qCurrent, pos, qTo, ol); // this creates the current state if it doesn't exist yet
-                    if(!grid.hasNoFollowingOutput(qTo, pos+1) || (ol != null && !ol.outputItems.isEmpty()))
+                    if(!grid.hasNoFollowingOutput(qTo, pos+1) || (ol != null && !ol.getOutputItems().isEmpty()))
                         hasFollowingOutput = true;
 				}
 			}
@@ -1104,8 +1105,8 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		this.pivotItem = pivotItem;
 
 		// if we don't have an nfaDecoder from a previous partition, create one
-		if(nfaDecoder == null)
-			nfaDecoder = new NFADecoder(fst, itCaches.get(0));
+		if(nfaDeserializer == null)
+			nfaDeserializer = new NfaDeserializer(fst, itCaches.get(0));
 
 		sumInputSupports = 0;
 		// transform aggregated nfas to a by-state representation
@@ -1118,7 +1119,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
                 addInputSequence(nfa, weight, true);
 			}
 			else {
-				inputNFAs.add(nfaDecoder.convertPathToStateSerialization(nfa, pivotItem).withSupport(weight));
+				inputNFAs.add(nfaDeserializer.convertPathToStateSerialization(nfa, pivotItem).withSupport(weight));
 			}
 			sumInputSupports += weight;
 		}
@@ -1139,8 +1140,8 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		this.pivotItem = pivotItem;
 
 		// if we don't have an nfaDecoder from a previous partition, create one
-		if(nfaDecoder == null)
-			nfaDecoder = new NFADecoder(fst, itCaches.get(0));
+		if(nfaDeserializer == null)
+			nfaDeserializer = new NfaDeserializer(fst, itCaches.get(0));
 
 		sumInputSupports = 0;
 		// transform aggregated nfas to a by-state representation
@@ -1150,7 +1151,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				nfa.removeInt(0);
 				addInputSequence(nfa, 1, true);
 			} else {
-				inputNFAs.add(nfaDecoder.convertPathToStateSerialization(nfa, pivotItem).withSupport(1));
+				inputNFAs.add(nfaDeserializer.convertPathToStateSerialization(nfa, pivotItem).withSupport(1));
 			}
 			sumInputSupports += 1;
 		}
@@ -1231,7 +1232,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				boolean expand = childNode.prefixSupport >= sigma;
 
 				/** Iterate over all NFA snapshots for this node */
-				projectedDatabaseIt.reset(childNode.projectedNFADatabase);
+				projectedDatabaseIt.reset(childNode.projectedNfaDatabase);
 				currentInputId = -1;
 				currentNode = childNode;
 
@@ -1302,7 +1303,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			// expandOnNFA the child node
 			childNode.pruneInfrequentChildren(sigma);
 			childNode.projectedDatabase = null; // not needed anymore
-			childNode.projectedNFADatabase = null; // not needed anymore
+			childNode.projectedNfaDatabase = null; // not needed anymore
 			expandOnNFA(prefix, childNode);
 			childNode.invalidate(); // not needed anymore
 		}
@@ -1319,11 +1320,11 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	 * @return true if a final FST state can be reached without producing further output
 	 */
 	private boolean incStepOnNFA(int pos, final boolean expand) {
-	    // "pos" points to a state in the shuffled OutputNFA. This state has 0-n outgoing transitions.
+	    // "pos" points to a state in the shuffled OutputNfa. This state has 0-n outgoing transitions.
 		// Each transition carries a toState and a list of output items
 		int nextInt = currentNFA.getInt(pos);
 		int currentToStatePos = -1;
-		while(nextInt != OutputNFA.END_FINAL && nextInt != OutputNFA.END) {
+		while(nextInt != OutputNfa.END_FINAL && nextInt != OutputNfa.END) {
 
 			if(nextInt < 0) { // this is a (new) toState
 				currentToStatePos = -nextInt;
@@ -1338,7 +1339,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			nextInt = currentNFA.getInt(pos);
 		}
 
-		return nextInt == OutputNFA.END_FINAL; // is true if this state is final
+		return nextInt == OutputNfa.END_FINAL; // is true if this state is final
 	}
 
 	/**
@@ -1362,7 +1363,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 	private int pivot(OutputLabel[] path) {
 		int pivot = -1;
 		for(OutputLabel ol : path) {
-			pivot = Math.max(pivot, ol.outputItems.getInt(ol.outputItems.size()-1));
+			pivot = Math.max(pivot, ol.getOutputItems().getInt(ol.getOutputItems().size()-1));
 		}
 		return pivot;
 	}

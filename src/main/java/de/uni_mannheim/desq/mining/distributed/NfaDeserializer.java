@@ -1,9 +1,10 @@
-package de.uni_mannheim.desq.mining;
+package de.uni_mannheim.desq.mining.distributed;
 
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.ItemState;
 import de.uni_mannheim.desq.fst.Transition;
 import de.uni_mannheim.desq.fst.graphviz.AutomatonVisualizer;
+import de.uni_mannheim.desq.mining.Sequence;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -17,7 +18,7 @@ import java.util.Iterator;
  * A class to decode serialized NFAs from by-path to by-state representation.
  * Reuses internal data structures between multiple calls to {@link #convertPathToStateSerialization(Sequence, int)}
  */
-class NFADecoder {
+public class NfaDeserializer {
     ObjectList<IntArrayList> outgoing = new ObjectArrayList<>();
     int numReadStates, item, inputItem, outputItem, currentState = 0, toState, itExId, sPos, outgoingIntegers, len;
     BitSet finalStates = new BitSet();
@@ -28,7 +29,7 @@ class NFADecoder {
     Transition.ItemStateIteratorCache itCache;
 
 
-    public NFADecoder(Fst fst, Transition.ItemStateIteratorCache itCache) {
+    public NfaDeserializer(Fst fst, Transition.ItemStateIteratorCache itCache) {
         this.fst = fst;
         minItemExValue = -(fst.numberDistinctItemEx()+1);
         this.itCache = itCache;
@@ -45,7 +46,7 @@ class NFADecoder {
 
         for(int pos = 0; pos<serializedNFA.size(); pos++) {
             item = serializedNFA.getInt(pos);
-            if(item == OutputNFA.FINAL) {
+            if(item == OutputNfa.FINAL) {
                 // mark current state as final
                 finalStates.set(currentState);
             } else {
@@ -139,16 +140,16 @@ class NFADecoder {
 
             // write the end marker (final or non-final)
             if(finalStates.get(stateNo))
-                byState[pos] = OutputNFA.END_FINAL;
+                byState[pos] = OutputNfa.END_FINAL;
             else
-                byState[pos] = OutputNFA.END;
+                byState[pos] = OutputNfa.END;
 
             pos++; // accounting for the state end marker
         }
 
         // replace state numbers by their index in the array
         for(int pos = 0; pos<serializedNFA.size(); pos++) {
-            if(byState[pos] < 0 && byState[pos] != OutputNFA.END_FINAL) {
+            if(byState[pos] < 0 && byState[pos] != OutputNfa.END_FINAL) {
                 byState[pos] =  -writtenAtPos.get(-byState[pos]);
             }
         }

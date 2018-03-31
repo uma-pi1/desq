@@ -1,7 +1,8 @@
-package de.uni_mannheim.desq.mining;
+package de.uni_mannheim.desq.mining.distributed;
 
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.graphviz.AutomatonVisualizer;
+import de.uni_mannheim.desq.mining.WeightedSequence;
 import it.unimi.dsi.fastutil.ints.IntAVLTreeSet;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
@@ -12,7 +13,7 @@ import org.apache.commons.io.FilenameUtils;
 /**
  * Created by alex on 10/07/2017.
  */
-public class ExtractedNFA {
+public class ExtractedNfa {
     /** For each state in the new NFA, this stores the included states of the original NFA */
     ObjectArrayList<IntSet> includedStates = new ObjectArrayList<>();
 
@@ -49,7 +50,7 @@ public class ExtractedNFA {
     /** The pivot item of this NFA (also used in serialization) */
     int pivot;
 
-    public ExtractedNFA(boolean constructBackwardEdges) {
+    public ExtractedNfa(boolean constructBackwardEdges) {
         this.constructBackwardEdges = constructBackwardEdges;
     }
 
@@ -119,8 +120,8 @@ public class ExtractedNFA {
         return includedStates.get(state);
     }
 
-    /** Reverses and determinizes this NFA into the given ExtractedNFA */
-    public ExtractedNFA reverseAndDeterminize(ExtractedNFA forwardDFA) {
+    /** Reverses and determinizes this NFA into the given ExtractedNfa */
+    public ExtractedNfa reverseAndDeterminize(ExtractedNfa forwardDFA) {
         forwardDFA.clear();
 
         int currentState = forwardDFA.addNewState(isFinal);
@@ -174,7 +175,7 @@ public class ExtractedNFA {
         serializeStep(0, send); // 0 is always root
 
         // if we have only one final state and it's the last one, we don't need to send the marker
-        if(numSerializedFinalStates == 1 && send.getInt(send.size()-1) == OutputNFA.FINAL) {
+        if(numSerializedFinalStates == 1 && send.getInt(send.size()-1) == OutputNfa.FINAL) {
             send.size(send.size()-1);
         }
 
@@ -192,7 +193,7 @@ public class ExtractedNFA {
         serializedStateNumbers.set(state, numSerializedStates);
 
         if(isFinal(state)) {
-            send.add(OutputNFA.FINAL);
+            send.add(OutputNfa.FINAL);
             numSerializedFinalStates++;
         }
 
@@ -213,19 +214,19 @@ public class ExtractedNFA {
             }
 
             // serialize the output label
-            if(ol.outputItems.size() > 1 && ol.outputItems.getInt(1) <= pivot) { // multiple output items, so we encode them using the transition
+            if(ol.getOutputItems().size() > 1 && ol.getOutputItems().getInt(1) <= pivot) { // multiple output items, so we encode them using the transition
                 // TODO: the current serialization format doesn't allow us to send two output items directly. We need to think about this.
-                if(ol.outputItems.size() == 2 || ol.outputItems.getInt(2) > pivot) {
+                if(ol.getOutputItems().size() == 2 || ol.getOutputItems().getInt(2) > pivot) {
                     // we have only two output items, so we encode them directly
                     send.add(-1); // we use this as marker for two following output items
-                    send.add(ol.outputItems.getInt(0));
-                    send.add(ol.outputItems.getInt(1));
+                    send.add(ol.getOutputItems().getInt(0));
+                    send.add(ol.getOutputItems().getInt(1));
                 } else {
-                    send.add(-(fst.getItemExId(ol.tr)+1));
-                    send.add(ol.inputItem); // TODO: we can generalize this for the pivot
+                    send.add(-(fst.getItemExId(ol.getTransition())+1));
+                    send.add(ol.getInputItem()); // TODO: we can generalize this for the pivot
                 }
             } else { // there is only one (relevant) output item, and we know it's the first in the list
-                send.add(ol.outputItems.getInt(0));
+                send.add(ol.getOutputItems().getInt(0));
             }
 
             // serialize the to-state, either by processing it or by noting down it's number
@@ -245,7 +246,7 @@ public class ExtractedNFA {
             for (Object2ObjectMap.Entry<OutputLabel,IntSet> trEntry : outgoingEdges.get(s).object2ObjectEntrySet()) {
                 OutputLabel ol = trEntry.getKey();
                 String label;
-                label = (ol == null ? " " : ol.outputItems.toString() + "(" + ol.inputItem + ")");
+                label = (ol == null ? " " : ol.getOutputItems().toString() + "(" + ol.getInputItem() + ")");
                 for(int toState : trEntry.getValue()) {
                     if (!ol.isEmpty()) {
                         automatonVisualizer.add(String.valueOf(s), label, String.valueOf(toState));

@@ -1,7 +1,9 @@
-package de.uni_mannheim.desq.mining;
+package de.uni_mannheim.desq.mining.distributed;
 
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.graphviz.AutomatonVisualizer;
+import de.uni_mannheim.desq.mining.Sequence;
+import de.uni_mannheim.desq.mining.WeightedSequence;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.objects.*;
 import org.apache.commons.io.FilenameUtils;
@@ -14,7 +16,7 @@ import java.util.BitSet;
  * output sequence at that partition. Before sending the NFA, we trim it so we don't send paths that are
  * not relevant for that partition. We do the trimming while serializing.
  */
-public class OutputNFA {
+public class OutputNfa {
     /** The pivot item of this NFA */
     int pivot;
 
@@ -53,11 +55,15 @@ public class OutputNFA {
     int numPaths = 0;
 
 
-    public OutputNFA(int pivot, Fst fst, boolean useHybrid) {
+    public OutputNfa(int pivot, Fst fst, boolean useHybrid) {
         addState(-1); // create root state
         this.pivot = pivot;
         this.fst = fst;
         this.useHybrid = useHybrid;
+    }
+
+    public int getPivot() {
+        return pivot;
     }
 
     /** If the given state was merged, returns the merge target. Otherwise, returns the original id. */
@@ -114,17 +120,17 @@ public class OutputNFA {
             ol = path[i];
 
             // drop all output items larger than the pivot
-            while(ol.outputItems.getInt(ol.outputItems.size()-1) > pivot) {
-                ol.outputItems.removeInt(ol.outputItems.size()-1);
+            while(ol.getOutputItems().getInt(ol.getOutputItems().size()-1) > pivot) {
+                ol.getOutputItems().removeInt(ol.getOutputItems().size()-1);
             }
 
             // find next largest item
             if(!seenPivotAsSingle) { // as soon as we know there won't be another round we don't need to do this anymore
-                nextLargestInThisSet = ol.outputItems.getInt(ol.outputItems.size()-1);
+                nextLargestInThisSet = ol.getOutputItems().getInt(ol.getOutputItems().size()-1);
                 // if the largest item is the pivot, we get the next-largest (if there is one)
                 if (nextLargestInThisSet == pivot) {
-                    if (ol.outputItems.size() > 1) {
-                        nextLargestInThisSet = ol.outputItems.getInt(ol.outputItems.size()-2);
+                    if (ol.getOutputItems().size() > 1) {
+                        nextLargestInThisSet = ol.getOutputItems().getInt(ol.getOutputItems().size()-2);
                     } else {
                         // if this set has only the pivot item, it will be empty next run. so we note
                         //    that we need to stop after this run
@@ -233,7 +239,7 @@ public class OutputNFA {
         serializeStateUsingDfs(0, send); // 0 is always root
 
         // if we have only one final state and it's the last one, we don't need to send the marker
-        if(numSerializedFinalStates == 1 && send.getInt(send.size()-1) == OutputNFA.FINAL) {
+        if(numSerializedFinalStates == 1 && send.getInt(send.size()-1) == OutputNfa.FINAL) {
             send.size(send.size()-1);
         }
 
@@ -365,7 +371,7 @@ public class OutputNFA {
                 for (Object2IntMap.Entry<OutputLabel> trEntry : outgoingTransitions.get(s).object2IntEntrySet()) {
                     OutputLabel ol = trEntry.getKey();
                     String label;
-                    label = (ol == null ? " " : ol.outputItems.toString() + "(" + ol.inputItem + ")");
+                    label = (ol == null ? " " : ol.getOutputItems().toString() + "(" + ol.getInputItem() + ")");
                     automatonVisualizer.add(String.valueOf(s), label, String.valueOf(mergedInto.getInt(trEntry.getIntValue())));
                 }
                 if (isFinal.get(s))
@@ -391,7 +397,7 @@ public class OutputNFA {
         writtenNum.set(state, numSerializedStates);
 
         if(isFinal.get(state)) {
-            send.add(OutputNFA.FINAL);
+            send.add(OutputNfa.FINAL);
             numSerializedFinalStates++;
         }
 
@@ -409,19 +415,19 @@ public class OutputNFA {
             }
 
             // serialize the output label
-            if(ol.outputItems.size() > 1 && ol.outputItems.getInt(1) <= pivot) { // multiple output items, so we encode them using the transition
+            if(ol.getOutputItems().size() > 1 && ol.getOutputItems().getInt(1) <= pivot) { // multiple output items, so we encode them using the transition
                 // TODO: the current serialization format doesn't allow us to send two output items directly. We need to think about this.
-                if(ol.outputItems.size() == 2 || ol.outputItems.getInt(2) > pivot) {
+                if(ol.getOutputItems().size() == 2 || ol.getOutputItems().getInt(2) > pivot) {
                     // we have only two output items, so we encode them directly
                     send.add(-1); // we use this as marker for two following output items
-                    send.add(ol.outputItems.getInt(0));
-                    send.add(ol.outputItems.getInt(1));
+                    send.add(ol.getOutputItems().getInt(0));
+                    send.add(ol.getOutputItems().getInt(1));
                 } else {
-                    send.add(-(fst.getItemExId(ol.tr)+1));
-                    send.add(ol.inputItem); // TODO: we can generalize this for the pivot
+                    send.add(-(fst.getItemExId(ol.getTransition())+1));
+                    send.add(ol.getInputItem()); // TODO: we can generalize this for the pivot
                 }
             } else { // there is only one (relevant) output item, and we know it's the first in the list
-                send.add(ol.outputItems.getInt(0));
+                send.add(ol.getOutputItems().getInt(0));
             }
 
             // serialize the to-state, either by processing it or by noting down it's number

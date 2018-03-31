@@ -1,14 +1,15 @@
 package de.uni_mannheim.desq.mining.spark
 
-import de.uni_mannheim.desq.mining.{RelevantPositions, Sequence}
+import de.uni_mannheim.desq.mining.Sequence
 import de.uni_mannheim.desq.util.{DesqProperties, PrimitiveUtils}
 import it.unimi.dsi.fastutil.ints._
 import de.uni_mannheim.desq.io.MemoryPatternWriter
+import de.uni_mannheim.desq.mining.distributed.RelevantPositions
 import it.unimi.dsi.fastutil.objects._
 
 import scala.collection.JavaConverters._
 import collection.JavaConversions._
-import org.apache.log4j.{LogManager}
+import org.apache.log4j.LogManager
 import org.apache.spark.rdd.RDD
 
 import scala.reflect.ClassTag
@@ -18,7 +19,7 @@ import scala.reflect.ClassTag
   * High-level code for running DESQ with item-based partitioning
   * Created by alexrenz on 05.10.2016.
   */
-class DDIN(ctx: DesqMinerContext) extends DesqMiner(ctx) {
+class DesqDistributed(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     override def mine[T](data: GenericDesqDataset[T])(implicit m: ClassTag[T]): DesqDataset = {
         // localize the variables we need in the RDD
         val conf = ctx.conf
@@ -270,10 +271,10 @@ class DDIN(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     }
 }
 
-object DDIN {
+object DesqDistributed {
     def createConf(patternExpression: String, sigma: Long): DesqProperties = {
         val conf = de.uni_mannheim.desq.mining.DesqDfs.createConf(patternExpression, sigma)
-        conf.setProperty("desq.mining.miner.class", classOf[DDIN].getCanonicalName)
+        conf.setProperty("desq.mining.miner.class", classOf[DesqDistributed].getCanonicalName)
         conf
     }
 }

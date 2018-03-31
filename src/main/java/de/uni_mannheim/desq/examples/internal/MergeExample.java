@@ -1,7 +1,7 @@
-package de.uni_mannheim.desq.examples;
+package de.uni_mannheim.desq.examples.internal;
 
-import de.uni_mannheim.desq.mining.OutputLabel;
-import de.uni_mannheim.desq.mining.OutputNFA;
+import de.uni_mannheim.desq.mining.distributed.OutputLabel;
+import de.uni_mannheim.desq.mining.distributed.OutputNfa;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 
 /**
@@ -35,7 +35,7 @@ public class MergeExample {
         OutputLabel lg = new OutputLabel(null, 1, g);
         OutputLabel lh = new OutputLabel(null, 1, h);
 
-        OutputNFA nfa = new OutputNFA(50, null, false);
+        OutputNfa nfa = new OutputNfa(50, null, false);
 
 
         OutputLabel[] path1 = {la, ld, le, lh};

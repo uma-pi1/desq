@@ -1,17 +1,17 @@
-package de.uni_mannheim.desq.examples.spark
+package de.uni_mannheim.desq.experiments.spark
 
 import java.util.concurrent.TimeUnit
+
 import com.google.common.base.Stopwatch
 import de.uni_mannheim.desq.Desq
-import de.uni_mannheim.desq.mining.spark.{DesqCount, DDIN}
-import de.uni_mannheim.desq.mining.spark.{DesqDataset, DesqMiner, DesqMinerContext}
-import org.apache.spark.{SparkConf, SparkContext}
+import de.uni_mannheim.desq.mining.spark._
 import de.uni_mannheim.desq.patex.PatExUtils
+import org.apache.spark.{SparkConf, SparkContext}
 
 /**
   * Class to conventiently run DesqSeq, DesqCand, and other algorithms on various pattern expressions
   * Usage:
-  * input=hdfs://path-to-input-DesqDataset-on-hdfs-or-local/  output=hdfs://path-to-folder-for-found-frequent-sequences/  case=A1  algorithm=DDIN
+  * input=hdfs://path-to-input-DesqDataset-on-hdfs-or-local/  output=hdfs://path-to-folder-for-found-frequent-sequences/  case=A1  algorithm=DesqSeq
   *
   * More information can be found in the README.md
   *
@@ -26,7 +26,7 @@ object DesqRunner {
     var verbose: Boolean = _
 
     // Switches
-    var sendNFAs: Boolean = _
+    var sendNfas: Boolean = _
     var mergeSuffixes: Boolean = _
     var useDesqCount: Boolean = _
     var aggregateShuffleSequences: Boolean = _
@@ -117,14 +117,14 @@ object DesqRunner {
         // Build miner conf
         patternExp = PatExUtils.toFidPatEx(data.descriptor.getDictionary, patternExp)
         // translate pattern expression to fids
-        var minerConf = DDIN.createConf(patternExp, sigma)
+        var minerConf = DesqDistributed.createConf(patternExp, sigma)
         if (useDesqCount) {
             minerConf = DesqCount.createConf(patternExp, sigma)
         }
         minerConf.setProperty("desq.mining.use.flist", useFlist)
         minerConf.setProperty("desq.mining.prune.irrelevant.inputs", "false")
         minerConf.setProperty("desq.mining.use.two.pass", "true")
-        minerConf.setProperty("desq.mining.send.nfas", sendNFAs)
+        minerConf.setProperty("desq.mining.send.nfas", sendNfas)
         minerConf.setProperty("desq.mining.merge.suffixes", mergeSuffixes)
         minerConf.setProperty("desq.mining.aggregate.shuffle.sequences", aggregateShuffleSequences)
         minerConf.setProperty("desq.mining.trim.input.sequences", trimInputSequences)
@@ -311,7 +311,7 @@ object DesqRunner {
     /** Baseline algorithms and algorithm variants */
     def setAlgorithmVariant(algorithm: String) {
         //set some defaults
-        sendNFAs = false
+        sendNfas = false
         mergeSuffixes = false
         useDesqCount = false
         aggregateShuffleSequences = false
@@ -359,28 +359,28 @@ object DesqRunner {
                 sendToAllFrequentItems = true
                 aggregateShuffleSequences = false
             case "DesqCand" =>
-                sendNFAs = true
+                sendNfas = true
                 mergeSuffixes = true
                 aggregateShuffleSequences = true
             case "DesqCand.constructWithGrid" =>
-                sendNFAs = true
+                sendNfas = true
                 mergeSuffixes = true
                 aggregateShuffleSequences = true
                 useGrid = true
             case "DesqCand.tries.noAgg" =>
-                sendNFAs = true
+                sendNfas = true
                 mergeSuffixes = false
                 aggregateShuffleSequences = false
             case "DesqCand.tries" =>
-                sendNFAs = true
+                sendNfas = true
                 mergeSuffixes = false
                 aggregateShuffleSequences = true
             case "DesqCand.noAgg" =>
-                sendNFAs = true
+                sendNfas = true
                 mergeSuffixes = true
                 aggregateShuffleSequences = false
             case "DesqHybrid" =>
-                sendNFAs = true
+                sendNfas = true
                 mergeSuffixes = true
                 aggregateShuffleSequences = true
                 useHybrid = true

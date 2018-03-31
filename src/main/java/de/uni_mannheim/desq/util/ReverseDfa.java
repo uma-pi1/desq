@@ -3,6 +3,9 @@ package de.uni_mannheim.desq.util;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.graphviz.AutomatonVisualizer;
 import de.uni_mannheim.desq.mining.*;
+import de.uni_mannheim.desq.mining.distributed.ExtractedNfa;
+import de.uni_mannheim.desq.mining.distributed.OutputLabel;
+import de.uni_mannheim.desq.mining.distributed.QPGrid;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
@@ -14,10 +17,10 @@ import org.apache.commons.io.FilenameUtils;
 import java.util.BitSet;
 
 /**
- * Data structures for determinizing an OutputNFA once.
+ * Data structures for determinizing an OutputNfa once.
  * Can be reused for mutliple OutputNFAs, using clear()
  */
-public class ReverseDFA {
+public class ReverseDfa {
 
     /** For each state in the new NFA, this stores the included states of the original NFA */
     ObjectArrayList<IntSet> includedStates = new ObjectArrayList<>();
@@ -53,10 +56,10 @@ public class ReverseDFA {
     private int[] previousMaxPivots;
 
     /** Stores the (backward) NFA extracted for the current pivot item */
-    ExtractedNFA extractedNFA = new ExtractedNFA(true);
+    ExtractedNfa extractedNfa = new ExtractedNfa(true);
 
     /** Stores the (forward) DFA for the current pivot item */
-    ExtractedNFA forwardDFA = new ExtractedNFA(false);
+    ExtractedNfa forwardDFA = new ExtractedNfa(false);
 
     /** A list of output labels from which we need to drop the pivot item */
     ObjectList<IntArrayList> outputItemsWithPivotItem = new ObjectArrayList<>();
@@ -64,7 +67,7 @@ public class ReverseDFA {
     /** A list of edges to drop after we have extracted the NFA for the current pivot item */
     LongSortedSet edgesToDelete = new LongAVLTreeSet();
 
-    public ReverseDFA(QPGrid grid) {
+    public ReverseDfa(QPGrid grid) {
         this.grid = grid;
     }
 
@@ -183,7 +186,7 @@ public class ReverseDFA {
             System.arraycopy(maxPivot.elements(), 0, previousMaxPivots, 0, numStates());
 
             // clear variables for this pivot search
-            extractedNFA.clear();
+            extractedNfa.clear();
             processedWithPivotSeen.clear();
             processedWithNoPivotSeen.clear();
             outputItemsWithPivotItem.clear();
@@ -191,17 +194,17 @@ public class ReverseDFA {
             // create a state in the extracted DFA
             IntSet startStates = new IntOpenHashSet();
             startStates.add(0);
-            int extractedState = extractedNFA.getOrCreateState(startStates);
+            int extractedState = extractedNfa.getOrCreateState(startStates);
 
             // run through the DFA recursively to find next pivot item and to extract DFA for current pivot
             extractStep(0, extractedState, currentPivot, false);
 
             // reverse and determinize the extracted NFA for the current pivot
             forwardDFA.clear();
-            forwardDFA = extractedNFA.reverseAndDeterminize(forwardDFA);
+            forwardDFA = extractedNfa.reverseAndDeterminize(forwardDFA);
 
             // export PDFs
-//            extractedNFA.exportPDF(seq + "-piv" + currentPivot + "-extracted.pdf");
+//            extractedNfa.exportPDF(seq + "-piv" + currentPivot + "-extracted.pdf");
 //            forwardDFA.exportPDF(seq + "-piv" + currentPivot + "-forward.pdf");
 //            exportCurrentToPDF(seq + "-reverse-after-" + currentPivot + ".pdf");
 
@@ -298,8 +301,8 @@ public class ReverseDFA {
                     // copy this transition to the NFA for the current pivot item
                     IntSet toStateSet = new IntOpenHashSet();
                     toStateSet.add(toState); // TODO: this is stupid. improve
-                    int extractedTo = extractedNFA.getOrCreateState(toStateSet);
-                    extractedNFA.addEdge(extractedState, ol, extractedTo, isFinal(toState) && (haveSeenPivot || pivotInThisTr));
+                    int extractedTo = extractedNfa.getOrCreateState(toStateSet);
+                    extractedNfa.addEdge(extractedState, ol, extractedTo, isFinal(toState) && (haveSeenPivot || pivotInThisTr));
 
                     // follow the transition
                     extractStep(toState, extractedTo, currentPivot, haveSeenPivot || pivotInThisTr);

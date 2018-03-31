@@ -1,4 +1,4 @@
-package de.uni_mannheim.desq.mining;
+package de.uni_mannheim.desq.mining.distributed;
 
 import de.uni_mannheim.desq.fst.Transition;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -20,7 +20,7 @@ public class OutputLabel implements Cloneable, Comparable<OutputLabel> {
     }
 
     @Override
-    protected OutputLabel clone() {
+    public OutputLabel clone() {
         return new OutputLabel(tr, inputItem, outputItems.clone());
     }
 
@@ -73,6 +73,10 @@ public class OutputLabel implements Cloneable, Comparable<OutputLabel> {
     public void dropMaxOutputItem() {
         justDroppedPivot = outputItems.getInt(outputItems.size()-1);
         outputItems.size(outputItems.size()-1);
+    }
+
+    public Transition getTransition() {
+        return tr;
     }
 
     public IntArrayList getOutputItems() {

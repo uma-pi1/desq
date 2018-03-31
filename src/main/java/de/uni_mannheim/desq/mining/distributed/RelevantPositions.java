@@ -1,4 +1,4 @@
-package de.uni_mannheim.desq.mining;
+package de.uni_mannheim.desq.mining.distributed;
 
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 

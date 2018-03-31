@@ -1,9 +1,10 @@
-package de.uni_mannheim.desq.mining;
+package de.uni_mannheim.desq.mining.distributed;
 
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.Transition;
 import de.uni_mannheim.desq.fst.graphviz.AutomatonVisualizer;
-import de.uni_mannheim.desq.util.ReverseDFA;
+import de.uni_mannheim.desq.mining.Sequence;
+import de.uni_mannheim.desq.util.ReverseDfa;
 import de.uni_mannheim.desq.util.PrimitiveUtils;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
@@ -30,7 +31,7 @@ import java.util.BitSet;
  */
 public class QPGrid {
     /** Maps from external index (q, pos) to internal state id s */
-     Long2IntOpenHashMap sByQp = new Long2IntOpenHashMap();
+    Long2IntOpenHashMap sByQp = new Long2IntOpenHashMap();
 
     /** Holds the forward edges for each state  */
     ObjectArrayList<Object2ObjectOpenHashMap<OutputLabel, IntSet>> forwardEdges = new ObjectArrayList<>();
@@ -67,7 +68,7 @@ public class QPGrid {
     int maxQ = 0;
 
     /** Data structures for determinizing the NFA */
-    ReverseDFA reverseDfa = new ReverseDFA(this);
+    ReverseDfa reverseDfa = new ReverseDfa(this);
 
     /** Processed and to-process states for finding outgoing edges of a set of states */
     BitSet alreadyProcessed;
@@ -318,11 +319,11 @@ public class QPGrid {
                     if(output) System.out.println("Has potential pivots: " + potentialPivots.get(s));
                     for(Object2ObjectMap.Entry<OutputLabel, IntSet> edge : forwardEdges.get(s).object2ObjectEntrySet()) {
                         OutputLabel ol = edge.getKey();
-                        int trimMin = Math.max(ol == null ? 0 : ol.outputItems.getInt(0), potentialPivots.get(s).size() > 0 ? potentialPivots.get(s).firstInt() : 0);
+                        int trimMin = Math.max(ol == null ? 0 : ol.getOutputItems().getInt(0), potentialPivots.get(s).size() > 0 ? potentialPivots.get(s).firstInt() : 0);
                         for(int sTo : edge.getValue()) {
                             if(output) System.out.println("has outgoing edge " + ol + " (trim=" + trimMin +") to state " + sTo);
                             if(ol != null)
-                                for(int item : ol.outputItems)
+                                for(int item : ol.getOutputItems())
                                     if(item >= trimMin) {
                                         potentialPivots.get(sTo).add(item);
                                         if(output) System.out.println("Adding " + item);
@@ -341,7 +342,7 @@ public class QPGrid {
 
                                 // if this state has no relevant item before it (minPos = MAX) and this item
                                 // is relevant (i.e., creates output or leaves the initial state), we propagate this pos as min
-                                if (minPos[s] == Integer.MAX_VALUE && ((ol != null && ol.outputItems.size() > 0) || !initialState.contains(sTo))) {
+                                if (minPos[s] == Integer.MAX_VALUE && ((ol != null && ol.getOutputItems().size() > 0) || !initialState.contains(sTo))) {
                                     propPos = pos;
                                 }
 
@@ -494,7 +495,7 @@ public class QPGrid {
                 if(ol == null) {
                     label = "eps";
                 } else {
-                    label = ol.outputItems.toString() + "(" + ol.inputItem + ")";
+                    label = ol.getOutputItems().toString() + "(" + ol.getInputItem() + ")";
                 }
                 for(int sTo : trEntry.getValue()) {
                     automatonVisualizer.add(String.valueOf(s), label, String.valueOf(sTo));
@@ -514,7 +515,7 @@ public class QPGrid {
             for (Object2IntMap.Entry<OutputLabel> trEntry : reverseDfa.getOutgoingEdges(s).object2IntEntrySet()) {
                 OutputLabel ol = trEntry.getKey();
                 String label;
-                label = (ol == null ? " " : ol.outputItems.toString() + "(" + ol.inputItem + ")");
+                label = (ol == null ? " " : ol.getOutputItems().toString() + "(" + ol.getInputItem() + ")");
                 if(!ol.isEmpty())
                     automatonVisualizer.add(String.valueOf(s), label, String.valueOf(trEntry.getIntValue()));
             }
@@ -543,7 +544,7 @@ public class QPGrid {
         for (Object2IntMap.Entry<OutputLabel> trEntry : reverseDfa.getOutgoingEdges(s).object2IntEntrySet()) {
             OutputLabel ol = trEntry.getKey();
             String label;
-            label = (ol == null ? " " : ol.outputItems.toString());
+            label = (ol == null ? " " : ol.getOutputItems().toString());
             if(!ol.isEmpty()) {
                 fstVisualizer.add(String.valueOf(s), label, String.valueOf(trEntry.getIntValue()));
                 if(!processedStates.contains(trEntry.getIntValue()))
