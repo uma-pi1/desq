@@ -39,7 +39,10 @@ public final class State {
 			transitionList.add(t);
 		}
 	}
-	
+
+	/**
+	 * Iterator over (output item, next state)-pairs used in {@link #consume(int, ItemStateIterator, BitSet)}.
+	 */
 	public static final class ItemStateIterator implements Iterator<ItemState> {
 		private ArrayList<Transition> transitions;
 		private int nextTransitionIndex;
@@ -82,7 +85,10 @@ public final class State {
 		}
 	}
 
-	private static final class CompressedTransitionIterator implements Iterator<Transition> {
+	/**
+	 * Iterator over transitions used in {@link #consumeCompressed(int, Iterator, BitSet)}.
+	 */
+	private static final class TransitionIterator implements Iterator<Transition> {
 		Iterator<Transition> transitionsIt;
 		Transition nextTransition;
 		BitSet validToStates;
@@ -159,32 +165,34 @@ public final class State {
 
 
 	@Deprecated
-	public Iterator<Transition> consumeCompressed(int itemFid) {
+	public TransitionIterator consumeCompressed(int itemFid) {
 		return consumeCompressed(itemFid, null, null);
 	}
 
 	@Deprecated
-	public Iterator<Transition> consumeCompressed(int itemFid, Iterator<Transition> it) {
+	public TransitionIterator consumeCompressed(int itemFid, Iterator<Transition> it) {
 		return consumeCompressed(itemFid, it, null);
 	}
 
-	/** Returns an iterator over (output item, next state)-pairs consistent with the given input item. Only
-	 * produces pairs for which the next state is contained in validToStates (BitSet indexed by state ids).
+	/** Returns an iterator over transitions consistent with the given input item. Only produces transitions for which
+	 * the next state is contained in validToStates (BitSet indexed by state ids).
 	 *
-	 * If the output item is epsilon, returns (0, next state) pair.
+	 * This is a compressed consume method compared to {@link #consume(int, ItemStateIterator, BitSet)} as it returns
+	 * an iterator over transitions where multiple (output item, next state)-pairs could be represented with a single
+	 * transition.
 	 *
 	 * @param itemFid input item
 	 * @param it iterator to reuse
 	 * @param validToStates set of next states to consider
 	 *
-	 * @return an iterator over (output item fid, next state) pairs
+	 * @return an iterator over transitions
 	 */
-	public Iterator<Transition> consumeCompressed(int itemFid, Iterator<Transition> it, BitSet validToStates) {
-		CompressedTransitionIterator resultIt;
-		if(it != null && it instanceof CompressedTransitionIterator)
-			resultIt = (CompressedTransitionIterator)it;
+	public TransitionIterator consumeCompressed(int itemFid, Iterator<Transition> it, BitSet validToStates) {
+		TransitionIterator resultIt;
+		if(it != null && it instanceof TransitionIterator)
+			resultIt = (TransitionIterator)it;
 		else
-			resultIt = new CompressedTransitionIterator();
+			resultIt = new TransitionIterator();
 
 		resultIt.transitionsIt = transitionList.iterator();
 		resultIt.validToStates = validToStates;

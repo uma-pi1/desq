@@ -38,10 +38,10 @@ public final class DesqCount extends DesqMiner {
 	// -- helper variables --------------------------------------------------------------------------------------------
 
 	/** Stores the final state transducer  */
-	private static Fst fst;
+	private Fst fst;
 
 	/** Flags to help construct and number the FST only once per executor JVM */
-	private static String fstConstructedFor = "";
+//	private static String fstConstructedFor = "";
 
 	/** Stores the largest fid of an item with frequency at least sigma. Used to quickly determine
 	 * whether an item is frequent (if fid <= largestFrequentFid, the item is frequent */
@@ -71,10 +71,10 @@ public final class DesqCount extends DesqMiner {
 	// -- helper variables for pruning and twopass --------------------------------------------------------------------
 
 	/** The DFA corresponding to the FST (pruning) or reverse FST (two-pass). */
-	private static Dfa dfa;
+	private Dfa dfa;
 
 	/** Flag to construct the DFA only once per executor JVM */
-	private static String dfaConstructedFor = "";
+//	private static String dfaConstructedFor = "";
 
 	/** Sequence of EDFA states for current input (two-pass only) */
 	final ArrayList<DfaState> dfaStateSequence;
@@ -101,15 +101,15 @@ public final class DesqCount extends DesqMiner {
 
 		// create FST
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
-		synchronized (fstConstructedFor) {
-			if(!fstConstructedFor.equals(patternExpression)) {
-				// System.out.println("Constructing FST in thread " + Thread.currentThread().getId());
+//		synchronized (fstConstructedFor) {
+//			if(!fstConstructedFor.equals(patternExpression)) {
+//				System.out.println("Constructing FST in thread " + Thread.currentThread().getId());
 				this.fst = PatExUtils.toFst(ctx.dict, patternExpression);
-				fstConstructedFor = patternExpression;
-			} else {
-				// System.out.println("Already have FST for thread " + Thread.currentThread().getId());
-			}
-		}
+//				fstConstructedFor = patternExpression;
+//			} else {
+//				System.out.println("Already have FST for thread " + Thread.currentThread().getId());
+//			}
+//		}
 
 		// create two pass auxiliary variables (if needed)
 		if (useTwoPass) { // two-pass
@@ -127,9 +127,9 @@ public final class DesqCount extends DesqMiner {
 		}
 
 		// create DFA or reverse DFA (if needed)
-		synchronized (dfaConstructedFor) {
-			if(!dfaConstructedFor.equals(patternExpression)) {
-				// System.out.println("Constructing DFA in thread " + Thread.currentThread().getId());
+//		synchronized (dfaConstructedFor) {
+//			if(!dfaConstructedFor.equals(patternExpression)) {
+//				System.out.println("Constructing DFA in thread " + Thread.currentThread().getId());
 				if (useTwoPass) {
 					// construct the DFA for the FST (for the first pass)
 					// the DFA is constructed for the reverse FST
@@ -141,11 +141,11 @@ public final class DesqCount extends DesqMiner {
 				} else {
 					this.dfa = null;
 				}
-				dfaConstructedFor = patternExpression;
-			} else {
-				// System.out.println("Already have DFA for thread " + Thread.currentThread().getId());
-			}
-		}
+//				dfaConstructedFor = patternExpression;
+//			} else {
+//				System.out.println("Already have DFA for thread " + Thread.currentThread().getId());
+//			}
+//		}
 	}
 
 	public static DesqProperties createConf(String patternExpression, long sigma) {
@@ -303,6 +303,16 @@ public final class DesqCount extends DesqMiner {
 			int newCount = PrimitiveUtils.getLeft(supSid) + (int)inputSupport;
 			outputSequences.put(sequence, PrimitiveUtils.combine(newCount, inputId));
 		}
+	}
+
+	// -- accessors to internal data structures (use with care) -------------------------------------------------------
+
+	public Dfa getDfa() {
+		return dfa;
+	}
+
+	public Fst getFst() {
+		return fst;
 	}
 
 }

@@ -149,7 +149,6 @@ class DesqDistributed(ctx: DesqMinerContext) extends DesqMiner(ctx) {
             // We now mine each partition
             // At each partition, we only output sequences where the respective output item is the maximum item
             patterns = combinedSeqs.mapPartitions(rows => {
-                //val patterns = outputItemPartitions.flatMap { (row) =>
 
                 new Iterator[T] {
                     // grab the necessary variables

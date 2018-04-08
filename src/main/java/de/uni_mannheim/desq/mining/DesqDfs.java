@@ -42,11 +42,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 	// -- helper variables --------------------------------------------------------------------------------------------
 
     /** Stores the final state transducer for DesqDfs (one-pass) */
-	private static Fst fst;
+	private Fst fst;
 
 	/** Flags to help construct and number the FST only once per executor JVM */
-	private static String fstConstructedFor = "";
-	private static String fstNumberedFor = "";
+//	private static String fstConstructedFor = "";
+//	private static String fstNumberedFor = "";
 
     /** Stores the largest fid of an item with frequency at least sigma. Zsed to quickly determine
      * whether an item is frequent (if fid <= largestFrequentFid, the item is frequent */
@@ -64,10 +64,10 @@ public final class DesqDfs extends MemoryDesqMiner {
 	// -- helper variables for pruning and twopass --------------------------------------------------------------------
 
 	/** The DFA corresponding to the FST (pruning) or reverse FST (two-pass). */
-	private static Dfa dfa;
+	private Dfa dfa;
 
 	/** Flag to construct the DFA only once per executor JVM */
-	private static String dfaConstructedFor = "";
+//	private static String dfaConstructedFor = "";
 
     /** For each relevant input sequence, the sequence of states taken by dfa (two-pass only) */
 	private final ArrayList<DfaState[]> dfaStateSequences;
@@ -189,7 +189,6 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 	/** Stats about pivot element search */
 	public long counterTotalRecursions = 0;
-	private boolean verbose;
 	private boolean drawGraphs = false;
 
 	// -- construction/clearing ---------------------------------------------------------------------------------------
@@ -216,12 +215,12 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		// create FST once per JVM
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
-		synchronized (fstConstructedFor) {
-			if(!fstConstructedFor.equals(patternExpression)) {
+//		synchronized (fstConstructedFor) {
+//			if(!fstConstructedFor.equals(patternExpression)) {
 				this.fst = PatExUtils.toFst(ctx.dict, patternExpression);
-				fstConstructedFor = patternExpression;
-			}
-		}
+//				fstConstructedFor = patternExpression;
+//			}
+//		}
 
 
 		// create two pass auxiliary variables (if needed)
@@ -244,8 +243,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 
 		// create DFA or reverse DFA (if needed) (once per JVM)
-        synchronized (dfaConstructedFor) {
-        	if(!dfaConstructedFor.equals(patternExpression)) {
+//        synchronized (dfaConstructedFor) {
+//        	if(!dfaConstructedFor.equals(patternExpression)) {
 				if (useTwoPass && (!skipDfaBuild || !sendNFAs)) {
 					// construct the DFA for the FST (for the first pass)
 					// the DFA is constructed for the reverse FST
@@ -257,9 +256,9 @@ public final class DesqDfs extends MemoryDesqMiner {
 				} else {
 					this.dfa = null;
 				}
-				dfaConstructedFor = patternExpression;
-			}
-		}
+//				dfaConstructedFor = patternExpression;
+//			}
+//		}
 
 		if(drawGraphs) fst.exportGraphViz("fst.pdf");
 
@@ -268,15 +267,14 @@ public final class DesqDfs extends MemoryDesqMiner {
 		initialState.set(fst.getInitialState().getId());
 		root = new DesqDfsTreeNode(fst, initialState, !sendNFAs || useHybrid, sendNFAs);
 		currentNode = root;
-		verbose = false;
 
 
-		synchronized (fstNumberedFor) {
-			if(!fstNumberedFor.equals(patternExpression)) {
+//		synchronized (fstNumberedFor) {
+//			if(!fstNumberedFor.equals(patternExpression)) {
 				fst.numberTransitions();
-				fstNumberedFor = patternExpression;
-			}
-		}
+//				fstNumberedFor = patternExpression;
+//			}
+//		}
 
 
         // we need an itCache in deserialization of the NFAs, to produce the output items of transitions
@@ -606,6 +604,10 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
         return dfa;
     }
 
+	public Fst getFst() {
+		return fst;
+	}
+
 	// ---------------- Distributed ---------------------------------------------------------
 
     /** Returns the minimum and maximum relevant position (as long) of the current input sequence for the given pivot item */
@@ -625,7 +627,6 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 		// naive method: every frequent item is a pivot item
 		if(sendToAllFrequentItems) {
-			IntSet ascendants = new IntOpenHashSet();
 			for (int item : inputSequence) {
 				if (item <= largestFrequentFid) {
 					pivotItems.add(item);
@@ -666,7 +667,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		return pivotItems;
 	}
 
-	public QPGrid buildGrid(IntList inputSequence) {
+	private QPGrid buildGrid(IntList inputSequence) {
 		// get the pivot elements with the corresponding paths through the FST
 		this.inputSequence = inputSequence;
 		grid.clear();
@@ -1087,7 +1088,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			}
 		}
 
-		// if we didnt' find any accepting path starting from here, we mark this (q,pos) pair as dead end
+		// if we didn't find any accepting path starting from here, we mark this (q,pos) pair as dead end
 		if(!foundAcceptingPath) {
 			grid.markDeadEnd(qCurrent, pos);
 		}

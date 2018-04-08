@@ -91,9 +91,9 @@ object DesqRunner {
             output += "\n"
         }
 
-        System.out.println("------------------------------------------------------------------")
-        System.out.println("------------------------------------------------------------------")
-        System.out.println(output)
+        println("------------------------------------------------------------------")
+        println("------------------------------------------------------------------")
+        println(output)
     }
 
 
@@ -103,10 +103,9 @@ object DesqRunner {
         setPatternExpression(runConf.get("case").get)
         setAlgorithmVariant(runConf.get("algorithm").get)
 
-
-        System.out.println("------------------------------------------------------------------")
-        System.out.println("Mining " + runConf.get("case").get + " with " + runConf.get("algorithm").get)
-        System.out.println("------------------------------------------------------------------")
+        println("------------------------------------------------------------------")
+        println("Mining " + runConf.get("case").get + " with " + runConf.get("algorithm").get)
+        println("------------------------------------------------------------------")
 
         println(sparkConf.toDebugString)
 
