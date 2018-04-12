@@ -4,6 +4,7 @@ import de.uni_mannheim.desq.patex.PatExParser.*;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.misc.Pair;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.RuleNode;
 import org.antlr.v4.runtime.tree.TerminalNode;
@@ -41,7 +42,7 @@ public final class PatExToSequentialPatEx {
 		private boolean capture = false;
 		private int unorderedConcatId = -1; //unordered: currently active concat ID (handover in concatExpression)
 		private int maxConcatId = -1; //unordered: watermark for easy generation of new concat id
-		private ArrayList<HashMap<String,int[]>> unorderedConcatElements = new ArrayList<>(); //unordered: elements of concat with frequencies
+		private ArrayList<List<Pair<String,int[]>>> unorderedConcatElements = new ArrayList<>(); //unordered: elements of concat with frequencies
 
 
 		@Override
@@ -49,15 +50,17 @@ public final class PatExToSequentialPatEx {
 			//only called for format concatexp & unorederedexp -> collect unordered items
 			if (unorderedConcatId < 0) { //new concatenation
 				unorderedConcatId = ++maxConcatId;
-				unorderedConcatElements.add(unorderedConcatId, new HashMap<>());
+				unorderedConcatElements.add(unorderedConcatId, new ArrayList<>());
 			}
 			//remember concatId locally (will be removed by visiting childs)
 			int localConcatId = unorderedConcatId;
 			//add current fst to backlog
 			// (might be added by child already with repeat spec.)
-			unorderedConcatElements.get(localConcatId).putIfAbsent(
+			/*unorderedConcatElements.get(localConcatId).putIfAbsent(
 					visit(ctx.repeatexp()), null
-			);
+			);*/
+			String visit = visit(ctx.repeatexp());
+			if(visit != null) unorderedConcatElements.get(localConcatId).add(new Pair<>(visit, null));
 			//handover Id to next recursive step
 			unorderedConcatId = localConcatId;
 			return visit(ctx.unorderedexp());
@@ -69,9 +72,14 @@ public final class PatExToSequentialPatEx {
 			if(unorderedConcatId > -1) {
 				//remember concat processing id locally, add repeatexp to backlog and permute all
 				int localConcatId = unorderedConcatId;
+				/* BUG: putIfAbsent doesn't work for Strings (multipe equivelant literals are possible)
+				// FIX: if child already adds String (repeats) the visit returns null
 				unorderedConcatElements.get(localConcatId).putIfAbsent(
 						visit(ctx.repeatexp()),null
-				);
+				);*/
+				String visit = visit(ctx.repeatexp());
+				if(visit != null) unorderedConcatElements.get(localConcatId).add(new Pair<>(visit, null));
+
 				String permuted = handlePermute(unorderedConcatElements.get(localConcatId));
 				unorderedConcatElements.get(localConcatId).clear();
 				//return union of Fst permutations (results of concatexp)
@@ -214,8 +222,9 @@ public final class PatExToSequentialPatEx {
 			//add frequencies (handled in permutation)
 			int[] freq = {(n != null) ? n : 0, (m != null) ? m : 0};
 			//Adding expression + repeat specification to backlog
-			unorderedConcatElements.get(localConcatId).put(expr,freq);
-			return expr;
+			unorderedConcatElements.get(localConcatId).add(new Pair<>(expr,freq));
+			//return expr; BUG-FIX (putIfAbsent)
+			return null;
 		}
 
 		private void addUnorderedWarning(){
@@ -243,35 +252,35 @@ public final class PatExToSequentialPatEx {
 		}
 
 		/** Returns an FST that unions all FST permutations */
-		private String handlePermute(HashMap<String,int[]> inputExpresssions) {
+		private String handlePermute(List<Pair<String,int[]>> inputExpresssions) {
 			ArrayList<String> expressions = new ArrayList<>();
 			int connectorSize = 0;
 			//handle frequencies
 			String connector = null;
-			for (Map.Entry<String,int[]> entry: inputExpresssions.entrySet()){
-				if(entry.getValue() != null){
+			for (Pair<String,int[]> entry: inputExpresssions){
+				if(entry.b != null){
 					//min occurrences
-					int min = entry.getValue()[0];
-					int max = entry.getValue()[1];
+					int min = entry.b[0];
+					int max = entry.b[1];
 					if (min > 0){
-						expressions.addAll(addExactly(entry.getKey(),min));
+						expressions.addAll(addExactly(entry.a,min));
 					}
 					if(max == 0) {
 						//no max -> find all occurrences (kleene *) in all combinations -> use as connector
 						connector = (connector != null)
-								? concatenate(connector, kleene(entry.getKey()))
-								: kleene(entry.getKey());
+								? concatenate(connector, kleene(entry.a))
+								: kleene(entry.a);
 						connectorSize++;
 
 					}else if (max > min){
 						//min and max provided
 						int dif = max - min;
 						//Difference between min and max represented with optionals
-						expressions.addAll(addExactly(optional(entry.getKey()), dif));
+						expressions.addAll(addExactly(optional(entry.a), dif));
 					}
 				}else{
 					//No frequencies -> add just once
-					expressions.add(entry.getKey());
+					expressions.add(entry.a);
 				}
 			}
 			//Ensure that connector is optional and can repeat itself -> kleene *

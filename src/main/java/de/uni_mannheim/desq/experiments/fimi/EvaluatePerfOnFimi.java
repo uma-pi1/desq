@@ -3,6 +3,7 @@ package de.uni_mannheim.desq.experiments.fimi;
 import de.uni_mannheim.desq.examples.ExampleUtils;
 import de.uni_mannheim.desq.mining.*;
 import de.uni_mannheim.desq.mining.spark.DesqDataset;
+import de.uni_mannheim.desq.patex.PatExToSequentialPatEx;
 import de.uni_mannheim.desq.util.DesqProperties;
 
 import java.io.IOException;
@@ -239,8 +240,9 @@ public class EvaluatePerfOnFimi {
                         //"(A^)*",//"(A) e", //"(A^)",
                         //"(a1)..",//"[A.* (.)]|[(.).* A]", // [A.*]&[(.).*]!{1,3}
                         //"[(a2).*]* (a1).* [(a2).*]*",//"(c) a1+ $ ",//"A.*(B)",
-                        "[c|d|e] (A)!*&(B)+&a1!+ [d|e]",
+                        //"[c|d|e] (A)!*&(B)+&a1!+ [d|e]",
                         //"c a1 $",
+                        "A&B&B",
                         1),
                 "data/icdm16-example/data.del",
                 "data/icdm16-example/dict.json",
@@ -286,7 +288,7 @@ public class EvaluatePerfOnFimi {
         //runAmazonItemset(Miner.DesqDfsPatriciaIndex);
 
 
-
+    /*
         runAmazonItemset3(Miner.DesqDfs);
         runAmazonItemset3(Miner.DesqDfs_twoPass);
         runAmazonItemset3(Miner.DesqDfsPatricia);
@@ -296,6 +298,13 @@ public class EvaluatePerfOnFimi {
         runAmazonItemset2(Miner.DesqDfs_twoPass);
         runAmazonItemset2(Miner.DesqDfsPatricia); // ABORT
         runAmazonItemset2(Miner.DesqDfsPatriciaIndex);
+*/
+        PatExToSequentialPatEx x = new PatExToSequentialPatEx("A&B!{2}");
+        System.out.println(x.translate());
+        x = new PatExToSequentialPatEx("A&B&B");
+        System.out.println(x.translate());
+
+
 
 
         //for(int i = 1; i < 11 ;i++) runFimi(Miner.DesqDfs_twoPass, i);
