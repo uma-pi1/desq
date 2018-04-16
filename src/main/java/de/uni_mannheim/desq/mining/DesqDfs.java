@@ -271,7 +271,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 //		synchronized (fstNumberedFor) {
 //			if(!fstNumberedFor.equals(patternExpression)) {
-				fst.numberTransitions();
+				fst.indexTransitions();
 //				fstNumberedFor = patternExpression;
 //			}
 //		}
@@ -540,14 +540,14 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			// print debug information
 			if (DEBUG) {
 				logger.trace("Expanding " + prefix + ", partial support=" + support + ", prefix support="
-						+ childNode.prefixSupport + ", #bytes=" + childNode.projectedDatabase.noBytes()
+						+ childNode.prefixSupport + ", #bytes=" + childNode.projectedDatabaseWrapper.projectedDatabase.noBytes()
 						+ ", possible states=" + childNode.possibleStates);
 			}
 
 			if (childNode.prefixSupport > 0) { // otherwise projected DB is empty and support = partial support
 				// set up the expansion
 				boolean expand = childNode.prefixSupport >= sigma; // otherwise expansions will be infrequent anyway
-				projectedDatabaseIt.reset(childNode.projectedDatabase);
+				projectedDatabaseIt.reset(childNode.projectedDatabaseWrapper.projectedDatabase);
 				currentInputId = -1;
 				currentNode = childNode;
 
@@ -589,7 +589,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 			// expand the child node
 			childNode.pruneInfrequentChildren(sigma);
-			childNode.projectedDatabase = null; // not needed anymore
+			childNode.projectedDatabaseWrapper.projectedDatabase = null; // not needed anymore
 			expand(prefix, childNode);
 			childNode.invalidate(); // not needed anymore
 		}
@@ -853,10 +853,10 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		// get an iterator over all relevant transitions from here (relevant=starts from this state + matches the input item)
 		Iterator<Transition> transitionIt;
 		if(level >= transitionIterators.size()) {
-			transitionIt = state.consumeCompressed(itemFid, null, validToStates);
+			transitionIt = state.consumeTransitions(itemFid, null, validToStates);
 			transitionIterators.add(transitionIt);
 		} else {
-			transitionIt = state.consumeCompressed(itemFid, transitionIterators.get(level), validToStates);
+			transitionIt = state.consumeTransitions(itemFid, transitionIterators.get(level), validToStates);
 		}
 
 		Transition.ItemStateIteratorCache itCache;
@@ -974,10 +974,10 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		// get an iterator over all relevant transitions from here (relevant=starts from this state + matches the input item)
 		Iterator<Transition> transitionIt;
 		if(level >= transitionIterators.size()) {
-			transitionIt = state.consumeCompressed(itemFid, null, validToStates);
+			transitionIt = state.consumeTransitions(itemFid, null, validToStates);
 			transitionIterators.add(transitionIt);
 		} else {
-			transitionIt = state.consumeCompressed(itemFid, transitionIterators.get(level), validToStates);
+			transitionIt = state.consumeTransitions(itemFid, transitionIterators.get(level), validToStates);
 		}
 
 		Transition.ItemStateIteratorCache itCache;
@@ -1233,7 +1233,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 				boolean expand = childNode.prefixSupport >= sigma;
 
 				/** Iterate over all NFA snapshots for this node */
-				projectedDatabaseIt.reset(childNode.projectedNfaDatabase);
+				projectedDatabaseIt.reset(childNode.projectedNfaDatabaseWrapper.projectedDatabase);
 				currentInputId = -1;
 				currentNode = childNode;
 
@@ -1261,7 +1261,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 				/** If we are using hybrid mode, also iterate over input sequence snapshots for this node */
 				if(useHybrid) {
-					projectedDatabaseIt.reset(childNode.projectedDatabase);
+					projectedDatabaseIt.reset(childNode.projectedDatabaseWrapper.projectedDatabase);
 					currentInputId = -1;
 					currentNode = childNode;
 
@@ -1303,8 +1303,8 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 			}
 			// expandOnNFA the child node
 			childNode.pruneInfrequentChildren(sigma);
-			childNode.projectedDatabase = null; // not needed anymore
-			childNode.projectedNfaDatabase = null; // not needed anymore
+			childNode.projectedDatabaseWrapper.projectedDatabase = null; // not needed anymore
+			childNode.projectedNfaDatabaseWrapper.projectedDatabase = null; // not needed anymore
 			expandOnNFA(prefix, childNode);
 			childNode.invalidate(); // not needed anymore
 		}

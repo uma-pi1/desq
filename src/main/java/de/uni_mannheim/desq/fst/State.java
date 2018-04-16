@@ -86,7 +86,7 @@ public final class State {
 	}
 
 	/**
-	 * Iterator over transitions used in {@link #consumeCompressed(int, Iterator, BitSet)}.
+	 * Iterator over transitions used in {@link #consumeTransitions(int, Iterator, BitSet)}.
 	 */
 	private static final class TransitionIterator implements Iterator<Transition> {
 		Iterator<Transition> transitionsIt;
@@ -163,17 +163,6 @@ public final class State {
 		return it;
 	}
 
-
-	@Deprecated
-	public TransitionIterator consumeCompressed(int itemFid) {
-		return consumeCompressed(itemFid, null, null);
-	}
-
-	@Deprecated
-	public TransitionIterator consumeCompressed(int itemFid, Iterator<Transition> it) {
-		return consumeCompressed(itemFid, it, null);
-	}
-
 	/** Returns an iterator over transitions consistent with the given input item. Only produces transitions for which
 	 * the next state is contained in validToStates (BitSet indexed by state ids).
 	 *
@@ -187,7 +176,7 @@ public final class State {
 	 *
 	 * @return an iterator over transitions
 	 */
-	public TransitionIterator consumeCompressed(int itemFid, Iterator<Transition> it, BitSet validToStates) {
+	public TransitionIterator consumeTransitions(int itemFid, Iterator<Transition> it, BitSet validToStates) {
 		TransitionIterator resultIt;
 		if(it != null && it instanceof TransitionIterator)
 			resultIt = (TransitionIterator)it;

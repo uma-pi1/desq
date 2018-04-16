@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.mining;
 
+import com.google.common.cache.CacheBuilder;
 import de.uni_mannheim.desq.fst.Fst;
 import de.uni_mannheim.desq.fst.State;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -37,19 +38,11 @@ final class DesqDfsTreeNode {
 	 * for which there are no further expansions. Computed while expanding this node's parent. */
 	long partialSupport;
 
-	/** The projected database associated with this node. Computed while expanding this node's parent,
-	 * and cleared after this node has been expanded. */
-	PostingList projectedDatabase;
-
 	/** The children of this node by item fid. Computed while expanding this node's parent. */
 	Int2ObjectOpenHashMap<DesqDfsTreeNode> childrenByFid = new Int2ObjectOpenHashMap<>();
 
 	/** The last input sequence being processed. Used for incremental maintenance of {@link #partialSupport}. */
 	int currentInputId;
-
-	/** The input sequence id of the last entry added to the projected database. Used for incremental maintenance
-	 * of the projected database. */
-	int projectedDatabaseCurrentInputId;
 
 	/** Whether we saw a final complete state for the current input sequence */
 	boolean reachedFinalCompleteState;
@@ -63,19 +56,37 @@ final class DesqDfsTreeNode {
 	/** If we saw a final complete state for the current input sequence, then it was this state */
 	int finalCompleteStateId;
 
-	/** Buffers all snapshots of the current input sequence in the projected database. Used to avoid adding duplicate
-	 * snapshots. Index of a snapshot is <code>position*fst.numStates() + stateId</code>. */
-	BitSet currentSnapshots;
-
-	/** Equivalents to projectedDatabase, currentSnapshots and projectedDatabaseCurrentInputID for hybrid mode
-	 * In hybrid mode, we mine on NFAs and (trimmed) input sequences at the same time. So we have one posting list
-	 * for the input sequences, which stores snapshots `pos@state`, and one for NFAs, which stores snapshots `state`.
+	/** Projected database when we mine on (trimmed) input sequences. The posting list will store snapshots `pos@state`.
 	 */
-	PostingList projectedNfaDatabase;
-	BitSet currentNfaSnapshots;
-	int projectedNfaDatabaseCurrentInputId;
+	ProjectedDatabaseWrapper projectedDatabaseWrapper;
+
+	/** Projected database when we mine on NFAs. The posting list will store snapshots `state`.
+	 */
+	ProjectedDatabaseWrapper projectedNfaDatabaseWrapper;
 
 	boolean seenPivot = false;
+
+	// -- wrapper classes --------------------------------------------------------------------------------------------
+
+	/**
+	 * A wrapper class around the fields of a projected database.
+	 */
+	final class ProjectedDatabaseWrapper {
+
+		/** The projected database associated with this node. Computed while expanding this node's parent,
+		 * and cleared after this node has been expanded. */
+		PostingList projectedDatabase;
+
+		/** Buffers all snapshots of the current input sequence in the projected database. Used to avoid adding
+		 * duplicate snapshots. Index of a snapshot is <code>position*fst.numStates() + stateId</code> if we mine on
+		 * (trimmed) input sequences and <code>stateId</code> if we mine on NFAs. */
+		BitSet currentSnapshots;
+
+		/** The input sequence id of the last entry added to the projected database. Used for incremental maintenance
+		 * of the projected database. */
+		int projectedDatabaseCurrentInputId;
+
+	}
 
 	// -- construction and clearing -----------------------------------------------------------------------------------
 
@@ -83,7 +94,7 @@ final class DesqDfsTreeNode {
         this(fst, possibleStates, true, false);
     }
 
-    DesqDfsTreeNode(Fst fst, BitSet possibleStates, boolean useInputSequences, boolean useNFAs) {
+    DesqDfsTreeNode(Fst fst, BitSet possibleStates, boolean useInputSequences, boolean useNfas) {
         this.fst = fst;
         this.possibleStates = possibleStates;
         if (possibleStates.cardinality() == 1) {
@@ -91,10 +102,16 @@ final class DesqDfsTreeNode {
         } else {
             possibleState = -1;
         }
-        if(useInputSequences)
-            currentSnapshots = new BitSet(fst.numStates()*16);
-        if(useNFAs)
-            currentNfaSnapshots = new BitSet(16);
+
+		projectedDatabaseWrapper = new ProjectedDatabaseWrapper();
+		projectedNfaDatabaseWrapper = new ProjectedDatabaseWrapper();
+
+        if(useInputSequences) {
+        	projectedDatabaseWrapper.currentSnapshots = new BitSet(fst.numStates()*16);
+		}
+        if(useNfas) {
+			projectedNfaDatabaseWrapper.currentSnapshots = new BitSet(16);
+        }
         clear();
     }
 
@@ -103,15 +120,19 @@ final class DesqDfsTreeNode {
 		itemFid = -1;
 		prefixSupport = 0;
 		partialSupport = 0;
-		projectedDatabaseCurrentInputId = -1;
-		projectedNfaDatabaseCurrentInputId = -1;
+		projectedDatabaseWrapper.projectedDatabaseCurrentInputId = -1;
+		projectedNfaDatabaseWrapper.projectedDatabaseCurrentInputId = -1;
 		currentInputId = -1;
 		reachedFinalCompleteState = false;
 		reachedNonFinalCompleteState = false;
-		projectedDatabase = new PostingList();
-		projectedNfaDatabase = new PostingList();
-		if(currentSnapshots != null) currentSnapshots.clear();
-		if(currentNfaSnapshots != null) currentNfaSnapshots.clear();
+		projectedDatabaseWrapper.projectedDatabase = new PostingList();
+		projectedNfaDatabaseWrapper.projectedDatabase = new PostingList();
+		if(projectedDatabaseWrapper.currentSnapshots != null) {
+			projectedDatabaseWrapper.currentSnapshots.clear();
+		}
+		if(projectedNfaDatabaseWrapper.currentSnapshots != null) {
+			projectedNfaDatabaseWrapper.currentSnapshots.clear();
+		}
 
 		// clear the children
 		if (childrenByFid == null) {
@@ -123,10 +144,11 @@ final class DesqDfsTreeNode {
 
 	/** Call this when node not needed anymore to free up memory. */
 	public void invalidate() {
-		projectedDatabase = null;
-		projectedNfaDatabase = null;
+		projectedDatabaseWrapper.projectedDatabase = null;
+		projectedNfaDatabaseWrapper.projectedDatabase = null;
 		childrenByFid = null;
-		currentSnapshots = null;
+		projectedDatabaseWrapper.currentSnapshots = null;
+		projectedNfaDatabaseWrapper.currentSnapshots = null;
 	}
 
 	// -- projected database maintenance ------------------------------------------------------------------------------
@@ -144,7 +166,9 @@ final class DesqDfsTreeNode {
 		DesqDfsTreeNode child = childrenByFid.get(outputFid);
 		if (child == null) {
 			BitSet childPossibleStates = fst.reachableStates(possibleStates, outputFid);
-			child = new DesqDfsTreeNode(fst, childPossibleStates, currentSnapshots != null, currentNfaSnapshots != null);
+			child = new DesqDfsTreeNode(fst, childPossibleStates,
+                    projectedDatabaseWrapper.currentSnapshots != null,
+                    projectedNfaDatabaseWrapper.currentSnapshots != null);
 			child.itemFid = outputFid;
             child.seenPivot = this.seenPivot || isPivot;
 			childrenByFid.put(outputFid, child);
@@ -204,15 +228,19 @@ final class DesqDfsTreeNode {
 	/** Add a snapshot to the projected database of the given child. Ignores duplicate snapshots. */
 	private void addToProjectedDatabase(final DesqDfsTreeNode child, final int inputId,
                                         final long inputSupport, final int position, final int stateId,
-                                        final boolean distributedMode) {
-		assert stateId < fst.numStates();
-		assert child.possibleStates.get(stateId);
+                                        final boolean useNfas) {
+        if (!useNfas) {
+            assert stateId < fst.numStates();
+            assert child.possibleStates.get(stateId);
+        }
 
 		// set variables according to whether the method is called in expandWithItem() or expandWithTransition()
-        final int spIndex = distributedMode ? position : position*fst.numStates() + stateId;
-        int projectedDatabaseCurrentInputId = distributedMode ? child.projectedNfaDatabaseCurrentInputId : child.projectedDatabaseCurrentInputId;
-        PostingList projectedDatabase = distributedMode ? child.projectedNfaDatabase : child.projectedDatabase;
-        BitSet currentSnapshots = distributedMode ? child.currentNfaSnapshots : child.currentSnapshots;
+        final int spIndex = useNfas ? stateId : position*fst.numStates() + stateId;
+
+        ProjectedDatabaseWrapper wrapper = useNfas ? child.projectedNfaDatabaseWrapper : child.projectedDatabaseWrapper;
+		int projectedDatabaseCurrentInputId = wrapper.projectedDatabaseCurrentInputId;
+		PostingList projectedDatabase = wrapper.projectedDatabase;
+		BitSet currentSnapshots = wrapper.currentSnapshots;
 
 		if (projectedDatabaseCurrentInputId != inputId) {
 			// start a new posting
@@ -221,22 +249,24 @@ final class DesqDfsTreeNode {
 			child.prefixSupport += inputSupport;
             currentSnapshots.set(spIndex);
             projectedDatabase.addNonNegativeInt(inputId-projectedDatabaseCurrentInputId);
-			if(distributedMode) {
-			    child.projectedNfaDatabaseCurrentInputId = inputId;
+			if(useNfas) {
+			    child.projectedNfaDatabaseWrapper.projectedDatabaseCurrentInputId = inputId;
             } else {
-                child.projectedDatabaseCurrentInputId = inputId;
+                child.projectedDatabaseWrapper.projectedDatabaseCurrentInputId = inputId;
             }
-            // we don't write the stateId for NFAs
-			if (!distributedMode && child.possibleState < 0)
-                projectedDatabase.addNonNegativeInt(stateId);
-            projectedDatabase.addNonNegativeInt(position);
 		} else if (!currentSnapshots.get(spIndex)) {
             currentSnapshots.set(spIndex);
-            // we don't write the stateId for NFAs
-			if (!distributedMode && child.possibleState < 0)
-                projectedDatabase.addNonNegativeInt(stateId);
-            projectedDatabase.addNonNegativeInt(position);
 		}
+
+        if(useNfas) {
+            // we don't write the position for NFAs
+            projectedDatabase.addNonNegativeInt(stateId);
+        } else {
+            if(child.possibleState < 0) {
+                projectedDatabase.addNonNegativeInt(stateId);
+            }
+			projectedDatabase.addNonNegativeInt(position);
+        }
 	}
 
 	/** Removes all children that have prefix support below the given value of minSupport */
@@ -255,23 +285,27 @@ final class DesqDfsTreeNode {
 	/** ---------- Distributed mode --------------------------------------- */
 
 	/** Add a snapshot to the projected database of a child of this node.
-	 *  Stores inputId,pos   (instead of inputId,pos,state)
+	 *
+	 *  This stores inputId,state (instead of inputId,pos,state)
 	 *
 	 * @param itemFid the item fid of the child
 	 * @param inputId input sequence id
 	 * @param inputSupport support of the input sequence
-	 * @param position position in the input sequence
+	 * @param stateId toState stored in the serialized OutputNfa
 	 */
-	void expandWithTransition(int itemFid, int inputId, long inputSupport, int position) {
-		// when we are working on NFAs, we store T[pos] instead of T[pos@q]
-
+	void expandWithTransition(int itemFid, int inputId, long inputSupport, int stateId) {
+		// when we are working on NFAs, we store T[q] instead of T[pos@q]
+		
 		DesqDfsTreeNode child = childrenByFid.get(itemFid);
+
 		if (child == null) {
-			child = new DesqDfsTreeNode(this.fst, this.possibleStates, currentSnapshots != null, currentNfaSnapshots != null);
+			child = new DesqDfsTreeNode(this.fst, this.possibleStates,
+                    projectedDatabaseWrapper.currentSnapshots != null,
+                    projectedNfaDatabaseWrapper.currentSnapshots != null);
 			child.itemFid = itemFid;
 			childrenByFid.put(itemFid, child);
 		}
 
-		addToProjectedDatabase(child, inputId, inputSupport, position, 0, true);
+		addToProjectedDatabase(child, inputId, inputSupport, 0, stateId, true);
 	}
 }

@@ -489,7 +489,7 @@ public final class Fst {
 	private Transition[] prototypeTransitions = null;
 
 	/** Stores which item expressions we have already seen and which transition numbers we assigned to them */
-	Object2IntMap<String> trNumbersByItemExpression = new Object2IntOpenHashMap();
+	Object2IntMap<String> transitionsByItemExpressionIndex = new Object2IntOpenHashMap();
 
 	/**
 	 * Numbers the output-generating transitions of this FST
@@ -497,8 +497,7 @@ public final class Fst {
 	 * Each distinct item expression is assigned one number. For each distinct item expression, we store one "prototype"
 	 * transition. This prototype transition can later be used to generate the output items.
 	 * */
-	public void numberTransitions() {
-
+	public void indexTransitions() {
 	    ObjectList<Transition> tempPrototypeTransitions = new ObjectArrayList<>();
 		int trNo = 0;
 		String itemEx;
@@ -512,19 +511,20 @@ public final class Fst {
 				// we only assign numbers to transitions that produce output
 				if(tr.hasOutput()) {
 					itemEx = tr.itemExpression();
-					if(!trNumbersByItemExpression.containsKey(itemEx)) {
-					    trNumbersByItemExpression.put(itemEx, trNo);
+					if(!transitionsByItemExpressionIndex.containsKey(itemEx)) {
+					    transitionsByItemExpressionIndex.put(itemEx, trNo);
 					    trNo++;
 					    tempPrototypeTransitions.add(tr);
 					}
 				}
 			}
 		}
+
 		prototypeTransitions = new Transition[tempPrototypeTransitions.size()];
 		prototypeTransitions = tempPrototypeTransitions.toArray(prototypeTransitions);
 	}
 
 	public Transition getPrototypeTransitionByItemExId( int trNo ) { return prototypeTransitions[trNo-1]; }
-	public int getItemExId(Transition tr ) { return trNumbersByItemExpression.get(tr.itemExpression())+1; }
+	public int getItemExId(Transition tr ) { return transitionsByItemExpressionIndex.get(tr.itemExpression())+1; }
 	public int numberDistinctItemEx() { return prototypeTransitions.length; }
 }
