@@ -1,6 +1,10 @@
 package de.uni_mannheim.desq.mining;
 
 import de.uni_mannheim.desq.fst.*;
+import de.uni_mannheim.desq.fst.distributed.DfaCache;
+import de.uni_mannheim.desq.fst.distributed.DfaCacheKey;
+import de.uni_mannheim.desq.fst.distributed.FstCache;
+import de.uni_mannheim.desq.fst.distributed.FstCacheKey;
 import de.uni_mannheim.desq.patex.PatExUtils;
 import de.uni_mannheim.desq.util.DesqProperties;
 import de.uni_mannheim.desq.util.PrimitiveUtils;
@@ -40,9 +44,6 @@ public final class DesqCount extends DesqMiner {
 	/** Stores the final state transducer  */
 	private Fst fst;
 
-	/** Flags to help construct and number the FST only once per executor JVM */
-//	private static String fstConstructedFor = "";
-
 	/** Stores the largest fid of an item with frequency at least sigma. Used to quickly determine
 	 * whether an item is frequent (if fid <= largestFrequentFid, the item is frequent */
 	final int largestFrequentFid;
@@ -73,9 +74,6 @@ public final class DesqCount extends DesqMiner {
 	/** The DFA corresponding to the FST (pruning) or reverse FST (two-pass). */
 	private Dfa dfa;
 
-	/** Flag to construct the DFA only once per executor JVM */
-//	private static String dfaConstructedFor = "";
-
 	/** Sequence of EDFA states for current input (two-pass only) */
 	final ArrayList<DfaState> dfaStateSequence;
 
@@ -101,15 +99,8 @@ public final class DesqCount extends DesqMiner {
 
 		// create FST
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
-//		synchronized (fstConstructedFor) {
-//			if(!fstConstructedFor.equals(patternExpression)) {
-//				System.out.println("Constructing FST in thread " + Thread.currentThread().getId());
-				this.fst = PatExUtils.toFst(ctx.dict, patternExpression);
-//				fstConstructedFor = patternExpression;
-//			} else {
-//				System.out.println("Already have FST for thread " + Thread.currentThread().getId());
-//			}
-//		}
+		this.fst = FstCache.getFst(new FstCacheKey(patternExpression,
+				() -> PatExUtils.toFst(ctx.dict, patternExpression)));
 
 		// create two pass auxiliary variables (if needed)
 		if (useTwoPass) { // two-pass
@@ -127,25 +118,19 @@ public final class DesqCount extends DesqMiner {
 		}
 
 		// create DFA or reverse DFA (if needed)
-//		synchronized (dfaConstructedFor) {
-//			if(!dfaConstructedFor.equals(patternExpression)) {
-//				System.out.println("Constructing DFA in thread " + Thread.currentThread().getId());
-				if (useTwoPass) {
-					// construct the DFA for the FST (for the first pass)
-					// the DFA is constructed for the reverse FST
-					this.dfa = Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid, true, useLazyDfa);
-				} else if (pruneIrrelevantInputs) {
-					// construct the DFA to prune irrelevant inputs
-					// the DFA is constructed for the forward FST
-					this.dfa = Dfa.createDfa(fst, ctx.dict, largestFrequentFid, false, useLazyDfa);
-				} else {
-					this.dfa = null;
-				}
-//				dfaConstructedFor = patternExpression;
-//			} else {
-//				System.out.println("Already have DFA for thread " + Thread.currentThread().getId());
-//			}
-//		}
+		if (useTwoPass) {
+			// construct the DFA for the FST (for the first pass)
+			// the DFA is constructed for the reverse FST
+			this.dfa = DfaCache.getDfa(new DfaCacheKey(patternExpression,
+					() -> Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid, true, useLazyDfa)));
+		} else if (pruneIrrelevantInputs) {
+			// construct the DFA to prune irrelevant inputs
+			// the DFA is constructed for the forward FST
+			this.dfa = DfaCache.getDfa(new DfaCacheKey(patternExpression,
+					() -> Dfa.createDfa(fst, ctx.dict, largestFrequentFid, false, useLazyDfa)));
+		} else {
+			this.dfa = null;
+		}
 	}
 
 	public static DesqProperties createConf(String patternExpression, long sigma) {

@@ -498,30 +498,33 @@ public final class Fst {
 	 * transition. This prototype transition can later be used to generate the output items.
 	 * */
 	public void indexTransitions() {
-	    ObjectList<Transition> tempPrototypeTransitions = new ObjectArrayList<>();
-		int trNo = 0;
-		String itemEx;
+		// only index transitions if we haven't done so yet
+		if(prototypeTransitions == null) {
+			ObjectList<Transition> tempPrototypeTransitions = new ObjectArrayList<>();
+			int trNo = 0;
+			String itemEx;
 
-		for(State state : states) {
-			// sort the transitions to get a consistent numbering
-			state.sortTransitions();
+			for(State state : states) {
+				// sort the transitions to get a consistent numbering
+				state.sortTransitions();
 
-			for(Transition tr : state.transitionList) {
+				for(Transition tr : state.transitionList) {
 
-				// we only assign numbers to transitions that produce output
-				if(tr.hasOutput()) {
-					itemEx = tr.itemExpression();
-					if(!transitionsByItemExpressionIndex.containsKey(itemEx)) {
-					    transitionsByItemExpressionIndex.put(itemEx, trNo);
-					    trNo++;
-					    tempPrototypeTransitions.add(tr);
+					// we only assign numbers to transitions that produce output
+					if(tr.hasOutput()) {
+						itemEx = tr.itemExpression();
+						if(!transitionsByItemExpressionIndex.containsKey(itemEx)) {
+							transitionsByItemExpressionIndex.put(itemEx, trNo);
+							trNo++;
+							tempPrototypeTransitions.add(tr);
+						}
 					}
 				}
 			}
-		}
 
-		prototypeTransitions = new Transition[tempPrototypeTransitions.size()];
-		prototypeTransitions = tempPrototypeTransitions.toArray(prototypeTransitions);
+			prototypeTransitions = new Transition[tempPrototypeTransitions.size()];
+			prototypeTransitions = tempPrototypeTransitions.toArray(prototypeTransitions);
+		}
 	}
 
 	public Transition getPrototypeTransitionByItemExId( int trNo ) { return prototypeTransitions[trNo-1]; }

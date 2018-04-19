@@ -1,6 +1,10 @@
 package de.uni_mannheim.desq.mining;
 
 import de.uni_mannheim.desq.fst.*;
+import de.uni_mannheim.desq.fst.distributed.DfaCache;
+import de.uni_mannheim.desq.fst.distributed.DfaCacheKey;
+import de.uni_mannheim.desq.fst.distributed.FstCache;
+import de.uni_mannheim.desq.fst.distributed.FstCacheKey;
 import de.uni_mannheim.desq.mining.distributed.*;
 import de.uni_mannheim.desq.util.CloneableIntHeapPriorityQueue;
 import de.uni_mannheim.desq.patex.PatExUtils;
@@ -215,13 +219,8 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		// create FST once per JVM
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
-//		synchronized (fstConstructedFor) {
-//			if(!fstConstructedFor.equals(patternExpression)) {
-				this.fst = PatExUtils.toFst(ctx.dict, patternExpression);
-//				fstConstructedFor = patternExpression;
-//			}
-//		}
-
+		this.fst = FstCache.getFst(new FstCacheKey(patternExpression,
+				() -> PatExUtils.toFst(ctx.dict, patternExpression)));
 
 		// create two pass auxiliary variables (if needed)
 		if (useTwoPass) { // two-pass
@@ -243,22 +242,19 @@ public final class DesqDfs extends MemoryDesqMiner {
 		}
 
 		// create DFA or reverse DFA (if needed) (once per JVM)
-//        synchronized (dfaConstructedFor) {
-//        	if(!dfaConstructedFor.equals(patternExpression)) {
-				if (useTwoPass && (!skipDfaBuild || !sendNFAs)) {
-					// construct the DFA for the FST (for the first pass)
-					// the DFA is constructed for the reverse FST
-					this.dfa = Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid, true, useLazyDfa);
-				} else if (pruneIrrelevantInputs && !skipDfaBuild) {
-					// construct the DFA to prune irrelevant inputs
-					// the DFA is constructed for the forward FST
-					this.dfa = Dfa.createDfa(fst, ctx.dict, largestFrequentFid, false, useLazyDfa);
-				} else {
-					this.dfa = null;
-				}
-//				dfaConstructedFor = patternExpression;
-//			}
-//		}
+		if (useTwoPass && (!skipDfaBuild || !sendNFAs)) {
+			// construct the DFA for the FST (for the first pass)
+			// the DFA is constructed for the reverse FST
+			this.dfa = DfaCache.getDfa(new DfaCacheKey(patternExpression,
+					() -> Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid, true, useLazyDfa)));
+		} else if (pruneIrrelevantInputs && !skipDfaBuild) {
+			// construct the DFA to prune irrelevant inputs
+			// the DFA is constructed for the forward FST
+			this.dfa = DfaCache.getDfa(new DfaCacheKey(patternExpression,
+					() -> Dfa.createDfa(fst, ctx.dict, largestFrequentFid, false, useLazyDfa)));
+		} else {
+			this.dfa = null;
+		}
 
 		if(drawGraphs) fst.exportGraphViz("fst.pdf");
 
@@ -268,14 +264,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		root = new DesqDfsTreeNode(fst, initialState, !sendNFAs || useHybrid, sendNFAs);
 		currentNode = root;
 
-
-//		synchronized (fstNumberedFor) {
-//			if(!fstNumberedFor.equals(patternExpression)) {
-				fst.indexTransitions();
-//				fstNumberedFor = patternExpression;
-//			}
-//		}
-
+		fst.indexTransitions();
 
         // we need an itCache in deserialization of the NFAs, to produce the output items of transitions
         if(itCaches.isEmpty()) {
