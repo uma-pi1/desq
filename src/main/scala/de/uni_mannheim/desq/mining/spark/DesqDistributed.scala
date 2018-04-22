@@ -192,7 +192,7 @@ class DesqDistributed(ctx: DesqMinerContext) extends DesqMiner(ctx) {
                                 baseMiner.mineNFAs(partitionItem, currentPartition._2)
                             }
 
-                            outputIterator = result.getPatterns().map(ws => descriptor.pack(new Sequence(ws.elements(), true), ws.weight)).iterator
+                            outputIterator = result.getPatterns().map(ws => descriptor.pack(new Sequence(ws), ws.weight)).iterator
                         }
                         if (outputIterator == null) return false
                         outputIterator.hasNext
@@ -251,7 +251,7 @@ class DesqDistributed(ctx: DesqMinerContext) extends DesqMiner(ctx) {
                                 baseMiner.mineNFAs(partitionItem, currentPartition._2.asJava)
                             }
 
-                            outputIterator = result.getPatterns().map(ws => descriptor.pack(new Sequence(ws.elements(), true), ws.weight)).iterator
+                            outputIterator = result.getPatterns().map(ws => descriptor.pack(new Sequence(ws), ws.weight)).iterator
                         }
                         if (outputIterator == null) return false
                         outputIterator.hasNext

@@ -497,7 +497,7 @@ public final class Fst {
 	 * Each distinct item expression is assigned one number. For each distinct item expression, we store one "prototype"
 	 * transition. This prototype transition can later be used to generate the output items.
 	 * */
-	public void indexTransitions() {
+	public synchronized void indexTransitions() {
 		// only index transitions if we haven't done so yet
 		if(prototypeTransitions == null) {
 			ObjectList<Transition> tempPrototypeTransitions = new ObjectArrayList<>();
