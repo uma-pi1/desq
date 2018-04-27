@@ -29,6 +29,9 @@ public class Sequence extends IntArrayList implements Externalizable, Writable {
     /** does not copy */
     public Sequence(final int[] a, boolean dummy) {
         super(a, dummy);
+        if(a != null) {
+            this.size = a.length;
+        }
     }
 
     /** Wraps this sequence into a WeightedSequence with the specified support. No data is copied, i.e., this

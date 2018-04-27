@@ -9,7 +9,7 @@ import it.unimi.dsi.fastutil.objects._
 
 import scala.collection.JavaConverters._
 import collection.JavaConversions._
-import org.apache.log4j.LogManager
+import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.rdd.RDD
 
 import scala.reflect.ClassTag
@@ -50,18 +50,18 @@ class DesqDistributed(ctx: DesqMinerContext) extends DesqMiner(ctx) {
 
             // process each input sequence
             new Iterator[(Int, Sequence)] {
-                val logger = LogManager.getLogger("DesqDfs")
+                val logger: Logger = LogManager.getLogger("DesqDfs")
 
                 // retrieve dictionary and setup miner
-                val descriptor = descriptorBroadcast.value
+                val descriptor: DesqDescriptor[T] = descriptorBroadcast.value
                 val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext()
                 baseContext.dict = descriptor.getDictionary
                 baseContext.conf = conf
                 val baseMiner = new de.uni_mannheim.desq.mining.DesqDfs(baseContext)
 
-                var nfaIterator: ObjectIterator[Sequence] = null
-                var pivotIterator: IntIterator = null
-                var currentInputSequence: Sequence = null
+                var nfaIterator: ObjectIterator[Sequence] = _
+                var pivotIterator: IntIterator = _
+                var currentInputSequence: Sequence = new Sequence()
                 var totalNFAs = 0
                 var stoppedNFAs = 0
 
@@ -70,17 +70,17 @@ class DesqDistributed(ctx: DesqMinerContext) extends DesqMiner(ctx) {
                     // we either send NFA that encode the candidate sequences
                     if (sendNFAs) {
                         while ((nfaIterator == null || !nfaIterator.hasNext) && inputSequences.hasNext) {
-                            currentInputSequence = new Sequence(descriptor.getFids(inputSequences.next()))
+                            currentInputSequence = descriptor.getFids(inputSequences.next(), currentInputSequence, forceTarget = false)
                             nfaIterator = baseMiner.generateNFAs(currentInputSequence).iterator();
                         }
-                        return nfaIterator.hasNext
+                        nfaIterator.hasNext
                     } else { // or we send input sequences
                         while ((pivotIterator == null || !pivotIterator.hasNext) && inputSequences.hasNext) {
-                            currentInputSequence = new Sequence(descriptor.getFids(inputSequences.next()))
+                            currentInputSequence = descriptor.getFids(inputSequences.next(), currentInputSequence, forceTarget = false)
                             relevantPositions.clear()
                             pivotIterator = baseMiner.generatePivotItems(currentInputSequence, relevantPositions).iterator()
                         }
-                        return pivotIterator.hasNext
+                        pivotIterator.hasNext
                     }
                 }
 
@@ -153,7 +153,7 @@ class DesqDistributed(ctx: DesqMinerContext) extends DesqMiner(ctx) {
                 new Iterator[T] {
                     // grab the necessary variables
 
-                    val descriptor = descriptorBroadcast.value
+                    val descriptor: DesqDescriptor[T] = descriptorBroadcast.value
 
                     val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext()
                     baseContext.dict = descriptor.getDictionary
@@ -192,7 +192,7 @@ class DesqDistributed(ctx: DesqMinerContext) extends DesqMiner(ctx) {
                                 baseMiner.mineNFAs(partitionItem, currentPartition._2)
                             }
 
-                            outputIterator = result.getPatterns().map(ws => descriptor.pack(new Sequence(ws), ws.weight)).iterator
+                            outputIterator = result.getPatterns.map(ws => descriptor.pack(new Sequence(ws.elements(), true), ws.weight)).iterator
                         }
                         if (outputIterator == null) return false
                         outputIterator.hasNext
@@ -212,7 +212,7 @@ class DesqDistributed(ctx: DesqMinerContext) extends DesqMiner(ctx) {
                 new Iterator[T] {
                     // grab the necessary variables
 
-                    val descriptor = descriptorBroadcast.value
+                    val descriptor: DesqDescriptor[T] = descriptorBroadcast.value
 
                     val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext()
                     baseContext.dict = descriptor.getDictionary
@@ -251,7 +251,7 @@ class DesqDistributed(ctx: DesqMinerContext) extends DesqMiner(ctx) {
                                 baseMiner.mineNFAs(partitionItem, currentPartition._2.asJava)
                             }
 
-                            outputIterator = result.getPatterns().map(ws => descriptor.pack(new Sequence(ws), ws.weight)).iterator
+                            outputIterator = result.getPatterns.map(ws => descriptor.pack(new Sequence(ws.elements(), true), ws.weight)).iterator
                         }
                         if (outputIterator == null) return false
                         outputIterator.hasNext

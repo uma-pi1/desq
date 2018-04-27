@@ -13,6 +13,7 @@ object MinerConfigurations {
         conf.setProperty("desq.mining.prune.irrelevant.inputs", pruneIrrelevantInputs)
         conf.setProperty("desq.mining.use.lazy.dfa", useLazyDfa)
         conf.setProperty("desq.mining.use.two.pass", useTwoPass)
+        conf.setProperty("desq.mining.is.running.as.unit.test", true)
         val minerName = "DesqCount-" + toLetter(useFlist) + toLetter(pruneIrrelevantInputs) +
                 toLetter(useTwoPass) + toLetter(useTwoPass)
         (minerName, conf)

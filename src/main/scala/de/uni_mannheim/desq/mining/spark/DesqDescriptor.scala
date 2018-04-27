@@ -25,21 +25,13 @@ abstract class DesqDescriptor[T] extends WithDictionary with Serializable {
     * guarantee that it stores the result (i.e. return value is read-only)
     *
     * @param sequence Sequence
-    * @param target An [[IntList]] to which the result can but must not be written
+    * @param target A [[Sequence]] to which the result can but must not be written
     * @param forceTarget A flag that forces the method to write the result to the target parameter to make
     *                    sure that the result can be modified by the caller of this method If forceTarget = false,
     *                    it is not allowed to modify the return value of this method (i.e. read-only).
-    * @return An [[IntList]] of the given sequence as gids
+    * @return A [[Sequence]] of the given sequence as gids
     */
-  def getGids(sequence: T, target: IntList, forceTarget: Boolean): IntList
-
-  /**
-    * @param sequence Sequence
-    * @return An [[IntList]] of the given sequence as gids (read-only)
-    */
-  def getGids(sequence: T): IntList = {
-    getGids(sequence, new IntArrayList(), false)
-  }
+  def getGids(sequence: T, target: Sequence, forceTarget: Boolean): Sequence
 
   /**
     * If forceTarget = true, the target parameter must be returned and must store the result after this method
@@ -47,21 +39,13 @@ abstract class DesqDescriptor[T] extends WithDictionary with Serializable {
     * guarantee that it stores the result (i.e. return value is read-only)
     *
     * @param sequence Sequence
-    * @param target An [[IntList]] to which the result can but must not be written
+    * @param target A [[Sequence]] to which the result can but must not be written
     * @param forceTarget A flag that forces the method to write the result to the target parameter to make
     *                    sure that the result can be modified by the caller of this method. If forceTarget = false,
     *                    it is not allowed to modify the return value of this method (i.e. read-only).
-    * @return An [[IntList]] of the given sequence as fids
+    * @return A [[Sequence]] of the given sequence as fids
     */
-  def getFids(sequence: T, target: IntList, forceTarget: Boolean): IntList
-
-  /**
-    * @param sequence Sequence
-    * @return An [[IntList]] of the given sequence as fids (read-only)
-    */
-  def getFids(sequence: T): IntList = {
-    getFids(sequence, new IntArrayList(), false)
-  }
+  def getFids(sequence: T, target: Sequence, forceTarget: Boolean): Sequence
 
   /**
     * @param sequence Sequence

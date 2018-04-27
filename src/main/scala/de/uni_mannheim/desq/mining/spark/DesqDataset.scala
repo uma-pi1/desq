@@ -6,7 +6,7 @@ import java.util.zip.GZIPInputStream
 import de.uni_mannheim.desq.avro.AvroDesqDatasetDescriptor
 import de.uni_mannheim.desq.dictionary.{DefaultSequenceBuilder, Dictionary, DictionaryBuilder}
 import de.uni_mannheim.desq.io.DelSequenceReader
-import de.uni_mannheim.desq.mining.WeightedSequence
+import de.uni_mannheim.desq.mining.{Sequence, WeightedSequence}
 import org.apache.avro.io.DecoderFactory
 import org.apache.avro.specific.SpecificDatumReader
 import org.apache.hadoop.fs.{FileSystem, Path}
@@ -47,16 +47,16 @@ class DesqDataset(override val sequences: RDD[WeightedSequence],
       val descriptorBroadcast = broadcastDescriptor()
       val newSequences = sequences.mapPartitions(rows => {
         new Iterator[WeightedSequence] {
-          val newDescriptor = newDescriptorBroadcast.value
-          val descriptor = descriptorBroadcast.value
+          val newDescriptor: DesqDescriptor[WeightedSequence] = newDescriptorBroadcast.value
+          val descriptor: DesqDescriptor[WeightedSequence] = descriptorBroadcast.value
 
           override def hasNext: Boolean = rows.hasNext
 
           override def next(): WeightedSequence = {
             val oldSeq = rows.next()
             val newSeq = descriptor.getCopy(oldSeq)
-            descriptor.getDictionary.fidsToGids(descriptor.getFids(newSeq))
-            newDescriptorBroadcast.value.getDictionary.gidsToFids(descriptor.getFids(newSeq))
+            descriptor.getDictionary.fidsToGids(descriptor.getFids(newSeq, new Sequence(), forceTarget = false))
+            newDescriptorBroadcast.value.getDictionary.gidsToFids(descriptor.getFids(newSeq, new Sequence(), forceTarget = false))
             newSeq
           }
         }
@@ -158,8 +158,9 @@ object DesqDataset {
           override def hasNext: Boolean = rows.hasNext
 
           override def next(): WeightedSequence = {
-            val sequence = rows.next()
-            new WeightedSequence(descriptor.getFids(sequence), descriptor.getWeight(sequence))
+            val row = rows.next()
+            val sequence = descriptor.getFids(row, new Sequence(), forceTarget = false)
+            sequence.withSupport(descriptor.getWeight(row))
           }
         }
       })

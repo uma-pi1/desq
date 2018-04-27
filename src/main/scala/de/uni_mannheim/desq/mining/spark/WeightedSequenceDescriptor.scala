@@ -16,7 +16,7 @@ class WeightedSequenceDescriptor(val usesFids: Boolean = true) extends DesqDescr
     sequence.weight
   }
 
-  override def getGids(sequence: WeightedSequence, target: IntList, forceTarget: Boolean): IntList = {
+  override def getGids(sequence: WeightedSequence, target: Sequence, forceTarget: Boolean): Sequence = {
     if (usesFids) {
         val sequenceGids = target
         dict.fidsToGids(sequence, sequenceGids)
@@ -34,7 +34,7 @@ class WeightedSequenceDescriptor(val usesFids: Boolean = true) extends DesqDescr
     }
   }
 
-  override def getFids(sequence: WeightedSequence, target: IntList, forceTarget: Boolean): IntList = {
+  override def getFids(sequence: WeightedSequence, target: Sequence, forceTarget: Boolean): Sequence = {
     if (usesFids) {
       if(forceTarget) {
         target.size(sequence.size())
@@ -53,10 +53,11 @@ class WeightedSequenceDescriptor(val usesFids: Boolean = true) extends DesqDescr
   }
 
   override def getSids(sequence: WeightedSequence): Array[String] = {
-    val itemSids = new Array[String](getFids(sequence).size())
+    val itemFids = getFids(sequence, new Sequence(), forceTarget = false)
+    val itemSids = new Array[String](itemFids.size())
 
-    for (i <- Range(0,getFids(sequence).size())) {
-      itemSids(i) = dict.sidOfFid(getFids(sequence).getInt(i))
+    for (i <- Range(0, itemFids.size())) {
+      itemSids(i) = dict.sidOfFid(itemFids.getInt(i))
     }
 
     itemSids

@@ -208,6 +208,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		pruneIrrelevantInputs = ctx.conf.getBoolean("desq.mining.prune.irrelevant.inputs");
         useTwoPass = ctx.conf.getBoolean("desq.mining.use.two.pass");
 		boolean useLazyDfa = ctx.conf.getBoolean("desq.mining.use.lazy.dfa");
+		boolean isRunningAsUnitTest = ctx.conf.getBoolean("desq.mining.is.running.as.unit.test");
 
 		sendNFAs = ctx.conf.getBoolean("desq.mining.send.nfas", false);
 		mergeSuffixes = ctx.conf.getBoolean("desq.mining.merge.suffixes", false);
@@ -219,8 +220,12 @@ public final class DesqDfs extends MemoryDesqMiner {
 
 		// create FST once per JVM
 		patternExpression = ctx.conf.getString("desq.mining.pattern.expression");
-		this.fst = FstCache.getFst(new FstCacheKey(patternExpression,
-				() -> PatExUtils.toFst(ctx.dict, patternExpression)));
+		if(isRunningAsUnitTest) {
+			this.fst = PatExUtils.toFst(ctx.dict, patternExpression);
+		} else {
+			this.fst = FstCache.getFst(new FstCacheKey(patternExpression,
+					() -> PatExUtils.toFst(ctx.dict, patternExpression)));
+		}
 
 		// create two pass auxiliary variables (if needed)
 		if (useTwoPass) { // two-pass
@@ -245,13 +250,21 @@ public final class DesqDfs extends MemoryDesqMiner {
 		if (useTwoPass && (!skipDfaBuild || !sendNFAs)) {
 			// construct the DFA for the FST (for the first pass)
 			// the DFA is constructed for the reverse FST
-			this.dfa = DfaCache.getDfa(new DfaCacheKey(patternExpression,
-					() -> Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid, true, useLazyDfa)));
+			if(isRunningAsUnitTest) {
+				this.dfa = Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid, true, useLazyDfa);
+			} else {
+				this.dfa = DfaCache.getDfa(new DfaCacheKey(patternExpression,
+						() -> Dfa.createReverseDfa(fst, ctx.dict, largestFrequentFid, true, useLazyDfa)));
+			}
 		} else if (pruneIrrelevantInputs && !skipDfaBuild) {
 			// construct the DFA to prune irrelevant inputs
 			// the DFA is constructed for the forward FST
-			this.dfa = DfaCache.getDfa(new DfaCacheKey(patternExpression,
-					() -> Dfa.createDfa(fst, ctx.dict, largestFrequentFid, false, useLazyDfa)));
+			if(isRunningAsUnitTest) {
+				this.dfa = Dfa.createDfa(fst, ctx.dict, largestFrequentFid, false, useLazyDfa);
+			} else {
+				this.dfa = DfaCache.getDfa(new DfaCacheKey(patternExpression,
+						() -> Dfa.createDfa(fst, ctx.dict, largestFrequentFid, false, useLazyDfa)));
+			}
 		} else {
 			this.dfa = null;
 		}
@@ -281,6 +294,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		conf.setProperty("desq.mining.prune.irrelevant.inputs", true);
 		conf.setProperty("desq.mining.use.lazy.dfa", false);
 		conf.setProperty("desq.mining.use.two.pass", true);
+		conf.setProperty("desq.mining.is.running.as.unit.test", false);
 		return conf;
 	}
 

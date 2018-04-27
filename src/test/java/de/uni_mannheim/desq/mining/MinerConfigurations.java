@@ -27,6 +27,7 @@ public class MinerConfigurations {
         conf.setProperty("desq.mining.prune.irrelevant.inputs", pruneIrrelevantInputs);
         conf.setProperty("desq.mining.use.lazy.dfa", useLazyDfa);
         conf.setProperty("desq.mining.use.two.pass", useTwoPass);
+        conf.setProperty("desq.mining.is.running.as.unit.test", true);
         String minerName = "DesqCount-" + toLetter(useFlist) + toLetter(pruneIrrelevantInputs)
                 + toLetter(useLazyDfa) + toLetter(useTwoPass);
         return Pair.of(minerName, conf);
@@ -44,6 +45,7 @@ public class MinerConfigurations {
         conf.setProperty("desq.mining.prune.irrelevant.inputs", pruneIrrelevantInputs);
         conf.setProperty("desq.mining.use.lazy.dfa", useLazyDfa);
         conf.setProperty("desq.mining.use.two.pass", useTwoPass);
+        conf.setProperty("desq.mining.is.running.as.unit.test", true);
         String minerName = "DesqDfs-" + toLetter(pruneIrrelevantInputs) + toLetter(useLazyDfa) + toLetter(useTwoPass);
         return Pair.of(minerName, conf);
     }

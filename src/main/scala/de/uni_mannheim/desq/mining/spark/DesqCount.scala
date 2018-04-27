@@ -26,6 +26,7 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext(conf, descriptor.getDictionary)
         val baseMiner = new de.uni_mannheim.desq.mining.DesqCount(baseContext)
         var outputIterator: ObjectIterator[Sequence] = ObjectLists.emptyList[Sequence].iterator()
+        var currentSequence: Sequence = new Sequence()
         var currentSupport = 0L
         val itemFids = new IntArrayList()
 
@@ -37,9 +38,10 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
             // if not, go to the next input sequence
             val s = rows.next()
             currentSupport = descriptor.getWeight(s)
+            currentSequence = descriptor.getFids(s, currentSequence, forceTarget = false)
 
             // and run sequential DesqCount to get all output sequences produced by that input
-            outputIterator = baseMiner.mine1(descriptor.getFids(s), 1L).iterator()
+            outputIterator = baseMiner.mine1(currentSequence, 1L).iterator()
           }
 
           outputIterator.hasNext

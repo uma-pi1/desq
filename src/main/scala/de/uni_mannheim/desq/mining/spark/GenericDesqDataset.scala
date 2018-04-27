@@ -5,17 +5,17 @@ import java.util.Calendar
 import java.util.zip.GZIPOutputStream
 
 import de.uni_mannheim.desq.avro.AvroDesqDatasetDescriptor
-import de.uni_mannheim.desq.dictionary.{DefaultDictionaryBuilder, DefaultSequenceBuilder, Dictionary, DictionaryBuilder}
-import de.uni_mannheim.desq.mining.WeightedSequence
-import de.uni_mannheim.desq.mining.spark.DesqDataset.loadFromDelFile
+import de.uni_mannheim.desq.dictionary.{DefaultDictionaryBuilder, Dictionary, DictionaryBuilder}
+import de.uni_mannheim.desq.mining.Sequence
 import de.uni_mannheim.desq.util.DesqProperties
+import it.unimi.dsi.fastutil.ints.Int2LongMap.Entry
 import it.unimi.dsi.fastutil.ints._
+import it.unimi.dsi.fastutil.objects.ObjectIterator
 import org.apache.avro.io.EncoderFactory
 import org.apache.avro.specific.SpecificDatumWriter
 import org.apache.hadoop.fs.permission.FsPermission
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.io.{NullWritable, Writable}
-import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 
@@ -46,14 +46,14 @@ class GenericDesqDataset[T](val sequences: RDD[T], val descriptor: DesqDescripto
   }
 
   /** in-place **/
-  protected def recomputeDictionary(dictionary: Dictionary) = {
+  protected def recomputeDictionary(dictionary: Dictionary): Unit = {
     // compute counts
     val descriptorBroadcast = broadcastDescriptor()
     val totalItemFreqs = sequences.mapPartitions(rows => {
       new Iterator[(Int, (Long,Long))] {
-        val descriptor = descriptorBroadcast.value
+        val descriptor: DesqDescriptor[T] = descriptorBroadcast.value
         val itemCfreqs = new Int2LongOpenHashMap()
-        var currentItemCfreqsIterator = itemCfreqs.int2LongEntrySet().fastIterator()
+        var currentItemCfreqsIterator: ObjectIterator[Entry] = itemCfreqs.int2LongEntrySet().fastIterator()
         var currentWeight = 0L
         val ancItems = new IntAVLTreeSet()
 
@@ -61,7 +61,7 @@ class GenericDesqDataset[T](val sequences: RDD[T], val descriptor: DesqDescripto
           while (!currentItemCfreqsIterator.hasNext && rows.hasNext) {
             val sequence = rows.next()
             currentWeight = descriptor.getWeight(sequence)
-            descriptor.getDictionary.computeItemCfreqs(descriptor.getFids(sequence), itemCfreqs, ancItems, true, 1)
+            descriptor.getDictionary.computeItemCfreqs(descriptor.getFids(sequence, new Sequence(), forceTarget = false), itemCfreqs, ancItems, true, 1)
             currentItemCfreqsIterator = itemCfreqs.int2LongEntrySet().fastIterator()
           }
           currentItemCfreqsIterator.hasNext
@@ -87,12 +87,12 @@ class GenericDesqDataset[T](val sequences: RDD[T], val descriptor: DesqDescripto
   // -- conversion ----------------------------------------------------------------------------------------------------
 
   /** Returns an RDD that contains for each sequence an array of its string identifiers and its weight. */
-  def toSidsWeightPairs(): RDD[(Array[String],Long)] = {
+  def toSidsWeightPairs: RDD[(Array[String],Long)] = {
     val descriptorBroadcast = broadcastDescriptor()
 
     sequences.mapPartitions(rows => {
       new Iterator[(Array[String],Long)] {
-        val descriptor = descriptorBroadcast.value
+        val descriptor: DesqDescriptor[T] = descriptorBroadcast.value
 
         override def hasNext: Boolean = rows.hasNext
 
@@ -170,7 +170,7 @@ class GenericDesqDataset[T](val sequences: RDD[T], val descriptor: DesqDescripto
 
   /** Pretty prints up to <code>maxSequences</code> sequences contained in this dataset using their sid's. */
   def print(maxSequences: Int = -1): Unit = {
-    val strings = toSidsWeightPairs().map(s => {
+    val strings = toSidsWeightPairs.map(s => {
       val sidString = s._1.deep.mkString("[", " ", "]")
       if (s._2 == 1)
         sidString
