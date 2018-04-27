@@ -1,5 +1,6 @@
 package de.uni_mannheim.desq.examples.readme
 
+import de.uni_mannheim.desq.Desq
 import de.uni_mannheim.desq.dictionary._
 import de.uni_mannheim.desq.mining.spark._
 import org.apache.spark.{SparkConf, SparkContext}
@@ -7,7 +8,10 @@ import org.apache.spark.{SparkConf, SparkContext}
 object DesqExampleWithDictionaryAdvanced {
 
   def main(args: Array[String]) {
-    implicit val sc = new SparkContext(new SparkConf().setAppName(getClass.getName).setMaster("local"))
+    val sparkConf = new SparkConf().setAppName(getClass.getName).setMaster("local")
+    Desq.initDesq(sparkConf)
+
+    implicit val sc = new SparkContext(sparkConf)
 
     // read the dictionary
     val dictionary = Dictionary.loadFrom("data/readme/dictionary.json")

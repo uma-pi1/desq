@@ -5,7 +5,7 @@ import de.uni_mannheim.desq.mining.Sequence
 import it.unimi.dsi.fastutil.ints.{IntArrayList, IntList}
 import org.apache.hadoop.io.Writable
 
-abstract class DesqDescriptor[T] extends WithDictionary with Serializable {
+abstract class DesqDescriptor[T] extends WithDictionary {
 
   /**
     * @return A deep copy of this descriptor with a deep copy of the contained dictionary

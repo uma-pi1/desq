@@ -1,12 +1,16 @@
 package de.uni_mannheim.desq.examples.readme
 
+import de.uni_mannheim.desq.Desq
 import de.uni_mannheim.desq.mining.spark._
 import org.apache.spark.{SparkConf, SparkContext}
 
 object DesqExample {
 
   def main(args: Array[String]) {
-    implicit val sc = new SparkContext(new SparkConf().setAppName(getClass.getName).setMaster("local"))
+    val sparkConf = new SparkConf().setAppName(getClass.getName).setMaster("local")
+    Desq.initDesq(sparkConf)
+
+    implicit val sc = new SparkContext(sparkConf)
 
     // read the data
     val sequences = sc.textFile("data/readme/sequences.txt")
