@@ -5,7 +5,7 @@ import java.util.Calendar
 import java.util.zip.GZIPOutputStream
 
 import de.uni_mannheim.desq.avro.AvroDesqDatasetDescriptor
-import de.uni_mannheim.desq.dictionary.{DefaultDictionaryBuilder, Dictionary, DictionaryBuilder}
+import de.uni_mannheim.desq.dictionary.{BasicDictionary, DefaultDictionaryBuilder, Dictionary, DictionaryBuilder}
 import de.uni_mannheim.desq.mining.Sequence
 import de.uni_mannheim.desq.util.DesqProperties
 import it.unimi.dsi.fastutil.ints.Int2LongMap.Entry
@@ -21,28 +21,32 @@ import org.apache.spark.rdd.RDD
 
 import scala.reflect.ClassTag
 
-class GenericDesqDataset[T](val sequences: RDD[T], val descriptor: DesqDescriptor[T]) {
-  private var descriptorBroadcast: Broadcast[DesqDescriptor[T]] = _
+class GenericDesqDataset[T](val sequences: RDD[T], val dictionary: Dictionary, val descriptor: DesqDescriptor[T]) {
+  protected var dictionaryBroadcast: Broadcast[Dictionary] = _
+  protected var descriptorBroadcast: Broadcast[DesqDescriptor[T]] = _
 
   // -- building ------------------------------------------------------------------------------------------------------
 
   def this(sequences: RDD[T], source: GenericDesqDataset[T]) {
-    this(sequences, source.descriptor)
+    this(sequences, source.dictionary, source.descriptor)
     descriptorBroadcast = source.descriptorBroadcast
   }
 
   /** Creates a copy of this GenericDesqDataset with a deep copy of its dictionary. Useful when changes should be
     * performed to a dictionary that has been broadcasted before (and hence cannot/should not be changed). */
   def copy(): GenericDesqDataset[T] = {
-    new GenericDesqDataset(sequences, descriptor.copy())
+    new GenericDesqDataset(sequences, dictionary.deepCopy(), descriptor.copy())
   }
 
   /** Returns a copy of this dataset with a new dictionary, containing updated counts and fid identifiers. */
   def recomputeDictionary(): GenericDesqDataset[T] = {
     val newDescriptor = descriptor.copy()
-    recomputeDictionary(newDescriptor.getDictionary)
+    val newDictionary = dictionary.deepCopy()
 
-    new GenericDesqDataset[T](sequences, newDescriptor)
+    recomputeDictionary(newDictionary)
+    newDescriptor.setBasicDictionary(newDictionary.shallowCopyAsBasicDictionary())
+
+    new GenericDesqDataset[T](sequences, newDictionary, newDescriptor)
   }
 
   /** in-place **/
@@ -61,7 +65,7 @@ class GenericDesqDataset[T](val sequences: RDD[T], val descriptor: DesqDescripto
           while (!currentItemCfreqsIterator.hasNext && rows.hasNext) {
             val sequence = rows.next()
             currentWeight = descriptor.getWeight(sequence)
-            descriptor.getDictionary.computeItemCfreqs(descriptor.getFids(sequence, new Sequence(), forceTarget = false), itemCfreqs, ancItems, true, 1)
+            descriptor.getBasicDictionary.computeItemCfreqs(descriptor.getFids(sequence, new Sequence(), forceTarget = false), itemCfreqs, ancItems, true, 1)
             currentItemCfreqsIterator = itemCfreqs.int2LongEntrySet().fastIterator()
           }
           currentItemCfreqsIterator.hasNext
@@ -89,16 +93,26 @@ class GenericDesqDataset[T](val sequences: RDD[T], val descriptor: DesqDescripto
   /** Returns an RDD that contains for each sequence an array of its string identifiers and its weight. */
   def toSidsWeightPairs: RDD[(Array[String],Long)] = {
     val descriptorBroadcast = broadcastDescriptor()
+    val dictionaryBroadcast = broadcastDictionary()
 
     sequences.mapPartitions(rows => {
       new Iterator[(Array[String],Long)] {
         val descriptor: DesqDescriptor[T] = descriptorBroadcast.value
+        val dictionary: Dictionary = dictionaryBroadcast.value
 
         override def hasNext: Boolean = rows.hasNext
 
         override def next(): (Array[String], Long) = {
           val s = rows.next()
-          (descriptor.getSids(s), descriptor.getWeight(s))
+
+          val itemFids = descriptor.getFids(s, new Sequence(), forceTarget = false)
+          val itemSids = new Array[String](itemFids.size())
+
+          for (i <- Range(0, itemFids.size())) {
+            itemSids(i) = dictionary.sidOfFid(itemFids.getInt(i))
+          }
+
+          (itemSids, descriptor.getWeight(s))
         }
       }
     })
@@ -116,7 +130,7 @@ class GenericDesqDataset[T](val sequences: RDD[T], val descriptor: DesqDescripto
     // write dictionary
     val dictPath = s"$outputPath/dict.avro.gz"
     val dictOut = FileSystem.create(fileSystem, new Path(dictPath), FsPermission.getFileDefault)
-    descriptor.getDictionary.writeAvro(new GZIPOutputStream(dictOut))
+    dictionary.writeAvro(new GZIPOutputStream(dictOut))
     dictOut.close()
 
     // write descriptor
@@ -133,6 +147,7 @@ class GenericDesqDataset[T](val sequences: RDD[T], val descriptor: DesqDescripto
     // return a new dataset for the just saved data
     new GenericDesqDataset[T](
       sequences.context.sequenceFile(sequencePath, classOf[NullWritable], classOf[Writable]).map(kv => kv._2).asInstanceOf[RDD[T]],
+      dictionary,
       descriptor)
   }
 
@@ -156,9 +171,21 @@ class GenericDesqDataset[T](val sequences: RDD[T], val descriptor: DesqDescripto
 
   // -- helpers -------------------------------------------------------------------------------------------------------
 
-  /** Returns a broadcast variable that can be used to access the descriptor of this dataset. The broadcast
-    * variable stores the dictionary contained in the descriptor in serialized form for memory efficiency.
+  /** Returns a broadcast variable that can be used to access the Dictionary of this dataset. The broadcast
+    * variable stores the dictionary in serialized form for memory efficiency.
     * Use <code>Dictionary.fromBytes(result.value.getDictionary)</code> to get the dictionary at workers.
+    */
+  def broadcastDictionary(): Broadcast[Dictionary] = {
+    if (dictionaryBroadcast == null) {
+      val dictionary = this.dictionary
+      dictionaryBroadcast = sequences.context.broadcast(dictionary)
+    }
+    dictionaryBroadcast
+  }
+
+  /** Returns a broadcast variable that can be used to access the DesqDescriptor of this dataset.
+    * The descriptor only contains the BasicDictionary (i.e. no sids and item properties) which brings down
+    * communication cost even further.
     */
   def broadcastDescriptor(): Broadcast[DesqDescriptor[T]] = {
     if (descriptorBroadcast == null) {
@@ -213,10 +240,10 @@ object GenericDesqDataset {
     */
   def build[R](rawData: RDD[R], parse: (R, DictionaryBuilder) => _, descriptor: DesqDescriptor[R])(implicit m: ClassTag[R]): GenericDesqDataset[R] = {
     val dict = buildDictionary(rawData, parse)
-    descriptor.setDictionary(dict)
+    descriptor.setBasicDictionary(dict)
 
     // we do not have to convert the sequences as we want to directly mine on them with the DesqDescriptor
-    val result = new GenericDesqDataset[R](rawData, descriptor)
+    val result = new GenericDesqDataset[R](rawData, dict, descriptor)
     result
   }
 

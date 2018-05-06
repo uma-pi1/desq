@@ -5,6 +5,7 @@ import de.uni_mannheim.desq.util.{DesqProperties, PrimitiveUtils}
 import it.unimi.dsi.fastutil.ints._
 import de.uni_mannheim.desq.io.MemoryPatternWriter
 import de.uni_mannheim.desq.mining.distributed.RelevantPositions
+import de.uni_mannheim.desq.patex.PatExUtils
 import it.unimi.dsi.fastutil.objects._
 
 import scala.collection.JavaConverters._
@@ -25,6 +26,9 @@ class DesqDistributed(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         val conf = ctx.conf
         val minSupport = conf.getLong("desq.mining.min.support")
         val descriptorBroadcast = data.broadcastDescriptor()
+
+        conf.setProperty("desq.mining.pattern.expression",
+            PatExUtils.toFidPatEx(data.dictionary, conf.getString("desq.mining.pattern.expression")))
 
         /** Flags for algorithm variants */
         val sendNFAs = conf.getBoolean("desq.mining.send.nfas")  // if true: send NFA. otherwise: send input sequences
@@ -55,7 +59,7 @@ class DesqDistributed(ctx: DesqMinerContext) extends DesqMiner(ctx) {
                 // retrieve dictionary and setup miner
                 val descriptor: DesqDescriptor[T] = descriptorBroadcast.value
                 val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext()
-                baseContext.dict = descriptor.getDictionary
+                baseContext.dict = descriptor.getBasicDictionary
                 baseContext.conf = conf
                 val baseMiner = new de.uni_mannheim.desq.mining.DesqDfs(baseContext)
 
@@ -156,7 +160,7 @@ class DesqDistributed(ctx: DesqMinerContext) extends DesqMiner(ctx) {
                     val descriptor: DesqDescriptor[T] = descriptorBroadcast.value
 
                     val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext()
-                    baseContext.dict = descriptor.getDictionary
+                    baseContext.dict = descriptor.getBasicDictionary
                     baseContext.conf = conf
 
                     // Set a memory pattern writer so we are able to retrieve the patterns later
@@ -215,7 +219,7 @@ class DesqDistributed(ctx: DesqMinerContext) extends DesqMiner(ctx) {
                     val descriptor: DesqDescriptor[T] = descriptorBroadcast.value
 
                     val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext()
-                    baseContext.dict = descriptor.getDictionary
+                    baseContext.dict = descriptor.getBasicDictionary
                     baseContext.conf = conf
 
                     // Set a memory pattern writer so we are able to retrieve the patterns later

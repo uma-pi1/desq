@@ -73,7 +73,7 @@ abstract class DesqMiningTest(sigma: Long, patternExpression: String,
 
     // write the data
     val patternWriter = new DelPatternWriter(new FileOutputStream(outputDelFile), DelPatternWriter.TYPE.GID)
-    patternWriter.setDictionary(data.descriptor.getDictionary)
+    patternWriter.setDictionary(data.dictionary)
     result.foreach(patternWriter.write)
     patternWriter.close()
 
@@ -92,7 +92,7 @@ abstract class DesqMiningTest(sigma: Long, patternExpression: String,
 
     // write the data
     val patternWriter = new DelPatternWriter(new FileOutputStream(outputDelFile), DelPatternWriter.TYPE.GID)
-    patternWriter.setDictionary(data.descriptor.getDictionary)
+    patternWriter.setDictionary(data.dictionary)
     result.foreach(patternWriter.write)
     patternWriter.close()
 

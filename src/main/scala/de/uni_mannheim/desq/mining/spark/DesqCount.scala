@@ -1,6 +1,7 @@
 package de.uni_mannheim.desq.mining.spark
 
 import de.uni_mannheim.desq.mining._
+import de.uni_mannheim.desq.patex.PatExUtils
 import de.uni_mannheim.desq.util.DesqProperties
 import it.unimi.dsi.fastutil.ints.IntArrayList
 import it.unimi.dsi.fastutil.objects.{ObjectIterator, ObjectLists}
@@ -17,13 +18,16 @@ class DesqCount(ctx: DesqMinerContext) extends DesqMiner(ctx) {
     val conf = ctx.conf
     val minSupport = conf.getLong("desq.mining.min.support")
 
+    conf.setProperty("desq.mining.pattern.expression",
+      PatExUtils.toFidPatEx(data.dictionary, conf.getString("desq.mining.pattern.expression")))
+
     // build RDD to perform the minig
     val patterns = data.sequences.mapPartitions(rows => {
       // for each row, get output of FST and produce (output sequence, 1) pair
       new Iterator[(Sequence,Long)] {
         // initialize the sequential desq miner
-        val descriptor = descriptorBroadcast.value
-        val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext(conf, descriptor.getDictionary)
+        val descriptor: DesqDescriptor[T] = descriptorBroadcast.value
+        val baseContext = new de.uni_mannheim.desq.mining.DesqMinerContext(conf, descriptor.getBasicDictionary)
         val baseMiner = new de.uni_mannheim.desq.mining.DesqCount(baseContext)
         var outputIterator: ObjectIterator[Sequence] = ObjectLists.emptyList[Sequence].iterator()
         var currentSequence: Sequence = new Sequence()

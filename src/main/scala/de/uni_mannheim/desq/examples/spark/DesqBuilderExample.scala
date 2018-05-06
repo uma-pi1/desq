@@ -33,11 +33,11 @@ object DesqBuilderExample extends App {
   val fullDict = Dictionary.loadFrom("data-local/nyt-1991-dict.avro.gz")
   for (fid <- fullDict.fids) {
     if (fullDict.childrenOf(fid).size() == 0) { // only verify leafs
-      val otherFid = loadedData.descriptor.getDictionary.fidOf(fullDict.sidOfFid(fid))
+      val otherFid = loadedData.dictionary.fidOf(fullDict.sidOfFid(fid))
       if (otherFid != -1 && // the created dictionary may not contain some items (those which do not occur in the data)
-        (fullDict.cfreqOf(fid) != loadedData.descriptor.getDictionary.cfreqOf(otherFid) ||
-        fullDict.dfreqOf(fid) != loadedData.descriptor.getDictionary.dfreqOf(otherFid))) {
-        println("Incorrect item: " + fullDict.sidOfFid(fid) + " " + loadedData.descriptor.getDictionary.fidOf(otherFid))
+        (fullDict.cfreqOf(fid) != loadedData.dictionary.cfreqOf(otherFid) ||
+        fullDict.dfreqOf(fid) != loadedData.dictionary.dfreqOf(otherFid))) {
+        println("Incorrect item: " + fullDict.sidOfFid(fid) + " " + loadedData.dictionary.fidOf(otherFid))
       }
     }
   }

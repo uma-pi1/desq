@@ -8,7 +8,7 @@ class WeightedSequenceDescriptor(val usesFids: Boolean = true) extends DesqDescr
 
   override def copy(): DesqDescriptor[WeightedSequence] = {
     val descriptor = new WeightedSequenceDescriptor(usesFids)
-    descriptor.setDictionary(dict.deepCopy())
+    descriptor.setBasicDictionary(basicDictionary.deepCopy())
     descriptor
   }
 
@@ -19,7 +19,7 @@ class WeightedSequenceDescriptor(val usesFids: Boolean = true) extends DesqDescr
   override def getGids(sequence: WeightedSequence, target: Sequence, forceTarget: Boolean): Sequence = {
     if (usesFids) {
         val sequenceGids = target
-        dict.fidsToGids(sequence, sequenceGids)
+        basicDictionary.fidsToGids(sequence, sequenceGids)
         sequenceGids
     } else {
       if(forceTarget) {
@@ -47,20 +47,9 @@ class WeightedSequenceDescriptor(val usesFids: Boolean = true) extends DesqDescr
       }
     } else {
         val sequenceFids = target
-        dict.gidsToFids(sequence, sequenceFids)
+        basicDictionary.gidsToFids(sequence, sequenceFids)
         sequenceFids
     }
-  }
-
-  override def getSids(sequence: WeightedSequence): Array[String] = {
-    val itemFids = getFids(sequence, new Sequence(), forceTarget = false)
-    val itemSids = new Array[String](itemFids.size())
-
-    for (i <- Range(0, itemFids.size())) {
-      itemSids(i) = dict.sidOfFid(itemFids.getInt(i))
-    }
-
-    itemSids
   }
 
   override def getCopy(sequence: WeightedSequence): WeightedSequence = {

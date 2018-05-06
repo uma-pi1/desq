@@ -114,8 +114,6 @@ object DesqRunner {
 
         val sw = Stopwatch.createStarted()
         // Build miner conf
-        patternExp = PatExUtils.toFidPatEx(data.descriptor.getDictionary, patternExp)
-        // translate pattern expression to fids
         var minerConf = DesqDistributed.createConf(patternExp, sigma)
         if (useDesqCount) {
             minerConf = DesqCount.createConf(patternExp, sigma)

@@ -12,7 +12,6 @@ import org.apache.avro.specific.SpecificDatumReader
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.io.NullWritable
 import org.apache.spark.SparkContext
-import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 
 import scala.reflect.ClassTag
@@ -21,14 +20,15 @@ import scala.reflect.ClassTag
   * Created by rgemulla on 12.09.2016.
   */
 class DesqDataset(override val sequences: RDD[WeightedSequence],
+                  override val dictionary: Dictionary,
                   override val descriptor: WeightedSequenceDescriptor)
-                  extends GenericDesqDataset[WeightedSequence](sequences, descriptor) {
-  private var descriptorBroadcast: Broadcast[WeightedSequenceDescriptor] = _
+                  extends GenericDesqDataset[WeightedSequence](sequences, dictionary, descriptor) {
 
   // -- building ------------------------------------------------------------------------------------------------------
 
   def this(sequences: RDD[WeightedSequence], source: DesqDataset) {
-    this(sequences, source.descriptor)
+    this(sequences, source.dictionary, source.descriptor)
+    dictionaryBroadcast = source.dictionaryBroadcast
     descriptorBroadcast = source.descriptorBroadcast
   }
 
@@ -36,11 +36,14 @@ class DesqDataset(override val sequences: RDD[WeightedSequence],
     * original input sequences are "translated" to the new dictionary if needed. */
   override def recomputeDictionary(): DesqDataset = {
     val newDescriptor = descriptor.copy().asInstanceOf[WeightedSequenceDescriptor]
-    recomputeDictionary(newDescriptor.getDictionary)
+    val newDictionary = dictionary.deepCopy()
+
+    recomputeDictionary(newDictionary)
+    newDescriptor.setBasicDictionary(newDictionary.shallowCopyAsBasicDictionary())
 
     if (!descriptor.usesFids) {
       // if we are not using fids, we are done
-      new DesqDataset(sequences, newDescriptor)
+      new DesqDataset(sequences, newDictionary, newDescriptor)
     } else {
       // otherwise we need to relabel the fids
       val newDescriptorBroadcast = sequences.context.broadcast(newDescriptor)
@@ -55,14 +58,14 @@ class DesqDataset(override val sequences: RDD[WeightedSequence],
           override def next(): WeightedSequence = {
             val oldSeq = rows.next()
             val newSeq = descriptor.getCopy(oldSeq)
-            descriptor.getDictionary.fidsToGids(descriptor.getFids(newSeq, new Sequence(), forceTarget = false))
-            newDescriptorBroadcast.value.getDictionary.gidsToFids(descriptor.getFids(newSeq, new Sequence(), forceTarget = false))
+            descriptor.getBasicDictionary.fidsToGids(descriptor.getFids(newSeq, new Sequence(), forceTarget = false))
+            newDescriptorBroadcast.value.getBasicDictionary.gidsToFids(descriptor.getFids(newSeq, new Sequence(), forceTarget = false))
             newSeq
           }
         }
       })
 
-      new DesqDataset(newSequences, newDescriptor)
+      new DesqDataset(newSequences, newDictionary, newDescriptor)
     }
   }
 
@@ -95,10 +98,10 @@ object DesqDataset {
     val sequences = sc.sequenceFile(sequencePath, classOf[NullWritable], classOf[WeightedSequence]).map(kv => kv._2)
 
     val descriptor = new WeightedSequenceDescriptor(avroDescriptor.getUsesFids)
-    descriptor.setDictionary(dict)
+    descriptor.setBasicDictionary(dict.shallowCopyAsBasicDictionary())
 
     // return the dataset
-    new DesqDataset(sequences, descriptor)
+    new DesqDataset(sequences, dict, descriptor)
   }
 
   /** Loads data from the specified del file */
@@ -110,9 +113,9 @@ object DesqDataset {
     })
 
     val descriptor = new WeightedSequenceDescriptor(usesFids)
-    descriptor.setDictionary(dict)
+    descriptor.setBasicDictionary(dict.shallowCopyAsBasicDictionary())
 
-    new DesqDataset(sequences, descriptor)
+    new DesqDataset(sequences, dict, descriptor)
   }
 
   /** Loads data from the specified del file */
@@ -144,10 +147,12 @@ object DesqDataset {
     */
   def buildFromGenericDesqDataset[T](genericDesqDataset: GenericDesqDataset[T])(implicit ct: ClassTag[T]): DesqDataset = {
     val descriptor = new WeightedSequenceDescriptor(true)
-    descriptor.setDictionary(genericDesqDataset.descriptor.getDictionary)
+    descriptor.setBasicDictionary(genericDesqDataset.descriptor.getBasicDictionary)
 
     if(ct.runtimeClass.isAssignableFrom(classOf[WeightedSequence])) {
-      new DesqDataset(genericDesqDataset.sequences.asInstanceOf[RDD[WeightedSequence]], descriptor)
+      new DesqDataset(genericDesqDataset.sequences.asInstanceOf[RDD[WeightedSequence]],
+                      genericDesqDataset.dictionary,
+                      descriptor)
     } else {
       val descriptorBroadcast = genericDesqDataset.broadcastDescriptor()
 
@@ -165,7 +170,7 @@ object DesqDataset {
         }
       })
 
-      new DesqDataset(newPatterns, descriptor)
+      new DesqDataset(newPatterns, genericDesqDataset.dictionary, descriptor)
     }
   }
 
@@ -182,7 +187,7 @@ object DesqDataset {
     val dict = GenericDesqDataset.buildDictionary(rawData, parse)
 
     val descriptor = new WeightedSequenceDescriptor()
-    descriptor.setDictionary(dict)
+    descriptor.setBasicDictionary(dict.shallowCopyAsBasicDictionary())
 
     // now convert the sequences (lazily)
     val sequences = rawData.mapPartitions(rows => new Iterator[WeightedSequence] {
@@ -198,7 +203,7 @@ object DesqDataset {
       }
     })
 
-    val result = new DesqDataset(sequences, descriptor)
+    val result = new DesqDataset(sequences, dict, descriptor)
     result
   }
 

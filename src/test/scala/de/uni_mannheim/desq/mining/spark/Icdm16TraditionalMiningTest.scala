@@ -5,7 +5,7 @@ import java.util.{Collections, Comparator}
 
 import de.uni_mannheim.desq.dictionary.Dictionary
 import de.uni_mannheim.desq.io.DelSequenceReader
-import de.uni_mannheim.desq.mining.WeightedSequence
+import de.uni_mannheim.desq.mining.{Sequence, WeightedSequence}
 import de.uni_mannheim.desq.util.DesqProperties
 import org.apache.spark.SparkContext
 import org.junit.runner.RunWith
@@ -75,13 +75,20 @@ object Icdm16TraditionalMiningTest {
       if (genericDesqDataset == null) {
         val desqDataset = getDesqDataset()
         val sequences = desqDataset.sequences.collect().map(ws => {
-          (desqDataset.descriptor.getSids(ws), desqDataset.descriptor.getWeight(ws))
+          val fids = desqDataset.descriptor.getFids(ws, new Sequence(), forceTarget = false)
+          val sids = new Array[String](fids.size())
+
+          for (i <- Range(0, fids.size())) {
+            sids(i) = desqDataset.dictionary.sidOfFid(fids.getInt(i))
+          }
+
+          (sids, desqDataset.descriptor.getWeight(ws))
         })
 
         val descriptor = new StringArrayAndLongDescriptor()
-        descriptor.setDictionary(desqDataset.descriptor.getDictionary)
+        descriptor.setBasicDictionary(desqDataset.dictionary)
 
-        genericDesqDataset = new GenericDesqDataset[(Array[String], Long)](sc.parallelize(sequences), descriptor)
+        genericDesqDataset = new GenericDesqDataset[(Array[String], Long)](sc.parallelize(sequences), desqDataset.dictionary, descriptor)
         genericDesqDataset.sequences.cache()
       }
       genericDesqDataset

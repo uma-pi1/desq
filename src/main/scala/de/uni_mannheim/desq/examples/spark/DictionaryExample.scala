@@ -32,6 +32,6 @@ object DictionaryExample extends App {
 
   println("\nDictionary with frequencies")
   val newData = data.recomputeDictionary()
-  newData.descriptor.getDictionary.writeJson(System.out)
+  newData.dictionary.writeJson(System.out)
   println()
 }

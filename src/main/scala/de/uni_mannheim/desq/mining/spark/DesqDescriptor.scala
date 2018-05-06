@@ -1,17 +1,33 @@
 package de.uni_mannheim.desq.mining.spark
 
-import de.uni_mannheim.desq.io.WithDictionary
+import de.uni_mannheim.desq.dictionary.{BasicDictionary, Dictionary}
 import de.uni_mannheim.desq.mining.Sequence
-import it.unimi.dsi.fastutil.ints.{IntArrayList, IntList}
 import org.apache.hadoop.io.Writable
 
-abstract class DesqDescriptor[T] extends WithDictionary {
+abstract class DesqDescriptor[T] {
+
+  /** The BasicDictionary associated with this DesqDescriptor and required to translate a Sequence into gids or fids. */
+  protected var basicDictionary: BasicDictionary = _
 
   /**
     * @return A deep copy of this descriptor with a deep copy of the contained dictionary
     *         (required for [[GenericDesqDataset.copy()]])
     */
   def copy(): DesqDescriptor[T]
+
+  /**
+    *  @param basicDictionary BasicDictionary
+    */
+  def setBasicDictionary(basicDictionary: BasicDictionary): Unit = {
+    this.basicDictionary = basicDictionary
+  }
+
+  /**
+    * @return The BasicDictionary associated with this DesqDescriptor
+    */
+  def getBasicDictionary: BasicDictionary = {
+    basicDictionary
+  }
 
   /**
     * @param sequence Sequence
@@ -46,12 +62,6 @@ abstract class DesqDescriptor[T] extends WithDictionary {
     * @return A [[Sequence]] of the given sequence as fids
     */
   def getFids(sequence: T, target: Sequence, forceTarget: Boolean): Sequence
-
-  /**
-    * @param sequence Sequence
-    * @return A string array of the given sequence
-    */
-  def getSids(sequence: T): Array[String]
 
   /**
     * @param sequence Sequence
