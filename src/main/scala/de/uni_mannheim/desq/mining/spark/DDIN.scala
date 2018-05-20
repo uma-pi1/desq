@@ -32,6 +32,7 @@ class DDIN(ctx: DesqMinerContext) extends DesqMiner(ctx) {
         val mergeSuffixes = conf.getBoolean("desq.mining.merge.suffixes", false) // if true: merge the suffixes of the NFA
         val aggregateShuffleSequences = conf.getBoolean("desq.mining.aggregate.shuffle.sequences", false)  // if true: aggregate NFA for the shuffle and the local mining
         val trimInputSequences = conf.getBoolean("desq.mining.trim.input.sequences", false)
+        val trimInputSequencesAdvanced = conf.getBoolean("desq.mining.trim.input.sequences.advanced", false)
         val useGrid = ctx.conf.getBoolean("desq.mining.use.grid", false);
 
         // manual repartition
@@ -112,9 +113,15 @@ class DDIN(ctx: DesqMinerContext) extends DesqMiner(ctx) {
                         val pivot = pivotIterator.nextInt()
                         if(trimInputSequences) {
                             if(useGrid) {
-                                val minMax = baseMiner.minMaxForCurrentInputSeq(pivot)
-                                val sendSeq = currentInputSequence.cloneSubList(PrimitiveUtils.getLeft(minMax), PrimitiveUtils.getRight(minMax)-1)
-                                (pivot, sendSeq)
+                                if (trimInputSequencesAdvanced) {
+                                    val bitSet = baseMiner.bitSetForCurrentInputSeq(pivot)
+                                    val sendSeq = currentInputSequence.cloneSubListWithBitSet(bitSet)
+                                    (pivot, sendSeq)
+                                } else {
+                                    val minMax = baseMiner.minMaxForCurrentInputSeq(pivot)
+                                    val sendSeq = currentInputSequence.cloneSubList(PrimitiveUtils.getLeft(minMax), PrimitiveUtils.getRight(minMax)-1)
+                                    (pivot, sendSeq)
+                                }
                             } else {
                                 val sendSeq = currentInputSequence.cloneSubList(relevantPositions.getFirstRelevant(pivot), relevantPositions.getLastRelevant(pivot))
                                 (pivot, sendSeq)

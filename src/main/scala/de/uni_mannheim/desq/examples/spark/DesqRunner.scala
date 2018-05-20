@@ -33,6 +33,7 @@ object DesqRunner {
     var useDesqCount: Boolean = _
     var aggregateShuffleSequences: Boolean = _
     var trimInputSequences: Boolean = _
+    var trimInputSequencesAdvanced: Boolean = _
     var useHybrid: Boolean = _
     var useGrid: Boolean = _
     var sendToAllFrequentItems: Boolean = _
@@ -83,7 +84,7 @@ object DesqRunner {
         } else { // use default settings for local running: run the thesis example in all algorithms
             runConf.put("count.patterns", "true")
             runConf.put("input", "data/vldb-example/DesqDataset/")
-            runGrid(Array("VLDB"), Array("Naive", "SemiNaive", "DesqSeq", "DesqCand"))
+            runGrid(Array("VLDB"), Array("DesqSeq", "DesqSeq.trimAdvanced"))
         }
     }
 
@@ -138,6 +139,7 @@ object DesqRunner {
         minerConf.setProperty("desq.mining.aggregate.shuffle.sequences", aggregateShuffleSequences)
         minerConf.setProperty("desq.mining.map.repartition", runConf.get("map.repartition").get)
         minerConf.setProperty("desq.mining.trim.input.sequences", trimInputSequences)
+        minerConf.setProperty("desq.mining.trim.input.sequences.advanced", trimInputSequencesAdvanced)
         minerConf.setProperty("desq.mining.use.hybrid", useHybrid)
         minerConf.setProperty("desq.mining.use.grid", useGrid)
         minerConf.setProperty("desq.mining.send.to.all.frequent.items", sendToAllFrequentItems)
@@ -411,6 +413,7 @@ object DesqRunner {
         useDesqCount = false
         aggregateShuffleSequences = false
         trimInputSequences = false
+        trimInputSequencesAdvanced = false
         useHybrid = false
         useGrid = false
         sendToAllFrequentItems = false
@@ -450,6 +453,11 @@ object DesqRunner {
                 aggregateShuffleSequences = false
                 useGrid = true
                 trimInputSequences = true
+            case "DesqSeq.trimAdvanced" =>
+                aggregateShuffleSequences = false
+                useGrid = true
+                trimInputSequences = true
+                trimInputSequencesAdvanced = true
             case "DesqSeq.sendAllFreq" =>
                 sendToAllFrequentItems = true
                 aggregateShuffleSequences = false

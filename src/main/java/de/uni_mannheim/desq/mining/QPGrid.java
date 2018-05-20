@@ -17,6 +17,7 @@ import org.apache.commons.io.FilenameUtils;
 
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.Map;
 
 
 /**
@@ -56,6 +57,15 @@ public class QPGrid {
     /** Stores the minimum and maximum relevant position for each pivot item of the input sequence */
     private Int2LongOpenHashMap pivotMinMax = new Int2LongOpenHashMap();
 
+    /** Stores the relevant positions for each pivot item of the input sequence */
+    private Int2ObjectOpenHashMap<BitSet> pivotBitSet = new Int2ObjectOpenHashMap<>();
+
+    /** Maps from internal state id (i.e. s) to external state (i.e. q). Only initialized if needed because of trimAdvanced. */
+    private Int2IntOpenHashMap qByS = null;
+
+    /** Stores the relevant positions of the input sequences. This BitSet is modified when traversing the grid. */
+    private BitSet indicesToSend = null;
+
     /** Stores the minimum relevant position for a state s of the grid */
     int[] minPos;
 
@@ -86,6 +96,9 @@ public class QPGrid {
         noFollowingOutput.clear();
         initialState.clear();
         pivotMinMax.clear();
+        pivotBitSet.clear();
+        qByS = null;
+        indicesToSend = null;
     }
 
     /** Checks whether edge (qFrom,pos) --> (qTo,pos+1) with OutputLabel `label` exists. */
@@ -272,8 +285,13 @@ public class QPGrid {
         return pivotMinMax.get(pivot);
     }
 
+    /** Returns the BitSet with the relevant positions for a given pivot item */
+    public BitSet bitSetForPivot(int pivot) {
+        return pivotBitSet.get(pivot);
+    }
+
     /** Returns the set of pivot items for this grid*/
-    public IntSet getPivotsForward(boolean trim) {
+    public IntSet getPivotsForward(boolean trim, boolean trimAdvanced) {
         IntOpenHashSet pivots = new IntOpenHashSet();
 
         ObjectArrayList<IntAVLTreeSet> potentialPivots = new ObjectArrayList<>();
@@ -287,6 +305,16 @@ public class QPGrid {
         }
 
         boolean output = false;
+
+        if (trimAdvanced) {
+            // construct an inverted index as we need to find state changes later on
+            qByS = new Int2IntOpenHashMap();
+            for(Long2IntOpenHashMap.Entry entry : sByQp.long2IntEntrySet()) {
+                qByS.put(entry.getIntValue(), PrimitiveUtils.getLeft(entry.getLongKey()));
+            }
+
+            indicesToSend = new BitSet(maxPos);
+        }
 
         for(int s=0; s<=numStates(); s++) {
             potentialPivots.add(new IntAVLTreeSet());
@@ -311,6 +339,17 @@ public class QPGrid {
                                     pivotMinMax.put(pivot, PrimitiveUtils.combine(minPos[s], pos));
                                 } else {
                                     pivotMinMax.put(pivot, PrimitiveUtils.combine(Math.min(PrimitiveUtils.getLeft(minMax), minPos[s]), Math.max(PrimitiveUtils.getRight(minMax), pos)));
+                                }
+
+                                if (trimAdvanced) {
+                                    BitSet bitSet = pivotBitSet.getOrDefault(pivot, null);
+                                    if (bitSet == null) {
+                                        // put the current BitSet as the BitSet for this pivot
+                                        pivotBitSet.put(pivot, (BitSet) indicesToSend.clone());
+                                    } else {
+                                        // extend the BitSet for this pivot with the bits in the current BitSet
+                                        bitSet.or(indicesToSend);
+                                    }
                                 }
                             }
                         }
@@ -350,11 +389,30 @@ public class QPGrid {
                                     minPos[sTo] = propPos;
                             }
 
+                            if (trimAdvanced) {
+                                // a position is relevant if it produces output or if it changes the state
+                                if(ol != null || q != qByS.get(sTo)) {
+                                    indicesToSend.set(pos);
+                                }
+                            }
                         }
                     }
                 }
             }
         }
+
+        if (trimAdvanced) {
+            for (Map.Entry<Integer, Long> entry : pivotMinMax.entrySet()) {
+                int pivot = entry.getKey();
+                long minMax = entry.getValue();
+
+                // modify the BitSet in-place with the found minimum and maximum relevant position
+                BitSet bitSet = pivotBitSet.get(pivot);
+                bitSet.clear(0, PrimitiveUtils.getLeft(minMax));
+                bitSet.clear(PrimitiveUtils.getRight(minMax), maxPos);
+            }
+        }
+
         return pivots;
     }
 

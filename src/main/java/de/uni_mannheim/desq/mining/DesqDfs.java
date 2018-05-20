@@ -123,8 +123,11 @@ public final class DesqDfs extends MemoryDesqMiner {
 	/** If true, DesqDfs Distributed merges shared suffixes in the tree representation */
 	final boolean mergeSuffixes;
 
-	/** If true, DesqDfs Distributed merges shared suffixes in the tree representation */
+	/** If true, DesqDfs Distributed trims the input sequences according to the minimum and maximum relevant position */
 	final boolean trimInputSequences;
+
+	/** If true, DesqDfs Distributed trims the input sequences according to the relevant positions */
+	final boolean trimInputSequencesAdvanced;
 
 	/** If true, we send either NFAs or input sequence */
 	final boolean useHybrid;
@@ -218,6 +221,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 		sendNFAs = ctx.conf.getBoolean("desq.mining.send.nfas", false);
 		mergeSuffixes = ctx.conf.getBoolean("desq.mining.merge.suffixes", false);
 		trimInputSequences = ctx.conf.getBoolean("desq.mining.trim.input.sequences", false);
+		trimInputSequencesAdvanced = ctx.conf.getBoolean("desq.mining.trim.input.sequences.advanced", false);
 		useHybrid = ctx.conf.getBoolean("desq.mining.use.hybrid", false);
 		useGrid = ctx.conf.getBoolean("desq.mining.use.grid", false);
 		sendToAllFrequentItems = ctx.conf.getBoolean("desq.mining.send.to.all.frequent.items", false);
@@ -616,6 +620,11 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		return grid.minMaxForPivot(pivot);
 	}
 
+	/** Returns the relevant positions (as BitSet) of the current input sequence for the given pivot item */
+	public BitSet bitSetForCurrentInputSeq(int pivot) {
+		return grid.bitSetForPivot(pivot);
+	}
+
 	/**
 	 * Returns the set of pivot items for the given input sequence
 	 *
@@ -648,7 +657,7 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 			// if the there is at least one accepting path, we retrieve the pivot items for these paths
 			if(grid.hasAcceptingPaths()) {
-			    pivotItems.addAll(grid.getPivotsForward(trimInputSequences));
+			    pivotItems.addAll(grid.getPivotsForward(trimInputSequences, trimInputSequencesAdvanced));
 			}
 		} else {
   			// check whether sequence produces output at all. if yes, produce output items

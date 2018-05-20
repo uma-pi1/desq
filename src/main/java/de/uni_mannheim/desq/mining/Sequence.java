@@ -10,6 +10,7 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableUtils;
 
 import java.io.*;
+import java.util.BitSet;
 
 /** A sequence of integers. */
 public class Sequence extends IntArrayList implements Externalizable, Writable {
@@ -52,6 +53,14 @@ public class Sequence extends IntArrayList implements Externalizable, Writable {
         Sequence c = new Sequence(to-from+1);
         System.arraycopy(this.a, from, c.a, 0, to-from+1);
         c.size = to-from+1;
+        return c;
+    }
+
+    public Sequence cloneSubListWithBitSet(BitSet indicesToSend) {
+        Sequence c = new Sequence(indicesToSend.cardinality());
+        for (int i = indicesToSend.nextSetBit(0); i >= 0; i = indicesToSend.nextSetBit(i + 1)) {
+            c.add(this.a[i]);
+        }
         return c;
     }
 
