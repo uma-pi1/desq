@@ -141,6 +141,7 @@ object DesqRunner {
         minerConf.setProperty("desq.mining.use.hybrid", useHybrid)
         minerConf.setProperty("desq.mining.use.grid", useGrid)
         minerConf.setProperty("desq.mining.send.to.all.frequent.items", sendToAllFrequentItems)
+        minerConf.setProperty("desq.mining.stop.at.last.pivot.pos", stopAtLastPivotPos)
 
         // Construct miner
         val ctx = new DesqMinerContext(minerConf)
