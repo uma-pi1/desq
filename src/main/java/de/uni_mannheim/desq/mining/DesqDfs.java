@@ -620,9 +620,14 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		return grid.minMaxForPivot(pivot);
 	}
 
-	/** Returns the relevant positions (as BitSet) of the current input sequence for the given pivot item */
-	public BitSet bitSetForCurrentInputSeq(int pivot) {
-		return grid.bitSetForPivot(pivot);
+	/** Returns the minimum output item at each position of the current input sequence. */
+	public int[] minimumOutputItemAtPosition() {
+		return grid.minimumOutputItemAtPosition;
+	}
+
+	/** Returns potentially irrelevant positions (as BitSet) of the current input sequence. */
+	public BitSet potentiallyIrrelevantPositions() {
+		return grid.potentiallyIrrelevantPositions;
 	}
 
 	/**

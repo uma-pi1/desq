@@ -56,10 +56,23 @@ public class Sequence extends IntArrayList implements Externalizable, Writable {
         return c;
     }
 
-    public Sequence cloneSubListWithBitSet(BitSet indicesToSend) {
-        Sequence c = new Sequence(indicesToSend.cardinality());
-        for (int i = indicesToSend.nextSetBit(0); i >= 0; i = indicesToSend.nextSetBit(i + 1)) {
-            c.add(this.a[i]);
+    /** Clones a subrange of this sequence to a new sequence by considering potentially irrelevant positions within
+     * index `from` and `to` and with respect to the current pivot item (dropping potentially irrelevant positions
+     * that are larger than the pivot item). */
+    public Sequence cloneSubListWithRelevantPositionsForPivot(int[] minimumOutputItemAtPosition,
+                                                              BitSet potentiallyIrrelevantPositions,
+                                                              int pivot, int from, int to) {
+        Sequence c = new Sequence(to-from);
+        for (int i = from; i < to; ++i) {
+            if(!potentiallyIrrelevantPositions.get(i)) {
+                // we must copy relevant positions
+                c.add(this.a[i]);
+            } else {
+                // we check if we can drop potentially irrelevant positions larger than the pivot item
+                if(minimumOutputItemAtPosition[i] <= pivot) {
+                    c.add(this.a[i]);
+                }
+            }
         }
         return c;
     }

@@ -17,7 +17,6 @@ import org.apache.commons.io.FilenameUtils;
 
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.Map;
 
 
 /**
@@ -57,14 +56,14 @@ public class QPGrid {
     /** Stores the minimum and maximum relevant position for each pivot item of the input sequence */
     private Int2LongOpenHashMap pivotMinMax = new Int2LongOpenHashMap();
 
-    /** Stores the relevant positions for each pivot item of the input sequence */
-    private Int2ObjectOpenHashMap<BitSet> pivotBitSet = new Int2ObjectOpenHashMap<>();
-
     /** Maps from internal state id (i.e. s) to external state (i.e. q). Only initialized if needed because of trimAdvanced. */
     private Int2IntOpenHashMap qByS = null;
 
-    /** Stores the relevant positions of the input sequences. This BitSet is modified when traversing the grid. */
-    private BitSet indicesToSend = null;
+    /** Stores the minimum output item at each position of the input sequence. */
+    int[] minimumOutputItemAtPosition = null;
+
+    /** Stores potentially irrelevant positions (as BitSet) of the input sequence. */
+    BitSet potentiallyIrrelevantPositions = null;
 
     /** Stores the minimum relevant position for a state s of the grid */
     int[] minPos;
@@ -96,9 +95,7 @@ public class QPGrid {
         noFollowingOutput.clear();
         initialState.clear();
         pivotMinMax.clear();
-        pivotBitSet.clear();
         qByS = null;
-        indicesToSend = null;
     }
 
     /** Checks whether edge (qFrom,pos) --> (qTo,pos+1) with OutputLabel `label` exists. */
@@ -285,11 +282,6 @@ public class QPGrid {
         return pivotMinMax.get(pivot);
     }
 
-    /** Returns the BitSet with the relevant positions for a given pivot item */
-    public BitSet bitSetForPivot(int pivot) {
-        return pivotBitSet.get(pivot);
-    }
-
     /** Returns the set of pivot items for this grid*/
     public IntSet getPivotsForward(boolean trim, boolean trimAdvanced) {
         IntOpenHashSet pivots = new IntOpenHashSet();
@@ -313,7 +305,15 @@ public class QPGrid {
                 qByS.put(entry.getIntValue(), PrimitiveUtils.getLeft(entry.getLongKey()));
             }
 
-            indicesToSend = new BitSet(maxPos);
+            if (minimumOutputItemAtPosition == null || minimumOutputItemAtPosition.length < maxPos) {
+                minimumOutputItemAtPosition = new int[maxPos];
+            }
+            Arrays.fill(minimumOutputItemAtPosition, Integer.MAX_VALUE);
+
+            if (potentiallyIrrelevantPositions == null || potentiallyIrrelevantPositions.length() < maxPos) {
+                potentiallyIrrelevantPositions = new BitSet(maxPos);
+            }
+            potentiallyIrrelevantPositions.set(0, maxPos + 1);
         }
 
         for(int s=0; s<=numStates(); s++) {
@@ -322,17 +322,27 @@ public class QPGrid {
 
         for(int pos = 0; pos<=maxPos; pos++) {
             for(int q = 0; q<=maxQ; q++) {
+                // we assume that states are potentially irrelevant by default
+                boolean thisStateIsPotentiallyIrrelevant = true;
+
+                if(isDeadEnd(q, pos)) {
+                    // TODO (actually never reached for vldb-example?)
+                    System.out.println("TODO");
+                }
+
                 int s = checkForState(q, pos);
                 if(output) System.out.println(q + "," + pos + ": s=" + s);
 
-
                 if(s != -1) {
+                    // an existing state must first quality as potentially irrelevant
+                    thisStateIsPotentiallyIrrelevant = false;
+
                     if(isFinal(q,pos)) {
-                        if(output) System.out.println("is final. adding " + potentialPivots.get(s));
+                        if (output) System.out.println("is final. adding " + potentialPivots.get(s));
                         pivots.addAll(potentialPivots.get(s));
 
                         // update minimum and maximum relevant positions for these pivot items
-                        if(trim) {
+                        if (trim) {
                             for (int pivot : potentialPivots.get(s)) {
                                 long minMax = pivotMinMax.getOrDefault(pivot, -1L);
                                 if (minMax == -1L) {
@@ -340,41 +350,32 @@ public class QPGrid {
                                 } else {
                                     pivotMinMax.put(pivot, PrimitiveUtils.combine(Math.min(PrimitiveUtils.getLeft(minMax), minPos[s]), Math.max(PrimitiveUtils.getRight(minMax), pos)));
                                 }
-
-                                if (trimAdvanced) {
-                                    BitSet bitSet = pivotBitSet.getOrDefault(pivot, null);
-                                    if (bitSet == null) {
-                                        // put the current BitSet as the BitSet for this pivot
-                                        pivotBitSet.put(pivot, (BitSet) indicesToSend.clone());
-                                    } else {
-                                        // extend the BitSet for this pivot with the bits in the current BitSet
-                                        bitSet.or(indicesToSend);
-                                    }
-                                }
                             }
                         }
                     }
+
                     if(output) System.out.println("Has potential pivots: " + potentialPivots.get(s));
                     for(Object2ObjectMap.Entry<OutputLabel, IntSet> edge : forwardEdges.get(s).object2ObjectEntrySet()) {
                         OutputLabel ol = edge.getKey();
                         int trimMin = Math.max(ol == null ? 0 : ol.outputItems.getInt(0), potentialPivots.get(s).size() > 0 ? potentialPivots.get(s).firstInt() : 0);
                         for(int sTo : edge.getValue()) {
-                            if(output) System.out.println("has outgoing edge " + ol + " (trim=" + trimMin +") to state " + sTo);
-                            if(ol != null)
-                                for(int item : ol.outputItems)
-                                    if(item >= trimMin) {
+                            if (output)
+                                System.out.println("has outgoing edge " + ol + " (trim=" + trimMin + ") to state " + sTo);
+                            if (ol != null)
+                                for (int item : ol.outputItems)
+                                    if (item >= trimMin) {
                                         potentialPivots.get(sTo).add(item);
-                                        if(output) System.out.println("Adding " + item);
+                                        if (output) System.out.println("Adding " + item);
                                     }
-                            if(potentialPivots.get(s).size() > 0)
-                                for(int item : potentialPivots.get(s))
-                                    if(item >= trimMin) {
+                            if (potentialPivots.get(s).size() > 0)
+                                for (int item : potentialPivots.get(s))
+                                    if (item >= trimMin) {
                                         potentialPivots.get(sTo).add(item);
-                                        if(output) System.out.println("Adding " + item);
+                                        if (output) System.out.println("Adding " + item);
                                     }
 
                             // propagate the minimum position to the to-state
-                            if(trim) {
+                            if (trim) {
                                 // usually, we propagate the state's minPos forward
                                 int propPos = minPos[s];
 
@@ -390,26 +391,33 @@ public class QPGrid {
                             }
 
                             if (trimAdvanced) {
-                                // a position is relevant if it produces output or if it changes the state
-                                if(ol != null || q != qByS.get(sTo)) {
-                                    indicesToSend.set(pos);
+                                if (ol == null || ol.outputItems.isEmpty()) {
+                                    if (q == qByS.get(sTo)) {
+                                        // this is an epsilon-transition that does not change state: the current state
+                                        // qualifies itself again as potentially irrelevant
+                                        thisStateIsPotentiallyIrrelevant = true;
+                                    } else {
+                                        // this is an epsilon-transition that changes state: the current position must
+                                        // be relevant
+                                        potentiallyIrrelevantPositions.set(pos, false);
+                                    }
+                                } else {
+                                    // we observe a transition with output: update the minimum output item of this
+                                    // position
+                                    minimumOutputItemAtPosition[pos] = Math.min(minimumOutputItemAtPosition[pos],
+                                            ol.outputItems.getInt(0));
                                 }
                             }
                         }
                     }
                 }
-            }
-        }
 
-        if (trimAdvanced) {
-            for (Map.Entry<Integer, Long> entry : pivotMinMax.entrySet()) {
-                int pivot = entry.getKey();
-                long minMax = entry.getValue();
-
-                // modify the BitSet in-place with the found minimum and maximum relevant position
-                BitSet bitSet = pivotBitSet.get(pivot);
-                bitSet.clear(0, PrimitiveUtils.getLeft(minMax));
-                bitSet.clear(PrimitiveUtils.getRight(minMax), maxPos);
+                if(trimAdvanced) {
+                    // all states of a position must be potentially irrelevant to have a potentially
+                    // irrelevant position
+                    potentiallyIrrelevantPositions.set(pos,
+                            potentiallyIrrelevantPositions.get(pos) && thisStateIsPotentiallyIrrelevant);
+                }
             }
         }
 

@@ -114,8 +114,15 @@ class DDIN(ctx: DesqMinerContext) extends DesqMiner(ctx) {
                         if(trimInputSequences) {
                             if(useGrid) {
                                 if (trimInputSequencesAdvanced) {
-                                    val bitSet = baseMiner.bitSetForCurrentInputSeq(pivot)
-                                    val sendSeq = currentInputSequence.cloneSubListWithBitSet(bitSet)
+                                    val minimumOutputItemAtPosition = baseMiner.minimumOutputItemAtPosition()
+                                    val potentiallyIrrelevantPositions = baseMiner.potentiallyIrrelevantPositions()
+                                    val minMax = baseMiner.minMaxForCurrentInputSeq(pivot)
+                                    val sendSeq = currentInputSequence.cloneSubListWithRelevantPositionsForPivot(
+                                        minimumOutputItemAtPosition,
+                                        potentiallyIrrelevantPositions,
+                                        pivot,
+                                        PrimitiveUtils.getLeft(minMax),
+                                        PrimitiveUtils.getRight(minMax))
                                     (pivot, sendSeq)
                                 } else {
                                     val minMax = baseMiner.minMaxForCurrentInputSeq(pivot)
