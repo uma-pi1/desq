@@ -1,9 +1,10 @@
 package de.uni_mannheim.desq.examples.spark
 
 import java.util.concurrent.TimeUnit
+
 import com.google.common.base.Stopwatch
 import de.uni_mannheim.desq.Desq
-import de.uni_mannheim.desq.mining.spark.{DesqCount, DDIN}
+import de.uni_mannheim.desq.mining.spark.{DDIN, DesqCount}
 import de.uni_mannheim.desq.mining.spark.{DesqDataset, DesqMiner, DesqMinerContext}
 import org.apache.spark.{SparkConf, SparkContext}
 import de.uni_mannheim.desq.patex.PatExUtils
@@ -143,6 +144,7 @@ object DesqRunner {
         minerConf.setProperty("desq.mining.use.hybrid", useHybrid)
         minerConf.setProperty("desq.mining.use.grid", useGrid)
         minerConf.setProperty("desq.mining.send.to.all.frequent.items", sendToAllFrequentItems)
+        minerConf.setProperty("desq.mining.stop.at.last.pivot.pos", stopAtLastPivotPos)
 
         // Construct miner
         val ctx = new DesqMinerContext(minerConf)
@@ -458,6 +460,24 @@ object DesqRunner {
                 useGrid = true
                 trimInputSequences = true
                 trimInputSequencesAdvanced = true
+            case "DesqSeq.trimAdvanced.noStop" =>
+                aggregateShuffleSequences = false
+                useGrid = true
+                trimInputSequences = true
+                trimInputSequencesAdvanced = true
+                stopAtLastPivotPos = false
+            case "DesqSeq.trimAdvanced.noStop.noRewrite" =>
+                aggregateShuffleSequences = false
+                useGrid = true
+                trimInputSequences = false
+                trimInputSequencesAdvanced = false
+                stopAtLastPivotPos = false
+            case "DesqSeq.trimAdvanced.noStop.noRewrite.noGrid" =>
+                aggregateShuffleSequences = false
+                useGrid = false
+                trimInputSequences = false
+                trimInputSequencesAdvanced = false
+                stopAtLastPivotPos = false
             case "DesqSeq.sendAllFreq" =>
                 sendToAllFrequentItems = true
                 aggregateShuffleSequences = false
