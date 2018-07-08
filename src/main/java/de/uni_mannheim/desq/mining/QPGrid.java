@@ -50,6 +50,14 @@ public class QPGrid {
     /** A set of all (pos,q) pairs that we have found to be a dead end. Is indexed by a long[q,pos], so we don't need to create a state for every dead end*/
     LongOpenHashSet isDeadEnd = new LongOpenHashSet();
 
+    /** Set of all (q, pos)-pairs that have a straight epsilon transition. We index by long[q, pos], so that we don't
+     * have to create a state. */
+    LongOpenHashSet seenStraightEpsilonTransition = new LongOpenHashSet();
+
+    /** Set of all (q, pos)-pairs that have a diagonal epsilon transition. We index by long[q, pos], so that we don't
+     * have to create a state. */
+    LongOpenHashSet seenDiagonalEpsilonTransition = new LongOpenHashSet();
+
     /** Stores the initial states (we use this for trimming input sequences) */
     IntOpenHashSet initialState = new IntOpenHashSet();
 
@@ -75,6 +83,9 @@ public class QPGrid {
     int maxPos = 0;
     int maxQ = 0;
 
+    /** Reference to the FST */
+    Fst fst = null;
+
     /** Data structures for determinizing the NFA */
     ReverseDFA reverseDfa = new ReverseDFA(this);
 
@@ -87,6 +98,8 @@ public class QPGrid {
         backwardEdges.clear();
         maxPivot.clear();
         isDeadEnd.clear();
+        seenStraightEpsilonTransition.clear();
+        seenDiagonalEpsilonTransition.clear();
         isFinal.clear();
         sByQp.clear();
         maxPos = 0;
@@ -259,9 +272,29 @@ public class QPGrid {
         isDeadEnd.add(PrimitiveUtils.combine(q, pos));
     }
 
+    /** Marks state (q, pos) as having a straight epsilon-transition. This doesn't create a new state. */
+    public void markSeenStraightEpsilonTransition(int q, int pos) {
+        seenStraightEpsilonTransition.add(PrimitiveUtils.combine(q, pos));
+    }
+
+    /** Marks state (q, pos) as having a diagonal epsilon-transition. This doesn't create a new state. */
+    public void markSeenDiagonalEpsilonTransition(int q, int pos) {
+        seenDiagonalEpsilonTransition.add(PrimitiveUtils.combine(q, pos));
+    }
+
     /** Check whether state (q,pos) is a dead end */
     public boolean isDeadEnd(int q, int pos) {
         return isDeadEnd.contains(PrimitiveUtils.combine(q, pos));
+    }
+
+    /** Check whether state (q, pos) is having a straight epsilon-transition */
+    public boolean haveSeenStraightEpsilonTransition(int q, int pos) {
+        return seenStraightEpsilonTransition.contains(PrimitiveUtils.combine(q, pos));
+    }
+
+    /** Check whether state (q, pos) is having a diagonal epsilon-transition */
+    public boolean haveSeenDiagonalEpsilonTransition(int q, int pos) {
+        return seenDiagonalEpsilonTransition.contains(PrimitiveUtils.combine(q, pos));
     }
 
     /** Returns the maximum pivot for state s */
@@ -325,16 +358,32 @@ public class QPGrid {
                 // we assume that states are potentially irrelevant by default
                 boolean thisStateIsPotentiallyIrrelevant = true;
 
-                if(isDeadEnd(q, pos)) {
-                    // TODO (actually never reached for vldb-example?)
-                    System.out.println("TODO");
-                }
-
                 int s = checkForState(q, pos);
                 if(output) System.out.println(q + "," + pos + ": s=" + s);
 
+                if(trimAdvanced) {
+                    if(isDeadEnd(q, pos)) {
+                        // an existing state must first qualify as potentially irrelevant
+                        thisStateIsPotentiallyIrrelevant = false;
+
+                        // initial states always have a straight epsilon-transition
+                        if(fst.getInitialState().getId() == q || haveSeenStraightEpsilonTransition(q, pos)) {
+                            // an epsilon-transition that does not change state: the current state
+                            // qualifies itself again as potentially irrelevant
+                            thisStateIsPotentiallyIrrelevant = true;
+                        }
+
+                        if(haveSeenDiagonalEpsilonTransition(q, pos)) {
+                            // an epsilon-transition that changes state: the current position must
+                            // be relevant
+                            potentiallyIrrelevantPositions.set(pos, false);
+                        }
+
+                    }
+                }
+
                 if(s != -1) {
-                    // an existing state must first quality as potentially irrelevant
+                    // an existing state must first qualify as potentially irrelevant
                     thisStateIsPotentiallyIrrelevant = false;
 
                     if(isFinal(q,pos)) {

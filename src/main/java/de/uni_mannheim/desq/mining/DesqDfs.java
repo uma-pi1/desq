@@ -291,6 +291,7 @@ public final class DesqDfs extends MemoryDesqMiner {
 			}
 		}
 
+		grid.fst = fst;
 
         // we need an itCache in deserialization of the NFAs, to produce the output items of transitions
         if(itCaches.isEmpty()) {
@@ -704,10 +705,17 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		dfaStateSequence.clear();
 		if (dfa.acceptsReverse(inputSequence, dfaStateSequence, dfaInitialPos)) {
 
-			// run the first incStep; start at all positions from which a final FST state can be reached
-			for (int i = 0; i < dfaInitialPos.size(); i++) {
-				findPathsStep(fst.getInitialState(), dfaInitialPos.getInt(i), 0, null, -1);
-			}
+			// run the first incStep
+			if(trimInputSequencesAdvanced) {
+                for(int i = 0; i <= inputSequence.size(); i++) {
+                    findPathsStep(fst.getInitialState(), i, 0, null, -1);
+                }
+            } else {
+			    // only start at positions from which a final FST state can be reached
+                for(int i = 0; i < dfaInitialPos.size(); i++) {
+                    findPathsStep(fst.getInitialState(), dfaInitialPos.getInt(i), 0, null, -1);
+                }
+            }
 
 			// clean up
 			dfaInitialPos.clear();
@@ -998,10 +1006,16 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 		// get the next input item
 		final int itemFid = inputSequence.getInt(pos);
 
+        BitSet validToStates;
+
 		// in two pass, we only go to states we saw in the first pass
-		final BitSet validToStates = useTwoPass
-				? dfaStateSequence.get(inputSequence.size()-(pos+1)).getFstStates() // only states from first
-				: null; // all states
+        if(trimInputSequencesAdvanced) {
+            validToStates = useTwoPass
+                    ? dfaStateSequence.get(inputSequence.size()-(pos+1)).getFstStates() // only states from first
+                    : null; // all states
+        } else {
+            validToStates = null; // all states
+        }
 
 		// get an iterator over all relevant transitions from here (relevant=starts from this state + matches the input item)
 		Iterator<Transition> transitionIt;
@@ -1087,6 +1101,18 @@ itemState:	while (itemStateIt.hasNext()) { // loop over elements of itemStateIt;
 
 			qTo = toState.getId();
 			// so we have a new connection from (qCurrent, pos) to (qTo, pos+1) with label ol. what to do now?
+
+			if(trimInputSequencesAdvanced) {
+			    if(ol != null && !ol.outputItems.isEmpty()) {
+                    if(qCurrent == qTo) {
+                        // mark a straight epsilon-transition
+                        grid.markSeenStraightEpsilonTransition(qCurrent, pos);
+                    } else {
+                        // mark a diagonal epsilon transition
+                        grid.markSeenDiagonalEpsilonTransition(qCurrent, pos);
+                    }
+                }
+            }
 
 			// easiest option: we know the to-state (qTo, pos+1) is a dead end. then we do nothing
 			if(grid.isDeadEnd(qTo, pos+1)) {
