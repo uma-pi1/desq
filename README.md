@@ -1,6 +1,6 @@
-# DesqSeq and DesqCand: Scalable Frequent Sequence Mining With Flexible Subsequence Constraints
+# D-SEQ and D-CAND: Scalable Frequent Sequence Mining With Flexible Subsequence Constraints
 
-This is an implementation of the algorithms `DesqSeq` and `DesqCand`, two distributed scalable algorithms for frequent sequence mining under flexible subsequence constraints. 
+This is an implementation of the algorithms `D-SEQ` and `D-CAND`, two distributed scalable algorithms for frequent sequence mining under flexible subsequence constraints. 
 Here, we give a quick overview over the most relevant parts of the code and how one can run experiments. 
 
 
@@ -49,13 +49,13 @@ The path specified by `input` should contain a [`DesqDataset`](src/main/scala/de
 
 For parameter `algorithm`, the baseline algorithms and algorithm variants from the thesis are available:
 * `Naive` and `SemiNaive`: shuffle candidate sequences
-* `DesqSeq` and variants `DesqSeq.noGrid`, `DesqSeq.noStop`, and `DesqSeq.noTrim.noStop`: shuffle input sequences to the partitions
-* `DesqCand` and variants `DesqCand.tries` and `DesqCand.tries.noAgg`: shuffle candidate sequences, encoded as NFAs
+* `D-SEQ` and variants: shuffle input sequences to the partitions
+* `D-CAND` and variants: shuffle candidate sequences, encoded as NFAs
 
 More information about running on YARN can be found in the [Spark documentation](http://spark.apache.org/docs/latest/running-on-yarn.html). You can also run the algorithms using the [Spark standalone mode](http://spark.apache.org/docs/latest/spark-standalone.html#launching-spark-applications). 
 
 ### A simple example
-We included an example dataset in the code repository at `data/vldb-example/`. With the following, you can run the pattern expression used as example in the paper on the example sequence database:
+We included an example dataset in the code repository at `data/paper-example/`. With the following, you can run the pattern expression used as example in the paper on the example sequence database:
 ```bash
 ${SPARK_HOME}/bin/spark-submit \
 --master "local[4]"  \
@@ -63,7 +63,7 @@ ${SPARK_HOME}/bin/spark-submit \
 /path-to-code/target/desq-0.0.1-SNAPSHOT.jar \
 input=file:///path-to-code/data/vldb-exampleDesqDataset/ \
 output=file:///output-path/ \
-case=VLDB \
-algorithm=DesqSeq
+case=paper \
+algorithm=D-SEQ
 ```
 
