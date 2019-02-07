@@ -3,7 +3,8 @@ package de.uni_mannheim.desq.examples.spark
 import java.util.concurrent.TimeUnit
 import com.google.common.base.Stopwatch
 import de.uni_mannheim.desq.Desq
-import de.uni_mannheim.desq.mining.spark.{DesqCount, DDIN}
+import de.uni_mannheim.desq.dictionary.Dictionary
+import de.uni_mannheim.desq.mining.spark.{DDIN, DesqCount}
 import de.uni_mannheim.desq.mining.spark.{DesqDataset, DesqMiner, DesqMinerContext}
 import org.apache.spark.{SparkConf, SparkContext}
 import de.uni_mannheim.desq.patex.PatExUtils
@@ -11,9 +12,9 @@ import org.apache.spark.mllib.fpm.PrefixSpan
 
 
 /**
-  * Class to conventiently run DesqSeq, DesqCand, and other algorithms on various pattern expressions
+  * Class to conventiently run D-SEQ, D-CAND, and other algorithms on various pattern expressions
   * Usage:
-  * input=hdfs://path-to-input-DesqDataset-on-hdfs-or-local/  output=hdfs://path-to-folder-for-found-frequent-sequences/  case=A1  algorithm=DDIN
+  * input=hdfs://path-to-input-DesqDataset-on-hdfs-or-local/  output=hdfs://path-to-folder-for-found-frequent-sequences/  expression=A1  algorithm=DDIN
   *
   * More information can be found in the README.md
   *
@@ -65,14 +66,22 @@ object DesqRunner {
 
         // set up SparkContext
         var appName = getClass.getName
-        if (runConf.contains("case"))
-            appName = runConf.get("case").get + "@" + runConf.get("algorithm").get
+        if (runConf.contains("expression"))
+            appName = runConf.get("expression").get + "@" + runConf.get("algorithm").get
         if (runConf.contains("master"))
             sparkConf = new SparkConf().setAppName(appName).setMaster(runConf.get("master").get)
         else
             sparkConf = new SparkConf().setAppName(appName)
         Desq.initDesq(sparkConf)
         sc = new SparkContext(sparkConf)
+
+        // how to encode a dataset
+    /*  val dict = Dictionary.loadFrom("data/icde-example/dictionary.json")
+        val textSequences = sc.textFile("data/icde-example/sequences.del")
+        textSequences.map(_.split(" ").map(dict.gidOf).mkString(" ")).saveAsTextFile("data/icde-example/sequences.gids.del")
+        val dds = DesqDataset.loadFromDelFile("data/icde-example/sequences.gids.del", dict)
+        dds.toFids().save("data/icde-example/DesqDataset/") */
+
 
         // start application
         if (args.length > 0) { // use command line settings
@@ -82,20 +91,20 @@ object DesqRunner {
                 runDesq()
         } else { // use default settings for local running: run the thesis example in all algorithms
             runConf.put("count.patterns", "true")
-            runConf.put("input", "data/vldb-example/DesqDataset/")
-            runGrid(Array("VLDB"), Array("Naive", "SemiNaive", "DesqSeq", "DesqCand"))
+            runConf.put("input", "data/icde-example/DesqDataset/")
+            runGrid(Array("ICDE"), Array("Naive", "SemiNaive", "D-SEQ", "D-CAND"))
         }
     }
 
-    /** Runs each combination cases x algorithms and reports the results */
-    def runGrid(cases:Array[String], algorithms:Array[String]) {
+    /** Runs each combination expressions x algorithms and reports the results */
+    def runGrid(expressions:Array[String], algorithms:Array[String]) {
         var output = ""
-        for (theCase <- cases) {
+        for (exp <- expressions) {
             for (algorithm <- algorithms) {
-                runConf.put("case", theCase)
+                runConf.put("expression", exp)
                 runConf.put("algorithm", algorithm)
                 val res = runDesq()
-                output += "Pattern expression '" + theCase + "' mined with " + algorithm + ": found " + res._1 + " frequent sequences with a total frequency of " + res._2 + "\n"
+                output += "Pattern expression '" + exp + "' mined with " + algorithm + ": found " + res._1 + " frequent sequences with a total frequency of " + res._2 + "\n"
             }
             output += "\n"
         }
@@ -109,12 +118,12 @@ object DesqRunner {
     /** Runs distributed DESQ algorithms for parameters specified in runConf */
     def runDesq(): (Long, Long) = {
 
-        setPatternExpression(runConf.get("case").get)
+        setPatternExpression(runConf.get("expression").get)
         setAlgorithmVariant(runConf.get("algorithm").get)
 
 
         System.out.println("------------------------------------------------------------------")
-        System.out.println("Mining " + runConf.get("case").get + " with " + runConf.get("algorithm").get)
+        System.out.println("Mining " + runConf.get("expression").get + " with " + runConf.get("algorithm").get)
         System.out.println("------------------------------------------------------------------")
 
         println(sparkConf.toDebugString)
@@ -155,6 +164,10 @@ object DesqRunner {
         if (runConf.contains("count.patterns")) {
             // if count.patterns is set to true, we only count patterns, with no output
             val (count, freq) = result.sequences.map(ws => (1, ws.weight)).fold((0, 0L))((a, b) => (a._1 + b._1, a._2 + b._2))
+
+            // print the found frequent sequences
+            // result.sequences.collect().foreach(println)
+
             println("-------------------")
             println("count, freq")
             println("-------------------")
@@ -176,7 +189,7 @@ object DesqRunner {
         var maxLength = 0
 
         // parse the given case
-        runConf.get("case").get match {
+        runConf.get("expression").get match {
             case r"S\((\d+)$o,(\d+)$m\)" => {
                 maxLength = m.toInt
                 sigma = o.toInt // absolute value. for MLLIB's PrefixSpan, we need to convert this to a fraction
@@ -184,7 +197,7 @@ object DesqRunner {
         }
 
         System.out.println("------------------------------------------------------------------")
-        System.out.println("Mining " + runConf.get("case").get + " with " + runConf.get("algorithm").get)
+        System.out.println("Mining " + runConf.get("expression").get + " with " + runConf.get("algorithm").get)
         System.out.println("------------------------------------------------------------------")
 
         println(sparkConf.toDebugString)
@@ -193,18 +206,7 @@ object DesqRunner {
         if(inputPath.last == '/')
             inputPath = inputPath.substring(0,inputPath.length-1)
 
-        /*
-        // If flag create.dataset is given, we convert the given dataset to a MLLIB compatible version
-        if(runConf.contains("create.dataset")) {
-            println("Creating dataset for MLLIB...")
-            val desqData = DesqDataset.load(inputPath)
-            val seqs = desqData.sequences.map(_.toArray.map(item => Array(item)))
-            seqs.saveAsTextFile(inputPath + "_mllib")
-        }
-        */
-
         println("Loading dataset from " + runConf.get("input").get)
-//        val data = sc.objectFile[Array[Array[Int]]](inputPath + "_mllib").sample(fraction=0.001, withReplacement = false)
         val desqData = DesqDataset.load(inputPath)
         val data = desqData.sequences.map(_.toArray.map(item => Array(item)))
         val numSeqs = data.count()
@@ -228,10 +230,8 @@ object DesqRunner {
         val prefixSpan = new PrefixSpan().setMinSupport(minSupport).setMaxPatternLength(maxLength)
         val model = prefixSpan.run(data)
 
-
-        // output the frequent sequences
+        // store the frequent sequences
         model.freqSequences.map(fs => "[" + fs.sequence.map(_(0)).mkString(" ") + "]@" + fs.freq).saveAsTextFile(runConf.get("output").get)
-
 
         // count, freq output
         if(runConf.contains("count.patterns")) {
@@ -256,10 +256,10 @@ object DesqRunner {
 
     // -- pattern expressions ----------------------------------------------------------------------------------------
 
-    def setPatternExpression(useCase: String) {
+    def setPatternExpression(expression: String) {
         verbose = false
-        useCase match {
-            case "VLDB" => {
+        expression match {
+            case "ICDE" => {
                 patternExp = "(A)[(.^)|.*]*(b)"
                 sigma = 2
                 verbose = true
@@ -337,17 +337,17 @@ object DesqRunner {
             }
             // -- Traditional frequent sequence mining constraints ---------------------------------------------
             // traditional constraints: no hierarchy, max length, max gap (e.g. MG-FSM): M(minSupport,maxGap,maxLength)
-            case r"M\((\d+)$o,(\d+)$g,(\d+)$l\)" => {
+            case r"T2\((\d+)$o,(\d+)$g,(\d+)$l\)" => {
                 patternExp = "(.)[.{0," + g.toInt + "}(.)]{1," + (l.toInt - 1) + "}"
                 sigma = o.toInt
             }
             // traditional constraints: with hierarchy, max length, max gap (e.g. LASH): L(minSupport,maxGap,maxLength)
-            case r"L\((\d+)$o,(\d+)$g,(\d+)$l\)" => {
+            case r"T3\((\d+)$o,(\d+)$g,(\d+)$l\)" => {
                 patternExp = "(.^)[.{0," + g.toInt + "}(.^)]{1," + (l.toInt - 1) + "}"
                 sigma = o.toInt
             }
             // traditional constraints: no hierarchy, max length  (e.g. PrefixSpan): S(minSupport,maxLength)
-            case r"S\((\d+)$o,(\d+)$m\)" => {
+            case r"T1\((\d+)$o,(\d+)$m\)" => {
                 patternExp = "(.)[.*(.)]{," + (m.toInt - 1)+ "}"
                 sigma = o.toInt
             }
@@ -398,7 +398,7 @@ object DesqRunner {
                 verbose = true
             }
             case _ => {
-                System.out.println("Do not know the pattern expression " + useCase)
+                System.out.println("Do not know the pattern expression " + expression)
                 System.exit(1)
             }
         }
@@ -423,55 +423,55 @@ object DesqRunner {
                 useFlist = false
             case "SemiNaive" =>
                 useDesqCount = true
-            case "DesqSeq.noGrid.noTrim" =>
+            case "D-SEQ.noGrid.noTrim" =>
                 aggregateShuffleSequences = false
-            case "DesqSeq.noGrid.noTrim.noStop" =>
+            case "D-SEQ.noGrid.noTrim.noStop" =>
                 aggregateShuffleSequences = false
                 stopAtLastPivotPos = false
-            case "DesqSeq.noGrid" =>
+            case "D-SEQ.noGrid" =>
                 aggregateShuffleSequences = false
                 trimInputSequences = true
-            case "DesqSeq.noGrid.noStop" =>
+            case "D-SEQ.noGrid.noStop" =>
                 aggregateShuffleSequences = false
                 trimInputSequences = true
                 stopAtLastPivotPos = false
-            case "DesqSeq.noTrim.noStop" =>
+            case "D-SEQ.noTrim.noStop" =>
                 aggregateShuffleSequences = false
                 useGrid = true
                 stopAtLastPivotPos = false
-            case "DesqSeq.noTrim" =>
+            case "D-SEQ.noTrim" =>
                 aggregateShuffleSequences = false
                 useGrid = true
-            case "DesqSeq.noStop" =>
+            case "D-SEQ.noStop" =>
                 aggregateShuffleSequences = false
                 useGrid = true
                 trimInputSequences = true
                 stopAtLastPivotPos = false
-            case "DesqSeq" =>
+            case "D-SEQ" =>
                 aggregateShuffleSequences = false
                 useGrid = true
                 trimInputSequences = true
-            case "DesqSeq.sendAllFreq" =>
+            case "D-SEQ.sendAllFreq" =>
                 sendToAllFrequentItems = true
                 aggregateShuffleSequences = false
-            case "DesqCand" =>
+            case "D-CAND" =>
                 sendNFAs = true
                 mergeSuffixes = true
                 aggregateShuffleSequences = true
-            case "DesqCand.constructWithGrid" =>
+            case "D-CAND.constructWithGrid" =>
                 sendNFAs = true
                 mergeSuffixes = true
                 aggregateShuffleSequences = true
                 useGrid = true
-            case "DesqCand.tries.noAgg" =>
+            case "D-CAND.tries.noAgg" =>
                 sendNFAs = true
                 mergeSuffixes = false
                 aggregateShuffleSequences = false
-            case "DesqCand.tries" =>
+            case "D-CAND.tries" =>
                 sendNFAs = true
                 mergeSuffixes = false
                 aggregateShuffleSequences = true
-            case "DesqCand.noAgg" =>
+            case "D-CAND.noAgg" =>
                 sendNFAs = true
                 mergeSuffixes = true
                 aggregateShuffleSequences = false
@@ -481,7 +481,7 @@ object DesqRunner {
                 aggregateShuffleSequences = true
                 useHybrid = true
             case _ =>
-                System.out.println("Unknown algorithm variant")
+                System.out.println("Unknown algorithm variant: " + algorithm)
                 System.exit(0)
         }
     }
